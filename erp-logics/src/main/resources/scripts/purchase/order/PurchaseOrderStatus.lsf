@@ -70,6 +70,36 @@ EXTEND FORM orders
 
 emailNameSkuOrderDetail = ABSTRACT VARISTRING[255] (OrderDetail) PERSISTENT;
 
+fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA VARSTRING[300] () MINCHARWIDTH 30 PREFCHARWIDTH 50; 
+messageEmailOrders 'Предупреждающая надпись в сообщении' = DATA RICHTEXT ();
+
+EXTEND FORM options
+    PROPERTIES() fromEmailOrders, messageEmailOrders
+;
+
+EXTEND DESIGN options{
+    orders{
+        NEW email{
+            caption = 'Почта';
+            fill = 1;
+            ADD PROPERTY(fromEmailOrders());
+            ADD PROPERTY(messageEmailOrders()) {
+                fill = 1;
+                panelLabelAbove = TRUE;
+            }        
+        }
+
+    }
+}
+
+nameOrder = CONCAT '', 'Заказа № ' + seriesNumberOrder(order) + ' от '  + dateOrder(order)+ ' '+ fullNameCustomerOrder(order);
+
+FORM messageOrders 'Сообщение'
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES(o) seriesNumberOrder, dateOrder, fullNameCustomerOrder
+    PROPERTIES () messageEmailOrders TODRAW o
+;
+
 FORM emailOrder 'Заказ'
     OBJECTS o = Order FIXED PANEL
     PROPERTIES (o) numberOrder, seriesOrder, nameSupplierOrder, nameCustomerOrder, nameSupplierStockOrder, nameCustomerStockOrder,
@@ -86,17 +116,17 @@ FORM emailOrder 'Заказ'
 ;
 
 calcEmailCustomerOrder 'Отправить заказ поставщику' (order) = ACTION EMAIL
-    FROM emailLegalEntity(customerOrder(order))
+    FROM fromEmailOrders()
     SUBJECT 'Заказа №' + seriesNumberOrder(order) + ' от '  + dateOrder(order)
-    TO emailLegalEntity(supplierOrder(order))
-    INLINE emailOrder OBJECTS o=order
-    ATTACH PDF
+    TO (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order)))
+    INLINE messageOrders OBJECTS o=order
+    ATTACH XLSX 
            NAME 'Заказ №' + seriesNumberOrder(order) + ' от ' + dateOrder(order)
            emailOrder OBJECTS o=order
 ;
 
 emailCustomerOrder 'Отправить заказ поставщику' (order)= ACTION (order) {
-    IF emailLegalEntity(supplierOrder(order)) THEN {
+    IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order))) THEN {
         NEWSESSION AUTOAPPLY {
             isSentOrder(o) <- TRUE;
             
@@ -111,7 +141,6 @@ emailCustomerOrder 'Отправить заказ поставщику' (order)=
 EXTEND FORM orders 
     PROPERTIES(o) emailCustomerOrder  
 ; 
-
 EXTEND DESIGN orders {
     actionContainer {
         NEW emailContainer {

@@ -68,6 +68,9 @@ userLegalEntityStock(legalEntity, stock) += userLegalEntityWarehouse(legalEntity
 addressWarehouse 'Адрес' (warehouse) = DATA VARSTRING[100] (Warehouse);
 addressStock(stock) += addressWarehouse(stock);
 
+emailWarehouse 'E-mail для заказов' (warehouse) = DATA VARSTRING[300] (Warehouse)MINCHARWIDTH 30 PREFCHARWIDTH 50;
+emailStock(stock) += emailWarehouse(stock);
+
 latitudeWarehouse 'Координата X' = DATA NUMERIC[10,5](Warehouse);
 longitudeWarehouse 'Координата Y' = DATA NUMERIC[10,5](Warehouse);
 
@@ -89,7 +92,8 @@ inactiveStock(st) += inactiveWarehouse(st);
 FORM warehouse 'Склад'
 
     OBJECTS           w=Warehouse FIXED PANEL
-    PROPERTIES(w)     nameWarehouse, fullNameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, nameLegalEntityWarehouse,
+    PROPERTIES(w)     nameWarehouse, fullNameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, 
+                      emailWarehouse, nameLegalEntityWarehouse,
                       latitudeWarehouse, longitudeWarehouse, showOnMapPOI, quantityDaysCloseWarehouse SHOWIF isCompanyStock(w), nameRegionStock SHOWIF isCompanyStock(w), inactiveWarehouse,
                       dataDefaultCompanyStock
     ORDER BY          nameWarehouse(w)
@@ -123,6 +127,7 @@ DESIGN warehouse FROM DEFAULT{
                 caption = 'Координаты';
                 type = CONTAINERH;
                 ADD PROPERTY(addressWarehouse(w));
+                ADD PROPERTY(emailWarehouse(w));
                 ADD PROPERTY(latitudeWarehouse(w));
                 ADD PROPERTY(longitudeWarehouse(w));
                 ADD PROPERTY(showOnMapPOI(w));
@@ -155,7 +160,8 @@ FORM warehouses 'Склады'
     FILTERS stringEqualsAll(b)
 
     OBJECTS w=Warehouse
-    PROPERTIES(w) READONLYIF isReadonly() nameWarehouse, fullNameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, nameLegalEntityWarehouse, nameRegionStock, latitudePOI, longitudePOI
+    PROPERTIES(w) READONLYIF isReadonly() nameWarehouse, fullNameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, 
+                  addressWarehouse, emailWarehouse, nameLegalEntityWarehouse, nameRegionStock, latitudePOI, longitudePOI
     PROPERTIES(w) ADDFORM, EDITFORM, deletew=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameWarehouse(w)
     FILTERS isParentWarehouseGroupWarehouse(wg, w) OR (w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroupWarehouse(w)) OR (w IS Warehouse AND NOT wg)
