@@ -48,7 +48,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
             Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister").read(context);
-            ObjectValue userObject = findProperty("userReceipt").readClasses(context, receiptObject);
+            ObjectValue userObject = findProperty("employeeReceipt").readClasses(context, receiptObject);
             Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
             BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetailReceipt").read(context, receiptObject);
             BigDecimal sumDisc = (BigDecimal) findProperty("discountSumReceiptDetailReceipt").read(context, receiptObject);

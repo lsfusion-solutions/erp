@@ -161,8 +161,9 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                         numberReceiptDetail = 1;
                                         oldReceiptNumber = receiptNumber;
                                     }
-                                    salesInfoList.add(new SalesInfo(entry.getKey(), null, zReportNumber, receiptNumber, date, time, BigDecimal.ZERO, sumCash, barcodeReceiptDetail,
-                                            null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, fileName));
+                                    salesInfoList.add(new SalesInfo(entry.getKey(), null, zReportNumber, receiptNumber, date, time, null, null, null,
+                                            BigDecimal.ZERO, sumCash, barcodeReceiptDetail, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
+                                            discountSumReceiptDetail, null, null, numberReceiptDetail, fileName));
                                     numberReceiptDetail++;
                                 }
                             }

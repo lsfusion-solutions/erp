@@ -581,7 +581,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                         currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
-                                                                numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
+                                                                numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, barcode,
                                                                 null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName));
                                                 }
 
@@ -644,7 +644,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                         if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                             currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
-                                                                    numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
+                                                                    numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, barcode,
                                                                     null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                                     numberReceiptDetail, fileName));
                                                     }

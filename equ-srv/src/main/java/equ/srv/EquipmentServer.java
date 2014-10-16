@@ -1341,6 +1341,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImportField timeReceiptField = new ImportField(zReportLM.findProperty("timeReceipt"));
                     ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPostedZReport"));
 
+                    ImportField idEmployeeField = new ImportField(zReportLM.findProperty("idEmployee"));
+                    ImportField firstNameContactField = new ImportField(zReportLM.findProperty("firstNameContact"));
+                    ImportField lastNameContactField = new ImportField(zReportLM.findProperty("lastNameContact"));
+
                     ImportField idReceiptDetailField = new ImportField(zReportLM.findProperty("idReceiptDetail"));
                     ImportField numberReceiptDetailField = new ImportField(zReportLM.findProperty("numberReceiptDetail"));
                     ImportField idBarcodeReceiptDetailField = new ImportField(zReportLM.findProperty("idBarcodeReceiptDetail"));
@@ -1374,6 +1378,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField));
                     ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receiptId").getMapping(idReceiptField));
                     ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
+                    ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employeeId").getMapping(idEmployeeField));
                     ImportKey<?> discountCardKey = null;
                     if (discountCardLM != null)
                         discountCardKey = new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
@@ -1398,6 +1403,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
                                 discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                     }
+                    saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("idEmployee").getMapping(employeeKey)));
+                    saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employeeReceipt").getMapping(receiptKey),
+                            zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
+                    saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstNameContact").getMapping(employeeKey), true));
+                    saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastNameContact").getMapping(employeeKey), true));
+                    
                     ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
                     saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("idReceiptDetail").getMapping(receiptSaleDetailKey)));
                     saleProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
@@ -1435,6 +1446,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
                                 discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                     }
+                    returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("loginCustomUser").getMapping(employeeKey)));
+                    returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employeeReceipt").getMapping(receiptKey),
+                            zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
+                    returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstNameContact").getMapping(employeeKey), true));
+                    returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastNameContact").getMapping(employeeKey), true));
+                    
                     ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
                     returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("idReceiptDetail").getMapping(receiptReturnDetailKey)));
                     returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
@@ -1468,10 +1485,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idReceiptDetail = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_"  + sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail;
                         if (sale.quantityReceiptDetail.doubleValue() < 0) {
                             List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
-                                    sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
-                                    idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
-                                    sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
-                                    sale.discountSumReceipt);
+                                    sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact, 
+                                    idReceipt, sale.numberReceipt, idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                    sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
                                 row.add(sale.seriesNumberDiscountCard);
@@ -1479,10 +1495,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             dataReturn.add(row);
                         } else {
                             List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
-                                    sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
-                                    idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
-                                    sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
-                                    sale.discountSumReceipt);
+                                    sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                    idReceipt, sale.numberReceipt, idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                    sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
                                 row.add(sale.seriesNumberDiscountCard);
@@ -1498,8 +1513,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     List<ImportField> saleImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                            idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
-                            numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
+                            idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, 
+                            idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField, 
+                            idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                             quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
                             discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
                     if (discountCardLM != null) {
@@ -1508,8 +1524,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                            idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
-                            numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
+                            idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, 
+                            idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField, 
+                            idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                             quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
                             discountSumReceiptReturnDetailField, discountSumReturnReceiptField);
                     if (discountCardLM != null) {
@@ -1518,7 +1535,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
 
-                    List<ImportKey<?>> saleKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey);
+                    List<ImportKey<?>> saleKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, employeeKey);
                     if (discountCardLM != null) {
                         saleKeys = new ArrayList<ImportKey<?>>(saleKeys);
                         saleKeys.add(discountCardKey);
@@ -1527,7 +1544,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 //                    session.pushVolatileStats("ES_SI");
                     new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
 
-                    List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey);
+                    List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey);
                     if (discountCardLM != null) {
                         returnKeys = new ArrayList<ImportKey<?>>(returnKeys);
                         returnKeys.add(discountCardKey);

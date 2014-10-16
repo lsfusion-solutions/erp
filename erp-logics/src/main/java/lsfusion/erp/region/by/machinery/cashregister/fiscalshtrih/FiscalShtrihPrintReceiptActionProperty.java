@@ -51,7 +51,7 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                 Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
                 int password = pass == null ? 30000 : pass * 1000;
 
-                String cashierName = (String) findProperty("nameUserReceipt").read(context, receiptObject);
+                String cashierName = (String) findProperty("nameEmployeeReceipt").read(context, receiptObject);
                 cashierName = cashierName == null ? "" : cashierName.trim();
                 String holderDiscountCard = (String) findProperty("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
                 holderDiscountCard = holderDiscountCard == null ? "" : holderDiscountCard.trim();

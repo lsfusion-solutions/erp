@@ -12,6 +12,9 @@ public class SalesInfo implements Serializable {
     public Integer numberReceipt;
     public Date dateReceipt;
     public Time timeReceipt;
+    public String idEmployee;
+    public String firstNameContact;
+    public String lastNameContact;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
     public String barcodeItem;
@@ -26,15 +29,19 @@ public class SalesInfo implements Serializable {
     public String filename;
 
     public SalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Integer numberReceipt,
-                     Date dateReceipt, Time timeReceipt, BigDecimal sumCard, BigDecimal sumCash, String barcodeItem, Integer itemObject, 
-                     BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail, 
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename) {
+                     Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact, String lastNameContact, BigDecimal sumCard, 
+                     BigDecimal sumCash, String barcodeItem, Integer itemObject, BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, 
+                     BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt, String seriesNumberDiscountCard, 
+                     Integer numberReceiptDetail, String filename) {
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
         this.numberZReport = numberZReport;
         this.numberReceipt = numberReceipt;
         this.dateReceipt = dateReceipt;
         this.timeReceipt = timeReceipt;
+        this.idEmployee = idEmployee;
+        this.firstNameContact = firstNameContact;
+        this.lastNameContact = lastNameContact;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
         this.barcodeItem = barcodeItem;

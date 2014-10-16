@@ -445,6 +445,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 Integer numberCashRegister = readIntegerXMLAttribute(purchaseNode, "cash");
                                 String numberZReport = readStringXMLAttribute(purchaseNode, "shift");
                                 Integer numberReceipt = readIntegerXMLAttribute(purchaseNode, "number");
+                                String idEmployee = readStringXMLAttribute(purchaseNode, "tabNumber");
+                                String nameEmployee = readStringXMLAttribute(purchaseNode, "userName");
+                                String firstNameEmployee = null;
+                                String lastNameEmployee = null;
+                                if(nameEmployee != null) {
+                                    String[] splittedNameEmployee = nameEmployee.split(" ");
+                                    lastNameEmployee = splittedNameEmployee[0];
+                                    for (int i = 1; i< splittedNameEmployee.length; i++) {
+                                        firstNameEmployee = firstNameEmployee == null ? splittedNameEmployee[i] : (firstNameEmployee + " " + splittedNameEmployee[i]);
+                                    }
+                                }
                                 BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
                                 //discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
 
@@ -502,9 +513,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                             currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
-                                                    numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
-                                                    null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
-                                                    numberReceiptDetail, fileName));
+                                                    numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, 
+                                                    barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, numberReceiptDetail, fileName));
                                     }
 
                                 }

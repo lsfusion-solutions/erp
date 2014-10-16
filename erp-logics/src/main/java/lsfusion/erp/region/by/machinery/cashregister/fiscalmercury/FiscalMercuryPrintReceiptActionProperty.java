@@ -46,7 +46,7 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 context.apply();
                 findAction("createCurrentReceipt").execute(context);
             } else {
-                String cashierName = (String) findProperty("nameUserReceipt").read(context, receiptObject);
+                String cashierName = (String) findProperty("nameEmployeeReceipt").read(context, receiptObject);
                 cashierName = cashierName == null ? "" : cashierName.trim();
                 String holderDiscountCard = (String) findProperty("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
                 holderDiscountCard = holderDiscountCard == null ? "" : holderDiscountCard.trim();
