@@ -105,22 +105,22 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                                     result = Dispatch.call(shtrihDispatch, "SetMessageData");
                                     if (!result.toString().equals("0")) {
-                                        throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
+                                        throw new RuntimeException(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result)));
                                     }
                                 }
 
                                 result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
                                 if (!result.toString().equals("0")) {
-                                    throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
+                                    throw new RuntimeException(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result)));
                                 }
                             }
                             result = Dispatch.call(shtrihDispatch, "Disconnect");
                             if (!result.toString().equals("0")) {
-                                throw new RuntimeException("ShtrihPrintHandler. Disconnection error (# " + result.toString() + ")");
+                                throw new RuntimeException(String.format("ShtrihPrintHandler. Disconnection error # %s (%s)", result.getInt(), getErrorText(result)));
                             }
                         } else {
                             Dispatch.call(shtrihDispatch, "Disconnect");
-                            throw new RuntimeException("ShtrihPrintHandler. Connection error (# " + result.toString() + ")");
+                            throw new RuntimeException(String.format("ShtrihPrintHandler. Connection error # %s (%s)", result.getInt(), getErrorText(result)));
                         }
                         logger.info("Shtrih: Disconnecting ip: " + ip);
                     } finally {
@@ -129,6 +129,28 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 }
         }
         return null;
+    }
+    
+    private String getErrorText(Variant index) {
+        switch (index.getInt()) {
+            case -21: return "Блок данных имеет максимальную длину";
+            case -20: return "Соединение не установлено";
+            case -19: return "UDP - порт занят другим приложением";
+            case -18: return "Неверный тип устройства";
+            case -17: return "Неверная высота штрих - кода";
+            case -16: return "Нет активного логического устройства";
+            case -15: return "Команда не реализуется в данной версии";
+            case -14: return "Удаление логического устройства невозможно";
+            case -13: return "Устройство занято";
+            case -12: return "Нет ответа на предыдущую команду";
+            case -11: return "Команда не является широковещательной";
+            case -10: return "Неверный номер логического устройства";
+            case -9: return "Параметр вне диапазона";
+            case -3: return "Сом - порт недоступен";
+            case -2: return "Сом - порт занят другим приложением";
+            case -1: return "Нет связи";
+            default: return String.valueOf(index);
+        }
     }
 
     @Override
