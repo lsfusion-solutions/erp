@@ -139,7 +139,10 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                 ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
-        if (orderDetailsList != null && !orderDetailsList.isEmpty()) {
+        if (orderDetailsList != null) {
+            
+            if(orderDetailsList.isEmpty())
+                return true;
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -555,60 +558,67 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
 
-        File tempFile = File.createTempFile("saleOrder", ".dbf");
-        IOUtils.putFileBytes(tempFile, importFile);
+        File tempFile = null;
+        DBF file = null;
+        try {
+            tempFile = File.createTempFile("saleOrder", ".dbf");
+            IOUtils.putFileBytes(tempFile, importFile);
 
-        DBF file = new DBF(tempFile.getPath());
-        String charset = getDBFCharset(tempFile);
+            file = new DBF(tempFile.getPath());
+            String charset = getDBFCharset(tempFile);
 
-        int totalRecordCount = file.getRecordCount();
+            int totalRecordCount = file.getRecordCount();
 
-        for (int i = 0; i < startRow - 1; i++) {
-            file.read();
-        }
-        
-        for (int i = startRow - 1; i < totalRecordCount; i++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
-            
-            file.read();
-
-            for(String field : stringFields) {
-                String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
-                if(field.equals("idDocumentDetail"))
-                    fieldValues.put(field, String.valueOf(orderObject) + i);
-                else if(field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                else if(field.equals("idCustomerStock")) {
-                    String idCustomer = readIdCustomer(session, value);
-                    fieldValues.put(field, value);
-                    fieldValues.put("idCustomer", idCustomer);
-                } else
-                    fieldValues.put(field, value);
+            for (int i = 0; i < startRow - 1; i++) {
+                file.read();
             }
-            for(String field : bigDecimalFields) {
-                BigDecimal value = getDBFBigDecimalFieldValue(file, importColumns.get(field), i, charset);
-                if (field.equals("dataIndex"))
-                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                else
-                    fieldValues.put(field, value);
+
+            for (int i = startRow - 1; i < totalRecordCount; i++) {
+                Map<String, Object> fieldValues = new HashMap<String, Object>();
+
+                file.read();
+
+                for (String field : stringFields) {
+                    String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
+                    if (field.equals("idDocumentDetail"))
+                        fieldValues.put(field, String.valueOf(orderObject) + i);
+                    else if (field.equals("valueVAT"))
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                    else if (field.equals("barcodeItem"))
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                    else if (field.equals("idCustomerStock")) {
+                        String idCustomer = readIdCustomer(session, value);
+                        fieldValues.put(field, value);
+                        fieldValues.put("idCustomer", idCustomer);
+                    } else
+                        fieldValues.put(field, value);
+                }
+                for (String field : bigDecimalFields) {
+                    BigDecimal value = getDBFBigDecimalFieldValue(file, importColumns.get(field), i, charset);
+                    if (field.equals("dataIndex"))
+                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                    else
+                        fieldValues.put(field, value);
+                }
+                for (String field : dateFields) {
+                    fieldValues.put(field, getDBFDateFieldValue(file, importColumns.get(field), i, charset));
+                }
+
+                SaleOrderDetail saleOrderDetail = new SaleOrderDetail(fieldValues, isPosted);
+
+                String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i, charset);
+                String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i, charset);
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
+                    primaryList.add(saleOrderDetail);
+                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
+                    secondaryList.add(saleOrderDetail);
             }
-            for(String field : dateFields) {
-                fieldValues.put(field, getDBFDateFieldValue(file, importColumns.get(field), i, charset));
-            }           
-
-            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(fieldValues, isPosted);
-
-            String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i, charset);
-            String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i, charset);
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
-                primaryList.add(saleOrderDetail);
-            else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                secondaryList.add(saleOrderDetail);
+        } finally {
+            if(file != null)
+                file.close();
+            if(tempFile != null)
+                tempFile.delete();
         }
-        file.close();
-        tempFile.delete();
 
         return Arrays.asList(primaryList, secondaryList);
     }
