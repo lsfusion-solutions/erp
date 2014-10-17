@@ -164,7 +164,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         DataObject defaultItemGroupObject = importColumnProperties.getDefaultItemGroupObject();
         Set<DataObject> dataPriceListTypeObjectList = importColumnProperties.getPriceColumns().keySet();
 
-        if (userPriceListDetailsList != null && !userPriceListDetailsList.isEmpty()) {
+        if (userPriceListDetailsList != null) {
+            
+            if(userPriceListDetailsList.isEmpty())
+                return true;
             
             boolean doNotCreateItems = importColumnProperties.getDoNotCreateItems() != null && importColumnProperties.getDoNotCreateItems();
 
