@@ -1,6 +1,6 @@
 MODULE PurchaseOrderStatus;
 
-REQUIRE PurchaseOrder;
+REQUIRE PurchaseOrder, OrderPrint;
 
 NAMESPACE Purchase;
 
@@ -100,21 +100,6 @@ FORM messageOrders 'Сообщение'
     PROPERTIES () messageEmailOrders TODRAW o
 ;
 
-FORM emailOrder 'Заказ'
-    OBJECTS o = Order FIXED PANEL
-    PROPERTIES (o) seriesNumberOrder, numberOrder, seriesOrder, nameSupplierOrder, nameCustomerOrder, nameSupplierStockOrder, nameCustomerStockOrder,
-                   dateOrder, timeOrder, nameCurrencyOrder, noteOrder,
-                   countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
-                   VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, shipmentDateOrder
-
-    OBJECTS d = OrderDetail
-    PROPERTIES (d) indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, emailNameSkuOrderDetail, shortNameUOMSkuOrderDetail,
-                   quantityOrderDetail, priceOrderDetail,  sumOrderDetail, valueVATOrderDetail,
-                   VATSumOrderDetail, invoiceSumOrderDetail
-
-    FILTERS orderOrderDetail(d) == o
-;
-
 calcEmailCustomerOrder 'Отправить заказ поставщику' (order) = ACTION EMAIL
     FROM fromEmailOrders()
     SUBJECT 'Заказа №' + seriesNumberOrder(order) + ' от '  + dateOrder(order)
@@ -122,7 +107,7 @@ calcEmailCustomerOrder 'Отправить заказ поставщику' (ord
     INLINE messageOrders OBJECTS o=order
     ATTACH XLSX 
            NAME 'Заказ №' + seriesNumberOrder(order) + ' от ' + dateOrder(order)
-           emailOrder OBJECTS o=order
+           printOrderXLS OBJECTS o=order
 ;
 
 emailCustomerOrder 'Отправить заказ поставщику' (order)= ACTION (order) {
