@@ -59,6 +59,51 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
+    public void sendTerminalOrderList(List terminalOrderList, Integer nppGroupTerminal, String directoryGroupTerminal) throws IOException {
+        try {
+
+            File directory = new File(directoryGroupTerminal + dbPath);
+            if (directory.exists() || directory.mkdir()) {
+                Class.forName("org.sqlite.JDBC");
+                Connection connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal));
+
+                createGoodsTableIfNotExists(connection);
+                updateTerminalGoodsTable(connection, terminalOrderList);
+
+                createOrderTable(connection);
+                updateOrderTable(connection, terminalOrderList);
+
+                connection.close();
+
+            } else {
+                logger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
+                throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
+            }
+
+            if (directoryGroupTerminal != null) {
+                String exchangeDirectory = directoryGroupTerminal + "\\exchange";
+                if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
+                    //copy base to exchange directory                   
+                    FileInputStream fis = new FileInputStream(new File(makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal)));
+                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "\\base.zip"));
+                    ZipOutputStream zos = new ZipOutputStream(fos);
+                    zos.putNextEntry(new ZipEntry("tsd.db"));
+                    byte[] buf = new byte[1024];
+                    int len;
+                    while ((len = fis.read(buf)) > 0) {
+                        zos.write(buf, 0, len);
+                    }
+                    fis.close();
+                    zos.close();
+                }
+            }
+        } catch (Exception e) {
+            logger.error(e);
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public void saveTransactionTerminalInfo(TransactionTerminalInfo transactionInfo) throws IOException {
 
         logger.info("LSTerminal: save Transaction #" + transactionInfo.id);
@@ -85,9 +130,6 @@ public class LSTerminalHandler extends TerminalHandler {
 
                 createVOPTableIfNotExists(connection);
                 updateVOPTable(connection, transactionInfo);
-
-                createOrderTable(connection);
-                updateOrderTable(connection, transactionInfo);
 
                 connection.close();
 
@@ -338,6 +380,21 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
     }
 
+    private void updateTerminalGoodsTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
+        if (listNotEmpty(terminalOrderList)) {
+            Statement statement = connection.createStatement();
+            String sql = "BEGIN TRANSACTION;";
+            for (TerminalOrder order : terminalOrderList) {
+                if (order.barcode != null)
+                    sql += String.format("INSERT OR IGNORE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
+                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "", "", "", "", "", "");
+            }
+            sql += "COMMIT;";
+            statement.executeUpdate(sql);
+            statement.close();
+        }
+    }
+    
     private void updateGoodsTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         if (listNotEmpty(transactionInfo.itemsList)) {
             Statement statement = connection.createStatement();
@@ -348,14 +405,6 @@ public class LSTerminalHandler extends TerminalHandler {
                             formatValue(item.idBarcode), formatValue(item.name), formatValue(item.price),
                             formatValue(item.quantity), "", "", "", "", "", formatValue(item.image));
             }
-
-            //чит: добавляем товары из заказов, но только те, которых ещё нет в базе
-            for (TerminalOrder order : transactionInfo.terminalOrderList) {
-                if (order.barcode != null)
-                    sql += String.format("INSERT OR IGNORE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "", "", "", "", "", "");
-            }
-
             sql += "COMMIT;";
             statement.executeUpdate(sql);
             statement.close();
@@ -405,11 +454,11 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (listNotEmpty(transactionInfo.terminalOrderList)) {
+    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
+        if (listNotEmpty(terminalOrderList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
-            for (TerminalOrder order : transactionInfo.terminalOrderList) {
+            for (TerminalOrder order : terminalOrderList) {
                 if (order.number != null) {
                     String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
                     sql += String.format("INSERT OR REPLACE INTO zayavki VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",

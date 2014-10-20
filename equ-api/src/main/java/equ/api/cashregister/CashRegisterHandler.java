@@ -1,6 +1,7 @@
 package equ.api.cashregister;
 
 import equ.api.MachineryHandler;
+import equ.api.RequestExchange;
 import equ.api.SalesBatch;
 import java.io.IOException;
 import java.math.BigDecimal;

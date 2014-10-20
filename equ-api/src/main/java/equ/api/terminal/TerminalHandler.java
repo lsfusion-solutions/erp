@@ -8,6 +8,8 @@ import java.util.List;
 
 public abstract class TerminalHandler<S extends SalesBatch> extends MachineryHandler<TransactionTerminalInfo, TerminalInfo, S> {
 
+    public abstract void sendTerminalOrderList(List<TerminalOrder> terminalOrderList, Integer nppGroupTerminal, String directorySet) throws IOException;
+
     public abstract void saveTransactionTerminalInfo(TransactionTerminalInfo transactionInfo) throws IOException;
     
     public abstract TerminalDocumentBatch readTerminalDocumentInfo(List<TerminalInfo> machineryInfoList) throws IOException;

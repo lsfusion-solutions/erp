@@ -2,10 +2,7 @@ package equ.clt;
 
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.api.terminal.TerminalDocumentBatch;
-import equ.api.terminal.TerminalHandler;
-import equ.api.terminal.TerminalInfo;
-import equ.api.terminal.TransactionTerminalInfo;
+import equ.api.terminal.*;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -22,7 +19,6 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
@@ -50,6 +46,9 @@ public class EquipmentServer {
 
     Consumer sendTerminalDocumentConsumer;
     Thread sendTerminalDocumentThread;
+
+    Consumer machineryExchangeConsumer;
+    Thread machineryExchangeThread;
     
     boolean needReconnect = false;
 
@@ -112,6 +111,7 @@ public class EquipmentServer {
                             sendSalesConsumer.scheduleIfNotScheduledYet();                                                       
                             sendSoftCheckConsumer.scheduleIfNotScheduledYet();
                             sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
+                            machineryExchangeConsumer.scheduleIfNotScheduledYet();
                         }
 
                     } catch (Exception e) {
@@ -127,6 +127,8 @@ public class EquipmentServer {
                         sendSoftCheckThread = null;
                         sendTerminalDocumentThread.interrupt();
                         sendTerminalDocumentThread = null;
+                        machineryExchangeThread.interrupt();
+                        machineryExchangeThread = null;
                     }
 
                     try {
@@ -211,6 +213,20 @@ public class EquipmentServer {
         sendTerminalDocumentThread = new Thread(sendTerminalDocumentConsumer);
         sendTerminalDocumentThread.setDaemon(true);
         sendTerminalDocumentThread.start();
+
+        machineryExchangeConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                try {
+                    processMachineryExchange(remote, sidEquipmentServer);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                }
+            }
+        };
+        machineryExchangeThread = new Thread(machineryExchangeConsumer);
+        machineryExchangeThread.setDaemon(true);
+        machineryExchangeThread.start();
     }
 
 
@@ -280,27 +296,26 @@ public class EquipmentServer {
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
         Set<Integer> succeededRequestsSet = new HashSet<Integer>();
         
-        Map<String, List<CashRegisterInfo>> handlerModelCashRegisterMap = new HashMap<String, List<CashRegisterInfo>>();
+        Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<String, Set<String>>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (!handlerModelCashRegisterMap.containsKey(cashRegister.handlerModel))
-                handlerModelCashRegisterMap.put(cashRegister.handlerModel, new ArrayList<CashRegisterInfo>());
-            handlerModelCashRegisterMap.get(cashRegister.handlerModel).add(cashRegister);
+            Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
+            directorySet.add(cashRegister.directory);
+            handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
         }
 
-        for (Map.Entry<String, List<CashRegisterInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : handlerModelDirectoryMap.entrySet()) {
             String handlerModel = entry.getKey();
+            Set<String> directorySet = entry.getValue();
 
             if (handlerModel != null) {
 
                 try {
-                    CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
+                    
+                    MachineryHandler clsHandler = (MachineryHandler) getHandler(handlerModel, remote);
 
-                    Set<String> directorySet = new HashSet<String>();
-                    for (CashRegisterInfo cashRegisterInfo : entry.getValue()) {
-                        directorySet.add(cashRegisterInfo.directory);
-                    }
-
-                    Map succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(directorySet);
+                    if(clsHandler instanceof CashRegisterHandler) {
+                    
+                    Map succeededSoftCheckInfo = ((CashRegisterHandler) clsHandler).requestSucceededSoftCheckInfo(directorySet);
                     if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
                         logger.info("Sending succeeded SoftCheckInfo");
                         String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
@@ -310,10 +325,10 @@ public class EquipmentServer {
 
                     if (!requestExchangeList.isEmpty()) {
                         logger.info("Requesting SalesInfo");
-                        String result = clsHandler.requestSalesInfo(requestExchangeList);
+                        String result = ((CashRegisterHandler) clsHandler).requestSalesInfo(requestExchangeList);
                         if (result == null) {
                             for (RequestExchange request : requestExchangeList) {
-                                if (request.requestSalesInfo)
+                                if (request.isSalesInfoExchange())
                                     succeededRequestsSet.add(request.requestExchange);
                             }
                         } else {
@@ -322,18 +337,18 @@ public class EquipmentServer {
                     }
 
                     Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
-                    CashDocumentBatch cashDocumentBatch = clsHandler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
+                    CashDocumentBatch cashDocumentBatch = ((CashRegisterHandler) clsHandler).readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
                     if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
                         logger.info("Sending CashDocuments");
                         String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
                         if (result != null) {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
-                            clsHandler.finishReadingCashDocumentInfo(cashDocumentBatch);
+                            ((CashRegisterHandler) clsHandler).finishReadingCashDocumentInfo(cashDocumentBatch);
                         }
                     }
 
-                    SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
+                    SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(cashRegisterInfoList);
                     if (salesBatch == null) {
                         logger.info("SalesInfo is empty");
                     } else {
@@ -343,27 +358,27 @@ public class EquipmentServer {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
                             logger.info("Finish Reading starts");
-                            clsHandler.finishReadingSalesInfo(salesBatch);
+                            ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
                         }
                     }
 
-                    ExtraCheckZReportBatch extraCheckResult = clsHandler.extraCheckZReportSum(cashRegisterInfoList, remote.readZReportSumMap());
+                    ExtraCheckZReportBatch extraCheckResult = ((CashRegisterHandler) clsHandler).extraCheckZReportSum(cashRegisterInfoList, remote.readZReportSumMap());
                     if (extraCheckResult != null) {
-                        if(extraCheckResult.message.isEmpty()) {
+                        if (extraCheckResult.message.isEmpty()) {
                             remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
                         } else {
                             reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
                         }
                     }
 
-                    if(!requestExchangeList.isEmpty()) {
-                        for(RequestExchange request : requestExchangeList) {
-                            if(!request.requestSalesInfo) {
+                    if (!requestExchangeList.isEmpty()) {
+                        for (RequestExchange request : requestExchangeList) {
+                            if (request.isCheckZReportExchange()) {
                                 request.extraStockSet.add(request.idStock);
-                                for(String idStock : request.extraStockSet) {
+                                for (String idStock : request.extraStockSet) {
                                     Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
                                     List<String> idCashRegisters = remote.readCashRegistersStock(idStock);
-                                    String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, idCashRegisters);
+                                    String checkSumResult = zReportSumMap.isEmpty() ? null : ((CashRegisterHandler) clsHandler).checkZReportSum(zReportSumMap, idCashRegisters);
                                     if (checkSumResult != null) {
                                         reportEquipmentServerError(remote, sidEquipmentServer, String.format("Склад %s: \n%s", idStock, checkSumResult));
                                     }
@@ -372,11 +387,11 @@ public class EquipmentServer {
                             }
                         }
                     }
-                    
-                    if(!succeededRequestsSet.isEmpty())
+
+                    if (!succeededRequestsSet.isEmpty())
                         remote.finishRequestExchange(succeededRequestsSet);
-                        
-                    
+
+                }
                 } catch (Throwable e) {
                     logger.error("Equipment server error: ", e);
                     remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
@@ -442,6 +457,56 @@ public class EquipmentServer {
                     logger.error("Equipment server error: ", e);
                     remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
                     return;
+                }
+            }
+        }
+    }
+
+    private void processMachineryExchange(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
+        logger.info("Process MachineryExchange");
+        List<TerminalInfo> terminalInfoList = remote.readTerminalInfo(sidEquipmentServer);
+        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
+
+        if (!requestExchangeList.isEmpty()) {
+
+            Map<String, Map<Integer, String>> handlerModelMachineryMap = new HashMap<String, Map<Integer, String>>();
+            for (TerminalInfo terminal : terminalInfoList) {
+                if (!handlerModelMachineryMap.containsKey(terminal.handlerModel))
+                    handlerModelMachineryMap.put(terminal.handlerModel, new HashMap<Integer, String>());
+                handlerModelMachineryMap.get(terminal.handlerModel).put(terminal.numberGroup, terminal.directory);
+            }
+
+            for (Map.Entry<String, Map<Integer, String>> entry : handlerModelMachineryMap.entrySet()) {
+                String handlerModel = entry.getKey();
+                Map<Integer, String> machineryMap = entry.getValue();
+                if (handlerModel != null) {
+                    try {
+                        for (RequestExchange requestExchange : requestExchangeList) {
+                            try {
+                                for (Map.Entry<Integer, String> machineryEntry : machineryMap.entrySet()) {
+                                    Integer nppGroupMachinery = machineryEntry.getKey();
+                                    String directoryGroupMachinery = machineryEntry.getValue();
+
+                                    MachineryHandler clsHandler = (MachineryHandler) getHandler(handlerModel, remote);
+                                    boolean isTerminalHandler = clsHandler instanceof TerminalHandler;
+
+                                    //TerminalOrder
+                                    if (requestExchange.isTerminalOrderExchange() && isTerminalHandler) {
+                                        List<TerminalOrder> terminalOrderList = remote.readTerminalOrderList(requestExchange);
+                                        if(terminalOrderList != null && !terminalOrderList.isEmpty())
+                                            ((TerminalHandler) clsHandler).sendTerminalOrderList(terminalOrderList, nppGroupMachinery, directoryGroupMachinery);
+                                        remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
+                                    }
+                                }
+                            } catch (Exception e) {
+                                remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+                            }
+                        }
+                    } catch (Throwable e) {
+                        logger.error("Equipment server error: ", e);
+                        remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+                        return;
+                    }
                 }
             }
         }

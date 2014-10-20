@@ -190,7 +190,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
-            if(entry.requestSalesInfo) {
+            if(entry.isSalesInfoExchange()) {
                 logger.info("Kristal: creating request files");
                 for (String directory : entry.directorySet) {
 

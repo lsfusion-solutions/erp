@@ -245,7 +245,8 @@ DESIGN machineryPriceTransactions FROM DEFAULT {
 
 CLASS RequestExchangeType 'Тип запроса' {
     salesInfo 'Перегрузить продажи',
-    checkZReport 'Сверить суммы z-отчётов'
+    checkZReport 'Сверить суммы z-отчётов',
+    terminalOrder 'Загрузить заказы'
 }
 
 FORM requestExchangeTypes 'Типы запросов'
@@ -271,17 +272,19 @@ nameRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange)
 captionRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticCaption(requestExchangeTypeRequestExchange(requestExchange));
 succeededRequestExchange 'Обработан' = DATA BOOLEAN (RequestExchange);
 notSucceededRequestExchange 'Не обработан' (requestExchange) = requestExchange IS RequestExchange AND NOT succeededRequestExchange(requestExchange);
+showExtraStocks(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.checkZReport OR 
+                                   requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.salesInfo;
 
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
                   captionRequestExchangeTypeRequestExchange, succeededRequestExchange
     OBJECTS s = Stock
-    PROPERTIES(s, r) inStockRequestExchange
-    PROPERTIES(s) idStock, nameStock, nameLegalEntityStock
+    PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
+    PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock
     FILTERS isCompanyStock(s)
     
-    EDIT RequestExchange OBJECT r;
+    EDIT RequestExchange OBJECT r
 ;
 
 FORM requestExchanges 'Запросы обмена данными'
@@ -290,7 +293,7 @@ FORM requestExchanges 'Запросы обмена данными'
     FILTERS isCompanyStock(s)
     
     OBJECTS r = RequestExchange
-    PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
+    PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange SHOWIF showExtraStocks(r), dateFromRequestExchange, dateToRequestExchange, 
                            captionRequestExchangeTypeRequestExchange, succeededRequestExchange
     PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     FILTERS stockRequestExchange(r) == s

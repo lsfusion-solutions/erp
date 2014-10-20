@@ -157,7 +157,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
 
         for (RequestExchange entry : requestExchangeList) {
-            if (entry.requestSalesInfo) {
+            if (entry.isSalesInfoExchange()) {
                 String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                 String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 

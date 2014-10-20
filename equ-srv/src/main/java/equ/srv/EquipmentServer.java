@@ -68,6 +68,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule equipmentCashRegisterLM;
     private ScriptingLogicsModule itemLM;
     private ScriptingLogicsModule legalEntityLM;
+    private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
@@ -128,6 +129,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         itemLM = getBusinessLogics().getModule("Item");
         legalEntityLM = getBusinessLogics().getModule("LegalEntity");
+        machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
@@ -294,9 +296,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
 
                     String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "nameModelMachinery", "handlerModelMachinery",
-                                                                   "overDirectoryCashRegister"};
+                                                                   "overDirectoryMachinery"};
                     LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "portMachinery", "nameModelMachinery", "handlerModelMachinery",
-                                                                   "overDirectoryCashRegister");
+                                                                   "overDirectoryMachinery");
                     for (int i = 0; i < cashRegisterProperties.length; i++) {
                         cashRegisterQuery.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterKey));
                     }
@@ -313,7 +315,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String nameModel = (String) row.get("nameModelMachinery");
                         String handlerModel = (String) row.get("handlerModelMachinery");
                         String portMachinery = (String) row.get("portMachinery");
-                        String directoryCashRegister = (String) row.get("overDirectoryCashRegister");
+                        String directoryCashRegister = (String) row.get("overDirectoryMachinery");
                         Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededCashRegisterMachineryPriceTransaction") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel,
                                 portMachinery, directoryCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister));
@@ -373,8 +375,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer nppMachinery = (Integer) values.get("nppMachinery");
                         String nameModel = (String) values.get("nameModelMachinery");
                         String handlerModel = (String) values.get("handlerModelMachinery");
-                        scalesInfoList.add(new ScalesInfo(nppMachinery, nameModel, handlerModel, portMachinery, directory,
-                                pieceCodeGroupScales, weightCodeGroupScales));
+                        scalesInfoList.add(new ScalesInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel, portMachinery, 
+                                directory, pieceCodeGroupScales, weightCodeGroupScales));
                     }
 
                     List<ScalesItemInfo> scalesItemInfoList = new ArrayList<ScalesItemInfo>();
@@ -422,8 +424,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session);
 
                     for (ImMap<Object, Object> values : checkResult.valueIt()) {
-                        priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("nppMachinery"), (String) values.get("nameCheckModelCheck"),
-                                null, (String) values.get("portMachinery")));
+                        priceCheckerInfoList.add(new PriceCheckerInfo(nppGroupMachinery, (Integer) values.get("nppMachinery"), 
+                                (String) values.get("nameCheckModelCheck"), null, (String) values.get("portMachinery"), null));
                     }
 
                     List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<PriceCheckerItemInfo>();
@@ -465,9 +467,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
 
                     for (ImMap<Object, Object> values : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((Integer) values.get("nppMachinery"),
+                        terminalInfoList.add(new TerminalInfo(nppGroupMachinery, (Integer) values.get("nppMachinery"),
                                 (String) values.get("nameModelMachinery"), (String) values.get("handlerModelMachinery"),
-                                (String) values.get("portMachinery"), idPriceListType, directoryGroupTerminal));
+                                (String) values.get("portMachinery"), directoryGroupTerminal, idPriceListType));
                     }
 
                     List<TerminalItemInfo> terminalItemInfoList = new ArrayList<TerminalItemInfo>();
@@ -482,13 +484,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
                     List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session);                   
-                    List<TerminalOrder> terminalOrderList = readTerminalOrderList(session);
                     List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session);
                     List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, priceListTypeGroupMachinery, stockGroupTerminal);
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
                             dateTimeCode, terminalItemInfoList, terminalInfoList, terminalHandbookTypeList,
-                            terminalDocumentTypeList, terminalOrderList, terminalLegalEntityList, terminalAssortmentList, 
+                            terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList, 
                             nppGroupTerminal, directoryGroupTerminal, snapshotTransaction));
                 }
             }
@@ -651,14 +652,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<Object, Object>(cashRegisterKeys);
         cashRegisterQuery.addProperty("handlerModelMachinery", stopListLM.findProperty("handlerModelMachinery").getExpr(cashRegisterExpr));
         cashRegisterQuery.addProperty("idStockGroupMachinery", stopListLM.findProperty("idStockGroupMachinery").getExpr(groupCashRegisterExpr));
-        cashRegisterQuery.addProperty("overDirectoryCashRegister", cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr));
+        cashRegisterQuery.addProperty("overDirectoryMachinery", cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr));
         cashRegisterQuery.and(stopListLM.findProperty("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
         cashRegisterQuery.and(stopListLM.findProperty("idStockGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-        cashRegisterQuery.and(cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr).getWhere());
+        cashRegisterQuery.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
         for (ImMap<Object, Object> entry : cashRegisterResult.valueIt()) {
             String handlerModel = (String) entry.get("handlerModelMachinery");
-            String directory = (String) entry.get("overDirectoryCashRegister");
+            String directory = (String) entry.get("overDirectoryMachinery");
             String idStockGroupMachinery = (String) entry.get("idStockGroupMachinery");
 
             Map<String, Set<String>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<String>>();
@@ -766,50 +767,63 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return terminalDocumentTypeList;
     }
 
-    private List<TerminalOrder> readTerminalOrderList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
-        List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
-        if (purchaseInvoiceAgreementLM != null) {
-            KeyExpr orderExpr = new KeyExpr("order");
-            KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
-            ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
-            QueryBuilder<Object, Object> orderQuery = new QueryBuilder<Object, Object>(orderKeys);
-            String[] orderNames = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
-            LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.dateOrder", "Purchase.numberOrder", "Purchase.supplierOrder");
-            for (int i = 0; i < orderProperties.length; i++) {
-                orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
+    @Override
+    public List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException {
+        try {
+            List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
+            if (purchaseInvoiceAgreementLM != null) {
+                DataSession session = getDbManager().createSession();
+                KeyExpr orderExpr = new KeyExpr("order");
+                KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
+                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
+                QueryBuilder<Object, Object> orderQuery = new QueryBuilder<Object, Object>(orderKeys);
+                String[] orderNames = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
+                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.dateOrder", "Purchase.numberOrder", "Purchase.supplierOrder");
+                for (int i = 0; i < orderProperties.length; i++) {
+                    orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
+                }
+                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
+                        "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
+                        "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
+                LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.idBarcodeSkuOrderDetail", "Purchase.nameSkuOrderDetail", "Purchase.priceOrderDetail",
+                        "Purchase.quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
+                        "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail");
+                for (int i = 0; i < orderDetailProperties.length; i++) {
+                    orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
+                }
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
+                        new DataObject(requestExchange.dateFrom, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
+                        new DataObject(requestExchange.dateTo, DateClass.instance).getExpr(), Compare.LESS_EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.customerStockOrder").getExpr(orderExpr).compare(
+                        purchaseInvoiceAgreementLM.findProperty("stockId").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.isOpenedOrder").getExpr(orderExpr).getWhere());
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
+                for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
+                    Date dateOrder = (Date) entry.get("dateOrder").getValue();
+                    String numberOrder = trim((String) entry.get("numberOrder").getValue());
+                    String idSupplier = trim((String) purchaseInvoiceAgreementLM.findProperty("idLegalEntity").read(session, entry.get("supplierOrder")));
+                    String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail").getValue());
+                    String name = trim((String) entry.get("nameSkuOrderDetail").getValue());
+                    BigDecimal price = (BigDecimal) entry.get("priceOrderDetail").getValue();
+                    BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail").getValue();
+                    BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail").getValue();
+                    BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail").getValue();
+                    BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail").getValue();
+                    BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail").getValue();
+                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
+                            quantity, minQuantity, maxQuantity, minPrice, maxPrice));
+                }
             }
-            String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
-                    "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
-                    "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
-            LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.idBarcodeSkuOrderDetail", "Purchase.nameSkuOrderDetail", "Purchase.priceOrderDetail",
-                    "Purchase.quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
-                    "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail");
-            for (int i = 0; i < orderDetailProperties.length; i++) {
-                orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
-            }
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.isOpenedOrder").getExpr(orderExpr).getWhere());
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
-            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
-            for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
-                Date dateOrder = (Date) entry.get("dateOrder").getValue();
-                String numberOrder = trim((String) entry.get("numberOrder").getValue());
-                String idSupplier = trim((String) purchaseInvoiceAgreementLM.findProperty("idLegalEntity").read(session, entry.get("supplierOrder")));
-                String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail").getValue());
-                String name = trim((String) entry.get("nameSkuOrderDetail").getValue());
-                BigDecimal price = (BigDecimal) entry.get("priceOrderDetail").getValue();
-                BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail").getValue();
-                BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail").getValue();
-                BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail").getValue();
-                BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail").getValue();
-                BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail").getValue();
-                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
-                        quantity, minQuantity, maxQuantity, minPrice, maxPrice));
-            }
+            return terminalOrderList;
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
         }
-        return terminalOrderList;
     }
 
     private List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -869,16 +883,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         Map<ObjectValue, RequestExchange> requestExchangeMap = new HashMap<ObjectValue, RequestExchange>();
         List<RequestExchange> requestExchangeList = new ArrayList<RequestExchange>();
         
-        if(cashRegisterLM != null && machineryPriceTransactionLM != null) {
+        if(machineryLM != null && machineryPriceTransactionLM != null) {
 
             try {
-                logger.info("RequestSalesInfoStock started");
-
                 DataSession session = getDbManager().createSession();
 
                 KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
-                KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "cashRegister", cashRegisterExpr);
+                KeyExpr machineryExpr = new KeyExpr("machinery");
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
                 String[] names = new String[]{"stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
@@ -886,32 +898,31 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
                 }
-                query.addProperty("overDirectoryCashRegister", cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr));
-                query.addProperty("idStockMachinery", cashRegisterLM.findProperty("idStockMachinery").getExpr(cashRegisterExpr));
+                query.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
+                query.addProperty("idStockMachinery", machineryLM.findProperty("idStockMachinery").getExpr(machineryExpr));
                 query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
-                query.and(cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr).getWhere());
-                query.and(cashRegisterLM.findProperty("stockMachinery").getExpr(cashRegisterExpr).compare(
+                query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
+                query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
                         machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
                 for (int i = 0, size = result.size(); i < size; i++) {
 
                     DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
                     ObjectValue stockRequestExchange = result.getValue(i).get("stockRequestExchange");
-                    String directoryCashRegister = trim((String) result.getValue(i).get("overDirectoryCashRegister").getValue());
+                    String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
                     String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
                     Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
                     Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
-                    Boolean requestSalesInfo = typeRequestExchange.contains("salesInfo");
                     
-                    Set<String> extraStockSet = requestSalesInfo ? new HashSet<String>() : readExtraStockMapRequestExchange(session, requestExchangeObject);
+                    Set<String> extraStockSet = typeRequestExchange.contains("salesInfo") ? new HashSet<String>() : readExtraStockMapRequestExchange(session, requestExchangeObject);
                     
                     if (requestExchangeMap.containsKey(stockRequestExchange))
-                        requestExchangeMap.get(stockRequestExchange).directorySet.add(directoryCashRegister);
+                        requestExchangeMap.get(stockRequestExchange).directorySet.add(directoryMachinery);
                     else
                         requestExchangeMap.put(stockRequestExchange, new RequestExchange((Integer) result.getKey(i).get("requestExchange").getValue(), 
-                                new HashSet<String>(Arrays.asList(directoryCashRegister)), idStockMachinery, extraStockSet,
-                                dateFromRequestExchange, dateToRequestExchange, requestSalesInfo));
+                                new HashSet<String>(Arrays.asList(directoryMachinery)), idStockMachinery, extraStockSet,
+                                dateFromRequestExchange, dateToRequestExchange, typeRequestExchange));
                 }
               
                 for (RequestExchange entry : requestExchangeMap.values())
@@ -1023,34 +1034,28 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
                 KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "GroupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
                 String[] cashRegisterNames = new String[] {"nppMachinery", "nameModelMachinery", "handlerModelMachinery",
-                        "portMachinery", "overDirectoryCashRegister"};
-                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "nameModelMachinery", "handlerModelMachinery", 
-                        "portMachinery", "overDirectoryCashRegister");
+                        "portMachinery", "overDirectoryMachinery"};
+                LCP[] cashRegisterProperties = machineryLM.findProperties("nppMachinery", "nameModelMachinery", "handlerModelMachinery", 
+                        "portMachinery", "overDirectoryMachinery");
                 for (int i = 0; i < cashRegisterProperties.length; i++) {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
-                String[] groupCashRegisterNames = new String[] {"startDateGroupCashRegister", "notDetailedGroupCashRegister", "nppGroupMachinery"};
-                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("startDateGroupCashRegister", "notDetailedGroupCashRegister", "nppGroupMachinery");
-                for (int i = 0; i < groupCashRegisterProperties.length; i++) {
-                    query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
-                }
                 
-                query.and(cashRegisterLM.findProperty("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
-                query.and(cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr).getWhere());
-                query.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
-                query.and(equLM.findProperty("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer, StringClass.get(20)), Compare.EQUALS));
+                query.and(machineryLM.findProperty("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
+                query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
+                query.and(machineryLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
+                query.and(equLM.findProperty("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryCashRegister"), (java.sql.Date) row.get("startDateGroupCashRegister"), 
-                            row.get("notDetailedGroupCashRegister") != null, null));
+                            (String) row.get("overDirectoryMachinery"), null, null, null));
                 }
             }
             return cashRegisterInfoList;
@@ -1083,6 +1088,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.addProperty("portMachinery", terminalLM.findProperty("portMachinery").getExpr(terminalExpr));
                 query.addProperty("directoryGroupTerminal", terminalLM.findProperty("directoryGroupTerminal").getExpr(groupTerminalExpr));
                 query.addProperty("priceListTypeGroupMachinery", terminalLM.findProperty("priceListTypeGroupMachinery").getExpr(groupTerminalExpr));
+                query.addProperty("nppGroupMachinery", terminalLM.findProperty("nppGroupMachinery").getExpr(groupTerminalExpr));
                 
                 query.and(terminalLM.findProperty("handlerModelMachinery").getExpr(terminalExpr).getWhere());
                 query.and(terminalLM.findProperty("directoryGroupTerminal").getExpr(groupTerminalExpr).getWhere());
@@ -1094,8 +1100,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     Integer priceListType = (Integer) row.get("priceListTypeGroupMachinery");
                     String idPriceListType = priceListType == null ? null : (String) terminalLM.findProperty("idPriceListType").read(session, new DataObject(priceListType));
-                    terminalInfoList.add(new TerminalInfo((Integer) row.get("nppMachinery"), (String) row.get("nameModelMachinery"), 
-                            (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"), idPriceListType, (String) row.get("directoryGroupTerminal")));
+                    terminalInfoList.add(new TerminalInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelMachinery"), 
+                            (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"), (String) row.get("directoryGroupTerminal"), idPriceListType));
                 }
             }
             return terminalInfoList;

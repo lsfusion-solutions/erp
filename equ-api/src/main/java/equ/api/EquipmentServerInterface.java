@@ -3,6 +3,7 @@ package equ.api;
 import equ.api.cashregister.*;
 import equ.api.terminal.TerminalDocumentDetail;
 import equ.api.terminal.TerminalInfo;
+import equ.api.terminal.TerminalOrder;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -36,6 +37,8 @@ public interface EquipmentServerInterface extends Remote {
     List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException;
 
     void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
+
+    List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException;
 
     Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException;
     

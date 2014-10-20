@@ -267,7 +267,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
 
         for (RequestExchange entry : requestExchangeList) {
-            if(entry.requestSalesInfo) {
+            if(entry.isSalesInfoExchange()) {
                 logger.info("Kristal: creating request files");
                 for (String directory : entry.directorySet) {
 

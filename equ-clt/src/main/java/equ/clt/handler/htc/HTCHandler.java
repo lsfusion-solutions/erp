@@ -470,7 +470,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     @Override
     public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
-            if(entry.requestSalesInfo) {
+            if(entry.isSalesInfoExchange()) {
                 logger.info("HTC: creating request files");
                 for (String directory : entry.directorySet) {
 
