@@ -29,13 +29,13 @@ prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o)= prevCurrentB
 quantityArticleColorSizeUserOrderSupplierStockRowType = ABSTRACT CASE NUMERIC[14,3] (Article,Color,Size,UserOrder,Stock, RowType);
 
 quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
-                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder THEN NUMERIC[14,3](prevCurrentBalanceArticleColorSizeStock(ar, co, si, stk))
+                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder AND CLASS(prevCurrentBalanceArticleColorSizeStock(ar, co, si, stk)) THEN NUMERIC[14,3](prevCurrentBalanceArticleColorSizeStock(ar, co, si, stk))
                                           ;
 quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
-                                          WHEN ty == RowType.inDocument THEN NUMERIC[14,3](quantityArticleColorSizeUserOrderSupplierStock(ar,co,si,o,stk))
+                                          WHEN ty == RowType.inDocument AND CLASS(quantityArticleColorSizeUserOrderSupplierStock(ar,co,si,o,stk)) THEN NUMERIC[14,3](quantityArticleColorSizeUserOrderSupplierStock(ar,co,si,o,stk))
                                           ;
 quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
-                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock THEN NUMERIC[14,3](prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o))
+                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock AND CLASS(prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o)) THEN NUMERIC[14,3](prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o))
                                           ;                                          
 
 changeQuantityArticleColorSizeUserOrderStockRowType = ACTION (article, color, size, userOrder, stock, type) {
@@ -134,14 +134,14 @@ quantitySoldArticleColorSizeUserOrderTwoWeek 'Продано за предпос
 
 EXTEND CLASS RowType { selling7 'Реал-ия скл. пок-ля последняя нед.' }
 quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 
-    WHEN ty ==  RowType.selling7 AND stk IS Stock 
+    WHEN ty ==  RowType.selling7 AND stk IS Stock AND CLASS(quantitySoldArticleColorSizeUserOrderOneWeek(ar,co,si,o)) 
         THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderOneWeek(ar,co,si,o))
     ;     
 
 //-- 
 EXTEND CLASS RowType { selling14 'Реал-ия скл. пок-ля предпоследняя нед.' }
 quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 
-    WHEN ty ==  RowType.selling14 AND stk IS Stock 
+    WHEN ty ==  RowType.selling14 AND stk IS Stock AND CLASS(quantitySoldArticleColorSizeUserOrderTwoWeek(ar,co,si,o))
         THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderTwoWeek(ar,co,si,o))
     ; 
 defaultOrderRowType(ty) += WHEN ty == RowType.selling7  THEN 5; 
