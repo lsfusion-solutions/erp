@@ -110,3 +110,15 @@ receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
 deleteCreateShipment (shipment)+= WHEN Purchase.invoiceInvoiceShipment(shipment) IS PurchaseInvoice THEN  ACTION (shipment)  {
     createPurchaseShipmentInvoice(invoice) <- NULL WHERE invoice == invoicePurchaseInvoice(Purchase.invoiceInvoiceShipment(shipment));          
 };
+
+//-- Расчет документов, которые в пути
+
+// продажа
+quantityPurchaseShipmentDetailInvoiceDetail 'Поставлено' (saleInvoiceDetail) = GROUP SUM Purchase.quantityShipmentDetail(d) BY SalePurchaseInvoice.invoiceDetailInvoiceDetail(Purchase.invoiceDetailShipmentDetail(d));
+
+quantityPurchaseShipmentDetail 'Поставлено' (d) = quantityPurchaseShipmentDetailInvoiceDetail(Sale.invoiceDetailShipmentDetail(d));
+quantityPurchaseShipmentDetailShipmentDetail 'Поставлено' (d) = GROUP SUM Purchase.quantityShipmentDetail(d) BY SalePurchaseShipment.shipmentDetailShipmentDetail(d);
+
+quantityShippedSaleShipment 'Поставлено (кол-во)' (s) = GROUP SUM (quantityPurchaseShipmentDetailShipmentDetail(d) (+) quantityPurchaseShipmentDetail(d)) BY Sale.shipmentShipmentDetail(d);
+
+isTransitSaleShipment 'В пути' (s) = isCompanyLegalEntity(Sale.supplierShipment(s)) AND isCompanyLegalEntity(Sale.customerShipment(s)) AND Sale.customerShipment(s) == Sale.supplierShipment(s) AND NOT quantityShippedSaleShipment(s);

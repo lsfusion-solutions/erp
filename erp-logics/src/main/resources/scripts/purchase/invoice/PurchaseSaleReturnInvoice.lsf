@@ -99,6 +99,9 @@ DESIGN invoiceInvoices FROM DEFAULT {
     }
 }
 
+invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) PERSISTENT;
+invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail);
+invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
 
 fillInvoiceUserInvoice 'Заполнить на основе накладной (закупка-возврат)' =  ACTION (userInvoice) {
     FORM invoiceInvoices OBJECTS s = SaleReturn.supplierUserInvoice(userInvoice), c = SaleReturn.customerUserInvoice(userInvoice),
@@ -110,6 +113,8 @@ fillInvoiceUserInvoice 'Заполнить на основе накладной 
 
         FOR invoiceInvoiceDetail(invoiceDetail) == saleReturnInvoice() ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
             ASSIGN SaleReturn.userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            ASSIGN invoiceDetailUserInvoiceDetail(d) <- invoiceDetail;
+            
             ASSIGN SaleReturn.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
             ASSIGN SaleReturn.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
             ASSIGN SaleReturn.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
@@ -150,10 +155,6 @@ EXTEND DESIGN userInvoice {
 }
 
 //--  Связь поставки с поставкой
-
-invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) PERSISTENT;
-invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail);
-invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
 
 CONSTRAINT SaleReturn.supplierInvoiceDetail(detail) != supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
            SaleReturn.supplierStockInvoiceDetail(detail) != supplierStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
@@ -330,7 +331,7 @@ moveUserInvoiceInvoice 'Накладная (продажа-возврат)' =  A
         FOR invoiceInvoiceDetail(detail)==invoice ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
 
             ASSIGN SaleReturn.userInvoiceUserInvoiceDetail(d) <- i;
-
+            ASSIGN invoiceDetailUserInvoiceDetail(d) <-detail; 
             ASSIGN SaleReturn.priceListTypeUserInvoiceDetail(d) <- priceListTypeInvoiceDetail(detail);
             ASSIGN SaleReturn.dataSupplierStockUserInvoiceDetail(d) <- dataSupplierStockInvoiceDetail(detail);
             ASSIGN SaleReturn.dataCustomerStockUserInvoiceDetail(d) <- dataCustomerStockInvoiceDetail(detail);

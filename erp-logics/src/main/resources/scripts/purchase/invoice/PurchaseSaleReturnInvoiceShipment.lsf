@@ -1,6 +1,6 @@
 MODULE PurchaseSaleReturnInvoiceShipment;
 
-REQUIRE SaleReturnShipment, PurchaseSaleReturnInvoice, PurchaseReturnShipment;
+REQUIRE SaleReturnShipment, PurchaseSaleReturnInvoice, PurchaseSaleReturnShipment, PurchaseReturnShipment;
 
 PRIORITY PurchaseReturn;
 
@@ -107,4 +107,14 @@ receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
 deleteCreateShipment (shipment)+= WHEN SaleReturn.invoiceInvoiceShipment(shipment) IS SaleReturnInvoice THEN  ACTION (shipment)  {
     createSaleReturnShipmentInvoice(invoice) <- NULL WHERE invoice == invoiceSaleReturnInvoice(SaleReturn.invoiceInvoiceShipment(shipment));          
 };
+
+//-- возврат поставщику
+quantitySaleReturnShipmentDetailInvoiceDetail 'Поставлено' (purchaseReturnInvoiceDetail) = GROUP SUM SaleReturn.quantityShipmentDetail(d) BY PurchaseSaleReturnInvoice.invoiceDetailInvoiceDetail(SaleReturn.invoiceDetailShipmentDetail(d));
+
+quantitySaleReturnShipmentDetail 'Поставлено' (d) = quantitySaleReturnShipmentDetailInvoiceDetail(PurchaseReturn.invoiceDetailShipmentDetail(d));
+quantitySaleReturnShipmentDetailShipmentDetail 'Поставлено' (d) = GROUP SUM SaleReturn.quantityShipmentDetail(d) BY PurchaseSaleReturnShipment.shipmentDetailShipmentDetail(d);
+
+quantityShippedPurchaseReturnShipment 'Поставлено (кол-во)' (s) = GROUP SUM (quantitySaleReturnShipmentDetailShipmentDetail(d) (+) quantitySaleReturnShipmentDetail(d)) BY PurchaseReturn.shipmentShipmentDetail(d);
+
+isTransitPurchaseReturnShipment 'В пути' (s) = isCompanyLegalEntity(PurchaseReturn.supplierShipment(s)) AND isCompanyLegalEntity(PurchaseReturn.customerShipment(s)) AND PurchaseReturn.supplierShipment(s) == PurchaseReturn.customerShipment(s) AND NOT quantityShippedPurchaseReturnShipment(s);
 

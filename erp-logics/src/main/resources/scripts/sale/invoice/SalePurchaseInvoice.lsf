@@ -99,7 +99,9 @@ DESIGN invoiceInvoices FROM DEFAULT {
     }
 }
 
-
+invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT;
+invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
+invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
 
 fillInvoiceUserInvoice 'Заполнить на основе накладной' =  ACTION (userInvoice) {
     FORM invoiceInvoices OBJECTS s = Purchase.supplierUserInvoice(userInvoice), c = Purchase.customerUserInvoice(userInvoice),
@@ -111,6 +113,7 @@ fillInvoiceUserInvoice 'Заполнить на основе накладной'
 
         FOR invoiceInvoiceDetail(invoiceDetail) == saleInvoice() ADDOBJ d = Purchase.UserInvoiceDetail DO {
             ASSIGN Purchase.userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            ASSIGN invoiceDetailUserInvoiceDetail(d) <- invoiceDetail;
             ASSIGN Purchase.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
             ASSIGN Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
             ASSIGN Purchase.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
@@ -151,10 +154,6 @@ EXTEND DESIGN userInvoice {
 }
 
 //--  Связь поставки с поставкой
-
-invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT;
-invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
-invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
 
 CONSTRAINT Purchase.supplierInvoiceDetail(detail) != supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
            Purchase.supplierStockInvoiceDetail(detail) != supplierStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
@@ -332,6 +331,7 @@ moveUserInvoiceInvoice 'Накладная (закупка)' =  ACTION (invoice)
         FOR invoiceInvoiceDetail(detail)==invoice ADDOBJ d = Purchase.UserInvoiceDetail DO {
 
             ASSIGN Purchase.userInvoiceUserInvoiceDetail(d) <- i;
+            ASSIGN invoiceDetailUserInvoiceDetail(d) <- detail;
 
             ASSIGN Purchase.priceListTypeUserInvoiceDetail(d) <- priceListTypeInvoiceDetail(detail);
             ASSIGN Purchase.dataSupplierStockUserInvoiceDetail(d) <- dataSupplierStockInvoiceDetail(detail);
