@@ -66,9 +66,16 @@ activeLedgerALedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime
                 fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
 editActiveLedgerALedgerPriceListTypeSkuCompanyDateTime'Редактировать' (type, sku, company, dateTime) = ACTION editPriceListLedger(activeLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)) IMAGE 'edit.png';                                            
 
+// workaround, что объект не может быть null
+currentLegalEntity 'Организация' = DATA SESSION LegalEntity ();
+nameCurrentLegalEntity 'Организация' = nameLegalEntity(currentLegalEntity());
+
 EXTEND FORM priceListDashboard
+    PROPERTIES() nameCurrentLegalEntity
+    
     OBJECTS c = LegalEntity FIXED PANEL
-    PROPERTIES(c) nameLegalEntity SELECTOR
+//    PROPERTIES(c) nameLegalEntity SELECTOR
+    FILTERS c == currentLegalEntity()
 
     TREE cskg cskg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(cskg), cskgName = nameSkuGroup(cskg)
@@ -116,7 +123,8 @@ EXTEND DESIGN priceListDashboard {
                 type = SPLITH;
                 NEW c.skuFilters {
                     fill = 1;
-                    ADD c.box;
+//                    ADD c.box;
+                    ADD PROPERTY(nameCurrentLegalEntity());
                     ADD cskg.tree.box {
                         caption = 'Товарные группы';
                     }
@@ -415,7 +423,7 @@ addUserPriceListLegalEntityPriceListTypeDateTime 'Добавить' = ACTION (le
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 EXTEND FORM priceListDashboard
-    PROPERTIES(c) pNameCompany = nameLegalEntity SELECTOR
+    PROPERTIES() pCurrentLegalEntity = nameCurrentLegalEntity
 
     OBJECTS p = UserPriceList
     PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p) isPostedUserPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
@@ -439,7 +447,7 @@ EXTEND DESIGN priceListDashboard {
             type = CONTAINERV;
             NEW rowContainer{
                 type = CONTAINERH;
-                ADD PROPERTY(pNameCompany);
+                ADD PROPERTY(pCurrentLegalEntity);
             }
             ADD p.box;
         }
