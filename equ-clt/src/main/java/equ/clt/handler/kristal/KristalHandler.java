@@ -479,7 +479,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         List<String> filePathList = new ArrayList<String>();
         for (Map.Entry<String, Boolean> entry : directoryNotDetailedMap.entrySet()) {
             String directory = entry.getKey();
-            final Boolean notDetailed = entry.getValue();
+            final Boolean notDetailed = entry.getValue() != null && entry.getValue();
 
             String exchangeDirectory = directory + "/Export/";
 

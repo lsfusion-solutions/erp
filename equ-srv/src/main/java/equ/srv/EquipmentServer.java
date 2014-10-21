@@ -1058,7 +1058,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryMachinery"), null, null, null));
+                            (String) row.get("overDirectoryMachinery"), null, false, null));
                 }
             }
             return cashRegisterInfoList;
