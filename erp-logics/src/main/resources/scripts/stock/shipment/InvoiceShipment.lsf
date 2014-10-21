@@ -78,12 +78,15 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
         invoiceDetailUserShipmentDetail(d) <- invoiceDetailUserShipmentDetail(detail);             
     }   
 
-    CONSTRAINT supplierShipmentDetail(detail) != supplierInvoiceDetail(invoiceDetailUserShipmentDetail(detail)) OR
-               customerShipmentDetail(detail) != customerInvoiceDetail(invoiceDetailUserShipmentDetail(detail)) OR
-               skuShipmentDetail(detail) != skuInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
+    CONSTRAINT supplierShipmentDetail(detail) != supplierInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
         CHECKED BY invoiceDetailUserShipmentDetail
-            MESSAGE 'Поставщик, покупатель и товар в накладной и поставке должны соответствовать друг другу';
-
+            MESSAGE 'Поставщик в накладной и поставке должны соответствовать друг другу';
+    CONSTRAINT customerShipmentDetail(detail) != customerInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
+        CHECKED BY invoiceDetailUserShipmentDetail
+            MESSAGE 'Покупатель в накладной и поставке должны соответствовать друг другу';
+    CONSTRAINT skuShipmentDetail(detail) != skuInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
+        CHECKED BY invoiceDetailUserShipmentDetail
+            MESSAGE 'Товар в накладной и поставке должны соответствовать друг другу';
 
     descriptionIndexInvoiceDetailShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailShipmentDetail(detail));
     descriptionIndexInvoiceDetailUserShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailUserShipmentDetail(detail));
