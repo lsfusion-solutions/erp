@@ -1,0 +1,37 @@
+MODULE ImportEmailOrder;
+
+REQUIRE System, Email, PurchaseOrder;
+
+importEmailOrderAction 'Загрузить параметры заказов из почты' = ACTION CUSTOM 'lsfusion.erp.integration.universal.emailorder.ImportEmailOrderActionProperty';
+
+importEmailOrderAccount 'E-mail аккаунт' =  DATA Account();
+importEmailOrderNameAccount 'E-mail аккаунт' () = nameAccount(importEmailOrderAccount());
+importEmailOrderFirstRow 'Начинать со строки' =  DATA INTEGER();
+importEmailOrderNumberCell 'Ячейка номера инвойса' =  DATA VARSTRING[10]();
+importEmailOrderQuantityColumn 'Колонка количества' =  DATA VARSTRING[10]();
+
+orderSeriesNumber (seriesNumber) = GROUP AGGR order BY Purchase.seriesNumberOrder(order); 
+orderDetailIndexNumberOrder (index, numberOrder) = GROUP AGGR orderDetail 
+    BY Purchase.indexOrderDetail(orderDetail), Purchase.seriesNumberOrder(Purchase.orderOrderDetail(orderDetail));
+
+importedOrderAttachmentEmail 'Заказ импортирован' = DATA BOOLEAN (AttachmentEmail);  
+notImportedOrderAttachmentEmail (attachmentEmail) = NOT importedOrderAttachmentEmail (attachmentEmail);
+
+EXTEND FORM mail PROPERTIES(ae) importedOrderAttachmentEmail BEFORE importedAttachmentEmail(ae);
+
+EXTEND FORM integrationData
+    PROPERTIES() importEmailOrderAction, importEmailOrderNameAccount, importEmailOrderFirstRow, importEmailOrderNumberCell,
+                 importEmailOrderQuantityColumn    
+;
+EXTEND DESIGN integrationData {
+    pane {
+        NEW emailorder {
+            caption = 'Импорт заказов из почты';
+            ADD PROPERTY(importEmailOrderAction());
+            ADD PROPERTY(importEmailOrderNameAccount());
+            ADD PROPERTY(importEmailOrderFirstRow());
+            ADD PROPERTY(importEmailOrderNumberCell());
+            ADD PROPERTY(importEmailOrderQuantityColumn());
+        }
+    }
+}
