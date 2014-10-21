@@ -227,7 +227,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
             try {
 
-                String exchangeDirectory = directory + "\\OUT\\";
+                String exchangeDirectory = directory + "/OUT/";
 
                 File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                     @Override
@@ -306,7 +306,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             List<CashDocument> result = new ArrayList<CashDocument>();
             for (String directory : directorySet) {
 
-                String exchangeDirectory = directory + "\\OUT\\";
+                String exchangeDirectory = directory + "/OUT/";
 
                 File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                     @Override
@@ -406,7 +406,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
         Map<String, Boolean> filePathList = new HashMap<String, Boolean>();
         for (String directory : directorySet) {
 
-            String exchangeDirectory = directory + "\\OUT\\";
+            String exchangeDirectory = directory + "/OUT/";
 
             File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                 @Override
@@ -512,7 +512,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
     private boolean acceptSalesFile(File pathname) {
         return (pathname.getName().startsWith("sales") && pathname.getPath().endsWith(".txt")) ||
-                (pathname.getName().startsWith("current") && pathname.getPath().endsWith(".txt") && new File(pathname.getParentFile().getPath() + "\\_" + pathname.getName()).exists()) ||
+                (pathname.getName().startsWith("current") && pathname.getPath().endsWith(".txt") && new File(pathname.getParentFile().getPath() + "/_" + pathname.getName()).exists()) ||
                 (pathname.getName().startsWith("_current") && pathname.getPath().endsWith(".txt"));
     }
 

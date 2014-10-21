@@ -20,7 +20,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
 
-    String dbPath = "\\db";
+    String dbPath = "/db";
 
     public LSTerminalHandler() {
     }
@@ -31,11 +31,11 @@ public class LSTerminalHandler extends TerminalHandler {
             Integer nppGroupTerminal = ((TransactionTerminalInfo) transactionInfo).nppGroupTerminal;
             String directory = ((TransactionTerminalInfo) transactionInfo).directoryGroupTerminal;
             if (directory != null) {
-                String exchangeDirectory = directory + "\\exchange";
+                String exchangeDirectory = directory + "/exchange";
                 if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
                     //copy base to exchange directory                   
                     FileInputStream fis = new FileInputStream(new File(makeDBPath(directory + dbPath, nppGroupTerminal)));
-                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "\\base.zip"));
+                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "/base.zip"));
                     ZipOutputStream zos = new ZipOutputStream(fos);
                     zos.putNextEntry(new ZipEntry("tsd.db"));
                     byte[] buf = new byte[1024];
@@ -81,11 +81,11 @@ public class LSTerminalHandler extends TerminalHandler {
             }
 
             if (directoryGroupTerminal != null) {
-                String exchangeDirectory = directoryGroupTerminal + "\\exchange";
+                String exchangeDirectory = directoryGroupTerminal + "/exchange";
                 if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
                     //copy base to exchange directory                   
                     FileInputStream fis = new FileInputStream(new File(makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal)));
-                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "\\base.zip"));
+                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "/base.zip"));
                     ZipOutputStream zos = new ZipOutputStream(fos);
                     zos.putNextEntry(new ZipEntry("tsd.db"));
                     byte[] buf = new byte[1024];
@@ -175,7 +175,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
             for (String directory : directorySet) {
 
-                String exchangeDirectory = directory + "\\exchange";
+                String exchangeDirectory = directory + "/exchange";
 
                 File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                     @Override
@@ -478,7 +478,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private String makeDBPath(String directory, Integer nppGroupTerminal) {
-        return directory + "\\" + (nppGroupTerminal == null ? "tsd" : nppGroupTerminal) + ".db";
+        return directory + "/" + (nppGroupTerminal == null ? "tsd" : nppGroupTerminal) + ".db";
     }
 
     public static boolean isFileLocked(File file) {

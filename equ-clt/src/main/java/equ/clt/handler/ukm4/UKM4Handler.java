@@ -170,7 +170,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 }
                 pluLimDBFWriter.close();                
                 
-                File flagFile = new File(directory + "\\cash01." + (transactionInfo.snapshot ? "cng" : "upd"));
+                File flagFile = new File(directory + "/cash01." + (transactionInfo.snapshot ? "cng" : "upd"));
                 flagFile.createNewFile();
                 waitForDeletion(flagFile);
 

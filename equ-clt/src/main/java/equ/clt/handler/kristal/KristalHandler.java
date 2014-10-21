@@ -64,7 +64,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         for (String directory : directoriesList) {
 
-            String exchangeDirectory = directory.trim() + "\\ImpExp\\Import\\";
+            String exchangeDirectory = directory.trim() + "/ImpExp/Import/";
 
             if (!new File(exchangeDirectory).exists())
                 new File(exchangeDirectory).mkdirs();
@@ -220,7 +220,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
             String timestamp = new SimpleDateFormat("ddMMyyyyHHmmss").format(Calendar.getInstance().getTime());
 
-            String exchangeDirectory = directory + "\\ImpExp\\Import\\";
+            String exchangeDirectory = directory + "/ImpExp/Import/";
 
             File flagSoftFile = new File(exchangeDirectory + "WAITSOFT");
 
@@ -278,7 +278,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     cal.add(Calendar.DATE, 1);
                     String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
 
-                    String exchangeDirectory = directory + "\\export\\request\\";
+                    String exchangeDirectory = directory + "/export/request/";
 
                     if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                         Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
@@ -481,7 +481,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             String directory = entry.getKey();
             final Boolean notDetailed = entry.getValue();
 
-            String exchangeDirectory = directory + "\\Export\\";
+            String exchangeDirectory = directory + "/Export/";
 
             File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                 @Override

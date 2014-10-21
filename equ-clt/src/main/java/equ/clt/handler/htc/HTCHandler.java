@@ -82,8 +82,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     String directory = entry.getKey();
                     String fileName = transactionInfo.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
                     logger.info(String.format("HTC: creating %s file", fileName));
-                    File priceFile = new File(directory + "\\" + fileName);
-                    File flagPriceFile = new File(directory + "\\price.qry");
+                    File priceFile = new File(directory + "/" + fileName);
+                    File flagPriceFile = new File(directory + "/price.qry");
 
                     boolean append = priceFile.exists();
 
@@ -93,8 +93,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         if (append) {
                             dbfFile = new DBF(priceFile.getAbsolutePath(), charset);
                         } else {
-                            cachedPriceFile = new File(directory + "\\cachedPrice.dbf");
-                            cachedPriceMdxFile = new File(directory + "\\cachedPrice.mdx");
+                            cachedPriceFile = new File(directory + "/cachedPrice.dbf");
+                            cachedPriceMdxFile = new File(directory + "/cachedPrice.mdx");
                             dbfFile = new DBF(cachedPriceFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                             if (!append)
                                 dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, CMD, UNIT});
@@ -264,7 +264,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     private File createDiscountCardFile(List<DiscountCard> discountCardList, String directory, File cachedDiscFile) throws IOException, xBaseJException {
 
-        File discountCardFile = new File(directory + "\\Discnew.dbf");
+        File discountCardFile = new File(directory + "/Discnew.dbf");
         if (cachedDiscFile != null) {
             FileCopyUtils.copy(cachedDiscFile, discountCardFile);
         } else {
@@ -294,8 +294,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             }
             dbfFile.close();
         }
-        new File(directory + "\\Discnew.mdx").delete();
-        File discountFlag = new File(directory + "\\TMC.dcn");
+        new File(directory + "/Discnew.mdx").delete();
+        File discountFlag = new File(directory + "/TMC.dcn");
         discountFlag.createNewFile();
         return cachedDiscFile==null ? discountCardFile : cachedDiscFile;
     }
@@ -377,8 +377,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         List<String> filePathList = new ArrayList<String>();
         for (String directory : directorySet) {
 
-            File salesFile = new File(directory + "\\Sales.dbf");
-            File receiptFile = new File(directory + "\\Receipt.dbf");
+            File salesFile = new File(directory + "/Sales.dbf");
+            File receiptFile = new File(directory + "/Receipt.dbf");
 
             if (!salesFile.exists() || !receiptFile.exists())
                 logger.info("HTC: No sale or receipt file found in " + directory);
@@ -478,7 +478,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     String date = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);                    
 
                     if (new File(directory).exists()) {
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "\\" + "sales.qry"), "utf-8"));
+                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/" + "sales.qry"), "utf-8"));
                         writer.write(date);
                         writer.close();
                     } else
