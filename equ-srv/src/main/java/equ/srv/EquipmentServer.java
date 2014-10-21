@@ -1047,7 +1047,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int i = 0; i < cashRegisterProperties.length; i++) {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
-                
+                query.addProperty("nppGroupMachinery", machineryLM.findProperty("nppGroupMachinery").getExpr(groupCashRegisterExpr));
                 query.and(machineryLM.findProperty("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
                 query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
                 query.and(machineryLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
