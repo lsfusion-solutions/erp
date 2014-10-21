@@ -9,7 +9,7 @@ createdUserInvoiceOrder = DATA SESSION BOOLEAN (Invoice, Order);
 createUserInvoiceOrder 'Создать накладную' = ABSTRACT ACTION LIST (Order);
 createUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION LIST (Order);
 
-orderInvoiceDetail = ABSTRACT Order (InvoiceDetail) PERSISTENT;
+orderInvoiceDetail = ABSTRACT Order (InvoiceDetail) PERSISTENT INDEXED;
 
 invoicedInvoiceDetailOrderSku 'Выписано накладных' (order, sku) = GROUP SUM quantityInvoiceDetail(invoiceDetail) IF isPostedInvoiceDetail(invoiceDetail)
                                                            BY orderInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail);
@@ -74,6 +74,8 @@ createMultiUserInvoice 'Создать накладную' = ACTION (order) {
 META defineOrderInvoice(sign, stockProp)
 
     orderInvoiceDetail = ABSTRACT Order (InvoiceDetail) PERSISTENT;
+    INDEX orderInvoiceDetail, skuInvoiceDetail;
+    INDEX skuInvoiceDetail;
     Invoice.orderInvoiceDetail (invoiceDetail) += orderInvoiceDetail(invoiceDetail);
 
     orderUserInvoiceDetail = DATA Order(UserInvoiceDetail);
