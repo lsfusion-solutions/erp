@@ -791,11 +791,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
+                if(requestExchange.dateFrom != null)
+                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
                         new DataObject(requestExchange.dateFrom, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
+                if(requestExchange.dateTo != null)
+                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
                         new DataObject(requestExchange.dateTo, DateClass.instance).getExpr(), Compare.LESS_EQUALS));
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.customerStockOrder").getExpr(orderExpr).compare(
+                if(requestExchange.idStock != null)
+                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.customerStockOrder").getExpr(orderExpr).compare(
                         purchaseInvoiceAgreementLM.findProperty("stockId").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));
                 orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
                 orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
