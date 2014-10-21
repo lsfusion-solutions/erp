@@ -465,6 +465,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                                 BigDecimal sumCard = BigDecimal.ZERO;
                                 BigDecimal sumCash = BigDecimal.ZERO;
+                                BigDecimal sumGiftCard = BigDecimal.ZERO;
                                 List paymentsList = ((Element) purchaseNode).getChildren("payments");
                                 for (Object paymentNode : paymentsList) {
 
@@ -480,6 +481,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                                 sumCash = safeSubtract(sumCash, sum);
                                             } else if (paymentType.equals("ExternalBankTerminalPaymentEntity")) {
                                                 sumCard = safeAdd(sumCard, sum);
+                                            } else if (paymentType.equals("GiftCardPaymentEntity")) {
+                                                sumGiftCard = safeAdd(sumGiftCard, sum);
                                             }
                                         }
                                     }
@@ -513,17 +516,18 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                             currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
-                                                    numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, 
-                                                    barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, numberReceiptDetail, fileName));
+                                                    numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
+                                                    sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, 
+                                                    numberReceiptDetail, fileName));
                                     }
 
                                 }
 
                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                BigDecimal sum = safeAdd(sumCard, sumCash);
+                                BigDecimal sum = safeAdd(safeAdd(sumCard, sumCash), sumGiftCard);
                                 if (sum == null || sum.compareTo(currentPaymentSum) < 0)
                                     for (SalesInfo salesInfo : currentSalesInfoList) {
-                                        salesInfo.sumCash = safeSubtract(currentPaymentSum, sumCard);
+                                        salesInfo.sumCash = safeSubtract(safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
                                     }
 
                                 salesInfoList.addAll(currentSalesInfoList);

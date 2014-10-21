@@ -17,6 +17,7 @@ public class SalesInfo implements Serializable {
     public String lastNameContact;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
+    public BigDecimal sumGiftCard;
     public String barcodeItem;
     public Integer itemObject;
     public BigDecimal quantityReceiptDetail;
@@ -29,9 +30,10 @@ public class SalesInfo implements Serializable {
     public String filename;
 
     public SalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Integer numberReceipt,
-                     Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact, String lastNameContact, BigDecimal sumCard, 
-                     BigDecimal sumCash, String barcodeItem, Integer itemObject, BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, 
-                     BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt, String seriesNumberDiscountCard, 
+                     Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact, String lastNameContact,
+                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem, Integer itemObject, 
+                     BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, 
+                     BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt, String seriesNumberDiscountCard, 
                      Integer numberReceiptDetail, String filename) {
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
@@ -44,6 +46,7 @@ public class SalesInfo implements Serializable {
         this.lastNameContact = lastNameContact;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
+        this.sumGiftCard = sumGiftCard;
         this.barcodeItem = barcodeItem;
         this.itemObject = itemObject;
         this.quantityReceiptDetail = quantityReceiptDetail;

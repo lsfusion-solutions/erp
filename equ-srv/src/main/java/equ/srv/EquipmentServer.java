@@ -1516,6 +1516,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
                             dataPayment.add(Arrays.<Object>asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
                         }
+                        if (sale.sumGiftCard != null && sale.sumGiftCard.doubleValue() != 0) {
+                            dataPayment.add(Arrays.<Object>asList(idReceipt + "3", idReceipt, "giftcard", sale.sumGiftCard, 3));
+                        }
                     }
 
                     List<ImportField> saleImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
