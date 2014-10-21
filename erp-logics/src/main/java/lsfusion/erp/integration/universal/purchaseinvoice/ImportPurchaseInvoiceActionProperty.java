@@ -602,12 +602,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         List<String> stringFields = Arrays.asList("idSupplier", "idSupplierStock", "currencyDocument", "idItem", "idItemGroup",
                 "barcodeItem", "originalCustomsGroupItem", "idBatch", "idBox", "nameBox", "captionItem", "originalCaptionItem", 
                 "UOMItem", "idManufacturer", "nameManufacturer", "sidOrigin2Country", "nameCountry", "nameOriginCountry", 
-                "importCountryBatch", "idCustomerStock", "pharmacyPriceGroupItem", "valueVAT", "seriesPharmacy", 
+                "importCountryBatch", "idCustomerStock", "contractPrice", "pharmacyPriceGroupItem", "valueVAT", "seriesPharmacy", 
                 "numberCompliance", "declaration", "idArticle", "captionArticle", "originalCaptionArticle", "idColor",
                 "nameColor", "idTheme", "nameTheme", "composition", "originalComposition", "idSize", "nameSize", "nameOriginalSize",
                 "idCollection", "nameCollection", "idSeasonYear", "idSeason", "nameSeason", "idBrand", "nameBrand");
         
-        List<String> bigDecimalFields = Arrays.asList("dataIndex", "price", "manufacturingPrice", "contractPrice", "shipmentPrice", 
+        List<String> bigDecimalFields = Arrays.asList("dataIndex", "price", "manufacturingPrice", "shipmentPrice", 
                 "shipmentSum", "rateExchange", "sum",  "sumVAT", "invoiceSum");
 
         List<String> dateFields = Arrays.asList("dateDocument", "manufactureDate", "dateCompliance", "expiryDate");
@@ -962,104 +962,113 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
-        
-        File tempFile = File.createTempFile("purchaseInvoice", ".dbf");
-        IOUtils.putFileBytes(tempFile, importFile);
 
-        DBF file = new DBF(tempFile.getPath());
-        String charset = getDBFCharset(tempFile);
+        File tempFile = null;
+        DBF file = null;
+        try {
 
-        int totalRecordCount = file.getRecordCount();
+            tempFile = File.createTempFile("purchaseInvoice", ".dbf");
+            IOUtils.putFileBytes(tempFile, importFile);
 
-        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);        
-        currentTimestamp = getCurrentTimestamp();
-        for (int i = 0; i < importSettings.getStartRow() - 1; i++) {
-            file.read();
+            file = new DBF(tempFile.getPath());
+            String charset = getDBFCharset(tempFile);
+
+            int totalRecordCount = file.getRecordCount();
+
+            Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
+            currentTimestamp = getCurrentTimestamp();
+            for (int i = 0; i < importSettings.getStartRow() - 1; i++) {
+                file.read();
+            }
+
+            for (int i = importSettings.getStartRow() - 1; i < totalRecordCount; i++) {
+
+                file.read();
+
+                Map<String, Object> fieldValues = new HashMap<String, Object>();
+
+                for (String field : stringFields) {
+
+                    String value = getDBFFieldValue(file, defaultColumns.get(field), i, charset);
+                    if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
+                        fieldValues.put(field, modifyNameCountry(value));
+                    else if (field.equals("valueVAT"))
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                    else if (field.equals("barcodeItem"))
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                    else if (field.equals("idCustomerStock")) {
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                        fieldValues.put("idCustomerStock", value);
+                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                    } else
+                        fieldValues.put(field, value);
+
+                }
+
+                for (String field : bigDecimalFields) {
+                    BigDecimal value = getDBFBigDecimalFieldValue(file, defaultColumns.get(field), i, charset);
+                    if (field.equals("dataIndex")) {
+                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                    } else if (field.equals("price"))
+                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                    else
+                        fieldValues.put(field, value);
+                }
+
+                for (String field : dateFields) {
+                    if (field.equals("dateDocument")) {
+                        Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get(field), i, charset);
+                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                        fieldValues.put(field, dateDocument);
+                        fieldValues.put("dateVAT", dateVAT);
+                    } else if (field.equals("expiryDate"))
+                        fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset, true));
+                    else
+                        fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset));
+                }
+
+                for (String field : timeFields) {
+                    fieldValues.put(field, getDBFTimeFieldValue(file, defaultColumns.get(field), i, charset));
+                }
+
+                String numberDocument = getDBFFieldValue(file, defaultColumns.get("numberDocument"), i, charset);
+                String idDocument = getDBFFieldValue(file, defaultColumns.get("idDocument"), i, charset, numberDocument);
+                String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
+                BigDecimal quantity = getDBFBigDecimalFieldValue(file, defaultColumns.get("quantity"), i, charset);
+                BigDecimal netWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeight"), i, charset);
+                BigDecimal netWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeightSum"), i, charset);
+                netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
+                BigDecimal grossWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeight"), i, charset);
+                BigDecimal grossWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeightSum"), i, charset);
+                grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
+
+                LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
+                for (Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
+                    customValues.put(column.getKey(), getDBFFieldValue(file, column.getValue(), i, charset));
+                }
+
+                if (checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                    PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
+                            idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
+
+                    String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
+                    String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
+                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session,
+                            importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                        primaryList.add(purchaseInvoiceDetail);
+                    else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
+                        secondaryList.add(purchaseInvoiceDetail);
+                }
+            }
+
+            currentTimestamp = null;
+
+        } finally {
+            if(file != null)
+                file.close();
+            if(tempFile != null)
+                tempFile.delete();
         }
-
-        for (int i = importSettings.getStartRow() - 1; i < totalRecordCount; i++) {
-
-            file.read();
-
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
-
-            for (String field : stringFields) {
-
-                String value = getDBFFieldValue(file, defaultColumns.get(field), i, charset);
-                if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
-                    fieldValues.put(field, modifyNameCountry(value));
-                else if (field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                else if (field.equals("idCustomerStock")) {
-                    value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
-                    fieldValues.put("idCustomerStock", value);
-                    fieldValues.put("idCustomer", readIdCustomer(session, value));
-                } else
-                    fieldValues.put(field, value);
-
-            }
-
-            for (String field : bigDecimalFields) {
-                BigDecimal value = getDBFBigDecimalFieldValue(file, defaultColumns.get(field), i, charset);
-                if (field.equals("dataIndex")) {
-                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                } else if (field.equals("price"))
-                    fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
-                else
-                    fieldValues.put(field, value);
-            }
-
-            for (String field : dateFields) {
-                if (field.equals("dateDocument")) {
-                    Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get(field), i, charset);
-                    Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                    fieldValues.put(field, dateDocument);
-                    fieldValues.put("dateVAT", dateVAT);
-                } else if (field.equals("expiryDate"))
-                    fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset, true));
-                else
-                    fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset));
-            }
-
-            for(String field : timeFields) {
-                fieldValues.put(field, getDBFTimeFieldValue(file, defaultColumns.get(field), i, charset));
-            }
-            
-            String numberDocument = getDBFFieldValue(file, defaultColumns.get("numberDocument"), i, charset);
-            String idDocument = getDBFFieldValue(file, defaultColumns.get("idDocument"), i, charset, numberDocument);
-            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);    
-            BigDecimal quantity = getDBFBigDecimalFieldValue(file, defaultColumns.get("quantity"), i, charset);
-            BigDecimal netWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeight"), i, charset);
-            BigDecimal netWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeightSum"), i, charset);
-            netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
-            BigDecimal grossWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeight"), i, charset);
-            BigDecimal grossWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeightSum"), i, charset);
-            grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-
-            LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
-            for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
-                customValues.put(column.getKey(), getDBFFieldValue(file, column.getValue(), i, charset));
-            }
-
-            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
-                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
-
-                String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
-                String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session,
-                        importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
-                    primaryList.add(purchaseInvoiceDetail);
-                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
-                    secondaryList.add(purchaseInvoiceDetail);
-            }
-        }
-
-        currentTimestamp = null;
-        file.close();
-        tempFile.delete();
        
         return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
