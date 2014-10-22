@@ -349,6 +349,11 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateAssortTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
+        if(transactionInfo.snapshot) {
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("DELETE FROM assort");
+            statement.close();
+        }
         if (listNotEmpty(transactionInfo.terminalAssortmentList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
@@ -396,6 +401,11 @@ public class LSTerminalHandler extends TerminalHandler {
     }
     
     private void updateGoodsTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
+        if(transactionInfo.snapshot) {
+            Statement statement = connection.createStatement();      
+            statement.executeUpdate("BEGIN TRANSACTION; DELETE FROM zayavki; DELETE FROM goods; COMMIT;");
+            statement.close();
+        }
         if (listNotEmpty(transactionInfo.itemsList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
