@@ -69,11 +69,11 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
         return value == null ? null : value.intValue();
     }
 
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column) {
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
         return getXLSDateFieldValue(sheet, row, column, null);
     }
 
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column, Date defaultValue) {
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column, Date defaultValue) throws ParseException {
         if (row == null || column == null) return defaultValue;
         try {
             HSSFRow hssfRow = sheet.getRow(row);
@@ -84,11 +84,7 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
                 return new Date(hssfCell.getDateCellValue().getTime());
             return parseDate(getXLSFieldValue(sheet, row, column));
         } catch (Exception e) {
-            try {
-                return parseDate(getXLSFieldValue(sheet, row, column), defaultValue);
-            } catch (ParseException e1) {
-                return defaultValue;
-            }
+            return parseDate(getXLSFieldValue(sheet, row, column), defaultValue);
         }
     }
 }
