@@ -9,6 +9,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.poi.hssf.usermodel.*;
 
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -66,5 +67,28 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
     protected Integer getXLSIntegerFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
         BigDecimal value = getXLSBigDecimalFieldValue(sheet, row, column, null);
         return value == null ? null : value.intValue();
+    }
+
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column) {
+        return getXLSDateFieldValue(sheet, row, column, null);
+    }
+
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column, Date defaultValue) {
+        if (row == null || column == null) return defaultValue;
+        try {
+            HSSFRow hssfRow = sheet.getRow(row);
+            if (hssfRow == null) return defaultValue;
+            HSSFCell hssfCell = hssfRow.getCell(column);
+            if (hssfCell == null) return defaultValue;
+            if (hssfCell.getCellType() == org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC)
+                return new Date(hssfCell.getDateCellValue().getTime());
+            return parseDate(getXLSFieldValue(sheet, row, column));
+        } catch (Exception e) {
+            try {
+                return parseDate(getXLSFieldValue(sheet, row, column), defaultValue);
+            } catch (ParseException e1) {
+                return defaultValue;
+            }
+        }
     }
 }
