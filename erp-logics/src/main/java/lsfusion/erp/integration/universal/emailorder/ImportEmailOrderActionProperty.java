@@ -130,6 +130,10 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 keys.add(userOrderKey);
                 fields.add(seriesNumberUserOrderField);
 
+                ImportField isConfirmedOrderField = new ImportField(findProperty("Purchase.isConfirmedOrder"));
+                props.add(new ImportProperty(isConfirmedOrderField, findProperty("Purchase.isConfirmedOrder").getMapping(userOrderKey)));
+                fields.add(isConfirmedOrderField);
+
                 ImportField indexUserOrderDetailField = new ImportField(findProperty("Purchase.indexUserOrderDetail"));
                 ImportKey<?> userOrderDetailKey = new ImportKey((CustomClass) findClass("Purchase.UserOrderDetail"),
                         findProperty("orderDetailIndexNumberOrder").getMapping(indexUserOrderDetailField, seriesNumberUserOrderField));
@@ -193,7 +197,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                     if (index != null) {
                         BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, quantityColumn);
                         if (quantity != null)
-                            result.add(Arrays.asList((Object) numberOrder, index.intValue(), quantity));
+                            result.add(Arrays.asList((Object) numberOrder, true, index.intValue(), quantity));
                     }
                 }
             }
