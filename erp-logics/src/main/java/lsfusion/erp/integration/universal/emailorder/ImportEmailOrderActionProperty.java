@@ -42,13 +42,14 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
-        Map<ObjectValue, List<Object>> attachmentMap = readAttachmentMap(context);
+        Map<DataObject, List<Object>> attachmentMap = readAttachmentMap(context);
 
-        for (Map.Entry<ObjectValue, List<Object>> attachment : attachmentMap.entrySet()) {
+        for (Map.Entry<DataObject, List<Object>> attachment : attachmentMap.entrySet()) {
             byte[] file = (byte[]) attachment.getValue().get(0);
             String fileName = (String) attachment.getValue().get(1);
             try {
                 importOrder(context, file);
+                finishImportOrder(context, attachment.getKey());
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 ServerLoggers.systemLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
             } catch (ParseException e) {
@@ -61,9 +62,9 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
     }
 
-    private Map<ObjectValue, List<Object>> readAttachmentMap(ExecutionContext context) throws SQLException, SQLHandledException {
+    private Map<DataObject, List<Object>> readAttachmentMap(ExecutionContext context) throws SQLException, SQLHandledException {
 
-        Map<ObjectValue, List<Object>> attachmentMap = new HashMap<ObjectValue, List<Object>>();
+        Map<DataObject, List<Object>> attachmentMap = new HashMap<DataObject, List<Object>>();
 
         try {
 
@@ -88,7 +89,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
                 for (int j = 0, sizej = emailResult.size(); j < sizej; j++) {
                     ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
-                    ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
+                    DataObject attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
                     byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                     String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                     if (nameAttachmentEmail != null) {
@@ -153,6 +154,12 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 session.close();
             }
         }
+    }
+
+    private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        DataSession session = context.createSession();
+        findProperty("importedOrderAttachmentEmail").change(true, session, (DataObject) orderObject);
+        session.apply(context.getBL());        
     }
 
     private List<List<Object>> importOrderFromXLSX(byte[] file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException, ParseException {
