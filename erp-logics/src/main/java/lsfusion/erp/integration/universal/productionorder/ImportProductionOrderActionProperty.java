@@ -273,6 +273,12 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("sum"));
             }
 
+            if (showField(orderDetailsList, "costPrice")) {
+                addDataField(props, fields, importColumns, findProperty("Production.costPriceProductDetail"), "costPrice", productDetailKey);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("costPrice"));
+            }
+
             ImportTable table = new ImportTable(fields, data);
 
             session.pushVolatileStats("POA_IO");
@@ -294,7 +300,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
         List<String> stringFields = Arrays.asList("idProduct", "idProductsStock", "idItem");
         
-        List<String> bigDecimalFields = Arrays.asList("price", "componentsPrice", "valueVAT", "markup", "sum", "outputQuantity", "dataIndex");
+        List<String> bigDecimalFields = Arrays.asList("price", "componentsPrice", "valueVAT", "markup", "sum", "outputQuantity", "dataIndex", "costPrice");
 
         List<String> dateFields = Arrays.asList("dateDocument");
         
@@ -428,53 +434,59 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     }
 
     private List<ProductionOrderDetail> importOrdersFromDBF(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
-                                                            Integer startRow, Boolean isPosted, DataObject orderObject)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
+                                                            Integer startRow, Boolean isPosted, DataObject orderObject) throws IOException, xBaseJException, UniversalImportException {
 
         List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
 
-        File tempFile = File.createTempFile("productionOrder", ".dbf");
-        IOUtils.putFileBytes(tempFile, importFile);
+        DBF file = null;
+        File tempFile = null;
+        try {
 
-        DBF file = new DBF(tempFile.getPath());
-        String charset = getDBFCharset(tempFile);
+            tempFile = File.createTempFile("productionOrder", ".dbf");
+            IOUtils.putFileBytes(tempFile, importFile);
 
-        int totalRecordCount = file.getRecordCount();
+            file = new DBF(tempFile.getPath());
+            String charset = getDBFCharset(tempFile);
 
-        for (int i = 0; i < startRow - 1; i++) {
-            file.read();
-        }
-        
-        for (int i = startRow - 1; i < totalRecordCount; i++) {
+            int totalRecordCount = file.getRecordCount();
 
-            file.read();
-
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
-            for (String field : stringFields) {
-                String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
-                fieldValues.put(field, value);
+            for (int i = 0; i < startRow - 1; i++) {
+                file.read();
             }
-            for (String field : bigDecimalFields) {
-                BigDecimal value = getDBFBigDecimalFieldValue(file, importColumns.get(field), i, charset);
-                if(field.equals("dataIndex"))
-                    fieldValues.put(field, value == null ? null : value.intValue());
-                else
+
+            for (int i = startRow - 1; i < totalRecordCount; i++) {
+
+                file.read();
+
+                Map<String, Object> fieldValues = new HashMap<String, Object>();
+                for (String field : stringFields) {
+                    String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
                     fieldValues.put(field, value);
-            }
-            for (String field : dateFields) {
-                fieldValues.put(field, getDBFDateFieldValue(file, importColumns.get(field), i, charset));
-            }
-            
-            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
-            String idOrder = getDBFFieldValue(file, importColumns.get("idDocument"), i, charset, numberOrder);
-            String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            
-            result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
-        }
-        file.close();
-        tempFile.delete();
+                }
+                for (String field : bigDecimalFields) {
+                    BigDecimal value = getDBFBigDecimalFieldValue(file, importColumns.get(field), i, charset);
+                    if (field.equals("dataIndex"))
+                        fieldValues.put(field, value == null ? null : value.intValue());
+                    else
+                        fieldValues.put(field, value);
+                }
+                for (String field : dateFields) {
+                    fieldValues.put(field, getDBFDateFieldValue(file, importColumns.get(field), i, charset));
+                }
 
+                String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
+                String idOrder = getDBFFieldValue(file, importColumns.get("idDocument"), i, charset, numberOrder);
+                String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
+
+                result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
+            }
+        } finally {
+            if (file != null)
+                file.close();
+            if (tempFile != null)
+                tempFile.delete();
+        }
         return result;
     }
     
