@@ -110,11 +110,73 @@ FORM costCardOrderBy 'Калькуляционная карта'
     OBJECTS cd = ComponentDetail
     PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
     PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail
-                   
-
+    
+    FILTERS orderComponentDetail(cd)==o             
     FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
 ;
 printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+
+batchComponentDetail= DATA Batch (ComponentDetail);
+nameBatchComponentDetail 'Партия' (d) = nameBatch(batchComponentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+calcBatchComponentDetail(d) = lastOrderBatchSkuStock(skuComponentDetail(d), componentsStockComponentDetail(d));
+EXTEND FORM order
+    PROPERTIES (cd) nameBatchComponentDetail AFTER bruttoNameSkuComponentDetail(cd)
+;
+WHEN SESSION FORMS order 
+    CHANGED(skuComponentDetail(cd)) OR CHANGED (componentsStockComponentDetail(cd)) DO {
+        batchComponentDetail (cd) <- calcBatchComponentDetail(cd);
+    }
+CONSTRAINT skuBatch(batchComponentDetail(cd)) != skuComponentDetail(cd) CHECKED BY batchComponentDetail
+    MESSAGE 'Товар партии строки компонента должен соответствовать SKU строки строки компонента для производственного заказа';    
+
+seriesNumberBatchComponentDetail 'Серия/номер накладной' (b) = Purchase.seriesNumberInvoiceDetail(invoiceDetailBatch(batchComponentDetail(b)));
+dateBatchComponentDetail 'Дата накладной' (b) = Purchase.dateInvoiceDetail(invoiceDetailBatch(batchComponentDetail(b)));
+fullNameSupplierBatchComponentDetail 'Поставщик' (b) = fullNameSupplierBatch(batchComponentDetail(b));
+
+supplierPriceComponentDetail 'Цена поставщика' (cd) = priceInvoiceDetail(invoiceDetailBatch(batchComponentDetail(cd))); 
+      
+percOrderProductDetail 'Норма выхода, %' (d)= quantityProductDetail(d) *100 /  (quantityProductDetailOrder(orderProductDetail(d))   IF quantityProductDetailOrder(orderProductDetail(d))!=0);               
+percProductDetailOrder 'Норма выхода, %' = GROUP  SUM percOrderProductDetail(d) BY orderProductDetail(d);
+
+diffSumComponentDetail (cd) = sumComponentDetail(cd)- sumProductDetailOrder(orderComponentDetail(cd));
+
+calcRetailMarkupComponentDetail 'Надбавка' (cd)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
+    priceComponentDetail(cd),
+    supplierPriceComponentDetail(cd) IF supplierPriceComponentDetail(cd) != 0.0,
+    valueVATComponentDetail(cd));
+
+
+FORM cuttingBy 'Разруб'
+
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES(o) nameProductsLegalEntityStockOrder, fullNameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
+                  nameComponentsStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
+                  dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder,
+                  sumProductDetailOrder, percProductDetailOrder
+
+    OBJECTS cd = ComponentDetail
+    
+    PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail,
+                   supplierPriceComponentDetail, seriesNumberBatchComponentDetail, fullNameSupplierBatchComponentDetail, dateBatchComponentDetail,
+                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail
+    FILTERS orderComponentDetail(cd)==o    
+    
+    OBJECTS pd=ProductDetail
+    PROPERTIES(pd) indexProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, 
+                   shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
+                   componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
+                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail, percOrderProductDetail
+                   
+    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
+    PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
+                   retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
+
+    FILTERS orderProductDetail(pd)==o                   
+
+    FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
+;
+printCuttingOrder 'Разруб' (order) = ACTION FORM cuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 
 FORM intakeSheetOrderBy 'Заборный лист'
 
@@ -131,7 +193,7 @@ FORM intakeSheetOrderBy 'Заборный лист'
 ;
 printIntakeSheetOrder 'Заборный лист' (order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 EXTEND FORM orders
-    PROPERTIES(o) FORCE PANEL printCostCardOrder, printIntakeSheetOrder
+    PROPERTIES(o) FORCE PANEL printCostCardOrder, printIntakeSheetOrder, printCuttingOrder 
 ;
 
 selectDateProduct = DATA SESSION BOOLEAN (DATE, Product);
