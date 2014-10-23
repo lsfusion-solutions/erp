@@ -178,6 +178,39 @@ FORM cuttingBy 'Разруб'
 ;
 printCuttingOrder 'Разруб' (order) = ACTION FORM cuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 
+
+FORM actOfCuttingBy 'Акт о разделке сырья'
+
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES(o) nameProductsLegalEntityStockOrder, fullNameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
+                  nameComponentsStockOrder, addressComponentsLegalEntityStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
+                  dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder,
+                  sumProductDetailOrder, percProductDetailOrder
+
+    OBJECTS cd = ComponentDetail
+    
+    PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail,
+                   supplierPriceComponentDetail, seriesNumberBatchComponentDetail, fullNameSupplierBatchComponentDetail, dateBatchComponentDetail,
+                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail
+    FILTERS orderComponentDetail(cd)==o    
+    
+    OBJECTS pd=ProductDetail
+    PROPERTIES(pd) indexProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, 
+                   shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
+                   componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
+                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail, percOrderProductDetail
+                   
+    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
+    PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
+                   retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
+
+    FILTERS orderProductDetail(pd)==o                   
+
+    FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
+;
+printActOfCuttingBy 'Акт о разделке сырья' (order) = ACTION FORM actOfCuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+
+
 FORM intakeSheetOrderBy 'Заборный лист'
 
     OBJECTS o = Order FIXED PANEL
@@ -193,7 +226,7 @@ FORM intakeSheetOrderBy 'Заборный лист'
 ;
 printIntakeSheetOrder 'Заборный лист' (order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 EXTEND FORM orders
-    PROPERTIES(o) FORCE PANEL printCostCardOrder, printIntakeSheetOrder, printCuttingOrder 
+    PROPERTIES(o) FORCE PANEL printCostCardOrder, printIntakeSheetOrder, printCuttingOrder, printActOfCuttingBy 
 ;
 
 selectDateProduct = DATA SESSION BOOLEAN (DATE, Product);
