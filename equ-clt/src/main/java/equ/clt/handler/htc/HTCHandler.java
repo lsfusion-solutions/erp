@@ -167,9 +167,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 }
 
                                 boolean isWeight = item.idBarcode != null && item.idBarcode.length() <= 5;
-                                String code = isWeight ? item.idBarcode : "999999";
+                                String code = item.extIdItem;
                                 if (lastCode == null || !lastCode.equals(code)) {
                                     putField(dbfFile, CODE, code, append);
+                                    putField(dbfFile, ARTICUL, code, append);
                                     lastCode = code;
                                 }
 

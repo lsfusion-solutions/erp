@@ -245,6 +245,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode");
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
+                skuQuery.addProperty("idSkuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
                 if(storeItemLM != null)
                     skuQuery.addProperty("notPromotionSkuBarcode", storeItemLM.findProperty("notPromotionSkuBarcode").getExpr(barcodeExpr));
                 if(cashRegisterItemLM != null) {
@@ -335,13 +336,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) valueRow.get("VATMachineryPriceTransactionBarcode").getValue();
                         ObjectValue itemObject = valueRow.get("skuBarcode");
                         Integer idItem = (Integer) itemObject.getValue();
+                        String extIdItem = (String) valueRow.get("idSkuBarcode").getValue();
                         boolean notPromotionItem = storeItemLM != null && valueRow.get("notPromotionSkuBarcode").getValue() != null;
                         String description = scalesItemLM == null ? null : (String) valueRow.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) valueRow.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
                         String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) valueRow.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
-                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
+                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem, extIdItem,
                                 description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem));
                     }
                     

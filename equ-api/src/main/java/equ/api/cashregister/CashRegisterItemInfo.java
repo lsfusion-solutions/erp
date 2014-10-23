@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 
 public class CashRegisterItemInfo extends ItemInfo {
     public Integer idItem;
+    public String extIdItem;
     public String description;
     public String idItemGroup;
     public String nameItemGroup;
@@ -15,11 +16,12 @@ public class CashRegisterItemInfo extends ItemInfo {
     public boolean notPromotionItem;
 
     public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem,
-                                Integer idItem, String description, String idItemGroup, String nameItemGroup, 
+                                Integer idItem, String extIdItem, String description, String idItemGroup, String nameItemGroup, 
                                 String idUOM, String shortNameUOM,  boolean passScalesItem, BigDecimal vat, 
                                 boolean notPromotionItem) {
         super(idBarcode, name, price, splitItem);
         this.idItem = idItem;
+        this.extIdItem = extIdItem;
         this.description = description;
         this.idItemGroup = idItemGroup;
         this.nameItemGroup = nameItemGroup;
