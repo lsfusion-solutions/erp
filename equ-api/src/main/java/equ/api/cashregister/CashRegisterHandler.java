@@ -15,6 +15,10 @@ import java.util.Set;
 public abstract class  CashRegisterHandler<S extends SalesBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
 
     public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
+
+    public abstract void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directory) throws IOException;
+
+    public abstract void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException;
     
     public abstract SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException;
 

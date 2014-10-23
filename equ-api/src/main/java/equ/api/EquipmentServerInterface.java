@@ -34,9 +34,15 @@ public interface EquipmentServerInterface extends Remote {
 
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
+    List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException;
+
+    List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException;
+
     List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException;
 
     void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
+
+    List<DiscountCard> readDiscountCardList() throws RemoteException, SQLException;
 
     List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException;
 
@@ -62,11 +68,11 @@ public interface EquipmentServerInterface extends Remote {
 
     List<byte[][]> readLabelFormats (List<String> scalesModelsList) throws RemoteException, SQLException;
 
-    List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-
     String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
 
     Map<String,BigDecimal> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
     
     List<String> readCashRegistersStock(String idStock) throws RemoteException, SQLException;
+    
+    PromotionInfo readPromotionInfo() throws RemoteException, SQLException;
 }

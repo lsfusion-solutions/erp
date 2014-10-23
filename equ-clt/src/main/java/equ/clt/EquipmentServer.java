@@ -464,16 +464,16 @@ public class EquipmentServer {
 
     private void processMachineryExchange(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         logger.info("Process MachineryExchange");
-        List<TerminalInfo> terminalInfoList = remote.readTerminalInfo(sidEquipmentServer);
+        List<MachineryInfo> machineryInfoList = remote.readMachineryInfo(sidEquipmentServer);
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
 
         if (!requestExchangeList.isEmpty()) {
 
             Map<String, Map<Integer, String>> handlerModelMachineryMap = new HashMap<String, Map<Integer, String>>();
-            for (TerminalInfo terminal : terminalInfoList) {
-                if (!handlerModelMachineryMap.containsKey(terminal.handlerModel))
-                    handlerModelMachineryMap.put(terminal.handlerModel, new HashMap<Integer, String>());
-                handlerModelMachineryMap.get(terminal.handlerModel).put(terminal.numberGroup, terminal.directory);
+            for (MachineryInfo machinery : machineryInfoList) {
+                if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
+                    handlerModelMachineryMap.put(machinery.handlerModel, new HashMap<Integer, String>());
+                handlerModelMachineryMap.get(machinery.handlerModel).put(machinery.numberGroup, machinery.directory);
             }
 
             for (Map.Entry<String, Map<Integer, String>> entry : handlerModelMachineryMap.entrySet()) {
@@ -488,12 +488,33 @@ public class EquipmentServer {
                                     String directoryGroupMachinery = machineryEntry.getValue();
 
                                     MachineryHandler clsHandler = (MachineryHandler) getHandler(handlerModel, remote);
+                                    boolean isCashRegisterHandler = clsHandler instanceof CashRegisterHandler;
                                     boolean isTerminalHandler = clsHandler instanceof TerminalHandler;
 
+                                    if(isCashRegisterHandler) {
+                                        Set<String> directorySet = new HashSet<String>(entry.getValue().values());
+                                        
+                                        //DiscountCard
+                                        if (requestExchange.isDiscountCard()) {
+                                            List<DiscountCard> discountCardList = remote.readDiscountCardList();
+                                            if (discountCardList != null && !discountCardList.isEmpty())
+                                                ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, directorySet);
+                                            remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
+                                        } 
+
+                                        //Promotion
+                                        else if (requestExchange.isPromotion()) {
+                                            PromotionInfo promotionInfo = remote.readPromotionInfo();
+                                            if (promotionInfo != null)
+                                                ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, directorySet);
+                                            remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
+                                        }
+                                    }
+                                    
                                     //TerminalOrder
-                                    if (requestExchange.isTerminalOrderExchange() && isTerminalHandler) {
+                                    else if (requestExchange.isTerminalOrderExchange() && isTerminalHandler) {
                                         List<TerminalOrder> terminalOrderList = remote.readTerminalOrderList(requestExchange);
-                                        if(terminalOrderList != null && !terminalOrderList.isEmpty())
+                                        if (terminalOrderList != null && !terminalOrderList.isEmpty())
                                             ((TerminalHandler) clsHandler).sendTerminalOrderList(terminalOrderList, nppGroupMachinery, directoryGroupMachinery);
                                         remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
                                     }

@@ -63,6 +63,14 @@ public class EasyCSVHandler {
         }
 
         @Override
+        public void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directory) throws IOException {
+        }
+
+        @Override
+        public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {            
+        }
+
+        @Override
         public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
             return null;
         }

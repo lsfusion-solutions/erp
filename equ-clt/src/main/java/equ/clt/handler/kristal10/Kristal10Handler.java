@@ -383,7 +383,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
         }
     }
-    
+
+    @Override
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directory) throws IOException {
+    }
+
+    @Override
+    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {        
+    }
+
     private String formatDate(Date date) {
         return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").format(date);
     }

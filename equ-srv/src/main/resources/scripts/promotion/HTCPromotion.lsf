@@ -1,0 +1,59 @@
+MODULE HTCPromotion;
+
+REQUIRE System, Item, Machinery, MachineryPriceTransaction;
+
+EXTEND CLASS RequestExchangeType  {
+    promotion 'Загрузить акции'
+}
+
+
+CLASS HTCPromotionTime 'Временные скидки';
+TABLE HTCPromotionTime (HTCPromotionTime);
+
+isStopHTCPromotionTime 'Выключена' = DATA BOOLEAN (HTCPromotionTime);
+dayHTCPromotionTime 'День недели' = DATA DOW(HTCPromotionTime);
+captionDayHTCPromotionTime 'День недели' (promotion) = staticCaption(dayHTCPromotionTime(promotion));
+beginTimeHTCPromotionTime 'Время начала' = DATA TIME(HTCPromotionTime);
+endTimeHTCPromotionTime 'Время окончания' = DATA TIME(HTCPromotionTime);
+percentHTCPromotionTime 'Процент скидки' = DATA NUMERIC[6,2](HTCPromotionTime);
+
+
+CLASS HTCPromotionQuantity 'Количественные скидки';
+TABLE HTCPromotionQuantity (HTCPromotionQuantity);
+
+isStopHTCPromotionQuantity 'Выключена' = DATA BOOLEAN(HTCPromotionQuantity);
+itemHTCPromotionQuantity 'Товар' = DATA Item(HTCPromotionQuantity);
+captionItemHTCPromotionQuantity 'Товар' (HTCPromotionQuantity) = captionItem(itemHTCPromotionQuantity(HTCPromotionQuantity));
+barcodeItemHTCPromotionQuantity 'Штрих-код' (HTCPromotionQuantity) = idBarcodeSku(itemHTCPromotionQuantity(HTCPromotionQuantity));
+quantityHTCPromotionQuantity 'Мин. кол-во' = DATA NUMERIC[12,3](HTCPromotionQuantity);
+percentHTCPromotionQuantity 'Процент скидки' = DATA NUMERIC[6,2](HTCPromotionQuantity);
+
+
+CLASS HTCPromotionSum 'Суммовые скидки';
+TABLE HTCPromotionSum (HTCPromotionSum);
+
+isStopHTCPromotionSum 'Выключена' = DATA BOOLEAN(HTCPromotionSum);
+sumHTCPromotionSum 'Мин. сумма' = DATA NUMERIC[12,0](HTCPromotionSum);
+percentHTCPromotionSum 'Процент скидки' = DATA NUMERIC[6,2](HTCPromotionSum);
+
+
+FORM HTCPromotions 'Скидки HTC'
+    OBJECTS pt = HTCPromotionTime
+    PROPERTIES (pt) isStopHTCPromotionTime, captionDayHTCPromotionTime, beginTimeHTCPromotionTime, endTimeHTCPromotionTime, percentHTCPromotionTime, ADDOBJ, DELETE
+    DIALOG HTCPromotionTime OBJECT pt
+
+    OBJECTS pq = HTCPromotionQuantity
+    PROPERTIES (pq) isStopHTCPromotionQuantity, captionItemHTCPromotionQuantity, quantityHTCPromotionQuantity, percentHTCPromotionQuantity, ADDOBJ, DELETE
+    DIALOG HTCPromotionQuantity OBJECT pq
+
+    OBJECTS ps = HTCPromotionSum
+    PROPERTIES (ps) isStopHTCPromotionSum, sumHTCPromotionSum, percentHTCPromotionSum, ADDOBJ, DELETE
+    DIALOG HTCPromotionSum OBJECT ps
+;
+
+NAVIGATOR {
+    machineryMasterData {
+        ADD HTCPromotions;
+    }
+}
+

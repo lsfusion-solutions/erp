@@ -35,5 +35,13 @@ public class RequestExchange implements Serializable {
     public boolean isCheckZReportExchange() {
         return typeRequestExchange != null && typeRequestExchange.contains("checkZReport");
     }
+
+    public boolean isDiscountCard() {
+        return typeRequestExchange != null && typeRequestExchange.contains("discountCard");
+    }
+    
+    public boolean isPromotion() {
+        return typeRequestExchange != null && typeRequestExchange.contains("promotion");
+    }
     
 }

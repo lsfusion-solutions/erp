@@ -53,7 +53,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     cashRegisterInfoEntry.add(cashRegisterInfo);
                     directoryMap.put(directory, cashRegisterInfoEntry);
                 }
-
             }
 
             try {
@@ -75,7 +74,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                 File cachedPriceFile = null;
                 File cachedPriceMdxFile = null;
-                File cachedDiscFile = null;
 
                 for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
                     
@@ -181,7 +179,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 }
 
                                 if (lastBarcode == null || !lastBarcode.equals(item.idBarcode)) {
-                                    putField(dbfFile, BAR_CODE, item.idBarcode, append);
+                                    String idBarcode = item.idBarcode != null && item.idBarcode.length()==5 ? appendCheckDigitToBarcode("22" + item.idBarcode + "00000") : item.idBarcode;
+                                    putField(dbfFile, BAR_CODE, idBarcode, append);
                                     lastBarcode = item.idBarcode;
                                 }
 
@@ -239,9 +238,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         
                         dbfFile.close();
                     }
-
-                    if (transactionInfo.snapshot && transactionInfo.discountCardList != null)
-                        cachedDiscFile = createDiscountCardFile(transactionInfo.discountCardList, directory, cachedDiscFile);
                     
                     if(!append)
                         FileCopyUtils.copy(cachedPriceFile, priceFile);
@@ -263,42 +259,185 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         return succeededMachineryInfoList;
     }
 
-    private File createDiscountCardFile(List<DiscountCard> discountCardList, String directory, File cachedDiscFile) throws IOException, xBaseJException {
+    @Override
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directorySet) throws IOException {
 
-        File discountCardFile = new File(directory + "/Discnew.dbf");
-        if (cachedDiscFile != null) {
-            FileCopyUtils.copy(cachedDiscFile, discountCardFile);
-        } else {
-            CharField DISC = new CharField("DISC", 32);
-            CharField NAME = new CharField("NAME", 40);
-            NumField PERCENT = new NumField("PERCENT", 6, 2);
-            LogicalField ISSTOP = new LogicalField("ISSTOP");
+        try {
 
-            DBF dbfFile = new DBF(discountCardFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
-            dbfFile.addField(new Field[]{DISC, NAME, PERCENT, ISSTOP});
+            File cachedDiscFile = null;
+            
+            for(String directory : directorySet) {
 
-            String lastName = null;
-            BigDecimal lastPercent = null;
-            for (DiscountCard discountCard : discountCardList) {
-                putField(dbfFile, DISC, discountCard.numberDiscountCard, false);
-                
-                if(lastName == null || !lastName.equals(discountCard.nameDiscountCard)) {
-                    putField(dbfFile, NAME, discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard, false);
-                    lastName = discountCard.nameDiscountCard;
+                File discountCardFile = new File(directory + "/Discnew.dbf");
+                if (cachedDiscFile != null) {
+                    FileCopyUtils.copy(cachedDiscFile, discountCardFile);
+                } else {
+                    CharField DISC = new CharField("DISC", 32);
+                    CharField NAME = new CharField("NAME", 40);
+                    NumField PERCENT = new NumField("PERCENT", 6, 2);
+                    LogicalField ISSTOP = new LogicalField("ISSTOP");
+
+                    DBF dbfFile = new DBF(discountCardFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile.addField(new Field[]{DISC, NAME, PERCENT, ISSTOP});
+
+                    String lastName = null;
+                    BigDecimal lastPercent = null;
+                    for (DiscountCard discountCard : discountCardList) {
+                        putField(dbfFile, DISC, discountCard.numberDiscountCard, false);
+
+                        if (lastName == null || !lastName.equals(discountCard.nameDiscountCard)) {
+                            putField(dbfFile, NAME, discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard, false);
+                            lastName = discountCard.nameDiscountCard;
+                        }
+
+                        if (lastPercent == null || !lastPercent.equals(discountCard.percentDiscountCard)) {
+                            putField(dbfFile, PERCENT, String.valueOf(discountCard.percentDiscountCard), false);
+                            lastPercent = discountCard.percentDiscountCard;
+                        }
+                        dbfFile.write();
+                    }
+                    dbfFile.close();
                 }
-                
-                if(lastPercent == null || !lastPercent.equals(discountCard.percentDiscountCard)) {
-                    putField(dbfFile, PERCENT, String.valueOf(discountCard.percentDiscountCard), false);
-                    lastPercent = discountCard.percentDiscountCard;
-                }
-                dbfFile.write();
+                new File(directory + "/Discnew.mdx").delete();
+                File discountFlag = new File(directory + "/TMC.dcn");
+                discountFlag.createNewFile();
+                cachedDiscFile = discountCardFile;
             }
-            dbfFile.close();
+        } catch (xBaseJException e) {
+            throw Throwables.propagate(e);
         }
-        new File(directory + "/Discnew.mdx").delete();
-        File discountFlag = new File(directory + "/TMC.dcn");
-        discountFlag.createNewFile();
-        return cachedDiscFile==null ? discountCardFile : cachedDiscFile;
+    }
+
+    @Override
+    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directorySet) throws IOException {
+
+        try {
+
+            File cachedTimeFile = null;
+            File cachedQuantityFile = null;
+            File cachedSumFile = null;
+            
+            for(String directory : directorySet) {
+
+                cachedTimeFile = sendPromotionTimeFile(promotionInfo.promotionTimeList, directory, cachedTimeFile);
+                cachedQuantityFile = sendPromotionQuantityFile(promotionInfo.promotionQuantityList, directory, cachedQuantityFile);
+                cachedSumFile = sendPromotionSumFile(promotionInfo.promotionSumList, directory, cachedSumFile);
+                
+            }
+        } catch (xBaseJException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+    
+    private File sendPromotionTimeFile(List<PromotionTime> promotionTimeList, String directory, File cachedTimeFile) throws IOException, xBaseJException {
+        if(promotionTimeList != null && !promotionTimeList.isEmpty()) {
+            File timeFile = new File(directory + "/Timenew.dbf");
+            if (cachedTimeFile != null) {
+                FileCopyUtils.copy(cachedTimeFile, timeFile);
+            } else {
+                CharField DAY = new CharField("DAY", 15);
+                CharField BEGIN = new CharField("BEGIN", 4);
+                CharField END = new CharField("END", 4);
+                NumField PERCENT = new NumField("PERCENT", 6, 2);
+                LogicalField ISSTOP = new LogicalField("ISSTOP");
+
+                DBF dbfFile = null;
+                try {
+
+                    dbfFile = new DBF(timeFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile.addField(new Field[]{DAY, BEGIN, END, PERCENT, ISSTOP});
+
+                    for (PromotionTime promotionTime : promotionTimeList) {
+                        putField(dbfFile, DAY, promotionTime.day == null ? null : trim(promotionTime.day, 15).toUpperCase(), false);
+                        putField(dbfFile, BEGIN, formatTime(promotionTime.beginTime), false);
+                        putField(dbfFile, END, formatTime(promotionTime.endTime), false);
+                        putField(dbfFile, PERCENT, promotionTime.percent == null ? null : String.valueOf(promotionTime.percent.doubleValue()), false);
+                        putField(dbfFile, ISSTOP, promotionTime.isStop ? "T" : "F", false);
+                        dbfFile.write();
+                    }
+                } finally {
+                    if (dbfFile != null)
+                        dbfFile.close();
+                }
+            }
+            new File(directory + "/Timenew.mdx").delete();
+            new File(directory + "/TMC.tmn").createNewFile();
+            return timeFile;
+        } else return null;
+    }
+
+    private File sendPromotionQuantityFile(List<PromotionQuantity> promotionQuantityList, String directory, File cachedQuantityFile) throws IOException, xBaseJException {
+        if (promotionQuantityList != null && !promotionQuantityList.isEmpty()) {
+            File quantityFile = new File(directory + "/Bonnew.dbf");
+            if (cachedQuantityFile != null) {
+                FileCopyUtils.copy(cachedQuantityFile, quantityFile);
+            } else {
+                CharField BAR1 = new CharField("BAR1", 15);
+                NumField KOL1 = new NumField("KOL1", 12, 3);
+                CharField BAR2 = new CharField("BAR2", 15);
+                NumField KOL2 = new NumField("KOL2", 12, 3);
+                NumField PERCENT = new NumField("PERCENT", 6, 2);
+                LogicalField ISSTOP = new LogicalField("ISSTOP");
+
+                DBF dbfFile = null;
+                try {
+
+                    dbfFile = new DBF(quantityFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile.addField(new Field[]{BAR1, KOL1, BAR2, KOL2, PERCENT, ISSTOP});
+
+                    for (PromotionQuantity promotionQuantity : promotionQuantityList) {
+                        putField(dbfFile, BAR1, trim(promotionQuantity.barcodeItem, 15), false);
+                        putField(dbfFile, KOL1, promotionQuantity.quantity == null ? null : String.valueOf(promotionQuantity.quantity.doubleValue()), false);
+                        putField(dbfFile, PERCENT, promotionQuantity.percent == null ? null : String.valueOf(promotionQuantity.percent.doubleValue()), false);
+                        putField(dbfFile, ISSTOP, promotionQuantity.isStop ? "T" : "F", false);
+                        dbfFile.write();
+                    }
+                } finally {
+                    if (dbfFile != null)
+                        dbfFile.close();
+                }
+            }
+            new File(directory + "/Bonnew.mdx").delete();
+            new File(directory + "/TMC.bnn").createNewFile();
+            return quantityFile;
+        } else return null;
+    }
+
+    private File sendPromotionSumFile(List<PromotionSum> promotionSumList, String directory, File cachedSumFile) throws IOException, xBaseJException {
+        if (promotionSumList != null && !promotionSumList.isEmpty()) {
+            File sumFile = new File(directory + "/Sumnew.dbf");
+            if (cachedSumFile != null) {
+                FileCopyUtils.copy(cachedSumFile, sumFile);
+            } else {
+                NumField SUM = new NumField("SUM", 12, 0);
+                NumField PERCENT = new NumField("PERCENT", 6, 2);
+                LogicalField ISSTOP = new LogicalField("ISSTOP");
+
+                DBF dbfFile = null;
+                try {
+
+                    dbfFile = new DBF(sumFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile.addField(new Field[]{SUM, PERCENT, ISSTOP});
+
+                    for (PromotionSum promotionSum : promotionSumList) {
+                        putField(dbfFile, SUM, promotionSum.sum == null ? null : String.valueOf(promotionSum.sum.intValue()), false);
+                        putField(dbfFile, PERCENT, promotionSum.percent == null ? null : String.valueOf(promotionSum.percent.doubleValue()), false);
+                        putField(dbfFile, ISSTOP, promotionSum.isStop ? "T" : "F", false);
+                        dbfFile.write();
+                    }
+                } finally {
+                    if (dbfFile != null)
+                        dbfFile.close();
+                }
+            }
+            new File(directory + "/Sumnew.mdx").delete();
+            new File(directory + "/TMC.smn").createNewFile();
+            return sumFile;
+        } else return null;
+    }
+    
+    private String formatTime(Time time) {
+        return time == null ? null : new SimpleDateFormat("HHmm").format(new Date(time.getTime()));
     }
 
     private void putField(DBF dbfFile, Field field, String value, boolean append) throws xBaseJException {
@@ -306,10 +445,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             dbfFile.getField(field.getName()).put(value == null ? "null" : value);
         else
             field.put(value == null ? "null" : value);
-    }
-    
-    private void putField(DBF dbfFile, String field, String value) throws xBaseJException {
-        dbfFile.getField(field).put(value == null ? "null" : value);
     }
 
     private boolean waitForDeletion(File file, File flagFile) {
@@ -516,5 +651,21 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
+    }
+
+    public static String appendCheckDigitToBarcode(String barcode) {
+        try {
+            int checkSum = 0;
+            for (int i = 0; i <= 10; i = i + 2) {
+                checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+                checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+            }
+            checkSum %= 10;
+            if (checkSum != 0)
+                checkSum = 10 - checkSum;
+            return barcode.concat(String.valueOf(checkSum));
+        } catch (Exception e) {
+            return barcode;
+        }
     }
 }
