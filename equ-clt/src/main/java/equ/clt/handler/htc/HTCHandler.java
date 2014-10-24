@@ -28,6 +28,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     
     String charset = "cp866";
 
@@ -263,6 +264,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directorySet) throws IOException {
 
+        machineryExchangeLogger.info("HTCHandler: sending discount cards");
+        
         try {
 
             File cachedDiscFile = null;
@@ -311,7 +314,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     @Override
     public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directorySet) throws IOException {
-
+        machineryExchangeLogger.info("HTCHandler: sending PromotionInfo");
         try {
 
             File cachedTimeFile = null;

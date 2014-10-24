@@ -66,15 +66,19 @@ public class LSTerminalHandler extends TerminalHandler {
             File directory = new File(directoryGroupTerminal + dbPath);
             if (directory.exists() || directory.mkdir()) {
                 Class.forName("org.sqlite.JDBC");
-                Connection connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal));
+                Connection connection = null;
+                try {
+                    connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal));
 
-                createGoodsTableIfNotExists(connection);
-                updateTerminalGoodsTable(connection, terminalOrderList);
+                    createGoodsTableIfNotExists(connection);
+                    updateTerminalGoodsTable(connection, terminalOrderList);
 
-                createOrderTable(connection);
-                updateOrderTable(connection, terminalOrderList);
-
-                connection.close();
+                    createOrderTable(connection);
+                    updateOrderTable(connection, terminalOrderList);
+                } finally {
+                    if(connection != null)
+                        connection.close();
+                }
 
             } else {
                 machineryExchangeLogger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
@@ -114,25 +118,29 @@ public class LSTerminalHandler extends TerminalHandler {
         if (directory.exists() || directory.mkdir()) {
             try {
                 Class.forName("org.sqlite.JDBC");
-                Connection connection = DriverManager.getConnection("jdbc:sqlite:" +
-                        makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal));
+                Connection connection = null;
+                try {
+                    connection = DriverManager.getConnection("jdbc:sqlite:" +
+                            makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal));
 
-                createGoodsTableIfNotExists(connection);
-                updateGoodsTable(connection, transactionInfo);
+                    createGoodsTableIfNotExists(connection);
+                    updateGoodsTable(connection, transactionInfo);
 
-                createAssortTableIfNotExists(connection);
-                updateAssortTable(connection, transactionInfo);
+                    createAssortTableIfNotExists(connection);
+                    updateAssortTable(connection, transactionInfo);
 
-                createVANTableIfNotExists(connection);
-                updateVANTable(connection, transactionInfo);
+                    createVANTableIfNotExists(connection);
+                    updateVANTable(connection, transactionInfo);
 
-                createANATableIfNotExists(connection);
-                updateANATable(connection, transactionInfo);
+                    createANATableIfNotExists(connection);
+                    updateANATable(connection, transactionInfo);
 
-                createVOPTableIfNotExists(connection);
-                updateVOPTable(connection, transactionInfo);
-
-                connection.close();
+                    createVOPTableIfNotExists(connection);
+                    updateVOPTable(connection, transactionInfo);
+                } finally {
+                    if(connection != null)
+                        connection.close();
+                }
 
             } catch (Exception e) {
                 processTransactionLogger.error(e);
@@ -197,32 +205,35 @@ public class LSTerminalHandler extends TerminalHandler {
                             if (isFileLocked(file)) {
                                 sendTerminalDocumentLogger.info("LSTerminal: " + fileName + " is locked");
                             } else {
+                                Connection connection = null;
+                                try {
+                                    connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+                                    List<List<Object>> dokData = readDokFile(connection);
 
-                                Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
-                                List<List<Object>> dokData = readDokFile(connection);
+                                    for (List<Object> entry : dokData) {
 
-                                for (List<Object> entry : dokData) {
+                                        String dateTime = (String) entry.get(0); //DV
+                                        String numberTerminalDocument = (String) entry.get(1); //NUM
+                                        String idTerminalDocument = dateTime + "/" + numberTerminalDocument;
+                                        String idTerminalDocumentType = (String) entry.get(2); //VOP
+                                        String idTerminalHandbookType1 = (String) entry.get(3); //ANA1
+                                        String idTerminalHandbookType2 = (String) entry.get(4); //ANA2
+                                        String barcode = (String) entry.get(5); //BARCODE
+                                        BigDecimal quantity = (BigDecimal) entry.get(6); //QUANT
+                                        BigDecimal price = (BigDecimal) entry.get(7); //PRICE
+                                        String numberTerminalDocumentDetail = (String) entry.get(8); //npp
+                                        BigDecimal sum = safeMultiply(quantity, price);
+                                        String idTerminalDocumentDetail = idTerminalDocument + numberTerminalDocumentDetail;
 
-                                    String dateTime = (String) entry.get(0); //DV
-                                    String numberTerminalDocument = (String) entry.get(1); //NUM
-                                    String idTerminalDocument = dateTime + "/" + numberTerminalDocument;
-                                    String idTerminalDocumentType = (String) entry.get(2); //VOP
-                                    String idTerminalHandbookType1 = (String) entry.get(3); //ANA1
-                                    String idTerminalHandbookType2 = (String) entry.get(4); //ANA2
-                                    String barcode = (String) entry.get(5); //BARCODE
-                                    BigDecimal quantity = (BigDecimal) entry.get(6); //QUANT
-                                    BigDecimal price = (BigDecimal) entry.get(7); //PRICE
-                                    String numberTerminalDocumentDetail = (String) entry.get(8); //npp
-                                    BigDecimal sum = safeMultiply(quantity, price);
-                                    String idTerminalDocumentDetail = idTerminalDocument + numberTerminalDocumentDetail;
-                                    
-                                    if (quantity != null && !quantity.equals(BigDecimal.ZERO))
-                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(idTerminalDocument, numberTerminalDocument, 
-                                                directory, idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType, 
-                                                idTerminalDocumentDetail, numberTerminalDocumentDetail, barcode, price, quantity, sum));
+                                        if (quantity != null && !quantity.equals(BigDecimal.ZERO))
+                                            terminalDocumentDetailList.add(new TerminalDocumentDetail(idTerminalDocument, numberTerminalDocument,
+                                                    directory, idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType,
+                                                    idTerminalDocumentDetail, numberTerminalDocumentDetail, barcode, price, quantity, sum));
+                                    }
+                                } finally {
+                                    if(connection != null)
+                                        connection.close();
                                 }
-
-                                connection.close();
                                 filePathList.add(file.getAbsolutePath());
                             }
                         } catch (Throwable e) {
