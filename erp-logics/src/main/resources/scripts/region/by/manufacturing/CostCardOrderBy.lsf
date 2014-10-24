@@ -135,11 +135,22 @@ dateBatchComponentDetail 'Дата накладной' (b) = Purchase.dateInvoic
 fullNameSupplierBatchComponentDetail 'Поставщик' (b) = fullNameSupplierBatch(batchComponentDetail(b));
 
 supplierPriceComponentDetail 'Цена поставщика' (cd) = priceInvoiceDetail(invoiceDetailBatch(batchComponentDetail(cd))); 
-      
-percOrderProductDetail 'Норма выхода, %' (d)= quantityProductDetail(d) *100 /  (quantityProductDetailOrder(orderProductDetail(d))   IF quantityProductDetailOrder(orderProductDetail(d))!=0);               
-percProductDetailOrder 'Норма выхода, %' = GROUP  SUM percOrderProductDetail(d) BY orderProductDetail(d);
 
-diffSumComponentDetail (cd) = sumComponentDetail(cd)- sumProductDetailOrder(orderComponentDetail(cd));
+quantityProductDetailsComponentDetail 'Кол-во' (cd) = GROUP SUM quantityProductDetail(pd) IF 
+    BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd)) AND orderComponentDetail(cd) == orderProductDetail(pd)
+        BY cd;      
+percOrderProductDetailComponentDetail 'Норма выхода, %' (pd,cd)=  quantityProductDetail(pd) *100 /  (quantityProductDetailsComponentDetail(cd) IF (quantityProductDetailsComponentDetail(cd)!=0));  
+percProductDetailComponentDetail'Норма выхода, %' (cd) = GROUP  SUM percOrderProductDetailComponentDetail(pd,cd) IF 
+    BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd)) AND orderComponentDetail(cd) == orderProductDetail(pd)
+        BY cd;       
+//percOrderProductDetail 'Норма выхода, %' (d)= quantityProductDetail(d) *100 /  (quantityProductDetailOrder(orderProductDetail(d)) IF quantityProductDetailOrder(orderProductDetail(d))!=0);               
+
+
+sumProductDetailsComponentDetail 'Сумма' (cd) = GROUP SUM sumProductDetail(pd) IF 
+    BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd)) AND orderComponentDetail(cd) == orderProductDetail(pd)
+        BY cd;    
+
+diffSumComponentDetail (cd) = sumComponentDetail(cd)- sumProductDetailsComponentDetail(cd);
 
 calcRetailMarkupComponentDetail 'Надбавка' (cd)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
     priceComponentDetail(cd),
@@ -153,22 +164,24 @@ FORM cuttingBy 'Разруб'
     PROPERTIES(o) nameProductsLegalEntityStockOrder, fullNameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
                   nameComponentsStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder,
-                  sumProductDetailOrder, percProductDetailOrder
+                  sumProductDetailOrder
 
     OBJECTS cd = ComponentDetail
     
     PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail,
                    supplierPriceComponentDetail, seriesNumberBatchComponentDetail, fullNameSupplierBatchComponentDetail, dateBatchComponentDetail,
-                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail
+                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail, quantityComponentDetail,
+                   percProductDetailComponentDetail, quantityProductDetailsComponentDetail, sumProductDetailsComponentDetail
     FILTERS orderComponentDetail(cd)==o    
     
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) indexProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, 
                    shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
                    componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
-                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail, percOrderProductDetail
+                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail
                    
-    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
+    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail, 
+                   percOrderProductDetailComponentDetail
     PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
                    retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
 
@@ -185,22 +198,24 @@ FORM actOfCuttingBy 'Акт о разделке сырья'
     PROPERTIES(o) nameProductsLegalEntityStockOrder, fullNameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
                   nameComponentsStockOrder, addressComponentsLegalEntityStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder,
-                  sumProductDetailOrder, percProductDetailOrder
+                  sumProductDetailOrder
 
     OBJECTS cd = ComponentDetail
     
     PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail,
                    supplierPriceComponentDetail, seriesNumberBatchComponentDetail, fullNameSupplierBatchComponentDetail, dateBatchComponentDetail,
-                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail
+                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail, quantityComponentDetail,
+                   percProductDetailComponentDetail, quantityProductDetailsComponentDetail, sumProductDetailsComponentDetail
     FILTERS orderComponentDetail(cd)==o    
     
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) indexProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, 
                    shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
                    componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
-                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail, percOrderProductDetail
+                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail
                    
-    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
+    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail,
+                   percOrderProductDetailComponentDetail
     PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
                    retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
 
