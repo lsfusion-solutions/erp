@@ -114,13 +114,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                     files = unpackRARFile(fileAttachment, fileExtension);
                                 } else if (nameAttachmentEmail.toLowerCase().endsWith(".zip")) {
                                     files = unpackZIPFile(fileAttachment, fileExtension);
-                                } else if(nameAttachmentEmail.toLowerCase().endsWith(fileExtension.toLowerCase()))
+                                } else
                                     files.add(fileAttachment);
-                                else {
-                                    DataSession postImportSession = context.createSession();
-                                    findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                    postImportSession.apply(context);
-                                }
                             } 
                             
                             for(byte[] file : files) {
@@ -144,6 +139,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 } catch (Exception e) {
                                     DataSession postImportSession = context.createSession();
                                     findProperty("lastErrorAttachmentEmail").change(e.toString(), postImportSession, (DataObject) attachmentEmailObject);
+                                    if(isOld)
+                                        findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
                                     postImportSession.apply(context);
                                     ServerLoggers.systemLogger.error(e);
                                 }
@@ -199,6 +196,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     }
                     fh = a.nextFileHeader();
                 }
+                a.close();
             }
 
             for(File dir : dirList)
