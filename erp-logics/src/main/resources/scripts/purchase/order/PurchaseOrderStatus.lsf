@@ -110,10 +110,13 @@ calcEmailCustomerOrder 'Отправить заказ поставщику' (ord
            printOrderXLS OBJECTS o=order
 ;
 
+
+overEmailCustomerOrder = ABSTRACT ACTION LIST (Order.Order);
 emailCustomerOrder 'Отправить заказ поставщику' (order)= ACTION (order) {
     IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order))) THEN {
         NEWSESSION AUTOAPPLY {
             isSentOrder(o) <- TRUE;
+            overEmailCustomerOrder(order);
             
             calcEmailCustomerOrder(order);        
         }

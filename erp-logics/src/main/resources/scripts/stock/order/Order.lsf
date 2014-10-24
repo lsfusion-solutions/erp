@@ -57,6 +57,7 @@ shipmentDateTimeOrderDetail 'Дата/время поставки' (d) = dateTim
 idBatchOrderDetail 'Код партии' (d)= idBatch(batchOrderDetail(d));
 
 @defineDocumentAbstractDetailPrice(order);
+@defineDocumentAbstractDetailPriceCustomPrefix(orderDetail, invoice, ' с НДС');
 @defineDocumentAbstractDetailDataSumCustomPrefix (orderDetail, , );
 @defineDocumentAbstractDetailVAT(order, , );
 @defineDocumentAbstractDetailVATDataSumCustom (orderDetail, invoice);
@@ -64,6 +65,8 @@ idBatchOrderDetail 'Код партии' (d)= idBatch(batchOrderDetail(d));
 @defineDocumentAbstractDetailQuantity(order);
 @defineDocumentDetailGrossWeight(order, sku);
 @defineDocumentAbstractDetailQuantityPrefix(order, pack, ' (упаковок)');
+packQuantityOrderDetailOrder 'Кол-во (упаковок)(всего)' (order) = GROUP SUM packQuantityOrderDetail(idetail) BY orderOrderDetail(idetail) IN documentSum PERSISTENT;
+
 @defineDocumentHeaderSkuQuantity(order, sku);
 
 @defineDocumentHeaderQuantity(order);
@@ -91,6 +94,8 @@ isReturnOrder 'Возвратный' = ABSTRACT BOOLEAN (Order);
 
 @defineDocumentAbstractHeaderDescription(Order);
 @defineDocumentDetailDescription(order, OrderDetail);
+
+@defineDocumentAbstractContract(Order, contractSku, ContractSku);
 
 negativeValueOrders 'Запретить ввод отрицательных значений в заказах' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -162,7 +167,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceContract(Order, contractSku, supplier, customer,
                                      'Организация (поставщик) договора заказа не соответствует организация (поставщик) заказа',
                                      'Организация (покупатель) договора заказа не соответствует организация (покупатель) заказа');
-
+    Order.contractSkuOrder (order) += contractSkuOrder (order);
     @defineDocumentInterfacePosted(order);
     Order.isPostedOrder (order) += isPostedOrder(order);
     
@@ -274,7 +279,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     Order.valueVATOrderDetail(detail) += valueVATOrderDetail(detail);
 
     @defineDocumentInterfaceDetailPricePrefix (order, invoice, ' с НДС'); // объявляем цену с НДС
-
+    Order.invoicePriceOrderDetail(d) += invoicePriceOrderDetail(d);
     // объявляем Action'ы для ON CHANGE
     @defineDocumentDetailPriceVATOnChange(userOrder);
     @defineDocumentDetailNumberVATOnChange(userOrder, stockProp###stock);

@@ -1,6 +1,6 @@
 MODULE OrderRamp;
 
-REQUIRE Ramp, Order;
+REQUIRE Ramp, Order, Time;
 
 NAMESPACE Order;
 
@@ -20,7 +20,7 @@ nameSupplierOrdersRampIntervalOrder 'Поставщик' (r,i,o) = nameSupplierO
 nameCustomerOrdersRampIntervalOrder 'Покупатель' (r,i,o) = nameCustomerOrder(orderRampIntervalDate(r,i,shipmentDateOrder(o)));
 
 descriptionRampsOrder 'Рампы' (o)= 
-    GROUP CONCAT (CONCAT ' ', shipmentDateOrder(o), timeInterval(i), nameRamp(r)) IF inOrderRampInterval(o,r,i), ', ' 
+    GROUP CONCAT (CONCAT ' ', [= FORMULA STRING[10] 'to_char($1,\'DD.MM.YYYY\')'](shipmentDateOrder(o)), timeInterval(i), '№ '+nameRamp(r)) IF inOrderRampInterval(o,r,i), ', ' 
     BY o
     ORDER shipmentDateOrder(o), nameRamp(r), timeInterval(i) 
     MINCHARWIDTH 20 PREFCHARWIDTH 30;
