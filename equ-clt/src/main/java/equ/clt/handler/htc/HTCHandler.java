@@ -93,8 +93,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         if (append) {
                             dbfFile = new DBF(priceFile.getAbsolutePath(), charset);
                         } else {
-                            cachedPriceFile = new File(directory + "/cachedPrice.dbf");
-                            cachedPriceMdxFile = new File(directory + "/cachedPrice.mdx");
+                            cachedPriceFile = File.createTempFile("cachedPrice", ".dbf");
+                            cachedPriceMdxFile = new File(cachedPriceFile.getAbsolutePath().replace(".dbf", ".mdx"));
                             dbfFile = new DBF(cachedPriceFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                             if (!append)
                                 dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, CMD, UNIT});
@@ -276,12 +276,14 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 if (cachedDiscFile != null) {
                     FileCopyUtils.copy(cachedDiscFile, discountCardFile);
                 } else {
+                    cachedDiscFile = File.createTempFile("cachedDiscnew", ".dbf");
+                    
                     CharField DISC = new CharField("DISC", 32);
                     CharField NAME = new CharField("NAME", 40);
                     NumField PERCENT = new NumField("PERCENT", 6, 2);
                     LogicalField ISSTOP = new LogicalField("ISSTOP");
 
-                    DBF dbfFile = new DBF(discountCardFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    DBF dbfFile = new DBF(cachedDiscFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                     dbfFile.addField(new Field[]{DISC, NAME, PERCENT, ISSTOP});
 
                     String lastName = null;
@@ -301,11 +303,14 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         dbfFile.write();
                     }
                     dbfFile.close();
+                    FileCopyUtils.copy(cachedDiscFile, discountCardFile);
                 }
-                new File(directory + "/Discnew.mdx").delete();
                 File discountFlag = new File(directory + "/TMC.dcn");
                 discountFlag.createNewFile();
-                cachedDiscFile = discountCardFile;
+            }
+            if(cachedDiscFile != null) {
+                new File(cachedDiscFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+                cachedDiscFile.delete();
             }
         } catch (xBaseJException e) {
             throw Throwables.propagate(e);
@@ -328,6 +333,22 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 cachedSumFile = sendPromotionSumFile(promotionInfo.promotionSumList, directory, cachedSumFile);
                 
             }
+            
+            if(cachedTimeFile != null) {
+                cachedTimeFile.delete();
+                new File(cachedTimeFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+            }
+
+            if(cachedQuantityFile != null) {
+                cachedQuantityFile.delete();
+                new File(cachedQuantityFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+            }
+
+            if(cachedSumFile != null) {
+                cachedSumFile.delete();
+                new File(cachedSumFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+            }
+            
         } catch (xBaseJException e) {
             throw Throwables.propagate(e);
         }
@@ -339,6 +360,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             if (cachedTimeFile != null) {
                 FileCopyUtils.copy(cachedTimeFile, timeFile);
             } else {
+                cachedTimeFile = File.createTempFile("cachedTimenew", ".dbf");
+                
                 CharField DAY = new CharField("DAY", 15);
                 CharField BEGIN = new CharField("BEGIN", 4);
                 CharField END = new CharField("END", 4);
@@ -348,7 +371,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 DBF dbfFile = null;
                 try {
 
-                    dbfFile = new DBF(timeFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile = new DBF(cachedTimeFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                     dbfFile.addField(new Field[]{DAY, BEGIN, END, PERCENT, ISSTOP});
 
                     for (PromotionTime promotionTime : promotionTimeList) {
@@ -363,10 +386,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if (dbfFile != null)
                         dbfFile.close();
                 }
+                FileCopyUtils.copy(cachedTimeFile, timeFile);
             }
-            new File(directory + "/Timenew.mdx").delete();
             new File(directory + "/TMC.tmn").createNewFile();
-            return timeFile;
+            return cachedTimeFile;
         } else return null;
     }
 
@@ -376,6 +399,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             if (cachedQuantityFile != null) {
                 FileCopyUtils.copy(cachedQuantityFile, quantityFile);
             } else {
+                cachedQuantityFile = File.createTempFile("cachedBonnew", ".dbf");
+                
                 CharField BAR1 = new CharField("BAR1", 15);
                 NumField KOL1 = new NumField("KOL1", 12, 3);
                 CharField BAR2 = new CharField("BAR2", 15);
@@ -386,7 +411,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 DBF dbfFile = null;
                 try {
 
-                    dbfFile = new DBF(quantityFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile = new DBF(cachedQuantityFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                     dbfFile.addField(new Field[]{BAR1, KOL1, BAR2, KOL2, PERCENT, ISSTOP});
 
                     for (PromotionQuantity promotionQuantity : promotionQuantityList) {
@@ -400,10 +425,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if (dbfFile != null)
                         dbfFile.close();
                 }
+                FileCopyUtils.copy(cachedQuantityFile, quantityFile);
             }
-            new File(directory + "/Bonnew.mdx").delete();
             new File(directory + "/TMC.bnn").createNewFile();
-            return quantityFile;
+            return cachedQuantityFile;
         } else return null;
     }
 
@@ -413,6 +438,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             if (cachedSumFile != null) {
                 FileCopyUtils.copy(cachedSumFile, sumFile);
             } else {
+                cachedSumFile = File.createTempFile("cachedSumnew", ".dbf");
                 NumField SUM = new NumField("SUM", 12, 0);
                 NumField PERCENT = new NumField("PERCENT", 6, 2);
                 LogicalField ISSTOP = new LogicalField("ISSTOP");
@@ -420,7 +446,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 DBF dbfFile = null;
                 try {
 
-                    dbfFile = new DBF(sumFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfFile = new DBF(cachedSumFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                     dbfFile.addField(new Field[]{SUM, PERCENT, ISSTOP});
 
                     for (PromotionSum promotionSum : promotionSumList) {
@@ -433,10 +459,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if (dbfFile != null)
                         dbfFile.close();
                 }
+                FileCopyUtils.copy(cachedSumFile, sumFile);
             }
-            new File(directory + "/Sumnew.mdx").delete();
             new File(directory + "/TMC.smn").createNewFile();
-            return sumFile;
+            return cachedSumFile;
         } else return null;
     }
     
