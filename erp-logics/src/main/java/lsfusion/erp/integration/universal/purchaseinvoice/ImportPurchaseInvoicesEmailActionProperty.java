@@ -112,8 +112,12 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                             if (nameAttachmentEmail != null) {
                                 if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
                                     files = unpackRARFile(fileAttachment, fileExtension);
+                                    if(files.isEmpty())
+                                        logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);                                    
                                 } else if (nameAttachmentEmail.toLowerCase().endsWith(".zip")) {
                                     files = unpackZIPFile(fileAttachment, fileExtension);
+                                    if(files.isEmpty())
+                                        logImportError(context, attachmentEmailObject, "Архив пуст или повреждён", isOld);
                                 } else
                                     files.add(fileAttachment);
                             } 
@@ -137,11 +141,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                     }
 
                                 } catch (Exception e) {
-                                    DataSession postImportSession = context.createSession();
-                                    findProperty("lastErrorAttachmentEmail").change(e.toString(), postImportSession, (DataObject) attachmentEmailObject);
-                                    if(isOld)
-                                        findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                    postImportSession.apply(context);
+                                    logImportError(context, attachmentEmailObject, e.toString(), isOld);
                                     ServerLoggers.systemLogger.error(e);
                                 }
                             }
@@ -154,6 +154,14 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         }
     }
 
+    private void logImportError(ExecutionContext context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        DataSession postImportSession = context.createSession();
+        findProperty("lastErrorAttachmentEmail").change(error, postImportSession, (DataObject) attachmentEmailObject);
+        if(isOld)
+            findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+        postImportSession.apply(context);
+    }
+    
     private List<byte[]> unpackRARFile(byte[] fileBytes, String extensionFilter) {
 
         List<byte[]> result = new ArrayList<byte[]>();
