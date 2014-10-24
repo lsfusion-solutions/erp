@@ -28,7 +28,14 @@ public class EquipmentServer {
 
     private Thread thread;
 
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
+    protected final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    
     Map<String, Object> handlerMap = new HashMap<String, Object>();
     EquipmentServerSettings equipmentServerSettings;
 
@@ -231,7 +238,7 @@ public class EquipmentServer {
 
 
     private void processTransactionInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
-        logger.info("Process TransactionInfo");
+        processTransactionLogger.info("Process TransactionInfo");
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(sidEquipmentServer);
         Collections.sort(transactionInfoList, COMPARATOR);
         for (TransactionInfo transactionInfo : transactionInfoList) {
@@ -240,7 +247,7 @@ public class EquipmentServer {
             boolean noErrors = true;
             Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
-            logger.info("Sending transactions started");
+            processTransactionLogger.info("Sending transactions started");
             for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {
                 noHandler = false;
                 if (entry.getKey() != null) {                    
@@ -264,12 +271,12 @@ public class EquipmentServer {
                 remote.errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
             else if(noErrors)
                 remote.succeedTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
-            logger.info("Sending transactions finished");
+            processTransactionLogger.info("Sending transactions finished");
         }
     }
 
     private void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
-        logger.info("Process StopListInfo");
+        processStopListLogger.info("Process StopListInfo");
         List<StopListInfo> stopListInfoList = remote.readStopListInfo(sidEquipmentServer);
         for (StopListInfo stopListInfo : stopListInfoList) {
             
@@ -285,12 +292,12 @@ public class EquipmentServer {
                 }
             }
             remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
-        }        
-        logger.info("Process StopListInfo finished");
+        }
+        processStopListLogger.info("Process StopListInfo finished");
     }
 
     private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, EquipmentServerSettings settings) throws SQLException, IOException {
-        logger.info("Send SalesInfo");
+        sendSalesLogger.info("Send SalesInfo");
         Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
@@ -317,14 +324,14 @@ public class EquipmentServer {
                     
                     Map succeededSoftCheckInfo = ((CashRegisterHandler) clsHandler).requestSucceededSoftCheckInfo(directorySet);
                     if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
-                        logger.info("Sending succeeded SoftCheckInfo");
+                        sendSalesLogger.info("Sending succeeded SoftCheckInfo");
                         String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
                         if (result != null)
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                     }
 
                     if (!requestExchangeList.isEmpty()) {
-                        logger.info("Requesting SalesInfo");
+                        sendSalesLogger.info("Requesting SalesInfo");
                         String result = ((CashRegisterHandler) clsHandler).requestSalesInfo(requestExchangeList);
                         if (result == null) {
                             for (RequestExchange request : requestExchangeList) {
@@ -339,7 +346,7 @@ public class EquipmentServer {
                     Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
                     CashDocumentBatch cashDocumentBatch = ((CashRegisterHandler) clsHandler).readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
                     if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
-                        logger.info("Sending CashDocuments");
+                        sendSalesLogger.info("Sending CashDocuments");
                         String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
                         if (result != null) {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
@@ -350,14 +357,14 @@ public class EquipmentServer {
 
                     SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(cashRegisterInfoList);
                     if (salesBatch == null) {
-                        logger.info("SalesInfo is empty");
+                        sendSalesLogger.info("SalesInfo is empty");
                     } else {
-                        logger.info("Sending SalesInfo");
+                        sendSalesLogger.info("Sending SalesInfo");
                         String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
                         if (result != null) {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
-                            logger.info("Finish Reading starts");
+                            sendSalesLogger.info("Finish Reading starts");
                             ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
                         }
                     }
@@ -393,7 +400,7 @@ public class EquipmentServer {
 
                 }
                 } catch (Throwable e) {
-                    logger.error("Equipment server error: ", e);
+                    sendSalesLogger.error("Equipment server error: ", e);
                     remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
                     return;
                 }
@@ -402,10 +409,10 @@ public class EquipmentServer {
     }
 
     private void sendSoftCheckInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
-        logger.info("Send SoftCheckInfo");
+        sendSoftCheckLogger.info("Send SoftCheckInfo");
         List<SoftCheckInfo> softCheckInfoList = remote.readSoftCheckInfo();
         if (softCheckInfoList != null && !softCheckInfoList.isEmpty()) {
-            logger.info("Sending SoftCheckInfo started");
+            sendSoftCheckLogger.info("Sending SoftCheckInfo started");
             for (SoftCheckInfo entry : softCheckInfoList) {
                 if (entry.handler != null) {
                     try {
@@ -413,17 +420,17 @@ public class EquipmentServer {
                         entry.sendSoftCheckInfo(clsHandler);
                         remote.finishSoftCheckInfo(entry.invoiceMap);
                     } catch (Exception e) {
-                        logger.error("Sending SoftCheckInfo error", e);
+                        sendSoftCheckLogger.error("Sending SoftCheckInfo error", e);
                         return;
                     }
                 }
             }
-            logger.info("Sending SoftCheckInfo finished");
+            sendSoftCheckLogger.info("Sending SoftCheckInfo finished");
         }
     }
 
     private void sendTerminalDocumentInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
-        logger.info("Send TerminalDocumentInfo");
+        sendTerminalDocumentLogger.info("Send TerminalDocumentInfo");
         List<TerminalInfo> terminalInfoList = remote.readTerminalInfo(sidEquipmentServer);
 
         Map<String, List<TerminalInfo>> handlerModelTerminalMap = new HashMap<String, List<TerminalInfo>>();
@@ -442,19 +449,19 @@ public class EquipmentServer {
 
                     TerminalDocumentBatch documentBatch = clsHandler.readTerminalDocumentInfo(terminalInfoList);
                     if (documentBatch == null || documentBatch.documentDetailList == null || documentBatch.documentDetailList.isEmpty()) {
-                        logger.info("TerminalDocumentInfo is empty");
+                        sendTerminalDocumentLogger.info("TerminalDocumentInfo is empty");
                     } else {
-                        logger.info("Sending TerminalDocumentInfo");
+                        sendTerminalDocumentLogger.info("Sending TerminalDocumentInfo");
                         String result = remote.sendTerminalInfo(documentBatch.documentDetailList, sidEquipmentServer);
                         if (result != null) {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
-                            logger.info("Finish Reading starts");
+                            sendTerminalDocumentLogger.info("Finish Reading starts");
                             clsHandler.finishReadingTerminalDocumentInfo(documentBatch);
                         }
                     }
                 } catch (Throwable e) {
-                    logger.error("Equipment server error: ", e);
+                    sendTerminalDocumentLogger.error("Equipment server error: ", e);
                     remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
                     return;
                 }
@@ -463,7 +470,7 @@ public class EquipmentServer {
     }
 
     private void processMachineryExchange(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
-        logger.info("Process MachineryExchange");
+        machineryExchangeLogger.info("Process MachineryExchange");
         List<MachineryInfo> machineryInfoList = remote.readMachineryInfo(sidEquipmentServer);
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
 
@@ -524,7 +531,7 @@ public class EquipmentServer {
                             }
                         }
                     } catch (Throwable e) {
-                        logger.error("Equipment server error: ", e);
+                        machineryExchangeLogger.error("Equipment server error: ", e);
                         remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
                         return;
                     }

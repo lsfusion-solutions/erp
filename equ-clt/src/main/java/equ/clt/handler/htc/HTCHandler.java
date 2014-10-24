@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.util.FileCopyUtils;
@@ -27,7 +26,9 @@ import java.util.*;
 
 public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    
     String charset = "cp866";
 
     public HTCHandler() {
@@ -39,9 +40,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         List<MachineryInfo> succeededMachineryInfoList = new ArrayList<MachineryInfo>();
         
         if (transactionInfo.itemsList.isEmpty()) {
-            logger.info(String.format("HTC: Transaction # %s has no items", transactionInfo.id));
+            processTransactionLogger.info(String.format("HTC: Transaction # %s has no items", transactionInfo.id));
         } else {
-            logger.info(String.format("HTC: Send Transaction # %s", transactionInfo.id));
+            processTransactionLogger.info(String.format("HTC: Send Transaction # %s", transactionInfo.id));
 
             Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<String, List<CashRegisterInfo>>();
             for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -79,7 +80,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     
                     String directory = entry.getKey();
                     String fileName = transactionInfo.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
-                    logger.info(String.format("HTC: creating %s file", fileName));
+                    processTransactionLogger.info(String.format("HTC: creating %s file", fileName));
                     File priceFile = new File(directory + "/" + fileName);
                     File flagPriceFile = new File(directory + "/price.qry");
 
@@ -242,7 +243,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if(!append)
                         FileCopyUtils.copy(cachedPriceFile, priceFile);
                     flagPriceFile.createNewFile();
-                    logger.info("HTC: waiting for deletion of price.qry file");
+                    processTransactionLogger.info("HTC: waiting for deletion of price.qry file");
                     if(waitForDeletion(priceFile, flagPriceFile))                 
                         succeededMachineryInfoList.addAll(entry.getValue());
                 }
@@ -517,9 +518,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             File receiptFile = new File(directory + "/Receipt.dbf");
 
             if (!salesFile.exists() || !receiptFile.exists())
-                logger.info("HTC: No sale or receipt file found in " + directory);
+                sendSalesLogger.info("HTC: No sale or receipt file found in " + directory);
             else {
-                logger.info("HTC: found sale and receipt files in " + directory);
+                sendSalesLogger.info("HTC: found sale and receipt files in " + directory);
 
                 try {
 
@@ -579,7 +580,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     dbfFile.close();
 
                 } catch (Throwable e) {
-                    logger.error("File: " + salesFile.getAbsolutePath(), e);
+                    sendSalesLogger.error("File: " + salesFile.getAbsolutePath(), e);
                 }
                 filePathList.add(salesFile.getAbsolutePath());
             }
@@ -592,11 +593,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(HTCSalesBatch salesBatch) {
-        logger.info("HTC: Finish Reading started");
+        sendSalesLogger.info("HTC: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {
-                logger.info("HTC: file " + readFile + " has been deleted");
+                sendSalesLogger.info("HTC: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -607,7 +608,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
-                logger.info("HTC: creating request files");
+                sendSalesLogger.info("HTC: creating request files");
                 for (String directory : entry.directorySet) {
 
                     //если запрос с даты по дату, мы всё равно можем запросить только за 1 день

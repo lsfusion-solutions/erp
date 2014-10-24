@@ -5,7 +5,6 @@ import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
-import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -14,7 +13,8 @@ import java.util.*;
 
 public class ShtrihPrintHandler extends ScalesHandler {
 
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    
     private FileSystemXmlApplicationContext springContext;
 
     public ShtrihPrintHandler(FileSystemXmlApplicationContext springContext) {
@@ -26,7 +26,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
-        logger.info("Shtrih: Send Transaction # " + transactionInfo.id);
+        processTransactionLogger.info("Shtrih: Send Transaction # " + transactionInfo.id);
         
         ActiveXComponent shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
         Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
@@ -49,7 +49,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
             else
                 for (String ip : ips) {
 
-                    logger.info("Shtrih: Connecting ip: " + ip);
+                    processTransactionLogger.info("Shtrih: Connecting ip: " + ip);
 
                     try {
 
@@ -122,7 +122,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             Dispatch.call(shtrihDispatch, "Disconnect");
                             throw new RuntimeException(String.format("ShtrihPrintHandler. Connection error # %s (%s)", result.getInt(), getErrorText(result)));
                         }
-                        logger.info("Shtrih: Disconnecting ip: " + ip);
+                        processTransactionLogger.info("Shtrih: Disconnecting ip: " + ip);
                     } finally {
                         Dispatch.call(shtrihDispatch, "Disconnect");
                     }

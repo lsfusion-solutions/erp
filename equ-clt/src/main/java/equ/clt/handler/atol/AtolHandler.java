@@ -3,7 +3,6 @@ package equ.clt.handler.atol;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.util.FileCopyUtils;
@@ -20,7 +19,9 @@ import java.util.*;
 
 public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
 
     public AtolHandler() {
     }
@@ -28,7 +29,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
-        logger.info("Atol: Send Transaction # " + transactionInfo.id);
+        processTransactionLogger.info("Atol: Send Transaction # " + transactionInfo.id);
 
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -104,7 +105,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
 
-        logger.info("Atol: Sending soft checks");
+        sendSoftCheckLogger.info("Atol: Sending soft checks");
 
         for (String directory : softCheckInfo.directorySet) {
 
@@ -139,7 +140,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     private boolean processGoodsFlagFile(File goodsFile, File goodsFlagFile) throws FileNotFoundException, UnsupportedEncodingException {
-        logger.info("Atol: waiting for processing of goods file");
+        sendSoftCheckLogger.info("Atol: waiting for processing of goods file");
         PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(goodsFlagFile), "windows-1251"));
         flagWriter.close();
         while (goodsFlagFile.exists() || !checkGoodsFile(goodsFile.getAbsolutePath())) {
@@ -149,7 +150,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 throw Throwables.propagate(e);
             }
         }
-        logger.info("Atol: deletion of goods file");
+        sendSoftCheckLogger.info("Atol: deletion of goods file");
         return goodsFile.delete();
     }
 
@@ -161,7 +162,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                 String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                logger.info("Atol: creating request files");
+                sendSalesLogger.info("Atol: creating request files");
                 for (String directory : entry.directorySet) {
                     String exchangeDirectory = directory + "/IN";
                     if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
@@ -181,7 +182,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(AtolSalesBatch salesBatch) {
-        logger.info("Atol: Finish Reading started");
+        sendSalesLogger.info("Atol: Finish Reading started");
         for (Map.Entry<String, Boolean> readFile : salesBatch.readFiles.entrySet()) {
 
             try {
@@ -189,7 +190,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
                 if (readFile.getValue()) {
                     if (inputFile.delete()) {
-                        logger.info("Atol: file " + readFile.getKey() + " has been deleted");
+                        sendSalesLogger.info("Atol: file " + readFile.getKey() + " has been deleted");
                     } else {
                         throw new RuntimeException("The file " + inputFile.getAbsolutePath() + " can not be deleted");
                     }
@@ -220,7 +221,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
 
-        logger.info("Atol: requesting succeeded SoftCheckInfo");
+        sendSalesLogger.info("Atol: requesting succeeded SoftCheckInfo");
 
         Map<String, Timestamp> result = new HashMap<String, Timestamp>();
         for (String directory : directorySet) {
@@ -268,9 +269,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     }
 
                     if (result.size() == 0)
-                        logger.info("Atol: no soft checks found");
+                        sendSalesLogger.info("Atol: no soft checks found");
                     else
-                        logger.info(String.format("Atol: found %s soft check(s)", result.size()));
+                        sendSalesLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
                 }
             } catch (FileNotFoundException e) {
                 throw Throwables.propagate(e);
@@ -365,9 +366,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             }
 
             if (result.size() == 0)
-                logger.info("Atol: no CashDocuments found");
+                sendSalesLogger.info("Atol: no CashDocuments found");
             else
-                logger.info(String.format("Atol: found %s CashDocument(s)", result.size()));
+                sendSalesLogger.info(String.format("Atol: found %s CashDocument(s)", result.size()));
             return new CashDocumentBatch(result, null);
         } catch (FileNotFoundException e) {
             throw Throwables.propagate(e);

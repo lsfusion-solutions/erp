@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
@@ -28,7 +27,9 @@ import java.util.*;
 
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
     
     static Logger requestExchangeLogger;
     static {
@@ -52,7 +53,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
-        logger.info("Kristal: Send Transaction # " + transactionInfo.id);
+        processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -75,7 +76,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (pluFile.exists() && flagPluFile.exists()) {
                 throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
             } else if (flagPluFile.createNewFile()) {
-                logger.info("Kristal: creating PLU file");
+                processTransactionLogger.info("Kristal: creating PLU file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -89,7 +90,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
                 writer.close();
 
-                logger.info("Kristal: waiting for deletion of PLU file");
+                processTransactionLogger.info("Kristal: waiting for deletion of PLU file");
                 waitForDeletion(pluFile, flagPluFile);
             } else {
                 throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
@@ -109,7 +110,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (messageFile.exists() && flagMessageFile.exists()) {
                     throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
                 } else if (flagMessageFile.createNewFile()) {
-                    logger.info("Kristal: creating MESSAGE file");
+                    processTransactionLogger.info("Kristal: creating MESSAGE file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -119,7 +120,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     }
                     writer.close();
-                    logger.info("Kristal: waiting for deletion of MESSAGE file");
+                    processTransactionLogger.info("Kristal: waiting for deletion of MESSAGE file");
                     waitForDeletion(messageFile, flagMessageFile);
                 } else {
                     throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
@@ -140,7 +141,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (scaleFile.exists() && flagScaleFile.exists()) {
                     throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
                 } else if (flagScaleFile.createNewFile()) {
-                    logger.info("Kristal: creating SCALES file");
+                    processTransactionLogger.info("Kristal: creating SCALES file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -153,7 +154,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     }
                     writer.close();
-                    logger.info("Kristal: waiting for deletion of SCALES file");
+                    processTransactionLogger.info("Kristal: waiting for deletion of SCALES file");
                     waitForDeletion(scaleFile, flagScaleFile);
 
                 } else {
@@ -168,7 +169,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (groupsFile.exists() && flagGroupsFile.exists()) {
                     throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
                 } else if (flagGroupsFile.createNewFile()) {
-                    logger.info("Kristal: creating GROUPS file");
+                    processTransactionLogger.info("Kristal: creating GROUPS file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
                     Set<String> numberGroupItems = new HashSet<String>();
@@ -185,7 +186,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     }
                     writer.close();
-                    logger.info("Kristal: waiting for deletion of GROUPS file");
+                    processTransactionLogger.info("Kristal: waiting for deletion of GROUPS file");
                     waitForDeletion(groupsFile, flagGroupsFile);
 
                 } else {
@@ -228,14 +229,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             try {
                 flagExists = flagSoftFile.exists() || flagSoftFile.createNewFile();
                 if (!flagExists) {
-                    logger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath());
+                    sendSoftCheckLogger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath());
                 }
             } catch (Exception e) {
-                logger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath(), e);
+                sendSoftCheckLogger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath(), e);
             }
             if (flagExists) {
                 File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
-                logger.info("Kristal: creating " + softFile.getName() + " file");
+                sendSoftCheckLogger.info("Kristal: creating " + softFile.getName() + " file");
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(softFile), "windows-1251"));
@@ -246,10 +247,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);
                 }
-                logger.info(logRecord);
+                sendSoftCheckLogger.info(logRecord);
                 writer.close();
 
-                logger.info("Kristal: waiting for deletion of WAITSOFT file");
+                sendSoftCheckLogger.info("Kristal: waiting for deletion of WAITSOFT file");
                 if (flagSoftFile.delete()) {
                     while (softFile.exists()) {
                         try {
@@ -268,7 +269,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
-                logger.info("Kristal: creating request files");
+                sendSalesLogger.info("Kristal: creating request files");
                 for (String directory : entry.directorySet) {
 
                     String dateFrom = new SimpleDateFormat("yyyyMMdd").format(entry.dateFrom);
@@ -300,7 +301,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
-        logger.info("Kristal: Finish Reading started");
+        sendSalesLogger.info("Kristal: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
             
@@ -313,7 +314,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             if (f.delete()) {
-                logger.info("Kristal: file " + readFile + " has been deleted");
+                sendSalesLogger.info("Kristal: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -322,8 +323,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
-       
-        logger.info("Kristal: requesting succeeded SoftCheckInfo");
+
+        sendSalesLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
@@ -433,20 +434,20 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         result.add(new CashDocument(number, date, time, numberCashRegister, sum));
                 }
             } catch (SQLException e) {
-                logger.error(e);
+                sendSalesLogger.error(e);
             } finally {
                 try {
                     if (conn != null)
                         conn.close();
                 } catch (SQLException e) {
-                    logger.error(e);
+                    sendSalesLogger.error(e);
                 }
             }
         }
         if (result.size() == 0)
-            logger.info("Kristal: no CashDocuments found");
+            sendSalesLogger.info("Kristal: no CashDocuments found");
         else
-            logger.info(String.format("Kristal: found %s CashDocument(s)", result.size()));
+            sendSalesLogger.info(String.format("Kristal: found %s CashDocument(s)", result.size()));
         return new CashDocumentBatch(result, null);
     }
 
@@ -513,16 +514,16 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 
 
             if (filesList == null || filesList.length == 0)
-                logger.info("Kristal: No checks found in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: No checks found in " + exchangeDirectory);
             else {
-                logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
                 for (File file : filesList) {
                     try {
                         String fileName = file.getName();
-                        logger.info("Kristal: reading " + fileName);
+                        sendSalesLogger.info("Kristal: reading " + fileName);
                         if (isFileLocked(file)) {
-                            logger.info("Kristal: " + fileName + " is locked");
+                            sendSalesLogger.info("Kristal: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
 
@@ -673,7 +674,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             }
                         }
                     } catch (Throwable e) {
-                        logger.error("File: " + file.getAbsolutePath(), e);
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }
                     filePathList.add(file.getAbsolutePath());
                 }
@@ -730,13 +731,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             return null;
         String value = element.getAttributeValue(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            logger.error(e);
+            sendSalesLogger.error(e);
             return null;
         }
     }
@@ -746,13 +747,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             return null;
         String value = element.getAttributeValue(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            logger.error(e);
+            sendSalesLogger.error(e);
             return null;
         }
     }
@@ -767,14 +768,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (lock == null)
                 isLocked = true;
         } catch (Exception e) {
-            logger.info(e);
+            sendSalesLogger.info(e);
             isLocked = true;
         } finally {
             if (lock != null) {
                 try {
                     lock.release();
                 } catch (Exception e) {
-                    logger.info(e);
+                    sendSalesLogger.info(e);
                     isLocked = true;
                 }
             }
@@ -782,7 +783,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 try {
                     channel.close();
                 } catch (IOException e) {
-                    logger.info(e);
+                    sendSalesLogger.info(e);
                     isLocked = true;
                 }
         }

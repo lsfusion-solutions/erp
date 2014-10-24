@@ -3,7 +3,6 @@ package equ.clt.handler.kristal10;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
 import org.jdom.Attribute;
 import org.jdom.Document;
@@ -28,7 +27,10 @@ import java.util.*;
 
 public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSaleslogger");
+    
     String weightPrefix = "21";
 
     public Kristal10Handler() {
@@ -37,7 +39,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
-        logger.info("Kristal: Send Transaction # " + transactionInfo.id);
+        processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -55,7 +57,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 new File(exchangeDirectory).mkdirs();
             
             //catalog-goods.xml
-            logger.info("Kristal: creating catalog-goods file");
+            processTransactionLogger.info("Kristal: creating catalog-goods file");
 
             Element rootElement = new Element("goods-catalog");
             Document doc = new Document(rootElement);
@@ -114,7 +116,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 //parent: good
                 if (item.idUOM == null || item.shortNameUOM == null) {
                     String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
-                    logger.error(error);
+                    processTransactionLogger.error(error);
                     throw Throwables.propagate(new RuntimeException(error));
                 }
                 Element measureType = new Element("measure-type");
@@ -147,7 +149,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             try {
                 count++;
                 if(count>=60) {
-                    logger.info(String.format("Kristal: still waiting for deletion of file %s", file.getAbsolutePath()));
+                    processTransactionLogger.info(String.format("Kristal: still waiting for deletion of file %s", file.getAbsolutePath()));
                     count = 0;
                 }
                 Thread.sleep(1000);
@@ -191,7 +193,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
-                logger.info("Kristal: creating request files");
+                sendSalesLogger.info("Kristal: creating request files");
                 for (String directory : entry.directorySet) {
 
                     String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
@@ -213,7 +215,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
-        logger.info("Kristal: Finish Reading started");
+        sendSalesLogger.info("Kristal: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
@@ -226,7 +228,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
             
             if (f.delete()) {
-                logger.info("Kristal: file " + readFile + " has been deleted");
+                sendSalesLogger.info("Kristal: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -265,16 +267,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             });
 
             if (filesList == null || filesList.length == 0)
-                logger.info("Kristal: No cash documents found in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: No cash documents found in " + exchangeDirectory);
             else {
-                logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
                 for (File file : filesList) {
                     try {
                         String fileName = file.getName();
-                        logger.info("Kristal: reading " + fileName);
+                        sendSalesLogger.info("Kristal: reading " + fileName);
                         if (isFileLocked(file)) {
-                            logger.info("Kristal: " + fileName + " is locked");
+                            sendSalesLogger.info("Kristal: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
 
@@ -303,7 +305,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             readFiles.add(file.getAbsolutePath());
                         }
                     } catch (Throwable e) {
-                        logger.error("File: " + file.getAbsolutePath(), e);
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }
                 }
             }
@@ -313,11 +315,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-        logger.info("Kristal: Finish ReadingCashDocumentInfo started");
+        sendSalesLogger.info("Kristal: Finish ReadingCashDocumentInfo started");
         for (String readFile : cashDocumentBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {
-                logger.info("Kristal: file " + readFile + " has been deleted");
+                sendSalesLogger.info("Kristal: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -327,7 +329,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
-        logger.info("Kristal: Send StopList # " + stopListInfo.number);
+        processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
         for (String directory : directorySet) {
 
@@ -354,12 +356,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 //parent: saleDeniedRestriction
                 if(stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
                     String error = "Kristal: Error! Start DateTime not specified for stopList " + stopListInfo.number;
-                    logger.error(error);
+                    processStopListLogger.error(error);
                     throw Throwables.propagate(new RuntimeException(error));
                 }
                 if(stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
                     String error = "Kristal: Error! End DateTime not specified for stopList " + stopListInfo.number;
-                    logger.error(error);
+                    processStopListLogger.error(error);
                     throw Throwables.propagate(new RuntimeException(error));
                 }
                 addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom));
@@ -429,16 +431,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             });
 
             if (filesList == null || filesList.length == 0)
-                logger.info("Kristal: No checks found in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: No checks found in " + exchangeDirectory);
             else {
-                logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
                 for (File file : filesList) {
                     try {
                         String fileName = file.getName();
-                        logger.info("Kristal: reading " + fileName);
+                        sendSalesLogger.info("Kristal: reading " + fileName);
                         if (isFileLocked(file)) {
-                            logger.info("Kristal: " + fileName + " is locked");
+                            sendSalesLogger.info("Kristal: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
 
@@ -543,7 +545,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             filePathList.add(file.getAbsolutePath());
                         }
                     } catch (Throwable e) {
-                        logger.error("File: " + file.getAbsolutePath(), e);
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }
                 }
             }
@@ -579,14 +581,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             });
 
             if (filesList != null && filesList.length > 0) {
-                logger.info("Kristal: found " + filesList.length + " z-report(s) in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal: found " + filesList.length + " z-report(s) in " + exchangeDirectory);
 
                 for (File file : filesList) {
                     try {
                         String fileName = file.getName();
-                        logger.info("Kristal: reading " + fileName);
+                        sendSalesLogger.info("Kristal: reading " + fileName);
                         if (isFileLocked(file)) {
-                            logger.info("Kristal: " + fileName + " is locked");
+                            sendSalesLogger.info("Kristal: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
 
@@ -618,7 +620,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             file.delete();
                         }
                     } catch (Throwable e) {
-                        logger.error("File: " + file.getAbsolutePath(), e);
+                        sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     }                
                 }
             }
@@ -644,7 +646,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         String value = ((Element) element).getChildText(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         return value;
@@ -655,7 +657,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         String value = ((Element) element).getAttributeValue(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         return value;
@@ -666,13 +668,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         String value = ((Element) element).getChildText(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            logger.error(e);
+            sendSalesLogger.error(e);
             return null;
         }
     }
@@ -682,13 +684,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         String value = ((Element) element).getAttributeValue(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            logger.error(e);
+            sendSalesLogger.error(e);
             return null;
         }
     }
@@ -698,13 +700,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         String value = ((Element) element).getChildText(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            logger.error(e);
+            sendSalesLogger.error(e);
             return null;
         }
     }
@@ -714,13 +716,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         String value = ((Element) element).getAttributeValue(field);
         if (value == null || value.isEmpty()) {
-            logger.error("Attribute " + field + " is empty");
+            sendSalesLogger.error("Attribute " + field + " is empty");
             return null;
         }
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            logger.error(e);
+            sendSalesLogger.error(e);
             return null;
         }
     }
@@ -735,14 +737,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             if (lock == null)
                 isLocked = true;
         } catch (Exception e) {
-            logger.info(e);
+            sendSalesLogger.info(e);
             isLocked = true;
         } finally {
             if (lock != null) {
                 try {
                     lock.release();
                 } catch (Exception e) {
-                    logger.info(e);
+                    sendSalesLogger.info(e);
                     isLocked = true;
                 }
             }
@@ -750,7 +752,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 try {
                     channel.close();
                 } catch (IOException e) {
-                    logger.info(e);
+                    sendSalesLogger.info(e);
                     isLocked = true;
                 }
         }

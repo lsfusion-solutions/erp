@@ -5,7 +5,6 @@ import equ.api.MachineryInfo;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
-import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
 import java.io.*;
 import java.math.BigDecimal;
@@ -18,7 +17,9 @@ import java.util.zip.ZipOutputStream;
 
 public class LSTerminalHandler extends TerminalHandler {
 
-    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
 
     String dbPath = "/db";
 
@@ -48,7 +49,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 }
             }          
         } catch (Exception e) {
-            logger.error(e);
+            processTransactionLogger.error(e);
             throw Throwables.propagate(e);
         }
         return null;
@@ -76,7 +77,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 connection.close();
 
             } else {
-                logger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
+                machineryExchangeLogger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
                 throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
             }
 
@@ -98,7 +99,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 }
             }
         } catch (Exception e) {
-            logger.error(e);
+            machineryExchangeLogger.error(e);
             throw Throwables.propagate(e);
         }
     }
@@ -106,7 +107,7 @@ public class LSTerminalHandler extends TerminalHandler {
     @Override
     public void saveTransactionTerminalInfo(TransactionTerminalInfo transactionInfo) throws IOException {
 
-        logger.info("LSTerminal: save Transaction #" + transactionInfo.id);
+        processTransactionLogger.info("LSTerminal: save Transaction #" + transactionInfo.id);
 
         Integer nppGroupTerminal = transactionInfo.nppGroupTerminal;
         File directory = new File(transactionInfo.directoryGroupTerminal + dbPath);
@@ -134,21 +135,21 @@ public class LSTerminalHandler extends TerminalHandler {
                 connection.close();
 
             } catch (Exception e) {
-                logger.error(e);
+                processTransactionLogger.error(e);
                 throw Throwables.propagate(e);
             }
         } else {
-            logger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
+            processTransactionLogger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
             throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
         }
     }
 
     public void finishReadingTerminalDocumentInfo(TerminalDocumentBatch terminalDocumentBatch) {
-        logger.info("LSTerminal: Finish Reading started");
+        sendTerminalDocumentLogger.info("LSTerminal: Finish Reading started");
         for (String readFile : terminalDocumentBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {
-                logger.info("LSTerminal: file " + readFile + " has been deleted");
+                sendTerminalDocumentLogger.info("LSTerminal: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -185,16 +186,16 @@ public class LSTerminalHandler extends TerminalHandler {
                 });
 
                 if (filesList == null || filesList.length == 0)
-                    logger.info("LSTerminal: No terminal documents found in " + exchangeDirectory);
+                    sendTerminalDocumentLogger.info("LSTerminal: No terminal documents found in " + exchangeDirectory);
                 else {
-                    logger.info("LSTerminal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+                    sendTerminalDocumentLogger.info("LSTerminal: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
                     for (File file : filesList) {
                         try {
                             String fileName = file.getName();
-                            logger.info("LSTerminal: reading " + fileName);
+                            sendTerminalDocumentLogger.info("LSTerminal: reading " + fileName);
                             if (isFileLocked(file)) {
-                                logger.info("LSTerminal: " + fileName + " is locked");
+                                sendTerminalDocumentLogger.info("LSTerminal: " + fileName + " is locked");
                             } else {
 
                                 Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
@@ -225,7 +226,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                 filePathList.add(file.getAbsolutePath());
                             }
                         } catch (Throwable e) {
-                            logger.error("File: " + file.getAbsolutePath(), e);
+                            sendTerminalDocumentLogger.error("File: " + file.getAbsolutePath(), e);
                         }
                     }
                 }
@@ -233,7 +234,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
             return new TerminalDocumentBatch(terminalDocumentDetailList, filePathList);
         } catch (Exception e) {
-            logger.error(e);
+            sendTerminalDocumentLogger.error(e);
             throw Throwables.propagate(e);
         }
     }
@@ -501,14 +502,14 @@ public class LSTerminalHandler extends TerminalHandler {
             if (lock == null)
                 isLocked = true;
         } catch (Exception e) {
-            logger.info(e);
+            sendTerminalDocumentLogger.info(e);
             isLocked = true;
         } finally {
             if (lock != null) {
                 try {
                     lock.release();
                 } catch (Exception e) {
-                    logger.info(e);
+                    sendTerminalDocumentLogger.info(e);
                     isLocked = true;
                 }
             }
@@ -516,7 +517,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 try {
                     channel.close();
                 } catch (IOException e) {
-                    logger.info(e);
+                    sendTerminalDocumentLogger.info(e);
                     isLocked = true;
                 }
         }
