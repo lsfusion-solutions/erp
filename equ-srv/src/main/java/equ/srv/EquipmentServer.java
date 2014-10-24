@@ -251,7 +251,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode");
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
-                skuQuery.addProperty("idSkuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
+                skuQuery.addProperty("idSkuBarcode", equLM.findProperty("idSkuBarcode").getExpr(barcodeExpr));
                 if(storeItemLM != null)
                     skuQuery.addProperty("notPromotionSkuBarcode", storeItemLM.findProperty("notPromotionSkuBarcode").getExpr(barcodeExpr));
                 if(cashRegisterItemLM != null) {
