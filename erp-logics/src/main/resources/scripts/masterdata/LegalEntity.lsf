@@ -40,7 +40,7 @@ TABLE legalEntityDate (LegalEntity, DATE);
 
 @defineNumeratedID(LegalEntity, 'Организации');
 
-nameLegalEntity 'Наименование' = DATA VARISTRING[150](LegalEntity) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameLegalEntity 'Наименование' = DATA VARISTRING[150](LegalEntity) IN recognize INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 nameTaxUnitGroup(group) += nameLegalEntity(group) IF group IS LegalEntity;
 
@@ -158,6 +158,20 @@ isSellerLegalEntity 'Поставщик или компания' (legalEntity) =
 isBuyerLegalEntity 'Покупатель или компания' (legalEntity) = isCustomerLegalEntity(legalEntity) OR isCompanyLegalEntity(legalEntity);
 
 differentStocksInDetailsLegalEntity 'Разные склады в строках' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+
+needSignLegalEntity 'У организации должен быть задан обязательно минимум один из трех признаков (компания, поставщик или покупатель)' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() needSignLegalEntity
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(needSignLegalEntity());
+    }
+}
+
+CONSTRAINT needSignLegalEntity() IF l IS LegalEntity AND NOT (isSupplierLegalEntity(l) OR isCompanyLegalEntity(l) OR isCustomerLegalEntity(l))
+    MESSAGE 'У организации должен быть задан обязательно минимум один из трех признаков (компания, поставщик или покупатель)';
 
 // ------------------------------------ Доступные организации для пользователей -------------------------- //
 
