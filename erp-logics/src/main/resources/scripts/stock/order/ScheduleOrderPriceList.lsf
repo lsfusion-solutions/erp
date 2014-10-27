@@ -11,8 +11,8 @@ META addScheduleOrder(filter, cap)
         AND NOT (toDatePriceList(priceList) < (date AS DATE)) AND inPriceListStock(priceList, stock)
             BY companyPriceList(priceList), stock, date;
         
-    countScheduleOrders###filter###stockDate 'Поставщики, у которых есть действующие графики заказов' (filter, stock, date) = GROUP SUM 1 IF 
-        startDateScheduleOrder(order) <= (date AS DATE) AND NOT (endDateScheduleOrder(order) < (date AS DATE)) AND inScheduleOrderStock(order, stock)
+    countScheduleOrders###filter###stockDate 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, stock, date) = GROUP SUM 1 IF 
+        startDateScheduleOrder(order) AND NOT (endDateScheduleOrder(order) < (date AS DATE)) AND inScheduleOrderStock(order, stock)
          BY supplierScheduleOrder(order), stock, date;  
           
     filterLegalEntity###filter###stockDate 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, stock, date) = countPriceLists###filter###stockDate  (filter, stock, date) IF NOT countScheduleOrders###filter###stockDate (filter, stock, date);
