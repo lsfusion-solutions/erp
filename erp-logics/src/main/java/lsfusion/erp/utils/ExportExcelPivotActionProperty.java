@@ -27,6 +27,7 @@ import java.util.Map;
 
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
     String idForm;
+    String titleProperty;
     String idGroupObject;
     List<List<String>> rows;
     List<List<String>> columns;
@@ -36,14 +37,21 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
                                           List<String> rows, List<String> columns, List<String> filters, List<String> cells,
                                           ValueClass... classes) {
-        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, idGroupObject, classes);
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, idGroupObject, classes);
+    }
+    
+    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String titleProperty, String idGroupObject,
+                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                          ValueClass... classes) {
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, idGroupObject, classes);
     }
     
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, 
                                           List<List<String>> rows, List<List<String>> columns, List<List<String>> filters, List<List<String>> cells,
-                                          String idForm, String idGroupObject, ValueClass... classes) {
+                                          String idForm, String titleProperty, String idGroupObject, ValueClass... classes) {
         super(LM, classes);
         this.idForm = idForm;
+        this.titleProperty = titleProperty;
         this.idGroupObject = idGroupObject;
         this.rows = rows;
         this.columns = columns;
@@ -70,9 +78,8 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                 ReportGenerationData reportData = new FormReportManager(formInstance).getReportData(
                         formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
-                context.requestUserInteraction(new ExportExcelPivotAction(reportData,
+                context.requestUserInteraction(new ExportExcelPivotAction(reportData, readTitle(context, valuesMap, titleProperty),
                         readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
-
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
@@ -98,6 +105,29 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                 }
                 result.add(resultEntry);
             }
+        }
+        return result;
+    }
+
+    public String readTitle(ExecutionContext context, Map<String, DataObject> valuesMap, String idTitle) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String result = null;
+        if (idTitle != null) {
+            
+            String[] splittedTitle = idTitle.split("\\(|\\)");
+            String property = splittedTitle[0];
+            String params = splittedTitle.length > 1 ? splittedTitle[1] : null;
+            List<DataObject> objects = new ArrayList<DataObject>();
+            if(params != null) {
+                for(String param : params.split(",")) {
+                    if(valuesMap.containsKey(param))
+                        objects.add(valuesMap.get(param));
+                }
+            }          
+            if(objects.isEmpty())
+                result = (String) findProperty(property).read(context);
+            else
+                result = (String) findProperty(property).read(context, objects.toArray(new DataObject[objects.size()]));
+            
         }
         return result;
     }

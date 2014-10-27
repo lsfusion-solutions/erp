@@ -34,15 +34,17 @@ public class ExportExcelPivotAction implements ClientAction {
     Integer firstRow = 2;
     Integer firstColumn = 2;
 
-    ReportGenerationData reportData;
+    ReportGenerationData reportData;   
+    String title;
     List<List<String>> rowFields;
     List<List<String>> columnFields;
     List<List<String>> filterFields;
     List<List<String>> cellFields;
 
-    public ExportExcelPivotAction(ReportGenerationData reportData, List<List<String>> rowFields, List<List<String>> columnFields,
+    public ExportExcelPivotAction(ReportGenerationData reportData, String title, List<List<String>> rowFields, List<List<String>> columnFields,
                                   List<List<String>> filterFields, List<List<String>> cellFields) {
         this.reportData = reportData;
+        this.title = title;
         this.rowFields = rowFields;
         this.columnFields = columnFields;
         this.filterFields = filterFields;
@@ -87,11 +89,21 @@ public class ExportExcelPivotAction implements ClientAction {
             Dispatch usedRange = Dispatch.get(sourceSheet, "UsedRange").toDispatch();
             Integer rowsCount = Dispatch.get(Dispatch.get(usedRange, "Rows").toDispatch(), "Count").getInt();
             Integer columnsCount = Dispatch.get(Dispatch.get(usedRange, "Columns").toDispatch(), "Count").getInt();
-            
+
+            int j = 1;
+            if(title != null) {
+                for (String titleString : title.split("\\\\n")) {                   
+                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[] {"A" + j}, new int[1]).toDispatch();
+                    Dispatch.put(cell, "Value", titleString);
+                    j++;
+                }
+            }
+
             if (rowsCount > 2) {
                 String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : (rowsCount - 1));
                 Dispatch sourceDataNativePeer = Dispatch.invoke(sourceSheet, "Range", Dispatch.Get, new Object[]{"B2:" + lastCell}, new int[1]).toDispatch();
-                Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{"A1"}, new int[1]).toDispatch();
+                String destinationIndex = "A" + (j + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 1);
+                Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{destinationIndex}, new int[1]).toDispatch();
 
                 Variant unspecified = Variant.VT_MISSING;
                 Dispatch pivotTableWizard = Dispatch.invoke(workbook, "PivotTableWizard", Dispatch.Get, new Object[]{new Variant(1),  //SourceType
