@@ -23,6 +23,18 @@ succeededCashRegisterCashRegisterPriceTransaction 'Загружена' = DATA BO
 dateTimeSucceededCashRegisterCashRegisterPriceTransaction 'Время загрузки' = DATA DATETIME(CashRegister, CashRegisterPriceTransaction);
 showCashRegister(t) = t IS CashRegisterPriceTransaction;
 
+countSucceededCashRegistersPriceTransactionDocument'Кол-во загруженных касс' (priceTransactionDocument) = GROUP SUM 1 IF succeededCashRegisterCashRegisterPriceTransaction(cr,t) 
+    BY priceTransactionDocumentMachineryPriceTransaction(t);
+
+countCashRegistersGroupCashRegister 'Кол-во касс в группе' (gcr) =GROUP SUM 1 BY groupCashRegisterCashRegister(cr);
+countCashRegistersPriceTransactionDocument'Кол-во касс в группе' (priceTransactionDocument) = GROUP SUM countCashRegistersGroupCashRegister(groupMachineryMachineryPriceTransaction(t)) BY priceTransactionDocumentMachineryPriceTransaction(t);
+
+concatSucceededCashRegistersCashRegisterPriceTransaction 'Кол-во касс' (t)  = CONCAT '/', countSucceededCashRegistersPriceTransactionDocument(t), countCashRegistersPriceTransactionDocument(t); 
+
+isPartlyPriceTransactionDocument (t) += t IS PriceTransactionDocument AND (countSucceededCashRegistersPriceTransactionDocument(t) != countCashRegistersPriceTransactionDocument(t));
+partlyStatusPriceTransactionDocument (t) += STRING[30](CONCAT ' ', 'Частично загружен', concatSucceededCashRegistersCashRegisterPriceTransaction(t));
+
+
 EXTEND FORM machineryPriceTransactions
     OBJECTS c = CashRegister FIXED GRID
     PROPERTIES(c) SHOWIF showCashRegister(t) nppMachinery, descriptionMachinery, dataDirectoryCashRegister 

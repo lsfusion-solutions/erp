@@ -71,9 +71,13 @@ countProcessPriceTransactionDocument 'Кол-во ожидающих транз�
 
 succeededPriceTransactionDocument 'Загружен в оборудование' (document) = sentPriceTransactionDocument (document) IF NOT countProcessPriceTransactionDocument(document);
 
+isPartlyPriceTransactionDocument = ABSTRACT BOOLEAN (PriceTransactionDocument);
+partlyStatusPriceTransactionDocument = ABSTRACT STRING[30] (PriceTransactionDocument);
+
 statusMachineryPriceTransactionDocument 'Статус загрузки в оборудование' (document) =
                                                         CASE
                                                             WHEN skipPriceTransactionDocument(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument
+                                                            WHEN isPartlyPriceTransactionDocument(document) THEN partlyStatusPriceTransactionDocument(document)
                                                             WHEN succeededPriceTransactionDocument(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument
                                                             WHEN sentPriceTransactionDocument(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
                                                             ELSE 'Не загружен' IF document IS PriceTransactionDocument

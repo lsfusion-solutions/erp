@@ -425,13 +425,18 @@ DESIGN customerLegalEntities FROM DEFAULT{
 META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
     change###prefix###filter###objectClass = ACTION (o) {
         REQUEST OBJECT l
-        FORM filter###legalEntities CONTEXTFILTER l = prefix###objectClass(o) DIALOG SHOWDROP;
+        IF prefix###objectClass(o) THEN {            
+            FORM filter###legalEntities OBJECTS l = prefix###objectClass(o) CONTEXTFILTER l = prefix###objectClass(o) DIALOG SHOWDROP;       
+        } ELSE {            
+            FORM filter###legalEntities CONTEXTFILTER l = prefix###objectClass(o) DIALOG SHOWDROP;       
+        }
         IF formResult() == FormResult.ok THEN {
             prefix###objectClass(o) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
             prefix###objectClass(o) <- NULL;
         }
+
     }
 END
 META defineDocumentDialogSupplierCustomerLegalEntity(objectClass, supplierFilter, customerFilter)
