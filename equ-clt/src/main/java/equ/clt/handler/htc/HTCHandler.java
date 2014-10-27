@@ -85,7 +85,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     File priceFile = new File(directory + "/" + fileName);
                     File flagPriceFile = new File(directory + "/price.qry");
 
-                    boolean append = priceFile.exists();
+                    boolean append = !transactionInfo.snapshot && priceFile.exists();
 
                     if (append || cachedPriceFile == null) {
 
@@ -115,7 +115,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             if (item.idItemGroup != null) {
                                 String parent = null;
                                 for (ItemGroup itemGroup : Lists.reverse(transactionInfo.itemGroupMap.get(item.idItemGroup))) {
-                                    String idItemGroup = (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", ""));
+                                    String idItemGroup = (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "").replace(".", ""));
                                     if (!usedBarcodes.contains(idItemGroup)) {
                                         Integer recordNumber = null;
                                         if (append) {
@@ -158,15 +158,15 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                         putField(dbfFile, ISGROUP, "F", append);
                         for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                            if (!usedBarcodes.contains(item.idBarcode)) {
+                            String barcode = appendBarcode(item.idBarcode);
+                            if (!usedBarcodes.contains(barcode)) {
                                 Integer recordNumber = null;
                                 if (append) {
-                                    recordNumber = barcodeRecordMap.get(item.idBarcode);
+                                    recordNumber = barcodeRecordMap.get(barcode);
                                     if (recordNumber != null)
                                         dbfFile.gotoRecord(recordNumber);
                                 }
 
-                                boolean isWeight = item.idBarcode != null && item.idBarcode.length() <= 5;
                                 String code = item.extIdItem;
                                 if (lastCode == null || !lastCode.equals(code)) {
                                     putField(dbfFile, CODE, code, append);
@@ -180,10 +180,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     lastGroup = group;
                                 }
 
-                                if (lastBarcode == null || !lastBarcode.equals(item.idBarcode)) {
-                                    String idBarcode = item.idBarcode != null && item.idBarcode.length()==5 ? appendCheckDigitToBarcode("22" + item.idBarcode + "00000") : item.idBarcode;
-                                    putField(dbfFile, BAR_CODE, idBarcode, append);
-                                    lastBarcode = item.idBarcode;
+                                if (lastBarcode == null || !lastBarcode.equals(barcode)) {
+                                    putField(dbfFile, BAR_CODE, barcode, append);
+                                    lastBarcode = barcode;
                                 }
 
                                 if (lastName == null || !lastName.equals(item.name)) {
@@ -219,9 +218,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     dbfFile.write();
                                     dbfFile.file.setLength(dbfFile.file.length() - 1);
                                     if (append)
-                                        barcodeRecordMap.put(item.idBarcode, barcodeRecordMap.size() + 1);
+                                        barcodeRecordMap.put(barcode, barcodeRecordMap.size() + 1);
                                 }
-                                usedBarcodes.add(item.idBarcode);
+                                usedBarcodes.add(barcode);
                             }
                         }
 
@@ -683,7 +682,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 
-    public static String appendCheckDigitToBarcode(String barcode) {
+    public String appendBarcode(String barcode) {
+        if (barcode == null || barcode.length() != 5) return barcode;
+        barcode = "22" + barcode + "00000";
         try {
             int checkSum = 0;
             for (int i = 0; i <= 10; i = i + 2) {
