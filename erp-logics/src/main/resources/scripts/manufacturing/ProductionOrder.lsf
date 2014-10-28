@@ -89,6 +89,11 @@ CONSTRAINT skuProductDetail(productDetail) != skuProduct(productProductDetail(pr
 @defineDocumentDetailQuantityCustom (productDetail);
 @defineDocumentHeaderQuantityCustomPrefix (order, productDetail, , ' (изделие)');
 
+quantityProductDetailSkuOrder 'Кол-во изделий в документе' (sku, order) =  GROUP SUM quantityProductDetail(productDetail)
+    BY skuProductDetail(productDetail), orderProductDetail(productDetail); 
+countProductDetailSkuOrder 'Кол-во строк изделий в документе' (sku, order) = 
+    GROUP SUM 1 BY  skuProductDetail(idetail), orderProductDetail(idetail);  
+    
 //Процент и коэффициент цены
 pricePercentProductDetail 'Удельный вес цены,%' = DATA NUMERIC[14,3] (ProductDetail);
 
@@ -1234,6 +1239,18 @@ DESIGN orders FROM DEFAULT {
                 caption = 'Печатные формы';
                 NEW printContainer {
                     caption = 'Печать';
+                    type = CONTAINERV;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                type = CONTAINERH;
+                NEW createdContainer {
+                    caption = 'Создание на основе';
+                    type = CONTAINERV;
+                }
+                NEW machineryContainer {
+                    caption = 'Загрузка';
                     type = CONTAINERV;
                 }
             }

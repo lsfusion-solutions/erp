@@ -587,7 +587,7 @@ EXTEND FORM customLabelTransaction
                   
 ;
 // ------------------------- Подключение печати ценников в документ --------------------- //
-META defineDocumentLabelTransaction (document, skuProp, stockProp)
+META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp)
     create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {        
         
         IF isDraft###document(document) THEN {
@@ -595,7 +595,7 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
         }
         IF confirmed() OR NOT isDraft###document(document) THEN { 
             LOCAL inSku = BOOLEAN (Sku);
-            inSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
+            inSku(sku) <- TRUE IF quantity###detailProp##Detail###skuProp###document(sku, document);
         
             // бежим по всем типам ценников из управленческих параметров
             // для каждого создаем по операции печати ценников
@@ -605,19 +605,19 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
                     priceTransactionDocumentLabelTransaction(t) <- document;
                     labelTypeLabelTransaction(t) <- labelType;
                     
-                    FOR document###document##Detail(dd) == document AND 
-                        inSku(sku) AND sku == skuProp###document##Detail(dd) AND 
+                    FOR document###detailProp##Detail(dd) == document AND 
+                        inSku(sku) AND sku == skuProp###detailProp##Detail(dd) AND 
                         inLabelTypeSkuDepartmentStore(labelType, sku, stockProp###document(document))
                         ADDOBJ d = LabelTransactionDetail DO {
                         labelTransactionLabelTransactionDetail(d) <- t;
                         skuLabelTransactionDetail(d) <- sku;
-                        batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
+                        batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
     
                         nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
                         createAttributeLabelTransactionDetail(d);
     
                         quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-                                                                THEN INTEGER(quantity###document##Detail(dd))
+                                                                THEN INTEGER(quantity###detailProp##Detail(dd))
                                                              ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
 
                         priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
@@ -637,20 +637,20 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
         IF (confirmed()) OR  NOT isDraft###document(document) THEN { 
             
             LOCAL inSku = BOOLEAN (Sku);    
-            inSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
+            inSku(sku) <- TRUE IF quantity###detailProp##Detail###skuProp###document(sku, document);
         
             FOR ADDOBJ t = LabelTransaction DO {
                 departmentStoreLabelTransaction(t) <- stockProp###document(document);
                 priceTransactionDocumentLabelTransaction(t) <- document;
     
-                FOR document###document##Detail(dd) == document AND inSku(sku) AND sku == skuProp###document##Detail(dd) 
+                FOR document###detailProp##Detail(dd) == document AND inSku(sku) AND sku == skuProp###detailProp##Detail(dd) 
                     ADDOBJ d = LabelTransactionDetail DO {
                         labelTransactionLabelTransactionDetail(d) <- t;
                         skuLabelTransactionDetail(d) <- sku;
-                        batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
+                        batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
     
                         nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                        documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail(dd); 
+                        documentQuantityLabelTransactionDetail(d) <- quantity###detailProp##Detail(dd); 
                         
                         createAttributeLabelTransactionDetail(d);
                 }
@@ -666,6 +666,10 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
     showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND isOpened###document(document) AND NOT Label.skipPriceTransactionDocument(document);
                                                                                                //AND NOT printedPriceTransactionDocument(document);
     backgroundPrintLabelTransaction###document 'Цвет' (document) = RGB(212,255,212) IF showPrintLabelTransaction###document(document) AND NOT printedPriceTransactionDocument(document);
+END
+
+META defineDocumentLabelTransaction (document, skuProp, stockProp)
+    @defineDocumentLabelTransaction (document, document, skuProp, stockProp);
 END
 
 META extendFormDocumentLabelTransaction(form, object, document, afterProp, propContainer)

@@ -510,7 +510,7 @@ EXTEND DESIGN options {
 }
 
 // Подключение свойств к документу
-META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
+META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
     create###document##MachineryPriceTransaction 'Загрузить в оборудование' = ACTION (document) NEWSESSION AUTOAPPLY {
     
         IF isDraft###document(document) THEN {
@@ -519,7 +519,7 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
         IF (confirmed()) OR NOT isDraft###document(document) THEN {
             IF snapshotDocumentMachineryPriceTransaction() THEN
                 createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
+            createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###detailProp##Detail###skuProp###document(sku, document);
             createMachineryPriceTransactionDocument() <- document;
             createMachineryPriceTransaction(stockProp###document(document));
             sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
@@ -532,7 +532,7 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
         }
         IF (confirmed()) OR NOT isDraft###document(document) THEN {     
             createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
+            createMachineryPriceTransactionSku(sku) <- TRUE IF count###detailProp##Detail###skuProp###document(sku, document);
             createMachineryPriceTransactionDocument() <- document;
             createMachineryPriceTransaction(stockProp###document(document));
             sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
@@ -546,6 +546,11 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
                                                                              ELSE
                                                                                 RGB(212,255,212) IF showCreateMachineryPriceTransaction###document(document);
 END
+
+META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
+    @defineDocumentMachineryPriceTransaction (document, document, skuProp, stockProp);
+END
+
 
 META extendFormDocumentMachineryPriceTransaction(form, object, document, afterProp, propContainer)
     EXTEND FORM form
