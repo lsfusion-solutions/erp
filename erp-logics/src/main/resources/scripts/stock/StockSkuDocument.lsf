@@ -28,7 +28,7 @@ META defineDocumentSkuPriceListTypeSystemLedger(object, priceListTypeProp, stock
 END
 
 META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
-    detail###Sku###object###stockProp###stockClass (sku, object, stock) =  GROUP MAX detail
+    detail###Sku###object###stockProp###stockClass (sku, object, stock) =  GROUP MAX (detail)
         BY skuProp###detail(detail), object###detail(detail), stockProp###stockClass###detail(detail);
     detail###Sku###object (sku, object) = detail###Sku###object###stockProp###stockClass(sku, object, stockProp###stockClass###object(object));
 
@@ -46,7 +46,8 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
                 overChangeQuantityValueSku###object##Detail(detail###Sku###object(sku, object));
             } ELSE {
-                DELETE d WHERE d == detail###Sku###object(sku, object);
+                FOR detail###Sku###object(sku, object) == d DO
+                    DELETE d;
             }
         } ELSE {
             IF requestedNumeric() THEN {
@@ -138,22 +139,22 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
     }
 END
 
-META extendFormDocumentSkuPriceListTypeAgreement(object, detail, form, concrete, skuProp, stockProp)
-    @extendFormDocumentSku(object, detail, form, concrete, skuProp);
+META extendFormDocumentSkuPriceListTypeAgreement(eobj, detail, form, concrete, skuProp, stockProp)
+    @extendFormDocumentSku(eobj, detail, form, concrete, skuProp);
 
-    current###form###object() = DATA SESSION Object ();
-    setCurrent###form###object(concrete) = ACTION current###form###object() <- concrete;
+    current###form###eobj() = DATA SESSION Object ();
+    setCurrent###form###eobj(concrete) = ACTION current###form###eobj() <- concrete;
 
     EXTEND FORM form
-        EVENTS ON CHANGE concrete setCurrent###form###object(concrete)
+        EVENTS ON CHANGE concrete setCurrent###form###eobj(concrete)
     ;
 
-    WHEN SESSION FORMS form (SET([= VIEW form.ks](sku)) AND concrete == current###form###object()) OR 
-                            ((CHANGED(stockProp###object(concrete)) OR 
-                              CHANGED(dateTime###object(concrete)) OR
-                              CHANGED(priceListType###object(concrete)) OR
-                              CHANGED(agreement###object(concrete))) AND [= VIEW form.ks](sku)) DO
-        updateViewPriceSku###object(sku, concrete);
+    WHEN SESSION FORMS form (SET([= VIEW form.ks](sku)) AND (concrete) == current###form###eobj()) OR 
+                            ((CHANGED(stockProp###eobj(concrete)) OR 
+                              CHANGED(dateTime###eobj(concrete)) OR
+                              CHANGED(priceListType###eobj(concrete)) OR
+                              CHANGED(agreement###eobj(concrete))) AND [= VIEW form.ks](sku)) DO
+        updateViewPriceSku###eobj(sku, concrete);
 END
 
 META extendFormDocumentSku(object, form, concrete)
@@ -189,7 +190,7 @@ META defineDocumentBatchPriceListTypeSystemLedger(object, priceListTypeProp, sto
 END
 
 META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockProp)
-    detail###batch###object###stockProp###stockClass (batch, object, stock) =  GROUP MAX detail
+    detail###batch###object###stockProp###stockClass (batch, object, stock) =  GROUP MAX (detail)
         BY batchProp###detail(detail), object###detail(detail), stockProp###stockClass###detail(detail);
     detail###batch###object (batch, object) = detail###batch###object###stockProp###stockClass(batch, object, stockProp###stockClass###object(object));
 
@@ -211,7 +212,8 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object(batch, object);
                 overChangeQuantityValueBatch###object##Detail(detail###batch###object(batch, object));
             } ELSE {
-                DELETE d WHERE d == detail###batch###object(batch, object);
+                FOR detail###batch###object(batch, object) == d DO
+                    DELETE d;
             }
         } ELSE {
             IF requestedNumeric() THEN {
@@ -290,15 +292,15 @@ META extendFormDocumentBatch(object, form, concrete)
     @extendFormDocumentBatch(object, object##Detail, form, concrete, batch);
 END
 
-META extendFormDocumentBatchPriceListTypeAgreement(object, detail, form, concrete, batchProp, stockProp)
-    @extendFormDocumentBatch(object, detail, form, concrete, batchProp);
+META extendFormDocumentBatchPriceListTypeAgreement(eobj, detail, form, concrete, batchProp, stockProp)
+    @extendFormDocumentBatch(eobj, detail, form, concrete, batchProp);
     
-    WHEN SESSION FORMS form (SET([= VIEW form.b](batch)) AND concrete == current###form###object()) OR
-                            ((CHANGED(stockProp###object(concrete)) OR 
-                              CHANGED(dateTime###object(concrete)) OR
-                              CHANGED(priceListType###object(concrete)) OR
-                              CHANGED(agreement###object(concrete))) AND [= VIEW form.b](batch)) DO
-        updateViewPriceBatch###object(batch, concrete);
+    WHEN SESSION FORMS form (SET([= VIEW form.b](batch)) AND (concrete) == current###form###eobj()) OR
+                            ((CHANGED(stockProp###eobj(concrete)) OR 
+                              CHANGED(dateTime###eobj(concrete)) OR
+                              CHANGED(priceListType###eobj(concrete)) OR
+                              CHANGED(agreement###eobj(concrete))) AND [= VIEW form.b](batch)) DO
+        updateViewPriceBatch###eobj(batch, concrete);
 END
 
 META extendFormDocumentBatchPriceListTypeAgreement(object, form, concrete, stockProp)
@@ -347,7 +349,7 @@ META defineDocumentSkuStockPriceListTypeSystemLedger(object, priceListTypeProp, 
 END
 
 META defineDocumentSkuStock(object, detail, skuProp, stockProp)
-    detail###Sku###object###stockProp###stock (sku, object, stock) =  GROUP MAX detail
+    detail###Sku###object###stockProp###stock (sku, object, stock) =  GROUP MAX (detail)
         BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
     quantitySku###object###stockProp###stock 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity###detail(detail)
@@ -366,7 +368,8 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
                 overChangeQuantityValueSku###object##Detail(detail###Sku###object###stockProp###stock(sku, object, stock));
             } ELSE {
-                DELETE d WHERE d == detail###Sku###object###stockProp###stock(sku, object, stock);
+                FOR detail###Sku###object###stockProp###stock(sku, object, stock) == d DO
+                    DELETE d;
             }
 
         } ELSE {
@@ -519,7 +522,7 @@ META defineDocumentBatchStockPriceListTypeSystemLedger(object, priceListTypeProp
 END
 
 META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
-    detail###batch###object###stockProp###stock (batch, object, stock) =  GROUP MAX detail
+    detail###batch###object###stockProp###stock (batch, object, stock) =  GROUP MAX (detail)
         BY batchProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
     quantityBatch###object###stockProp###stock 'Кол-во товара в документе' (batch, object, stockProp###stock) = GROUP SUM quantity###detail(detail)
@@ -538,7 +541,8 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp###stock(batch, object, stock);
                 overChangeQuantityValueBatch###object##Detail(detail###batch###object###stockProp###stock(batch, object, stock));
             } ELSE {
-                DELETE d WHERE d == detail###batch###object###stockProp###stock(batch, object, stock);
+                FOR detail###batch###object###stockProp###stock(batch, object, stock) == d DO
+                    DELETE d;
             }
         } ELSE {
             IF requestedNumeric() THEN {
@@ -631,7 +635,7 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
 
     priceSkuStock###object###stockExtra 'Цена' (sku, stockProp, object, stockExtra) = prevPriceBPriceListTypeSkuStockDateTime(priceListType###object###stock###sku(object, stockExtra, sku), sku, stockProp, dateTime###object(object));
 
-    detail###Sku###object###stockProp###stockExtra (sku, object, stockProp, stockExtra) =  GROUP MAX detail
+    detail###Sku###object###stockProp###stockExtra (sku, object, stockProp, stockExtra) =  GROUP MAX (detail)
         BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
 
     quantitySku###object###stockProp###stockExtra 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
@@ -650,7 +654,8 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
             IF requestedNumeric() THEN {
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stockExtra(sku, object, stockProp, stockExtra);
             } ELSE {
-                DELETE detail WHERE detail == detail###Sku###object###stockProp###stockExtra(sku, object, stockProp, stockExtra);
+                FOR detail###Sku###object###stockProp###stockExtra(sku, object, stockProp, stockExtra) == detail DO
+                    DELETE detail;
             }
         } ELSE {
             IF requestedNumeric() THEN {
@@ -778,7 +783,7 @@ END
 
 META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp, stockExtra)
 
-    detail###Batch###object###stockProp###stockExtra (batch, object, stockProp, stockExtra) =  GROUP MAX detail
+    detail###Batch###object###stockProp###stockExtra (batch, object, stockProp, stockExtra) =  GROUP MAX (detail)
         BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
 
     quantityBatch###object###stockProp###stockExtra 'Кол-во товара в документе' (batch, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
@@ -796,7 +801,8 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
             IF requestedNumeric() THEN {
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra);
             } ELSE {
-                DELETE detail WHERE detail == detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra);
+                FOR detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra) == detail DO
+                    DELETE detail;
             }
         } ELSE {
             IF requestedNumeric() THEN {
@@ -879,7 +885,8 @@ META defineDocumentSkuStockIn(object, detail, skuProp, stockProp)
         IF NOT requestedLogical() THEN {
             IF detail###sku###object(sku, object) THEN {
                 //FOR sku == skuProp###detail(detail) AND object == object###detail(detail) DO {
-                DELETE detail WHERE sku == skuProp###detail(detail) AND object == object###detail(detail);
+                FOR sku == skuProp###detail(detail) AND object == object###detail(detail) DO 
+                    DELETE detail;
                 //}
             }
         } ELSE {
