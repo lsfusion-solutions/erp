@@ -277,13 +277,21 @@ nameRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange)
 captionRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticCaption(requestExchangeTypeRequestExchange(requestExchange));
 succeededRequestExchange 'Обработан' = DATA BOOLEAN (RequestExchange);
 notSucceededRequestExchange 'Не обработан' (requestExchange) = requestExchange IS RequestExchange AND NOT succeededRequestExchange(requestExchange);
+dateTimeSucceededRequestExchange 'Время обработки' = DATA DATETIME (RequestExchange);
 showExtraStocks(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.checkZReport OR 
                                    requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.salesInfo;
+
+CLASS RequestExchangeLog 'Ошибки обмена данными';
+TABLE requestExchangeLog (RequestExchangeLog);
+
+dateRequestExchangeLog 'Время' = DATA DATETIME (RequestExchangeLog);
+messageRequestExchangeLog 'Сообщение' = DATA TEXT (RequestExchangeLog);
+requestExchangeRequestExchangeLog = DATA RequestExchange (RequestExchangeLog);
 
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
-                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange
+                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r)
     OBJECTS s = Stock
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
     PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock
@@ -299,9 +307,13 @@ FORM requestExchanges 'Запросы обмена данными'
     
     OBJECTS r = RequestExchange
     PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange SHOWIF showExtraStocks(r), dateFromRequestExchange, dateToRequestExchange, 
-                           captionRequestExchangeTypeRequestExchange, succeededRequestExchange
+                           captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r)
     PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     FILTERS stockRequestExchange(r) == s
+    
+    OBJECTS rl = RequestExchangeLog
+    PROPERTIES(rl) READONLY dateRequestExchangeLog, messageRequestExchangeLog
+    FILTERS requestExchangeRequestExchangeLog(rl) == r    
 ;
 
 createMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (GroupMachinery);

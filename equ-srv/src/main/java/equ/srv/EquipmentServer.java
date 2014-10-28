@@ -976,9 +976,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         try {
             if (machineryPriceTransactionLM != null) {
                 DataSession session = getDbManager().createSession();
-                for (Integer request : succeededRequestsSet)
-                    machineryPriceTransactionLM.findProperty("succeededRequestExchange").change(true, session,
-                            (DataObject)new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange")));
+                for (Integer request : succeededRequestsSet) {
+                    DataObject requestExchangeObject = new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
+                    Timestamp timeStamp = DateConverter.dateToStamp(Calendar.getInstance().getTime());
+                    machineryPriceTransactionLM.findProperty("succeededRequestExchange").change(true, session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("dateTimeSucceededRequestExchange").change(timeStamp, session, requestExchangeObject);
+                }
                 session.apply(getBusinessLogics());
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
@@ -1331,6 +1334,24 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
         }
         return zReportSumMap;
+    }
+
+    
+
+    @Override
+    public void logRequestZReportSumCheck(Integer idRequestExchange, String checkSumResult) throws RemoteException, SQLException {
+        try {
+            if (machineryPriceTransactionLM != null && cashRegisterLM != null && notNullNorEmpty(checkSumResult)) {
+                DataSession session = getDbManager().createSession();
+                DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
+                machineryPriceTransactionLM.findProperty("dateRequestExchangeLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
+                machineryPriceTransactionLM.findProperty("messageRequestExchangeLog").change(checkSumResult, session, logObject);
+                machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeLog").change(idRequestExchange, session, logObject);
+                session.apply(getBusinessLogics());
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
