@@ -354,14 +354,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<String> idCashRegisterList) throws ClassNotFoundException, SQLException {
-        String idCashRegisters = "";
-        for(String idCashRegister : idCashRegisterList)
-            idCashRegisters += idCashRegister + ",";
-        idCashRegisters = idCashRegisters.isEmpty() ? idCashRegisters : idCashRegisters.substring(0, idCashRegisters.length() - 1);
-        requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + idCashRegisters);
+    public List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<Integer> nppCashRegisterList) throws ClassNotFoundException, SQLException {
+        String nppCashRegisters = "";
+        for(Integer nppCashRegister : nppCashRegisterList)
+            nppCashRegisters += nppCashRegister + ",";
+        nppCashRegisters = nppCashRegisters.isEmpty() ? nppCashRegisters : nppCashRegisters.substring(0, nppCashRegisters.length() - 1);
+        requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + nppCashRegisters);
 
-        String result = "";
+        List<List<Object>> result = new ArrayList<List<Object>>();
         
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
@@ -373,18 +373,20 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + idCashRegisters + ")";
+                String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + nppCashRegisters + ")";
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     String numberZReport = String.valueOf(rs.getInt(1));
                     if (zReportSumMap.containsKey(numberZReport)) {
-                        String numberCashRegister = String.valueOf(rs.getInt(2));
+                        Integer nppCashRegister = rs.getInt(2);
                         BigDecimal fusionSum = zReportSumMap.get(numberZReport);
                         double kristalSum = rs.getDouble(3);
                         Date date = rs.getDate(4);
-                        if (fusionSum == null || fusionSum.doubleValue() != kristalSum)
-                            result += String.format("%s. CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n", 
-                                    date, numberCashRegister, numberZReport, fusionSum, kristalSum);
+                        if (fusionSum == null || fusionSum.doubleValue() != kristalSum) {
+                            result.add(Arrays.asList((Object) nppCashRegister,
+                                    String.format("ZReport %s (%s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, date, fusionSum, kristalSum)));
+                            requestExchangeLogger.error(String.format("%s. CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n", date, nppCashRegister, numberZReport, fusionSum, kristalSum));
+                        }
                     }
                 }
             } catch (SQLException e) {
@@ -396,8 +398,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
         if(result.isEmpty())
             requestExchangeLogger.info("No errors");
-        else
-            requestExchangeLogger.error(result);
         return result.isEmpty() ? null : result;
     }
 

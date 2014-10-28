@@ -1339,14 +1339,20 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     
 
     @Override
-    public void logRequestZReportSumCheck(Integer idRequestExchange, String checkSumResult) throws RemoteException, SQLException {
+    public void logRequestZReportSumCheck(Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
         try {
             if (machineryPriceTransactionLM != null && cashRegisterLM != null && notNullNorEmpty(checkSumResult)) {
                 DataSession session = getDbManager().createSession();
-                DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
-                machineryPriceTransactionLM.findProperty("dateRequestExchangeLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
-                machineryPriceTransactionLM.findProperty("messageRequestExchangeLog").change(checkSumResult, session, logObject);
-                machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeLog").change(idRequestExchange, session, logObject);
+                for(List<Object> entry : checkSumResult) {
+                    Object nppMachinery = entry.get(0);
+                    Object message = entry.get(1);
+                    DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
+                    ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
+                    machineryPriceTransactionLM.findProperty("dateRequestExchangeLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
+                    machineryPriceTransactionLM.findProperty("messageRequestExchangeLog").change(message, session, logObject);
+                    machineryPriceTransactionLM.findProperty("machineryRequestExchangeLog").change(cashRegisterObject.getValue(), session, logObject);
+                    machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeLog").change(idRequestExchange, session, logObject);
+                }
                 session.apply(getBusinessLogics());
             }
         } catch (Exception e) {
@@ -1355,8 +1361,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public List<String> readCashRegistersStock(String idStock) throws RemoteException, SQLException {
-        List<String> cashRegisterList = new ArrayList<String>();
+    public Map<Integer, List<Integer>> readCashRegistersStock(String idStock) throws RemoteException, SQLException {
+        Map<Integer, List<Integer>> cashRegisterList = new HashMap<Integer, List<Integer>>();
         if(equipmentCashRegisterLM != null)
         try {
             DataSession session = getDbManager().createSession();
@@ -1367,12 +1373,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
             query.addProperty("nppMachinery", equipmentCashRegisterLM.findProperty("nppMachinery").getExpr(cashRegisterExpr));
+            query.addProperty("nppGroupMachineryMachinery", equipmentCashRegisterLM.findProperty("nppGroupMachineryMachinery").getExpr(cashRegisterExpr));
             query.and(equipmentCashRegisterLM.findProperty("departmentStoreCashRegister").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
             query.and(equipmentCashRegisterLM.findProperty("nppMachinery").getExpr(cashRegisterExpr).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> zReportResult = query.executeClasses(session);
             for (ImMap<Object, ObjectValue> entry : zReportResult.values()) {
                 Integer nppMachinery = (Integer) entry.get("nppMachinery").getValue();
-                cashRegisterList.add(String.valueOf(nppMachinery));
+                Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery").getValue();
+                List<Integer> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<Integer>();
+                nppMachineryList.add(nppMachinery);
+                cashRegisterList.put(nppGroupMachinery, nppMachineryList);
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

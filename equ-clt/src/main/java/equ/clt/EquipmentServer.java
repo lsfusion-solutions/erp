@@ -384,10 +384,13 @@ public class EquipmentServer {
                                 request.extraStockSet.add(request.idStock);
                                 for (String idStock : request.extraStockSet) {
                                     Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
-                                    List<String> idCashRegisters = remote.readCashRegistersStock(idStock);
-                                    String checkSumResult = zReportSumMap.isEmpty() ? null : ((CashRegisterHandler) clsHandler).checkZReportSum(zReportSumMap, idCashRegisters);
-                                    if (checkSumResult != null) {
-                                        remote.logRequestZReportSumCheck(request.requestExchange, checkSumResult);
+                                    Map<Integer, List<Integer>> cashRegisterMap = remote.readCashRegistersStock(idStock);
+                                    for(Map.Entry<Integer, List<Integer>> cashRegisterEntry : cashRegisterMap.entrySet()) {
+                                        List<List<Object>> checkSumResult = zReportSumMap.isEmpty() ? null : 
+                                                ((CashRegisterHandler) clsHandler).checkZReportSum(zReportSumMap, cashRegisterEntry.getValue());
+                                        if (checkSumResult != null) {
+                                            remote.logRequestZReportSumCheck(request.requestExchange, cashRegisterEntry.getKey(), checkSumResult);
+                                        }
                                     }
                                 }
                                 succeededRequestsSet.add(request.requestExchange);

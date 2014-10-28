@@ -72,9 +72,9 @@ public interface EquipmentServerInterface extends Remote {
 
     Map<String,BigDecimal> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
 
-    void logRequestZReportSumCheck(Integer idRequestExchange, String checkSumResult) throws RemoteException, SQLException;
+    void logRequestZReportSumCheck(Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
     
-    List<String> readCashRegistersStock(String idStock) throws RemoteException, SQLException;
+    Map<Integer, List<Integer>> readCashRegistersStock(String idStock) throws RemoteException, SQLException;
     
     PromotionInfo readPromotionInfo() throws RemoteException, SQLException;
 }
