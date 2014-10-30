@@ -25,6 +25,10 @@ public class DefaultImportActionProperty extends DefaultIntegrationActionPropert
         super(LM, valueClass);
     }
 
+    public DefaultImportActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
+    }
+
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
