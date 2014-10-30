@@ -240,12 +240,16 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         dbfFile.close();
                     }
                     
-                    if(!append)
-                        FileCopyUtils.copy(cachedPriceFile, priceFile);
-                    flagPriceFile.createNewFile();
-                    processTransactionLogger.info("HTC: waiting for deletion of price.qry file");
-                    if(waitForDeletion(priceFile, flagPriceFile))                 
-                        succeededMachineryInfoList.addAll(entry.getValue());
+                    try {
+                        if(!append)
+                            FileCopyUtils.copy(cachedPriceFile, priceFile);
+                        flagPriceFile.createNewFile();
+                        processTransactionLogger.info("HTC: waiting for deletion of price.qry file");
+                        if(waitForDeletion(priceFile, flagPriceFile))
+                            succeededMachineryInfoList.addAll(entry.getValue());
+                    } catch (IOException e) {
+                        processTransactionLogger.error("HTC: error while create files", e);
+                    }
                 }
                 
                 if(cachedPriceFile != null)
@@ -478,7 +482,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     private boolean waitForDeletion(File file, File flagFile) {
         int count = 0;
-        while ((flagFile.exists() || file.exists()) && count < 10) {
+        while ((flagFile.exists() || file.exists()) && count < 60) {
             try {
                 Thread.sleep(1000);
                 count++;
@@ -486,7 +490,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 throw Throwables.propagate(e);
             }
         }
-        return count < 10;
+        return count < 60;
     }
 
     @Override
