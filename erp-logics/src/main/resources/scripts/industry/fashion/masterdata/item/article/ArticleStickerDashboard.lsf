@@ -316,17 +316,18 @@ EXTEND FORM articleStickerDashboard
 countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabelArticle(a);
 countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabelArticle(a) BY defaultLabelTypeArticle(a)](type);
 
+dataLastBatchSku = ABSTRACT Batch (Sku);
+
 createSnapshotPricingArticleDepartment 'Пример ценника' = ACTION (article, department) {
     IF countInLabelArticles() THEN {
         IF countLabelTypeArticles() == 1 THEN {
-  
             FOR ADDOBJ t = LabelTransaction DO {          
                 departmentStoreLabelTransaction(t) <- department;
                 labelTypeLabelTransaction(t) <-  [=GROUP MAX defaultLabelTypeArticle(a) IF inLabelArticle(a)]();
                 FOR articleItem (item) == a AND inLabelArticle(a)  ADDOBJ d = LabelTransactionDetail DO {
                         labelTransactionLabelTransactionDetail(d) <- t;
                         skuLabelTransactionDetail(d) <- item;
-                        batchLabelTransactionDetail(d) <- lastBatchSku(item);
+                        batchLabelTransactionDetail(d) <- OVERRIDE dataLastBatchSku(item), dataLastBatchSku(item);
         
                         nameLabelTransactionDetail(d) <- nameSku(item);
                         documentQuantityLabelTransactionDetail(d) <- 1.0; 
@@ -348,7 +349,7 @@ createSnapshotPricingArticleDepartment 'Пример ценника' = ACTION (a
             FOR articleItem (item) ==article  ADDOBJ d = LabelTransactionDetail DO {
                     labelTransactionLabelTransactionDetail(d) <- t;
                     skuLabelTransactionDetail(d) <- item;
-                    batchLabelTransactionDetail(d) <- lastBatchSku(item);
+                    batchLabelTransactionDetail(d) <- OVERRIDE dataLastBatchSku(item), dataLastBatchSku(item);
         
                     nameLabelTransactionDetail(d) <- nameSku(item);
                     documentQuantityLabelTransactionDetail(d) <- 1.0; 
