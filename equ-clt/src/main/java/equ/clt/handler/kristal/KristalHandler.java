@@ -252,14 +252,21 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 sendSoftCheckLogger.info("Kristal: waiting for deletion of WAITSOFT file");
                 if (flagSoftFile.delete()) {
+                    int count = 0;
                     while (softFile.exists()) {
                         try {
+                            count++;
+                            if(count>=60) {
+                                sendSoftCheckLogger.info(String.format("Kristal: still waiting for deletion of file %s", softFile.getAbsolutePath()));
+                                count = 0;
+                            }
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
                             throw Throwables.propagate(e);
                         }
                     }
-                }
+                } else 
+                    throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
             }
         }
     }
