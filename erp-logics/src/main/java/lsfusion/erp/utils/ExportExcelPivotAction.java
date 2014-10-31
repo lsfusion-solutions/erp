@@ -202,6 +202,9 @@ public class ExportExcelPivotAction implements ClientAction {
                         Dispatch.put(field, "Caption", new Variant(caption + "*"));
                         if(percent)
                             Dispatch.put(field, "NumberFormat", new Variant("0.00%"));
+                        else
+                            Dispatch.put(field, "NumberFormat", new Variant("# ##0.##"));
+                        
                     } else {
 
                         Dispatch field = cellDispatchFieldsMap.get(entry);
@@ -211,6 +214,7 @@ public class ExportExcelPivotAction implements ClientAction {
                             Dispatch.put(field, "Function", new Variant(xlSum));
                             String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
                             Dispatch.put(field, "Caption", new Variant(caption + "*"));
+                            Dispatch.put(field, "NumberFormat", new Variant("# ##0.##"));
                         }
                     }
                 }
