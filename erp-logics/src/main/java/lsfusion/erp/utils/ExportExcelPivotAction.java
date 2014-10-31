@@ -92,7 +92,7 @@ public class ExportExcelPivotAction implements ClientAction {
 
             int j = 1;
             if(title != null) {
-                for (String titleString : title.split("\\\\n")) {                   
+                for (String titleString : title.split("\\\\n|\\n")) {                   
                     Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[] {"A" + j}, new int[1]).toDispatch();
                     Dispatch.put(cell, "Value", titleString);
                     j++;
@@ -182,7 +182,7 @@ public class ExportExcelPivotAction implements ClientAction {
                         String caption = splittedEntry[1];
 
                         String resultFormula = "";
-                        Pattern pattern = Pattern.compile("(\\$?[\\d%]+)(\\+|\\-|\\*|\\/)?");
+                        Pattern pattern = Pattern.compile("(\\$?[\\d]+)?(\\+|\\-|\\*|\\/|\\(|\\)|%)?");
                         Matcher matcher = pattern.matcher(formula);
                         while(matcher.find()) {
                             resultFormula += getFormulaCell(cellFieldsEntry, matcher.group(1)) + (matcher.group(2) == null ? "" : matcher.group(2));
@@ -301,6 +301,7 @@ public class ExportExcelPivotAction implements ClientAction {
     }
     
     private String getFormulaCell(List<String> cellFieldsEntry, String field) {
-        return field.startsWith("$") ? ("'" + cellFieldsEntry.get(Integer.parseInt(field.replace("$", "").replace("%", "")) - 1) + "'") : field;
+        return field== null ? "" : 
+                (field.startsWith("$") ? ("'" + cellFieldsEntry.get(Integer.parseInt(field.replace("$", "").replace("%", "")) - 1) + "'") : field);
     }
 }
