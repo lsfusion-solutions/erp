@@ -9,6 +9,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.poi.hssf.usermodel.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -66,7 +67,12 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
 
     protected Integer getXLSIntegerFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
         BigDecimal value = getXLSBigDecimalFieldValue(sheet, row, column, null);
-        return value == null ? null : value.intValue();
+        return value == null ? null : value.setScale(0, RoundingMode.HALF_UP).intValue();
+    }
+
+    protected BigDecimal getXLSStrictBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
+        Integer value = getXLSIntegerFieldValue(sheet, row, column);
+        return value == null ? null : new BigDecimal(value);
     }
 
     protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
