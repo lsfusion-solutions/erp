@@ -110,8 +110,8 @@ public class ExportExcelPivotAction implements ClientAction {
                         new Variant(sourceDataNativePeer), //SourceData
                         new Variant(destinationNativePeer), //TableDestination
                         new Variant("PivotTable"), //TableName
-                        new Variant(false), //RowGrand
-                        new Variant(false), //ColumnGrand
+                        new Variant(true), //RowGrand
+                        new Variant(true), //ColumnGrand
                         new Variant(true), //SaveData
                         new Variant(true), //HasAutoFormat
                         unspecified, //AutoPage
@@ -224,9 +224,6 @@ public class ExportExcelPivotAction implements ClientAction {
                     if (dataCount > 1)
                         Dispatch.put(field, "Orientation", new Variant(xlColumnField));
                 }
-
-                //По какой-то причине ColumnGrand и RowGrand работают ровно наоборот
-                Dispatch.put(pivotTableWizard, "ColumnGrand", new Variant(true));
             }
         }
         
