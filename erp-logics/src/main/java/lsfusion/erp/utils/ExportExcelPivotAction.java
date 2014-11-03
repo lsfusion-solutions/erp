@@ -240,8 +240,9 @@ public class ExportExcelPivotAction implements ClientAction {
                 Dispatch.put(pageSetup, "FitToPagesTall", new Variant(false));
                 
                 for(int k = dataCount + formulaCount; k >= 1; k--) {
-                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get,
-                            new Object[]{getCellIndex(rowFieldsEntry.size() + k, j + columnFieldsEntry.size() + 2)}, new int[1]).toDispatch();
+                    int row = rowFieldsEntry.size() + k;
+                    int column = j + columnFieldsEntry.size() + filterFieldsEntry.size() + 2;
+                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{getCellIndex(row, column)}, new int[1]).toDispatch();
                     Dispatch.put(cell, "WrapText", new Variant(true));
                 }
             }
