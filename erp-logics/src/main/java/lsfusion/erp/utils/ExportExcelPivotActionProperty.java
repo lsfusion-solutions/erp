@@ -25,6 +25,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+// Syntax:
+// xxx=yyy[zzz]%
+// xxx is formula 
+// yyy is caption
+// zzz is number format
+// % is for percent type
+
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
     String idForm;
     String titleProperty;
@@ -87,21 +94,44 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
         }
     }
 
-    public List<List<String>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
-        List<List<String>> result = new ArrayList<List<String>>();
+    public List<List<List<String>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
+        List<List<List<String>>> result = new ArrayList<List<List<String>>>();
         if (fields != null) {
             for (List<String> fieldsEntry : fields) {
-                List<String> resultEntry = new ArrayList<String>();
+                List<List<String>> resultEntry = new ArrayList<List<String>>();
                 for (String field : fieldsEntry) {
-                    if (field.matches(".*=.*"))
-                        resultEntry.add(field);
-                    else
-                        for (PropertyDrawView property : properties) {
-                            if (property.getSID().equals(field)) {
-                                resultEntry.add(property.getCaption());
-                                break;
-                            }
+
+                    //number format
+                    String numberFormat = null;
+                    if (field.matches("(.*)\\[(.*)\\]")) {
+                        String[] splittedEntry = field.split("\\[|\\]");
+                        field = splittedEntry[0];
+                        numberFormat = splittedEntry[1];
+                    }
+
+                    //caption
+                    String caption = null;
+                    if (field.matches(".*=.*")) {
+                        String[] splittedEntry = field.split("=");
+                        field = splittedEntry[0];
+                        caption = splittedEntry[1];
+                    }
+
+                    String postfix = null;
+                    if (field.endsWith("%")) {
+                        field = field.substring(0, field.length() - 1);
+                        postfix = "%";
+                    }
+
+                    String fieldValue = null;
+                    for (PropertyDrawView property : properties) {
+                        if (property.getSID().equals(field)) {
+                            fieldValue = property.getCaption();
+                            break;
                         }
+                    }                    
+                    String formula = fieldValue == null ? field : null;
+                    resultEntry.add(Arrays.asList(fieldValue == null ? field : fieldValue, formula, caption, numberFormat, postfix));
                 }
                 result.add(resultEntry);
             }

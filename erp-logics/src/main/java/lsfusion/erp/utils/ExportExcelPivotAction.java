@@ -36,13 +36,13 @@ public class ExportExcelPivotAction implements ClientAction {
 
     ReportGenerationData reportData;   
     String title;
-    List<List<String>> rowFields;
-    List<List<String>> columnFields;
-    List<List<String>> filterFields;
-    List<List<String>> cellFields;
+    List<List<List<String>>> rowFields;
+    List<List<List<String>>> columnFields;
+    List<List<List<String>>> filterFields;
+    List<List<List<String>>> cellFields;
 
-    public ExportExcelPivotAction(ReportGenerationData reportData, String title, List<List<String>> rowFields, List<List<String>> columnFields,
-                                  List<List<String>> filterFields, List<List<String>> cellFields) {
+    public ExportExcelPivotAction(ReportGenerationData reportData, String title, List<List<List<String>>> rowFields, List<List<List<String>>> columnFields,
+                                  List<List<List<String>>> filterFields, List<List<List<String>>> cellFields) {
         this.reportData = reportData;
         this.title = title;
         this.rowFields = rowFields;
@@ -78,10 +78,10 @@ public class ExportExcelPivotAction implements ClientAction {
         int pivotTableCount = rowFields.size();
         for (int i = pivotTableCount - 1; i >= 0; i--) {
             
-            List<String> rowFieldsEntry = rowFields.get(i);
-            List<String> columnFieldsEntry = columnFields.get(i);
-            List<String> filterFieldsEntry = filterFields.get(i);
-            List<String> cellFieldsEntry = cellFields.get(i);
+            List<List<String>> rowFieldsEntry = rowFields.get(i);
+            List<List<String>> columnFieldsEntry = columnFields.get(i);
+            List<List<String>> filterFieldsEntry = filterFields.get(i);
+            List<List<String>> cellFieldsEntry = cellFields.get(i);
             
             Dispatch destinationSheet = Dispatch.get(sheets, "Add").toDispatch();
             Dispatch.put(destinationSheet, "Name", "PivotTable" + (i + 1));
@@ -154,67 +154,69 @@ public class ExportExcelPivotAction implements ClientAction {
                     count++;
                 }
 
-                for (String entry : rowFieldsEntry) {
-                    Dispatch field = rowDispatchFieldsMap.get(entry);
+                for (List<String> entry : rowFieldsEntry) {
+                    Dispatch field = rowDispatchFieldsMap.get(entry.get(0));
                     if (field != null)
-                        Dispatch.put(rowDispatchFieldsMap.get(entry), "Orientation", new Variant(xlRowField));
+                        Dispatch.put(field, "Orientation", new Variant(xlRowField));
                 }
 
-                for (String entry : columnFieldsEntry) {
-                    Dispatch field = columnDispatchFieldsMap.get(entry);
+                for (List<String> entry : columnFieldsEntry) {
+                    Dispatch field = columnDispatchFieldsMap.get(entry.get(0));
                     if (field != null)
                         Dispatch.put(field, "Orientation", new Variant(xlColumnField));
                 }
 
                 //фильтры по какой-то причине требуют обратного порядка
-                for (String entry : Lists.reverse(filterFieldsEntry)) {
-                    Dispatch field = filterDispatchFieldsMap.get(entry);
-                    if (field != null)
-                        Dispatch.put(field, "Orientation", new Variant(xlFilterField));
+                if(filterFieldsEntry != null) {
+                    for (List<String> entry : Lists.reverse(filterFieldsEntry)) {
+                        Dispatch field = filterDispatchFieldsMap.get(entry.get(0));
+                        if (field != null)
+                            Dispatch.put(field, "Orientation", new Variant(xlFilterField));
+                    }
                 }
 
                 int dataCount = 0;
-                for (String entry : cellFieldsEntry) {
+                for (List<String> entry : cellFieldsEntry) {
+                    String fieldValue = entry.get(0);
+                    String formula = entry.get(1);
+                    String caption = entry.get(2);
+                    String numberFormat = entry.get(3);
+                    String postfix = entry.get(4);
 
-                    if (entry != null && entry.matches(".*=.*")) {
-                        String[] splittedEntry = entry.split("=");
-                        String formula = splittedEntry[0];
-                        String caption = splittedEntry[1];
-
-                        String resultFormula = "";
-                        Pattern pattern = Pattern.compile("(\\$?[\\d]+)?(\\+|\\-|\\*|\\/|\\(|\\)|%)?");
-                        Matcher matcher = pattern.matcher(formula);
-                        while(matcher.find()) {
-                            resultFormula += getFormulaCell(cellFieldsEntry, matcher.group(1)) + (matcher.group(2) == null ? "" : matcher.group(2));
-                        } 
-                        if(resultFormula.isEmpty()) {
-                            throw new RuntimeException("Error Formula: " + formula);
-                        } 
-                        boolean percent = false;
-                        if(resultFormula.endsWith("%")) {
-                            resultFormula = resultFormula.substring(0, resultFormula.length() - 1);
-                            percent = true;
-                        }
-                        Dispatch calculatedFields = Dispatch.call(pivotTableWizard, "CalculatedFields").toDispatch();
-                        Dispatch field = Dispatch.call(calculatedFields, "Add", caption, resultFormula, true).toDispatch();
-                        Dispatch.put(field, "Orientation", new Variant(xlDataField));
-                        caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
-                        Dispatch.put(field, "Caption", new Variant(caption + "*"));
-                        if(percent)
-                            Dispatch.put(field, "NumberFormat", new Variant("0.00%"));
-                        else
-                            Dispatch.put(field, "NumberFormat", new Variant("# ##0.##"));
-                        
-                    } else {
-
-                        Dispatch field = cellDispatchFieldsMap.get(entry);
-                        if (field != null) {
-                            dataCount++;
+                    if (fieldValue != null) {
+                        if (formula != null) {                          
+                            String resultFormula = "";
+                            Pattern pattern = Pattern.compile("(\\$?[\\d]+)?(\\+|\\-|\\*|\\/|\\(|\\)|%)?");
+                            Matcher matcher = pattern.matcher(formula);
+                            while (matcher.find()) {
+                                resultFormula += getFormulaCell(cellFieldsEntry, matcher.group(1), formula) + (matcher.group(2) == null ? "" : matcher.group(2));
+                            }
+                            if (resultFormula.isEmpty()) {
+                                throw new RuntimeException("Error Formula: " + formula);
+                            }
+                            Dispatch calculatedFields = Dispatch.call(pivotTableWizard, "CalculatedFields").toDispatch();
+                            Dispatch field = Dispatch.call(calculatedFields, "Add", caption, resultFormula, true).toDispatch();
                             Dispatch.put(field, "Orientation", new Variant(xlDataField));
-                            Dispatch.put(field, "Function", new Variant(xlSum));
-                            String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                            caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
                             Dispatch.put(field, "Caption", new Variant(caption + "*"));
-                            Dispatch.put(field, "NumberFormat", new Variant("# ##0.##"));
+                            if (postfix != null && postfix.equals("%"))
+                                Dispatch.put(field, "NumberFormat", new Variant("0.00%"));
+                            else if (numberFormat != null)
+                                Dispatch.put(field, "NumberFormat", new Variant(numberFormat));
+
+                        } else {
+
+                            Dispatch field = cellDispatchFieldsMap.get(fieldValue);
+                            if (field != null) {
+                                dataCount++;
+                                Dispatch.put(field, "Orientation", new Variant(xlDataField));
+                                Dispatch.put(field, "Function", new Variant(xlSum));
+                                caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                                Dispatch.put(field, "Caption", new Variant(caption + "*"));
+                                if(numberFormat != null) {
+                                    Dispatch.put(field, "NumberFormat", new Variant(numberFormat));
+                                }
+                            }
                         }
                     }
                 }
@@ -287,13 +289,13 @@ public class ExportExcelPivotAction implements ClientAction {
         LinkedHashMap<Integer, Integer> fieldsMap = new LinkedHashMap<Integer, Integer>();
         for (Map.Entry<String, List<Integer>> entry : captionFieldsMap.entrySet()) {                       
             for(Integer field : entry.getValue()) {
-                if (rowFields.get(pivotTableNumber).contains(entry.getKey())) {
+                if (listContainsField(rowFields.get(pivotTableNumber), entry.getKey())) {
                     fieldsMap.put(field, xlRowField);
-                } else if (columnFields.get(pivotTableNumber).contains(entry.getKey())) {
+                } else if (listContainsField(columnFields.get(pivotTableNumber), entry.getKey())) {
                     fieldsMap.put(field, xlColumnField);
-                } else if (filterFields.get(pivotTableNumber).contains(entry.getKey())) {
+                } else if ((listContainsField(filterFields.get(pivotTableNumber), entry.getKey()))) {
                     fieldsMap.put(field, xlFilterField);
-                } else if (cellFields.get(pivotTableNumber).contains(entry.getKey())) {
+                } else if ((listContainsField(cellFields.get(pivotTableNumber), entry.getKey()))) {
                     fieldsMap.put(field, xlDataField);
                 } else fieldsMap.put(field, null);               
             }           
@@ -301,8 +303,23 @@ public class ExportExcelPivotAction implements ClientAction {
         return fieldsMap;
     }
     
-    private String getFormulaCell(List<String> cellFieldsEntry, String field) {
-        return field== null ? "" : 
-                (field.startsWith("$") ? ("'" + cellFieldsEntry.get(Integer.parseInt(field.replace("$", "").replace("%", "")) - 1) + "'") : field);
+    private boolean listContainsField(List<List<String>> list, String field) {
+        if(list.isEmpty()) return false;
+        boolean result = false;
+        for(List<String> entry : list) {
+            if(entry.get(0) != null && entry.get(0).equals(field))
+                result = true;
+        }
+        return result;
+    }
+    
+    private String getFormulaCell(List<List<String>> cellFieldsEntry, String field, String formula) {
+        try {
+            if (field == null) return "";
+            List<String> indexEntry = cellFieldsEntry.get(Integer.parseInt(field.replace("$", "").replace("%", "")) - 1);
+            return (field.startsWith("$") ? ("'" + indexEntry.get(0) + "'") : field);
+        } catch (Exception e) {
+            throw new RuntimeException("Error Formula: " + formula);                 
+        }
     }
 }
