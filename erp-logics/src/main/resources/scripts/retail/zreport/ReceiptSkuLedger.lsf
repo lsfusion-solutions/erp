@@ -1,0 +1,112 @@
+MODULE ReceiptSkuLedger;
+
+REQUIRE ZReport,SkuLedger;
+   
+// -- Агрегации для 4х объектов -- //   
+META defineAggregationCustom (prim1Property, prim2Property, prim3Property, prim4Property, prim1Object, prim1Class, prim2Object, prim2Class, prim3Object, prim3Class, prim4Object, prim4Class, aggrObject, aggrClass, aggrProperty)
+    aggrObject###prim1Object###prim2Object###prim3Object###prim4Object (prim1Object, prim2Object, prim3Object, prim4Object) =
+        GROUP AGGR aggrObject BY prim1Property(aggrObject), prim2Property(aggrObject), prim3Property(aggrObject), prim4Property(aggrObject) 
+        WHERE aggrObject IS aggrClass;// PERSISTENT INDEXED;
+
+    aggrProperty(prim1Object, prim2Object, prim3Object, prim4Object) => aggrObject###prim1Object###prim2Object###prim3Object###prim4Object(prim1Object, prim2Object, prim3Object, prim4Object) RESOLVE TRUE;
+
+    is###aggrObject(aggrObject) = aggrObject IS aggrClass;
+    is###aggrObject(aggrObject) => aggrProperty(prim1Property(aggrObject), prim2Property(aggrObject), prim3Property(aggrObject), prim4Property(aggrObject)) RESOLVE FALSE;
+END
+
+META defineAggregationCustom (prim1Property, prim2Property, prim3Property, prim4Property, prim1Object, prim2Object, prim3Object, prim4Object, aggrObject, aggrProperty)
+    @defineAggregationCustom(prim1Property, prim2Property, prim3Property, prim4Property, prim1Object, ###prim1Object, prim2Object, ###prim2Object, prim3Object, ###prim3Object, prim4Object, ###prim4Object, aggrObject, ###aggrObject, aggrProperty);
+END
+
+META defineAggregationClass (prim1Object, prim1Class, prim2Object, prim2Class, prim3Object, prim3Class, prim4Object, prim4Class, aggrObject, aggrClass, aggrProperty)
+    prim1Object###aggrObject = DATA prim1Class (aggrClass);
+    prim2Object###aggrObject = DATA prim2Class (aggrClass);
+    prim3Object###aggrObject = DATA prim3Class (aggrClass);
+    prim4Object###aggrObject = DATA prim4Class (aggrClass);
+
+    @defineAggregationCustom(prim1Object###aggrObject, prim2Object###aggrObject, prim3Object###aggrObject, prim4Object###aggrObject, prim1Object, prim1Class, prim2Object, prim2Class, prim3Object, prim3Class, prim4Object, prim4Class, aggrObject, aggrClass, aggrProperty);
+END
+
+META defineAggregation (prim1Object, prim2Object, prim3Object, prim4Object, aggrObject, aggrProperty)
+    @defineAggregationClass(prim1Object, ###prim1Object, prim2Object, ###prim2Object, prim3Object, ###prim3Object, prim4Object, ###prim4Object, aggrObject, ###aggrObject, aggrProperty);
+END
+
+//---------------------- Продажа ----------------//
+CLASS ReceiptSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
+
+quantityReceiptSaleDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
+    BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
+sumReceiptSaleDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
+    BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
+discountSumReceiptSaleDetailDepartmentSkuDatePrice 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSumReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
+    BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
+
+countReceiptSaleDetailDepartmentSkuDatePrice (department, sku, date, price) = GROUP SUM 1 IF isPostedReceiptSaleDetail(d)
+    BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
+
+@defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetailDepartmentSkuDatePrice);
+
+dateTimeDataSkuLedger (ledger) += toDateTime(dateReceiptSaleSkuLedger(ledger));
+isPostedDataSkuLedger (ledger) += ledger IS ReceiptSaleSkuLedger;
+skuDataSkuLedger (ledger) += skuReceiptSaleSkuLedger(ledger);
+stockDataSkuLedger (ledger) += departmentStoreReceiptSaleSkuLedger(ledger);
+descriptionDataSkuLedger (ledger) += VARSTRING[200]('Продажа за день')IF ledger IS ReceiptSaleSkuLedger;
+
+quantityOutFIFOSkuLedger (ledger) += NUMERIC[14,3](quantityReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger)));
+sumOutSkuLedger (ledger) += NUMERIC[16,2](sumReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger))
+    (+) discountSumReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger)));
+
+limitOutFIFOSkuLedgerBatch(ledger, batch) += currentBalanceBatchStock(batch, departmentStoreReceiptSaleSkuLedger(ledger));
+
+//---------------------- SaleLedger ----------------//
+
+dateTimeSaleLedger (ledger) += toDateTime(dateReceiptSaleSkuLedger(ledger));
+isPostedSaleLedger (ledger) += ledger IS ReceiptSaleSkuLedger;
+skuSaleLedger (ledger) += skuReceiptSaleSkuLedger(ledger);
+stockSaleLedger (ledger) += departmentStoreReceiptSaleSkuLedger(ledger);
+descriptionSaleLedger (ledger) += VARSTRING[200]('Продажа за день')IF ledger IS ReceiptSaleSkuLedger;
+
+costSaleLedgerBatch(ledger, batch) +=  costSkuLedgerBatch(ledger, batch) IF ledger IS ReceiptSaleSkuLedger;
+quantitySaleLedger (ledger) += NUMERIC[14,3](quantityReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger)));
+VATSaleLedger (ledger) += VATSkuStock(skuReceiptSaleSkuLedger(ledger), departmentStoreReceiptSaleSkuLedger(ledger));
+sumSaleLedger (ledger) += NUMERIC[16,2](sumReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger)));
+costSumSaleLedger (ledger) += costSumSkuLedger(ledger) IF ledger IS ReceiptSaleSkuLedger;
+
+//---------------------- Возврат ----------------//
+
+CLASS ReceiptReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
+quantityReceiptReturnDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
+    BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
+sumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
+    BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
+discountSumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSumReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
+    BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
+
+countReceiptReturnDetailDepartmentSkuDatePrice  (department, sku, date, price) = GROUP SUM 1 IF isPostedReceiptReturnDetail(d)
+    BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
+
+@defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetailDepartmentSkuDatePrice);
+dateTimeDataSkuLedger (ledger) += toDateTime(dateReceiptReturnSkuLedger(ledger));
+isPostedDataSkuLedger (ledger) += ledger IS ReceiptReturnSkuLedger;
+skuDataSkuLedger (ledger) += skuReceiptReturnSkuLedger(ledger);
+stockDataSkuLedger (ledger) += departmentStoreReceiptReturnSkuLedger(ledger);
+descriptionDataSkuLedger (ledger) += VARSTRING[200]('Возврат за день')IF ledger IS ReceiptReturnSkuLedger;
+
+quantityInLIFOSkuLedger (ledger) += NUMERIC[14,3](quantityReceiptReturnDetailDepartmentSkuDatePrice(departmentStoreReceiptReturnSkuLedger(ledger), skuReceiptReturnSkuLedger(ledger), dateReceiptReturnSkuLedger(ledger), priceReceiptReturnSkuLedger(ledger)));
+limitInLIFOSkuLedgerBatch(ledger, batch) += outcomeBatch(batch) IF countLedgerBatchStock(batch, departmentStoreReceiptReturnSkuLedger(ledger));
+sumInSkuLedger (ledger) += NUMERIC[16,2](sumReceiptReturnDetailDepartmentSkuDatePrice(departmentStoreReceiptReturnSkuLedger(ledger), skuReceiptReturnSkuLedger(ledger), dateReceiptReturnSkuLedger(ledger), priceReceiptReturnSkuLedger(ledger))
+    (+) discountSumReceiptReturnDetailDepartmentSkuDatePrice(departmentStoreReceiptReturnSkuLedger(ledger), skuReceiptReturnSkuLedger(ledger), dateReceiptReturnSkuLedger(ledger), priceReceiptReturnSkuLedger(ledger)));
+
+//---------------------- SaleLedger ----------------//
+
+dateTimeSaleLedger (ledger) += toDateTime(dateReceiptReturnSkuLedger(ledger));
+isPostedSaleLedger (ledger) += ledger IS ReceiptReturnSkuLedger;
+skuSaleLedger (ledger) += skuReceiptReturnSkuLedger(ledger);
+stockSaleLedger (ledger) += departmentStoreReceiptReturnSkuLedger(ledger);
+descriptionSaleLedger (ledger) += VARSTRING[200]('Возврат за день')IF ledger IS ReceiptReturnSkuLedger;
+
+costSaleLedgerBatch(ledger, batch) += -costSkuLedgerBatch(ledger, batch) IF ledger IS ReceiptReturnSkuLedger;
+quantitySaleLedger (ledger) += -NUMERIC[14,3](quantityReceiptReturnDetailDepartmentSkuDatePrice(departmentStoreReceiptReturnSkuLedger(ledger), skuReceiptReturnSkuLedger(ledger), dateReceiptReturnSkuLedger(ledger), priceReceiptReturnSkuLedger(ledger)));
+VATSaleLedger (ledger) += VATSkuStock(skuReceiptReturnSkuLedger(ledger), departmentStoreReceiptReturnSkuLedger(ledger));
+sumSaleLedger (ledger) += -NUMERIC[16,2](sumReceiptReturnDetailDepartmentSkuDatePrice(departmentStoreReceiptReturnSkuLedger(ledger), skuReceiptReturnSkuLedger(ledger), dateReceiptReturnSkuLedger(ledger), priceReceiptReturnSkuLedger(ledger)));
+costSumSaleLedger (ledger) += -costSumSkuLedger(ledger) IF ledger IS ReceiptReturnSkuLedger;
