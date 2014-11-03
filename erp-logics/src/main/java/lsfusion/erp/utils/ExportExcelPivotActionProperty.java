@@ -35,6 +35,7 @@ import java.util.Map;
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
     String idForm;
     String titleProperty;
+    Integer titleRowHeight;
     String idGroupObject;
     List<List<String>> rows;
     List<List<String>> columns;
@@ -44,21 +45,28 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
                                           List<String> rows, List<String> columns, List<String> filters, List<String> cells,
                                           ValueClass... classes) {
-        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, idGroupObject, classes);
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, null, idGroupObject, classes);
     }
     
+    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject,
+                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                          ValueClass... classes) {
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, titleRowHeight, idGroupObject, classes);
+    }
+
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String titleProperty, String idGroupObject,
                                           List<String> rows, List<String> columns, List<String> filters, List<String> cells,
                                           ValueClass... classes) {
-        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, idGroupObject, classes);
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, null, idGroupObject, classes);
     }
     
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, 
                                           List<List<String>> rows, List<List<String>> columns, List<List<String>> filters, List<List<String>> cells,
-                                          String idForm, String titleProperty, String idGroupObject, ValueClass... classes) {
+                                          String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject, ValueClass... classes) {
         super(LM, classes);
         this.idForm = idForm;
         this.titleProperty = titleProperty;
+        this.titleRowHeight = titleRowHeight;
         this.idGroupObject = idGroupObject;
         this.rows = rows;
         this.columns = columns;
@@ -85,7 +93,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                 ReportGenerationData reportData = new FormReportManager(formInstance).getReportData(
                         formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
-                context.requestUserInteraction(new ExportExcelPivotAction(reportData, readTitle(context, valuesMap, titleProperty),
+                context.requestUserInteraction(new ExportExcelPivotAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
                         readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
             }
 

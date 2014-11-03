@@ -36,15 +36,17 @@ public class ExportExcelPivotAction implements ClientAction {
 
     ReportGenerationData reportData;   
     String title;
+    Integer titleRowHeight;
     List<List<List<String>>> rowFields;
     List<List<List<String>>> columnFields;
     List<List<List<String>>> filterFields;
     List<List<List<String>>> cellFields;
 
-    public ExportExcelPivotAction(ReportGenerationData reportData, String title, List<List<List<String>>> rowFields, List<List<List<String>>> columnFields,
+    public ExportExcelPivotAction(ReportGenerationData reportData, String title, Integer titleRowHeight, List<List<List<String>>> rowFields, List<List<List<String>>> columnFields,
                                   List<List<List<String>>> filterFields, List<List<List<String>>> cellFields) {
         this.reportData = reportData;
         this.title = title;
+        this.titleRowHeight = titleRowHeight;
         this.rowFields = rowFields;
         this.columnFields = columnFields;
         this.filterFields = filterFields;
@@ -101,8 +103,9 @@ public class ExportExcelPivotAction implements ClientAction {
 
             if (rowsCount > 2) {
                 String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : (rowsCount - 1));
+                Integer firstRowIndex = j + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 1;
                 Dispatch sourceDataNativePeer = Dispatch.invoke(sourceSheet, "Range", Dispatch.Get, new Object[]{"B2:" + lastCell}, new int[1]).toDispatch();
-                String destinationIndex = "A" + (j + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 1);
+                String destinationIndex = "A" + firstRowIndex;
                 Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{destinationIndex}, new int[1]).toDispatch();
 
                 Variant unspecified = Variant.VT_MISSING;
@@ -176,6 +179,7 @@ public class ExportExcelPivotAction implements ClientAction {
                 }
 
                 int dataCount = 0;
+                int formulaCount = 0;
                 for (List<String> entry : cellFieldsEntry) {
                     String fieldValue = entry.get(0);
                     String formula = entry.get(1);
@@ -184,7 +188,8 @@ public class ExportExcelPivotAction implements ClientAction {
                     String postfix = entry.get(4);
 
                     if (fieldValue != null) {
-                        if (formula != null) {                          
+                        if (formula != null) {      
+                            formulaCount++;
                             String resultFormula = "";
                             Pattern pattern = Pattern.compile("(\\$?[\\d]+)?(\\+|\\-|\\*|\\/|\\(|\\)|%)?");
                             Matcher matcher = pattern.matcher(formula);
@@ -218,13 +223,26 @@ public class ExportExcelPivotAction implements ClientAction {
                                 }
                             }
                         }
-                    }
+                    }                    
                 }
-
+                
                 if (i == pivotTableCount - 1) {
                     Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
                     if (dataCount > 1)
                         Dispatch.put(field, "Orientation", new Variant(xlColumnField));
+                }
+
+                Dispatch.put(Dispatch.invoke(destinationSheet, "Rows", Dispatch.Get, new Object[] {firstRowIndex + columnFieldsEntry.size() + 1}, new int[1]).toDispatch(), 
+                        "RowHeight", new Variant((titleRowHeight == null ? 1 : titleRowHeight) * 15));
+                Dispatch pageSetup = Dispatch.get(destinationSheet, "PageSetup").getDispatch();
+                Dispatch.put(pageSetup, "Zoom", new Variant(false));
+                Dispatch.put(pageSetup, "FitToPagesWide", new Variant(1));
+                Dispatch.put(pageSetup, "FitToPagesTall", new Variant(false));
+                
+                for(int k = dataCount + formulaCount; k >= 1; k--) {
+                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get,
+                            new Object[]{getCellIndex(rowFieldsEntry.size() + k, j + columnFieldsEntry.size() + 2)}, new int[1]).toDispatch();
+                    Dispatch.put(cell, "WrapText", new Variant(true));
                 }
             }
         }
