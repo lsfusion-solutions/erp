@@ -18,6 +18,10 @@ CLASS ImportUserPriceListKeyType 'Ключ товара (импорт прайс
     item    'Код товара'
 }
 
+CLASS CustomKeyType 'Ключ свойства' {
+    userPriceListDetail 'Строка прайса'
+}
+
 CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-листов)' {
     idUserPriceList 'Код прайс-листа',
     dateUserPriceList 'Дата прайс-листа',
@@ -36,6 +40,11 @@ CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-�
     originalName 'Наименование поставщика',
     originalBarcode 'Штрихкод поставщика'
 }
+
+propertyImportTypeDetail 'Свойство' = DATA VARSTRING[100] (ImportUserPriceListTypeDetail);
+keyImportTypeDetail 'Ключ' = DATA CustomKeyType (ImportUserPriceListTypeDetail);
+nameKeyImportTypeDetail 'Ключ' (importTypeDetail) = staticName(keyImportTypeDetail(importTypeDetail));
+captionKeyImportTypeDetail 'Ключ' (importTypeDetail) = staticCaption(keyImportTypeDetail(importTypeDetail));
 
 CLASS ImportUserPriceListType 'Тип импорта (импорт прайс-листов)';
 TABLE importUserPriceListType(ImportUserPriceListType);
@@ -94,10 +103,22 @@ captionImportUserPriceListTypeFileExtensionImportUserPriceListType 'Тип фа�
 TABLE importUserPriceListTypeDataPriceListType(ImportUserPriceListType, DataPriceListType);
 indexImportUserPriceListTypeDataPriceListType 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, DataPriceListType);
 
+FORM customKeyTypes 'Ключи свойства'
+    OBJECTS k=CustomKeyType
+    PROPERTIES(k) READONLY staticCaption
+    DIALOG CustomKeyType OBJECT k
+;
+
 FORM importUserPriceListTypeDetails
     OBJECTS itd = ImportUserPriceListTypeDetail
-    PROPERTIES(itd) staticCaption
+    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
     DIALOG ImportUserPriceListTypeDetail OBJECT itd
+;
+
+FORM importUserPriceListTypeDetail 'Свойство импорта'
+    OBJECTS itd = ImportUserPriceListTypeDetail FIXED PANEL
+    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, captionKeyImportTypeDetail
+    EDIT ImportUserPriceListTypeDetail OBJECT itd
 ;
 
 FORM importUserPriceListTypeFileExtensions 'Типы файлов'
@@ -124,8 +145,9 @@ FORM importUserPriceListType 'Тип импорта'
     PROPERTIES(i) autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType FORCE PANEL SHOWIF autoImportImportUserPriceListType(i)
                    
     OBJECTS d = ImportUserPriceListTypeDetail
-    PROPERTIES(d) staticCaption
+    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
     PROPERTIES(i,d) indexImportUserPriceListTypeImportUserPriceListTypeDetail, replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail 
+    PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
                       
     OBJECTS p = DataPriceListType
     PROPERTIES(p) nameDataPriceListType

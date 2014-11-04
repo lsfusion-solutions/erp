@@ -1,38 +1,30 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.userpricelist;
 
 import lsfusion.server.logics.DataObject;
 
-import java.util.Map;
+public class ImportPriceListSettings {
 
-public class ImportColumns {
-
-    private Map<String, ImportColumnDetail> columns;
-    private Map<DataObject, String[]> priceColumns;
+    private String fileExtension;
     private String quantityAdjustmentColumn;
     private DataObject operationObject;
     private DataObject companyObject;
     private DataObject stockObject;
     private DataObject defaultItemGroupObject;
-    private String fileExtension;
     private String itemKeyType;
     private String separator;
     private Integer startRow;
     private Boolean isPosted;
-    private Boolean doNotCreateItems;
-    private Boolean barcodeMaybeUPC;
+    private boolean doNotCreateItems;
+    private boolean barcodeMaybeUPC;
 
-    public ImportColumns(Map<String, ImportColumnDetail> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
-                         DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject,
-                         String fileExtension, String itemKeyType, String separator, Integer startRow, Boolean isPosted, 
-                         Boolean doNotCreateItems, Boolean barcodeMaybeUPC) {
-        this.columns = columns;
-        this.priceColumns = priceColumns;
+    public ImportPriceListSettings(String fileExtension, String quantityAdjustmentColumn, DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject, String itemKeyType, String separator, 
+                                   Integer startRow, Boolean isPosted, boolean doNotCreateItems, boolean barcodeMaybeUPC) {
+        this.fileExtension = fileExtension; 
         this.quantityAdjustmentColumn = quantityAdjustmentColumn;
         this.operationObject = operationObject;
         this.companyObject = companyObject;
         this.stockObject = stockObject;
         this.defaultItemGroupObject = defaultItemGroupObject;
-        this.fileExtension = fileExtension;
         this.itemKeyType = itemKeyType;
         this.separator = separator;
         this.startRow = startRow;
@@ -41,12 +33,8 @@ public class ImportColumns {
         this.barcodeMaybeUPC = barcodeMaybeUPC;
     }
 
-    public Map<String, ImportColumnDetail> getColumns() {
-        return columns;
-    }
-
-    public Map<DataObject, String[]> getPriceColumns() {
-        return priceColumns;
+    public String getFileExtension() {
+        return fileExtension;
     }
 
     public String getQuantityAdjustmentColumn() {
@@ -60,7 +48,7 @@ public class ImportColumns {
     public DataObject getCompanyObject() {
         return companyObject;
     }
-    
+
     public DataObject getStockObject() {
         return stockObject;
     }
@@ -68,15 +56,11 @@ public class ImportColumns {
     public DataObject getDefaultItemGroupObject() {
         return defaultItemGroupObject;
     }
-    
-    public String getFileExtension() {
-        return fileExtension;
-    }
-    
+
     public String getItemKeyType() {
         return itemKeyType;
     }
-    
+
     public String getSeparator() {
         return separator;
     }
@@ -84,16 +68,16 @@ public class ImportColumns {
     public Integer getStartRow() {
         return startRow;
     }
-    
+
     public Boolean getIsPosted() {
         return isPosted;
     }
 
-    public Boolean getDoNotCreateItems() {
+    public boolean isDoNotCreateItems() {
         return doNotCreateItems;
     }
 
-    public Boolean getBarcodeMaybeUPC() {
+    public boolean isBarcodeMaybeUPC() {
         return barcodeMaybeUPC;
     }
 }

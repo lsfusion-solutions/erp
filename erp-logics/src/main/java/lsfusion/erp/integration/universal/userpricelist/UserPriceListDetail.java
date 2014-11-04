@@ -5,9 +5,11 @@ import lsfusion.server.logics.DataObject;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class UserPriceListDetail {
+    public LinkedHashMap<String, String> customValues;
     public Map<String, Object> fieldValues;
     public Boolean isPosted;
     public String idUserPriceListDetail;
@@ -22,10 +24,12 @@ public class UserPriceListDetail {
     public Date dateVAT;
 
 
-    public UserPriceListDetail(Map<String, Object> fieldValues, Boolean isPosted, String idUserPriceListDetail, String idItem, 
+    public UserPriceListDetail(LinkedHashMap<String, String> customValues, Map<String, Object> fieldValues, 
+                               Boolean isPosted, String idUserPriceListDetail, String idItem, 
                                String barcodeItem, String extIdPackBarcode, String packBarcode, 
                                Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment,
                                Date dateUserPriceList, Date dateFrom, Date dateVAT) {
+        this.customValues = customValues;
         this.fieldValues = fieldValues;
         this.isPosted = isPosted;
         this.idUserPriceListDetail = idUserPriceListDetail;

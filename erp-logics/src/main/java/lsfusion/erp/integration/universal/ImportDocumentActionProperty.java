@@ -60,14 +60,14 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         }
         query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", findProperty("replaceOnlyNullImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
         query.addProperty("indexImportTypeImportTypeDetail", findProperty("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
-        query.and(findProperty("staticName").getExpr(importTypeDetailExpr).getWhere());
+        query.and(findProperty("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
-            String[] field = ((String) entry.get("staticName")).trim().split("\\.");
-            String captionProperty = (String) entry.get("staticCaption");
-            captionProperty = captionProperty == null ? null : captionProperty.trim();
+            String staticNameProperty = trim((String) entry.get("staticName"));
+            String field = getSplittedPart(staticNameProperty, "\\.", -1);
+            String staticCaptionProperty = trim((String) entry.get("staticCaption"));
             String propertyImportTypeDetail = (String) entry.get("propertyImportTypeDetail");
             String moduleName = getSplittedPart(propertyImportTypeDetail, "\\.", 0);
             String sidProperty = getSplittedPart(propertyImportTypeDetail, "\\.", 1);
@@ -78,9 +78,10 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
                 String[] splittedIndexes = indexes.split("\\+");
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].contains("=") ? splittedIndexes[i] : splittedIndexes[i].trim();
-                defaultColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull));
-                if(keyImportTypeDetail != null)
-                    customColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull,
+                if(field != null)
+                    defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull));
+                else if(keyImportTypeDetail != null)
+                    customColumns.put(staticCaptionProperty, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull,
                             moduleName, sidProperty, keyImportTypeDetail));
             }
         }
@@ -163,11 +164,12 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
                 && (!checkExistence || getItemKeyGroupAggr(keyType).read(session, new DataObject(keyColumnValue)) != null);
     }
-    
+
     protected static String getSplittedPart(String value, String splitPattern, int index) {
         if(value == null) return null;
         String[] splittedValue = value.trim().split(splitPattern);
-        return splittedValue.length <= index ? null : splittedValue[index];
+        int len = splittedValue.length;
+        return index >= 0 ? (len <= index ? null : splittedValue[index]) : len < -index ? null : splittedValue[len + index];
     }
     
     protected String formatSeparator(String separator) {

@@ -5,7 +5,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportActionProperty;
-import lsfusion.erp.integration.universal.ImportColumns;
+import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
@@ -23,6 +23,9 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.File;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ImportUserPriceListsActionProperty extends DefaultImportActionProperty {
 
@@ -40,7 +43,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importUserPriceListTypeQuery = new QueryBuilder<PropertyInterface, Object>(importUserPriceListTypeKeys);
             importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", findProperty("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            
+
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(findProperty("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(findProperty("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
@@ -52,29 +55,35 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                 DataObject importUserPriceListTypeObject = importUserPriceListTypeResult.getKey(i).valueIt().iterator().next();
 
                 String directory = (String) entryValue.get("autoImportDirectoryImportUserPriceListType").getValue();
-                
-                ImportColumns importColumns = new ImportUserPriceListActionProperty(LM).readImportColumns(context, importUserPriceListTypeObject);
 
-                if (directory != null && importColumns.getFileExtension() != null) {
+                ImportUserPriceListActionProperty imp = new ImportUserPriceListActionProperty(LM);
+                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = imp.readImportColumns(context, importUserPriceListTypeObject);
+                ImportPriceListSettings settings = imp.readImportPriceListSettings(context, importUserPriceListTypeObject);
+                Map<DataObject, String[]> priceColumns = imp.readPriceImportColumns(context, importUserPriceListTypeObject);
+
+                if (directory != null && settings.getFileExtension() != null) {
                     File dir = new File(trim(directory));
 
                     if (dir.exists()) {
 
-                        for (File f : dir.listFiles()) {
-                            if (f.getName().toLowerCase().endsWith(importColumns.getFileExtension().toLowerCase())) {
-                                DataObject userPriceListObject = context.addObject((ConcreteCustomClass) findClass("UserPriceList"));
+                        File[] listFiles = dir.listFiles();
+                        if (listFiles != null) {
+                            for (File f : listFiles) {
+                                if (f.getName().toLowerCase().endsWith(settings.getFileExtension().toLowerCase())) {
+                                    DataObject userPriceListObject = context.addObject((ConcreteCustomClass) findClass("UserPriceList"));
 
-                                try {
+                                    try {
 
-                                    boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
-                                            userPriceListObject, importColumns, IOUtils.getFileBytes(f),
-                                            true);
+                                        boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
+                                                userPriceListObject, settings, priceColumns, importColumns.get(0), importColumns.get(1), IOUtils.getFileBytes(f),
+                                                true);
 
-                                    if (importResult)
-                                        renameImportedFile(context, f.getAbsolutePath(), "." + importColumns.getFileExtension());
+                                        if (importResult)
+                                            renameImportedFile(context, f.getAbsolutePath(), "." + settings.getFileExtension());
 
-                                } catch (Exception e) {
-                                    ServerLoggers.systemLogger.error(e);
+                                    } catch (Exception e) {
+                                        ServerLoggers.systemLogger.error(e);
+                                    }
                                 }
                             }
                         }
