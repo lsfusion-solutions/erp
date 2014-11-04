@@ -130,7 +130,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         List<String> stringFields = Arrays.asList("idUserPriceList", "idItemGroup", "extraBarcodeItem", "articleItem", "captionItem", 
                 "idUOMItem", "valueVAT", "originalName", "originalBarcode");
 
-        List<String> bigDecimalFields = Arrays.asList("amountPackBarcode");
+        List<String> bigDecimalFields = Arrays.asList("amountPackBarcode", "netWeightItem", "grossWeightItem");
 
         List<String> dateFields = Arrays.asList("dateTo");        
         
@@ -368,6 +368,22 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 fields.add(idUOMField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("idUOMItem"));
+            }
+
+            if (showField(userPriceListDetailList, "netWeightItem")) {
+                ImportField netWeightItemField = new ImportField(findProperty("netWeightItem"));
+                props.add(new ImportProperty(netWeightItemField, findProperty("netWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "netWeightItem")));
+                fields.add(netWeightItemField);
+                for (int i = 0; i < userPriceListDetailList.size(); i++)
+                    data.get(i).add(userPriceListDetailList.get(i).getFieldValue("netWeightItem"));
+            }
+
+            if (showField(userPriceListDetailList, "grossWeightItem")) {
+                ImportField grossWeightItemField = new ImportField(findProperty("grossWeightItem"));
+                props.add(new ImportProperty(grossWeightItemField, findProperty("grossWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "grossWeightItem")));
+                fields.add(grossWeightItemField);
+                for (int i = 0; i < userPriceListDetailList.size(); i++)
+                    data.get(i).add(userPriceListDetailList.get(i).getFieldValue("grossWeightItem"));
             }
 
             for (DataObject dataPriceListTypeObject : dataPriceListTypeObjectList) {
