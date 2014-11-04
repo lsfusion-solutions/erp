@@ -16,7 +16,7 @@ levelParentCompanyEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelSto
                                                                BY employee, stockGroup PERSISTENT;
 nearestParentCompanyEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCompanyEmployeeStockGroup(employee, stockGroup));
 nearestInCompanyEmployeeStockGroup (employee, stockGroup) =
-    dataAccessCompanyStockGroupEmployee(nearestParentCompanyEmployeeStockGroup (employee, stockGroup), employee);
+    dataAccessCompanyStockGroupEmployee(nearestParentCompanyEmployeeStockGroup (employee, stockGroup), employee) PERSISTENT;
 
 accessCompanyEmployeeStockGroup 'Доступ разрешен (компания)' (employee, stockGroup) = OVERRIDE
     employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
@@ -44,7 +44,7 @@ levelParentSupplierEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelSt
                                                                BY employee, stockGroup PERSISTENT;
 nearestParentSupplierEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentSupplierEmployeeStockGroup(employee, stockGroup));
 nearestInSupplierEmployeeStockGroup (employee, stockGroup) =
-    dataAccessSupplierStockGroupEmployee(nearestParentSupplierEmployeeStockGroup (employee, stockGroup), employee);
+    dataAccessSupplierStockGroupEmployee(nearestParentSupplierEmployeeStockGroup (employee, stockGroup), employee) PERSISTENT;
 
 accessSupplierEmployeeStockGroup 'Доступ разрешен (поставщик)' (employee, stockGroup) = OVERRIDE
     employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
@@ -71,7 +71,7 @@ levelParentCustomerEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelSt
                                                                BY employee, stockGroup PERSISTENT;
 nearestParentCustomerEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCustomerEmployeeStockGroup(employee, stockGroup));
 nearestInCustomerEmployeeStockGroup (employee, stockGroup) =
-    dataAccessCustomerStockGroupEmployee(nearestParentCustomerEmployeeStockGroup (employee, stockGroup), employee);
+    dataAccessCustomerStockGroupEmployee(nearestParentCustomerEmployeeStockGroup (employee, stockGroup), employee) PERSISTENT;
 
 accessCustomerEmployeeStockGroup 'Доступ разрешен (покупатель)' (employee, stockGroup) = OVERRIDE
     employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
@@ -228,18 +228,18 @@ defaultCustomerStockEmployeeLegalEntity 'Склад по умолчанию (п�
 
 // Для документа, у которого задан склад
 META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)
-    EXTEND FORM form FILTERS access###filter##EmployeeStock(currentUser(),stockProp###object(concrete)) OR NOT limitAccessEmployee(currentUser());
+    EXTEND FORM form FILTERS access###filter##EmployeeStock(currentUser(),stockProp###object(concrete));
 END
 // Когда склад идет объектом
 META extendFormFilterStockAccess(concrete, form, filter)
-    EXTEND FORM form FILTERS access###filter##EmployeeStock(currentUser(), concrete) OR NOT limitAccessEmployee(currentUser());
+    EXTEND FORM form FILTERS access###filter##EmployeeStock(currentUser(), concrete);
 END
 META extendFormFilterStockAccess(concrete, form) // по умолчанию для компании
     @extendFormFilterStockAccess(concrete, form, company);
 END
 // Для группы складов
 META extendFormFilterStockGroupAccess(concrete, form, filter)
-    EXTEND FORM form FILTERS countAccess###filter##EmployeeStockGroup(currentUser(), concrete) OR NOT limitAccessEmployee(currentUser());
+    EXTEND FORM form FILTERS countAccess###filter##EmployeeStockGroup(currentUser(), concrete);
 END
 META extendFormFilterStockGroupAccess(concrete, form) // по умолчанию для компании
     @extendFormFilterStockGroupAccess(concrete, form, company);
