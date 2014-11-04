@@ -587,7 +587,7 @@ EXTEND FORM customLabelTransaction
                   
 ;
 // ------------------------- Подключение печати ценников в документ --------------------- //
-META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp)
+META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, prefix)
     create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {        
         
         IF isDraft###document(document) THEN {
@@ -595,7 +595,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp)
         }
         IF confirmed() OR NOT isDraft###document(document) THEN { 
             LOCAL inSku = BOOLEAN (Sku);
-            inSku(sku) <- TRUE IF quantity###detailProp##Detail###skuProp###document(sku, document);
+            inSku(sku) <- TRUE IF prefix###quantity###detailProp##Detail###skuProp###document(sku, document);
         
             // бежим по всем типам ценников из управленческих параметров
             // для каждого создаем по операции печати ценников
@@ -650,7 +650,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp)
                         batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
     
                         nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                        documentQuantityLabelTransactionDetail(d) <- quantity###detailProp##Detail(dd); 
+                        documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
                         
                         createAttributeLabelTransactionDetail(d);
                 }
@@ -668,8 +668,12 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp)
     backgroundPrintLabelTransaction###document 'Цвет' (document) = RGB(212,255,212) IF showPrintLabelTransaction###document(document) AND NOT printedPriceTransactionDocument(document);
 END
 
+META defineDocumentLabelTransaction (document, skuProp, stockProp, prefix)
+    @defineDocumentLabelTransaction (document, document, skuProp, stockProp, prefix);
+END
+
 META defineDocumentLabelTransaction (document, skuProp, stockProp)
-    @defineDocumentLabelTransaction (document, document, skuProp, stockProp);
+    @defineDocumentLabelTransaction (document, skuProp, stockProp, );
 END
 
 META extendFormDocumentLabelTransaction(form, object, document, afterProp, propContainer)
