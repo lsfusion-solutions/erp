@@ -26,11 +26,11 @@ import java.util.List;
 import java.util.Map;
 
 // Syntax:
-// xxx=yyy[zzz]%
+// xxx=yyy[zzz]~n
 // xxx is formula 
-// yyy is caption
-// zzz is number format
-// % is for percent type
+// yyy is caption (optional)
+// zzz is number format (optional)
+// n is column width (optional)
 
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
     String idForm;
@@ -102,13 +102,25 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
         }
     }
 
-    public List<List<List<String>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
-        List<List<List<String>>> result = new ArrayList<List<List<String>>>();
+    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
+        List<List<List<Object>>> result = new ArrayList<List<List<Object>>>();
         if (fields != null) {
             for (List<String> fieldsEntry : fields) {
-                List<List<String>> resultEntry = new ArrayList<List<String>>();
+                List<List<Object>> resultEntry = new ArrayList<List<Object>>();
                 for (String field : fieldsEntry) {
 
+                    //column width
+                    Integer columnWidth = null;
+                    if (field.matches("(.*)~(.*)")) {
+                        String[] splittedEntry = field.split("~");
+                        try {
+                            columnWidth = Integer.parseInt(splittedEntry[1]);
+                        } catch (Exception e) {
+                            throw new RuntimeException("Invalid Formula: " + field);
+                        }
+                        field = splittedEntry[0];
+                    }
+                    
                     //number format
                     String numberFormat = null;
                     if (field.matches("(.*)\\[(.*)\\]")) {
@@ -125,12 +137,6 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         caption = splittedEntry[1];
                     }
 
-                    String postfix = null;
-                    if (field.endsWith("%")) {
-                        field = field.substring(0, field.length() - 1);
-                        postfix = "%";
-                    }
-
                     String fieldValue = null;
                     for (PropertyDrawView property : properties) {
                         if (property.getSID().equals(field)) {
@@ -139,7 +145,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         }
                     }                    
                     String formula = fieldValue == null ? field : null;
-                    resultEntry.add(Arrays.asList(fieldValue == null ? field : fieldValue, formula, caption, numberFormat, postfix));
+                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth));
                 }
                 result.add(resultEntry);
             }
