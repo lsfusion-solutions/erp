@@ -463,7 +463,8 @@ sumPositiveCardPaymentZReport 'Сумма продажа (карточка)' (zR
 sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
 
 CONSTRAINT receipt IS Receipt AND NOT sumPaymentReceipt(receipt) MESSAGE 'По чеку не указаны платежи';
-CONSTRAINT sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
+CONSTRAINT (sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt)) OR
+           (sumReceiptDetailReceipt(receipt) < 0 AND sumReceiptDetailReceipt(receipt) != sumPaymentReceipt(receipt)) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
 CONSTRAINT (sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt)) 
            OR (sumReceiptDetailReceipt(receipt) <0 AND sumReceiptDetailReceipt(receipt) > sumCardPaymentReceipt(receipt)) 
            MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
