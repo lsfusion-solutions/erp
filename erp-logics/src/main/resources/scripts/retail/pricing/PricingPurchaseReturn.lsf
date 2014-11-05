@@ -42,11 +42,16 @@ operationPricing(pricing) += pricingOperationInvoice(invoiceInvoicePricing(prici
 
 // Добавляем операцию расценки на форму
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) namePricingOperationUserInvoice
+    PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) namePricingOperationUserInvoice, 
+                                                                                            useShipmentQuantityUserInvoice
 ;
 EXTEND DESIGN userInvoice {
     headerCreatePricing {
         ADD PROPERTY(namePricingOperationUserInvoice(i)) BEFORE PROPERTY(namePricingCommitteeUserInvoice(i));
+        ADD PROPERTY(useShipmentQuantityUserInvoice(i)) AFTER PROPERTY(namePricingCommitteeUserInvoice(i));
     }
 }
 
+//Проставляем свойство расценки поставленного количества 
+useShipmentQuantityUserInvoice (invoice) <- useShipmentQuantityOperation(pricingOperationOperation(operationUserInvoice(invoice)))
+                                                        WHEN CHANGED(operationUserInvoice(invoice));

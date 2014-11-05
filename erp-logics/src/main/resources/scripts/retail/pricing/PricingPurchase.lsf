@@ -88,6 +88,9 @@ pricingOperationUserInvoice (invoice) <- pricingOperationOperation(operationUser
 
 operationPricing(pricing) += pricingOperationInvoice(invoiceInvoicePricing(pricing));
 
+useShipmentQuantityUserInvoice (invoice) <- useShipmentQuantityOperation(pricingOperationOperation(operationUserInvoice(invoice)))
+                                                        WHEN CHANGED(operationUserInvoice(invoice));
+                                                            
 // Записываем тип цены по умолчанию из операции
 calcRetailPriceListTypeUserInvoice (invoice) <- IF pricingPriceListTypeOperation(pricingOperationUserInvoice(invoice)) 
                 THEN pricingPriceListTypeOperation(pricingOperationUserInvoice(invoice))
@@ -111,7 +114,7 @@ EXTEND DESIGN operation {
 // Добавляем вид цены на форму
 EXTEND FORM userInvoice
     PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-                  namePricingOperationUserInvoice, nameCalcRetailPriceListTypeUserInvoice, nameCalcRetailCalcPriceListTypeUserInvoice
+                  namePricingOperationUserInvoice, nameCalcRetailPriceListTypeUserInvoice, nameCalcRetailCalcPriceListTypeUserInvoice, useShipmentQuantityUserInvoice
     PROPERTIES(pd) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) nameRetailPriceListTypeUserInvoiceDetail BEFORE retailMarkupUserInvoiceDetail(pd)
 ;
 EXTEND DESIGN userInvoice {
@@ -119,6 +122,7 @@ EXTEND DESIGN userInvoice {
         ADD PROPERTY(namePricingOperationUserInvoice(i));
         ADD PROPERTY(nameCalcRetailPriceListTypeUserInvoice(i)) AFTER PROPERTY(namePricingOperationUserInvoice(i));
         ADD PROPERTY(nameCalcRetailCalcPriceListTypeUserInvoice(i)) AFTER PROPERTY(nameCalcRetailPriceListTypeUserInvoice(i));
+        ADD PROPERTY(useShipmentQuantityUserInvoice(i)) AFTER PROPERTY(nameCalcRetailCalcPriceListTypeUserInvoice(i));
     }
 }
 

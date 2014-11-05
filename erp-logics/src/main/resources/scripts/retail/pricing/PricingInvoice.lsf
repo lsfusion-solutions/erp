@@ -14,8 +14,10 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // Кол-во, которое изменяет расцененное количество
     extraPricingQuantityUserInvoiceDetail = ABSTRACT NUMERIC[14,3] (UserInvoiceDetail) PERSISTENT;
-    pricingQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) (+) extraPricingQuantityUserInvoiceDetail(detail)
-        WHEN CHANGED(quantityUserInvoiceDetail(detail)) OR CHANGED(extraPricingQuantityUserInvoiceDetail(detail));
+    overPricingQuantityUserInvoiceDetail = ABSTRACT NUMERIC[14,3] (UserInvoiceDetail) PERSISTENT;
+    overQuantityUserInvoiceDetail = OVERRIDE quantityUserInvoiceDetail(detail), overPricingQuantityUserInvoiceDetail(detail);
+    pricingQuantityUserInvoiceDetail(detail) <- overQuantityUserInvoiceDetail(detail) (+) extraPricingQuantityUserInvoiceDetail(detail)
+        WHEN CHANGED(overQuantityUserInvoiceDetail(detail)) OR CHANGED(extraPricingQuantityUserInvoiceDetail(detail));
 
     // Базовая цена
     overPricingPriceInvoiceDetail = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
@@ -66,11 +68,16 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     
     // Создание акта расценки
     @defineDocumentInterfaceProperty (invoice, createPricing, 'Создать акт расценки');
-
+       
     showCreatePricingInvoice (invoice) = stockProp###stock###invoice(invoice) IS DepartmentStore AND NOT costLedgerDepartmentStore(stockProp###stock###invoice(invoice));
     showPricingInvoice (invoice) = showCreatePricingInvoice (invoice) AND NOT createPricingInvoice(invoice);
     toShowPricingInvoice (invoice) = showCreatePricingInvoice (invoice) AND createPricingInvoice(invoice);
-
+    
+    //Расценка поставленного количества
+    @defineDocumentInterfaceProperty (invoice, useShipmentQuantity, 'Расценивать поставленное кол-во'); 
+          
+    overPricingQuantityUserInvoiceDetail(detail) += shipmentQuantityUserInvoiceDetail(detail) IF useShipmentQuantityUserInvoiceDetail(detail);
+    
     backgroundRetailInvoice 'Цвет' (invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
     EXTEND FORM userInvoice
         PROPERTIES(i) SHOWIF showCreatePricingInvoice(i) BACKGROUND backgroundRetailInvoice(i) createPricingUserInvoice
