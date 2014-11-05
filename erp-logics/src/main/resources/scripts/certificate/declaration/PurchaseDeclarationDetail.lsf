@@ -505,7 +505,9 @@ sidOrigin2CountryDeclarationDetail 'Код страны' (declarationDetail) = s
 
 quantityDeclarationDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationDetail);
 priceDeclarationDetail 'Цена' = DATA NUMERIC[14,2] (DeclarationDetail);
-sumDeclarationDetail 'Стоимость' (d) = priceDeclarationDetail(d) * quantityDeclarationDetail(d);
+sumDeclarationDetail 'Стоимость' (d) = DATA NUMERIC[16,2] (DeclarationDetail);
+sumDeclarationDetail(d) <- priceDeclarationDetail(d) * quantityDeclarationDetail(d)
+    WHEN CHANGED(priceDeclarationDetail(d)) OR CHANGED(quantityDeclarationDetail(d));
 
 sumNetWeightDeclarationDetail 'Вес нетто' = DATA NUMERIC[9,3] (DeclarationDetail);
 sumGrossWeightDeclarationDetail 'Вес брутто' = DATA NUMERIC[9,3] (DeclarationDetail);
@@ -825,6 +827,7 @@ createDeclarationDetailDeclaration 'Создать строки' = ACTION (decla
                 
                 quantityDeclarationDetail(dd) <- quantityDeclarationInvoiceDetail(did);          
                 priceDeclarationDetail(dd) <- priceDeclarationInvoiceDetail(did);
+                sumDeclarationDetail(dd) <- sumDeclarationInvoiceDetail(did);          
                 
                 overCreateDeclarationDetailDeclarationInvoiceDetail(dd, did);
             }         
@@ -853,6 +856,7 @@ copyDeclarationDetail 'Копировать' = ACTION (detail) {
         VATCustomsExceptionDeclarationDetail(d) <- VATCustomsExceptionDeclarationDetail(detail);
         quantityDeclarationDetail(d) <- quantityDeclarationDetail(detail);
         priceDeclarationDetail(d) <- priceDeclarationDetail(detail);
+        sumDeclarationDetail(d) <- sumDeclarationDetail(detail);
             
         overCopyDetailDeclarationDetail(d, detail);                              
     }
