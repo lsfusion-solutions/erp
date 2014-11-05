@@ -371,7 +371,9 @@ CONSTRAINT customsGroupDeclarationInvoiceDetail(d) AND VATCustomsExceptionDeclar
 
 quantityDeclarationInvoiceDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationInvoiceDetail);
 priceDeclarationInvoiceDetail 'Цена' = DATA NUMERIC[14,2] (DeclarationInvoiceDetail);
-sumDeclarationInvoiceDetail 'Стоимость' (d) = quantityDeclarationInvoiceDetail(d) * priceDeclarationInvoiceDetail(d);
+sumDeclarationInvoiceDetail 'Стоимость' (d) = DATA NUMERIC[16,2] (DeclarationInvoiceDetail); 
+sumDeclarationInvoiceDetail (d) <- quantityDeclarationInvoiceDetail(d) * priceDeclarationInvoiceDetail(d)
+    WHEN CHANGED(quantityDeclarationInvoiceDetail(d)) OR CHANGED(priceDeclarationInvoiceDetail(d));
 
 sumDeclarationInvoiceDetailDeclaration 'Сумма (по позициям декларации)' = GROUP SUM sumDeclarationInvoiceDetail(d)
                                                                                BY declarationDeclarationInvoiceDetail(d) MINCHARWIDTH 15;
@@ -386,12 +388,25 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(d)
                                               countrySkuUserInvoiceDetail(d),
                                               priceUserInvoiceDetail(d); //PERSISTENT;
 
+sumGroupDeclaration 'Стоимость' = GROUP SUM sumUserInvoiceDetail(d)
+                                           BY declarationUserInvoiceDetail(d),
+                                              nameCustomsUserInvoiceDetail(d),
+                                              UOMUserInvoiceDetail(d),
+                                              customsGroupUserInvoiceDetail(d),
+                                              noneVATCustomsExceptionUserInvoiceDetail(d),
+                                              countrySkuUserInvoiceDetail(d),
+                                              priceUserInvoiceDetail(d); //PERSISTENT;
+
 overCreateDeclarationInvoiceDetailDeclaration = ABSTRACT ACTION LIST (Declaration);
+
+// скрипт для проставления старых
+//sumDeclarationInvoiceDetail(dd) <- sumGroupDeclaration(declarationDeclarationInvoiceDetail(dd), nameCustomsDeclarationInvoiceDetail(dd), UOMDeclarationInvoiceDetail(dd), customsGroupDeclarationInvoiceDetail(dd), VATCustomsExceptionDeclarationInvoiceDetail(dd), countryDeclarationInvoiceDetail(dd), priceDeclarationInvoiceDetail(dd));
 
 createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration;
 
-    FOR quantity == quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
+    FOR quantity == quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) AND
+        sum == sumGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
         // Ключи
         declarationDeclarationInvoiceDetail(dd) <- declaration;
         nameCustomsDeclarationInvoiceDetail(dd) <- customsName;
@@ -403,6 +418,7 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
 
         // Значения
         quantityDeclarationInvoiceDetail (dd) <- quantity;
+        sumDeclarationInvoiceDetail(dd) <- sum;
 
         // связываем строки накладной и декларации
         declarationInvoiceDetailUserInvoiceDetail(id) <- dd WHERE
