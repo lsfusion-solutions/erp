@@ -71,17 +71,25 @@ countProcessPriceTransactionDocument 'Кол-во ожидающих транз�
 
 succeededPriceTransactionDocument 'Загружен в оборудование' (document) = sentPriceTransactionDocument (document) IF NOT countProcessPriceTransactionDocument(document);
 
-isPartlyPriceTransactionDocument = ABSTRACT BOOLEAN (PriceTransactionDocument);
-partlyStatusPriceTransactionDocument = ABSTRACT STRING[30] (PriceTransactionDocument);
+//-- Частичная загрузка
+succeededMachineryMachineryPriceTransaction 'Загружено' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
+dateTimeSucceededMachineryMachineryPriceTransaction 'Время загрузки' = DATA DATETIME(Machinery, MachineryPriceTransaction);
+
+countSucceededMachineriesPriceTransactionDocument'Кол-во загруженного оборудования' (priceTransactionDocument) = GROUP SUM 1 IF succeededMachineryMachineryPriceTransaction(m,t) 
+    BY priceTransactionDocumentMachineryPriceTransaction(t);
+
+countMachineriesGroupMachinery 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachineryMachinery(m);
+countMachineriesPriceTransactionDocument 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(t)) BY priceTransactionDocumentMachineryPriceTransaction(t);
+concatSucceededMachineriesPriceTransactionDocument 'Кол-во оборудования' (t)  = CONCAT '/', countSucceededMachineriesPriceTransactionDocument(t), countMachineriesPriceTransactionDocument(t); 
 
 statusMachineryPriceTransactionDocument 'Статус загрузки в оборудование' (document) =
-                                                        CASE
-                                                            WHEN skipPriceTransactionDocument(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument
-                                                            WHEN isPartlyPriceTransactionDocument(document) THEN partlyStatusPriceTransactionDocument(document)
-                                                            WHEN succeededPriceTransactionDocument(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument
-                                                            WHEN sentPriceTransactionDocument(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
-                                                            ELSE 'Не загружен' IF document IS PriceTransactionDocument
-                                                        ;
+    CASE
+        WHEN skipPriceTransactionDocument(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument        
+        WHEN countSucceededMachineriesPriceTransactionDocument(document) != countMachineriesPriceTransactionDocument(document) THEN (CONCAT ' ', 'Частично загружен', concatSucceededMachineriesPriceTransactionDocument(document))
+        WHEN succeededPriceTransactionDocument(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument        
+        WHEN sentPriceTransactionDocument(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
+        ELSE 'Не загружен' IF document IS PriceTransactionDocument
+    ;
 
 // Загруженные штрихкоды
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
@@ -412,6 +420,9 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         
         LOCAL countBarcode = INTEGER();
         countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
+        LOCAL countSku = INTEGER();
+        countSku() <- [ = GROUP SUM 1 IF [= GROUP SUM 1 IF inBarcode(barcode) BY skuBarcode(barcode)](sku)]();        
+        
         IF countBarcode() THEN {
             createMachineryPriceTransactionGroupMachinery(groupMachinery);
             FOR t == addedObject() DO {
@@ -428,7 +439,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
                     snapshotMachineryPriceTransaction(t) <- TRUE;
             }
 
-            message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countBarcode() + ' товаров.\n';
+            message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих кодов).\n' ;
             sentSomething() <- TRUE;
         }
     }
@@ -652,5 +663,36 @@ EXTEND DESIGN currentBalanceSkuStock {
             type = CONTAINERV;
             ADD PROPERTY (createSelectedSkuStockPriceTransactionDocument());
         } 
+    }
+}
+//-- Частичная загрузка
+
+EXTEND FORM machineryPriceTransactions
+    OBJECTS m = Machinery FIXED GRID
+    PROPERTIES(m) READONLY  nppMachinery, descriptionMachinery, objectClassName//dataDirectoryCashRegister
+    FILTERS groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t) 
+    PROPERTIES(m, t) READONLY  succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
+;
+
+EXTEND DESIGN machineryPriceTransactions {
+    specContainer {
+        NEW machinery {
+            fill = 1;
+            caption = 'Оборудование';
+            ADD m.box;
+        }     
+    }
+}
+
+EXTEND FORM machineryPriceTransaction
+    OBJECTS m = Machinery FIXED GRID
+    PROPERTIES(m) READONLY nppMachinery, descriptionMachinery, objectClassName//, dataDirectoryCashRegister
+    FILTERS groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t) 
+    PROPERTIES(m, t) succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction                     
+;
+
+EXTEND DESIGN machineryPriceTransaction {
+    pane {
+        ADD m.box;
     }
 }

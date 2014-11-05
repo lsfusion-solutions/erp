@@ -308,8 +308,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         cashRegisterQuery.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterKey));
                     }
                     if(cashRegisterPriceTransactionLM != null)
-                        cashRegisterQuery.addProperty("succeededCashRegisterCashRegisterPriceTransaction", 
-                            cashRegisterPriceTransactionLM.findProperty("succeededCashRegisterCashRegisterPriceTransaction").getExpr(cashRegisterKey, transactionObject.getExpr()));
+                        cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction", 
+                            cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterKey, transactionObject.getExpr()));
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
 
@@ -321,7 +321,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String handlerModel = (String) row.get("handlerModelMachinery");
                         String portMachinery = (String) row.get("portMachinery");
                         String directoryCashRegister = (String) row.get("overDirectoryMachinery");
-                        Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededCashRegisterCashRegisterPriceTransaction") != null;
+                        Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededMachineryMachineryPriceTransaction") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel,
                                 portMachinery, directoryCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister));
                     }
@@ -1895,9 +1895,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for(MachineryInfo cashRegisterInfo : cashRegisterInfoList) {
                     ObjectValue cashRegisterObject = cashRegisterPriceTransactionLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, 
                             new DataObject(cashRegisterInfo.numberGroup), new DataObject(cashRegisterInfo.number));
-                    cashRegisterPriceTransactionLM.findProperty("succeededCashRegisterCashRegisterPriceTransaction").change(true, session,
+                    cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").change(true, session,
                             (DataObject) cashRegisterObject, machineryPriceTransactionObject);
-                    cashRegisterPriceTransactionLM.findProperty("dateTimeSucceededCashRegisterCashRegisterPriceTransaction").change(dateTime, session,
+                    cashRegisterPriceTransactionLM.findProperty("dateTimeSucceededMachineryMachineryPriceTransaction").change(dateTime, session,
                             (DataObject) cashRegisterObject, machineryPriceTransactionObject);
                 }
                 session.apply(getBusinessLogics());
