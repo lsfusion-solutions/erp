@@ -1,0 +1,23 @@
+MODULE InvoiceDisparity;
+
+REQUIRE Disparity, PurchaseShipment;
+
+NAMESPACE Disparity;
+
+invoiceDetailDisparityDetail = DATA Purchase.InvoiceDetail (DisparityDetail);
+descriptionIndexInvoiceDetailDisparityDetail 'Строка приходной накладной' = Purchase.descriptionIndexInvoiceDetail(invoiceDetailDisparityDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+WHEN SESSION FORMS disparity CHANGED (batchDisparityDetail(d)) DO {
+    invoiceDetailDisparityDetail(d) <- invoiceDetailBatch(batchDisparityDetail(d));        
+}
+
+CONSTRAINT invoiceDetailBatch(batchDisparityDetail(disparityDetail)) != invoiceDetailDisparityDetail(disparityDetail) CHECKED BY invoiceDetailDisparityDetail
+    MESSAGE 'Строка накладной для строки изменения сортности должна соответствовать строке накладной для партии строки изменения сортности';
+
+EXTEND FORM disparity 
+    PROPERTIES(d) descriptionIndexInvoiceDetailDisparityDetail AFTER nameBatchDisparityDetail(d)
+;
+EXTEND FORM disparities 
+    PROPERTIES(d) READONLY descriptionIndexInvoiceDetailDisparityDetail AFTER nameBatchDisparityDetail(d)
+;
+invoiceDetailBatch(b) += invoiceDetailDisparityDetail(disparityDetailInputDisparityDetail(b));

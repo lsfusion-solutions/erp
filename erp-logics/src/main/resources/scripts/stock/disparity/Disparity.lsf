@@ -37,6 +37,18 @@ CLASS DisparityDetail 'Строка изменения сортности';
 @defineDocumentDetailSkuPrefix (disparity, sku, input, ' (приход)');
 
 @defineDocumentDetailBatchCustomPrefix(disparityDetail, batch, );
+changeBatchDisparityDetail = ACTION (d) {
+    FORM dialogBatchStock OBJECTS st = stockDisparityDetail(d),
+                             t = dateTimeDisparityDetail(d),
+                             sk = skuDisparityDetail(d) DIALOG SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        batchDisparityDetail(d) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        batchDisparityDetail(d) <- NULL;
+    }
+}
+
 costBatchDisparityDetail 'Себестоимость партии' = DATA NUMERIC[14,2] (DisparityDetail);
 costBatchDisparityDetail(detail) <- prevCostBatch(batchDisparityDetail(detail)) WHEN CHANGED(batchDisparityDetail(detail));
 
@@ -104,6 +116,7 @@ costBatchInputDisparityDetail(inputDisparityDetail) = costBatchDisparityDetail(d
 expiryDateBatchInputDisparityDetail (inputDisparityDetail) = expiryDateBatchDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
 
 
+
 @implementBatch(InputDisparityDetail, sku, stock, costBatch);
 quantityBatch (ledger) += quantityInputDisparityDetail(ledger);
 expiryDateBatch (ledger) += expiryDateBatchInputDisparityDetail(ledger);
@@ -140,7 +153,7 @@ FORM disparity 'Изменение сортности'
 
     OBJECTS d = DisparityDetail
     PROPERTIES(d)   indexDisparityDetail,
-                    idBarcodeSkuDisparityDetail, nameSkuDisparityDetail, shortNameUOMSkuDisparityDetail, nameBatchDisparityDetail,
+                    idBarcodeSkuDisparityDetail, nameSkuDisparityDetail, shortNameUOMSkuDisparityDetail, nameBatchDisparityDetail ON CHANGE changeBatchDisparityDetail(d),
                     costBatchDisparityDetail, expiryDateBatchDisparityDetail,
                     quantityDisparityDetail, priceDisparityDetail, sumDisparityDetail,
                     inputIdBarcodeSkuDisparityDetail, inputNameSkuDisparityDetail, inputShortNameUOMSkuDisparityDetail,
