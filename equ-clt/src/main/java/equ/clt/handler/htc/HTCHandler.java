@@ -77,6 +77,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 File cachedPriceFile = null;
                 File cachedPriceMdxFile = null;
 
+                List<List<Object>> waitList = new ArrayList<List<Object>>();
                 for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
                     
                     String directory = entry.getKey();
@@ -244,12 +245,19 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         if(!append)
                             FileCopyUtils.copy(cachedPriceFile, priceFile);
                         flagPriceFile.createNewFile();
-                        processTransactionLogger.info("HTC: waiting for deletion of price.qry file");
-                        if(waitForDeletion(priceFile, flagPriceFile))
-                            succeededMachineryInfoList.addAll(entry.getValue());
+                        waitList.add(Arrays.asList(priceFile, flagPriceFile, entry.getValue()));
                     } catch (IOException e) {
                         processTransactionLogger.error("HTC: error while create files", e);
                     }
+                }
+
+                for(List<Object> waitEntry : waitList) {
+                    File priceFile = (File) waitEntry.get(0);
+                    File flagPriceFile = (File) waitEntry.get(1);
+                    List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(2);
+                    processTransactionLogger.info("HTC: waiting for deletion: " + flagPriceFile.getAbsolutePath());
+                    if (waitForDeletion(priceFile, flagPriceFile))
+                        succeededMachineryInfoList.addAll(cashRegisterInfoList);
                 }
                 
                 if(cachedPriceFile != null)
