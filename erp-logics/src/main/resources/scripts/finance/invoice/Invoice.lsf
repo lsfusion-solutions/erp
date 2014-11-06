@@ -235,14 +235,14 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     equalSkuVATInvoices 'Запрет на различный НДС в накладных '##sign##' и SKU' = DATA BOOLEAN ();
     
     EXTEND FORM options
-        PROPERTIES() NS##equalSkuVATInvoices = equalSkuVATInvoices
+        PROPERTIES() NS###equalSkuVATInvoices = equalSkuVATInvoices
     ;
     
     EXTEND DESIGN options {
         invoices {
             NEW invoice##NS {
                 caption = 'Накладная'##sign;
-                ADD PROPERTY(NS##equalSkuVATInvoices);
+                ADD PROPERTY(NS###equalSkuVATInvoices);
             }            
         }
     }
@@ -254,12 +254,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     
     
     EXTEND FORM options
-        PROPERTIES() NS##blankLineInvoices = blankLineInvoices
+        PROPERTIES() NS###blankLineInvoices = blankLineInvoices
     ;
     
     EXTEND DESIGN options {
         invoice##NS {
-            ADD PROPERTY(NS##blankLineInvoices);    
+            ADD PROPERTY(NS###blankLineInvoices);    
         }
     }
 
@@ -753,7 +753,7 @@ END
 
 // -------------------------- Метакод по добавлению партий ------------------------- //
 
-META defineInvoiceBatch(stockProp)
+META defineInvoiceBatch(stockProp, NS, sign)
     @defineDocumentInterfaceDetailBatch(invoice, batch); 
     
     overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
@@ -780,6 +780,21 @@ META defineInvoiceBatch(stockProp)
     @implementDocumentBatch(invoice);
    
     replaceSkuBatch(s, b) += ACTION (s, b){ skuUserInvoiceDetail(detail) <- s WHERE Invoice.batchInvoiceDetail(detail) == b;} 
+    
+    disallowLineInvoices 'Запретить строки без партий в накладных'##sign = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() NS###disallowLineInvoices = disallowLineInvoices
+    ;
+    
+    EXTEND DESIGN options {
+        invoice##NS {
+            ADD PROPERTY(NS###disallowLineInvoices);    
+        }
+    }
+  
+    CONSTRAINT isPostedUserInvoiceDetail(d) AND disallowLineInvoices() AND NOT batchUserInvoiceDetail(d) 
+        MESSAGE 'Для строки накладной'##sign##' должна быть задана партия'; 
 END
 
 // Партии с диалогом по складам
