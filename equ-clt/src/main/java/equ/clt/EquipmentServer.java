@@ -2,6 +2,7 @@ package equ.clt;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.scales.ScalesHandler;
 import equ.api.terminal.*;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
@@ -258,7 +259,7 @@ public class EquipmentServer {
                         List<MachineryInfo> succeededMachineryInfoList = transactionInfo.sendTransaction(clsHandler, entry.getValue());
                         if(succeededMachineryInfoList != null && succeededMachineryInfoList.size() != entry.getValue().size())
                             noErrors = false;
-                        if(clsHandler instanceof CashRegisterHandler && succeededMachineryInfoList != null)
+                        if((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
                             remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));    
                     } catch (Exception e) {
                         remote.errorTransactionReport(transactionInfo.id, e);

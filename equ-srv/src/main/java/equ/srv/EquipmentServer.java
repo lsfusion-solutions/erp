@@ -1887,18 +1887,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public void succeedCashRegisterTransaction(Integer transactionId, List<MachineryInfo> cashRegisterInfoList, Timestamp dateTime) throws RemoteException, SQLException {
+    public void succeedCashRegisterTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
         try {
-            if(cashRegisterPriceTransactionLM != null) {
+            if(machineryPriceTransactionLM != null) {
                 DataSession session = getDbManager().createSession();
                 DataObject machineryPriceTransactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
-                for(MachineryInfo cashRegisterInfo : cashRegisterInfoList) {
-                    ObjectValue cashRegisterObject = cashRegisterPriceTransactionLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, 
-                            new DataObject(cashRegisterInfo.numberGroup), new DataObject(cashRegisterInfo.number));
-                    cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").change(true, session,
-                            (DataObject) cashRegisterObject, machineryPriceTransactionObject);
-                    cashRegisterPriceTransactionLM.findProperty("dateTimeSucceededMachineryMachineryPriceTransaction").change(dateTime, session,
-                            (DataObject) cashRegisterObject, machineryPriceTransactionObject);
+                for (MachineryInfo machineryInfo : machineryInfoList) {
+                    ObjectValue machineryObject = null;
+                    if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
+                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                    else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
+                        machineryObject = scalesLM.findProperty("scalesNppGroupScalesNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                    if (machineryObject != null) {
+                        machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").change(true, session,
+                                (DataObject) machineryObject, machineryPriceTransactionObject);
+                        machineryPriceTransactionLM.findProperty("dateTimeSucceededMachineryMachineryPriceTransaction").change(dateTime, session,
+                                (DataObject) machineryObject, machineryPriceTransactionObject);
+                    }
                 }
                 session.apply(getBusinessLogics());
             }

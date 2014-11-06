@@ -2,6 +2,7 @@ package equ.clt.handler.shtrihPrint;
 
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
+//import com.jacob.com.LibraryLoader;
 import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
@@ -25,8 +26,9 @@ public class ShtrihPrintHandler extends ScalesHandler {
     public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 
         //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
-
+        
         processTransactionLogger.info("Shtrih: Send Transaction # " + transactionInfo.id);
+        List<MachineryInfo> succeededMachineryInfoList = new ArrayList<MachineryInfo>();
         
         ActiveXComponent shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
         Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
@@ -40,15 +42,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
         if (!machineryInfoList.isEmpty()) {
             Set<String> ips = new HashSet<String>();
             for (ScalesInfo scales : machineryInfoList) {
-                if(scales.port != null)
+                boolean error = false;
+                String ip = scales.port;
+                if(ip != null) {
                     ips.add(scales.port);
-            }
-
-            if (ips.isEmpty())
-                throw new RuntimeException("ShtrihPrintHandler. No IP-addresses defined");
-            else
-                for (String ip : ips) {
-
                     processTransactionLogger.info("Shtrih: Connecting ip: " + ip);
 
                     try {
@@ -105,30 +102,43 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                                     result = Dispatch.call(shtrihDispatch, "SetMessageData");
                                     if (!result.toString().equals("0")) {
-                                        throw new RuntimeException(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result)));
+                                        processTransactionLogger.error(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result)));
+                                        error = true;
+                                        continue;
                                     }
                                 }
 
                                 result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
                                 if (!result.toString().equals("0")) {
-                                    throw new RuntimeException(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result)));
+                                    processTransactionLogger.error(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result)));
+                                    error = true;
+                                    continue;
                                 }
                             }
                             result = Dispatch.call(shtrihDispatch, "Disconnect");
                             if (!result.toString().equals("0")) {
-                                throw new RuntimeException(String.format("ShtrihPrintHandler. Disconnection error # %s (%s)", result.getInt(), getErrorText(result)));
+                                processTransactionLogger.error(String.format("ShtrihPrintHandler. Disconnection error # %s (%s)", result.getInt(), getErrorText(result)));
+                                error = true;
+                                continue;
                             }
                         } else {
                             Dispatch.call(shtrihDispatch, "Disconnect");
-                            throw new RuntimeException(String.format("ShtrihPrintHandler. Connection error # %s (%s)", result.getInt(), getErrorText(result)));
+                            processTransactionLogger.error(String.format("ShtrihPrintHandler. Connection error # %s (%s)", result.getInt(), getErrorText(result)));
+                            error = true;
+                            continue;
                         }
                         processTransactionLogger.info("Shtrih: Disconnecting ip: " + ip);
                     } finally {
                         Dispatch.call(shtrihDispatch, "Disconnect");
                     }
                 }
+                if(!error)
+                    succeededMachineryInfoList.add(scales);
+            }
+            if (ips.isEmpty())
+                throw new RuntimeException("ShtrihPrintHandler. No IP-addresses defined");
         }
-        return null;
+        return succeededMachineryInfoList;
     }
     
     private String getErrorText(Variant index) {
