@@ -112,8 +112,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         }
     }
 
-    public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns,
-                              Map<String, ImportColumnDetail> customColumns, byte[] file, boolean apply)
+    public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, 
+                              Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, byte[] file, boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
@@ -145,7 +145,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        boolean result = importUserPriceListDetails(context, userPriceListDetailList, settings, priceColumns, defaultColumns, customColumns, userPriceListObject, apply)
+        boolean result = importUserPriceListDetails(context, userPriceListDetailList, settings, priceColumns.keySet(), defaultColumns, customColumns, userPriceListObject, apply)
                 && (settings.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, settings.getStockObject(), settings.getItemKeyType(), apply));
 
 
@@ -157,14 +157,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return result; 
     }
 
-    private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailList, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, 
+    private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailList, ImportPriceListSettings settings, Set<DataObject> priceColumns, 
                                                Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, DataObject userPriceListObject, boolean apply) 
                                                throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
-        DataObject operationObject = settings.getOperationObject();
-        DataObject companyObject = settings.getCompanyObject();
-        DataObject defaultItemGroupObject = settings.getDefaultItemGroupObject();
-        Set<DataObject> dataPriceListTypeObjectList = priceColumns.keySet();
 
         if (userPriceListDetailList != null) {
             
@@ -177,12 +172,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             List<List<Object>> data = initData(userPriceListDetailList.size());
 
-            if (operationObject != null) {
-                props.add(new ImportProperty(operationObject, findProperty("operationUserPriceList").getMapping(userPriceListObject)));
+            if (settings.getOperationObject() != null) {
+                props.add(new ImportProperty(settings.getOperationObject(), findProperty("operationUserPriceList").getMapping(userPriceListObject)));
             }
 
-            if (companyObject != null) {
-                props.add(new ImportProperty(companyObject, findProperty("companyUserPriceList").getMapping(userPriceListObject)));
+            if (settings.getCompanyObject() != null) {
+                props.add(new ImportProperty(settings.getCompanyObject(), findProperty("companyUserPriceList").getMapping(userPriceListObject)));
             }
 
             ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
@@ -328,8 +323,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(i+1);
 
-            if (defaultItemGroupObject != null) {
-                props.add(new ImportProperty(defaultItemGroupObject, findProperty("itemGroupItem").getMapping(itemKey)));
+            if (settings.getDefaultItemGroupObject() != null) {
+                props.add(new ImportProperty(settings.getDefaultItemGroupObject(), findProperty("itemGroupItem").getMapping(itemKey)));
             }
             
             if (showField(userPriceListDetailList, "originalName")) {
@@ -386,7 +381,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("grossWeightItem"));
             }
 
-            for (DataObject dataPriceListTypeObject : dataPriceListTypeObjectList) {
+            for (DataObject dataPriceListTypeObject : priceColumns) {
                 ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
                 props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, findProperty("pricePriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
                 fields.add(pricePriceListDetailDataPriceListTypeField);
@@ -468,6 +463,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     ImportKey<?> customKey = null;
                     if (customColumn.key.equals("userPriceListDetail"))
                         customKey = userPriceListDetailKey;
+                    else if(customColumn.key.equals("item"))
+                        customKey = itemKey;
                     if (customKey != null) {
                         props.add(new ImportProperty(customField, customModuleLM.findProperty(customColumn.property).getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);

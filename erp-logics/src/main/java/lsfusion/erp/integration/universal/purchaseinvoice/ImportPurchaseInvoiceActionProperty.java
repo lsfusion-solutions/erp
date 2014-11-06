@@ -170,7 +170,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
 
-        if (userInvoiceDetailsList != null && !userInvoiceDetailsList.isEmpty()) {
+        if (notNullNorEmpty(userInvoiceDetailsList)) {
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
