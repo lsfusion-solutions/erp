@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 public class PriceCheckerItemInfo extends ItemInfo {
     
-    public PriceCheckerItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem) {
-        super(idBarcode, name, price, splitItem);
+    public PriceCheckerItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber) {
+        super(idBarcode, name, price, splitItem, pluNumber);
     }
 }

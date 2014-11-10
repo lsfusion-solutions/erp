@@ -15,11 +15,11 @@ public class CashRegisterItemInfo extends ItemInfo {
     public BigDecimal vat;
     public boolean notPromotionItem;
 
-    public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem,
+    public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber,
                                 Integer idItem, String extIdItem, String description, String idItemGroup, String nameItemGroup, 
                                 String idUOM, String shortNameUOM,  boolean passScalesItem, BigDecimal vat, 
                                 boolean notPromotionItem) {
-        super(idBarcode, name, price, splitItem);
+        super(idBarcode, name, price, splitItem, pluNumber);
         this.idItem = idItem;
         this.extIdItem = extIdItem;
         this.description = description;

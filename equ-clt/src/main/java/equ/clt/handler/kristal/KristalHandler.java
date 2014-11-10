@@ -146,9 +146,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                         if (item.passScalesItem) {
-                            String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
-                                    "1|0|1|"/*effectiveLife & GoodLinkToScales*/ +
-                                    (item.description != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +
+                            String ingredientNumber = (item.description != null ? item.idBarcode : "0");
+                            Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
+                            String record = "+|" + pluNumber + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
+                                    "1|0|1|"/*effectiveLife & GoodLinkToScales*/ + ingredientNumber + "|" +
                                     item.price.intValue();
                             writer.println(record);
                         }
