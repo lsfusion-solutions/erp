@@ -125,10 +125,13 @@ includeLabelTypeSku 'Из документа' (labelType, sku) = OVERRIDE
     includeLabelTypeGroup(labelType, groupGroupTypeSku(groupTypeLabelType(labelType), sku)),
     dataIncludeLabelTypeSku(labelType, sku);
 
+//печать для нулевых цен
+printNullPriceLabelType 'Включать позиций без цен' = DATA BOOLEAN (LabelType);
+
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType FIXED PANEL
     PROPERTIES(l) idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
-                  namePriceListTypeLabelType, nameGroupTypeLabelType
+                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType
 
     TREE treeStore a=STRING[3], st=StoreType, s=Store
     PROPERTIES READONLY OBJVALUE(a), nameStockGroup(st), nameStore(s)
@@ -174,6 +177,7 @@ DESIGN labelType FROM DEFAULT {
                 ADD PROPERTY(widthLabelType(l));
                 ADD PROPERTY(heightLabelType(l));
                 ADD PROPERTY(nameOrientationLabelType(l));
+                ADD PROPERTY(printNullPriceLabelType(l));
             }
             NEW wor2 {
                 type = CONTAINERH;
@@ -212,7 +216,7 @@ DESIGN labelType FROM DEFAULT {
 
 FORM labelTypes 'Типы ценников'
     OBJECTS l = LabelType
-    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType, namePriceListTypeLabelType
+    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType, namePriceListTypeLabelType, printNullPriceLabelType
     PROPERTIES(l)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG LabelType OBJECT l
 ;
@@ -286,6 +290,8 @@ labelTransactionLabelTransactionDetail = DATA LabelTransaction (LabelTransaction
 
 labelTypeLabelTransactionDetail (d) = labelTypeLabelTransaction(labelTransactionLabelTransactionDetail(d));
 priceListTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d)) PERSISTENT;
+
+printNullPriceLabelTransactionDetail = printNullPriceLabelType(labelTypeLabelTransactionDetail(detail));
 
 departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
 
@@ -624,7 +630,8 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                                                              ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
 
                         priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                    } 
+                    }
+                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND (NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d)); 
                     FORM printLabelTransaction OBJECTS l = t PRINT;
             }
             printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
