@@ -56,7 +56,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
-        boolean useIdItem = kristalSettings.useIdItem != null && kristalSettings.useIdItem;
+        boolean useIdItem = kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
         
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
