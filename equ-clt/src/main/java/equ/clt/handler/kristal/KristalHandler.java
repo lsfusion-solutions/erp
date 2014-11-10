@@ -55,6 +55,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
+        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+        boolean useIdItem = kristalSettings.useIdItem != null && kristalSettings.useIdItem;
+        
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
             if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
@@ -148,7 +151,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         if (item.passScalesItem) {
                             String ingredientNumber = (item.description != null ? item.idBarcode : "0");
                             Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                            String record = "+|" + pluNumber + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
+                            Object code = useIdItem ? item.idItem : item.idBarcode;
+                            String record = "+|" + pluNumber + "|" + code + "|" + "22|" + item.name + "||" +
                                     "1|0|1|"/*effectiveLife & GoodLinkToScales*/ + ingredientNumber + "|" +
                                     item.price.intValue();
                             writer.println(record);
