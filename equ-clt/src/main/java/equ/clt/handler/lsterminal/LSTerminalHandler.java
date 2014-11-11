@@ -414,10 +414,10 @@ public class LSTerminalHandler extends TerminalHandler {
     
     private void updateGoodsTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         if(transactionInfo.snapshot) {
-            Statement statement = connection.createStatement();      
-            statement.executeUpdate("BEGIN TRANSACTION; DROP TABLE IF EXISTS zayavki; DELETE FROM goods; COMMIT;");
-            statement.close();
             createOrderTable(connection);
+            Statement statement = connection.createStatement();      
+            statement.executeUpdate("BEGIN TRANSACTION; DELETE FROM goods; COMMIT;");
+            statement.close();
         }
         if (listNotEmpty(transactionInfo.itemsList)) {
             Statement statement = connection.createStatement();
