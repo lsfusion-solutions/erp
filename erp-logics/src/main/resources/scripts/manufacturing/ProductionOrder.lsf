@@ -1048,44 +1048,6 @@ DESIGN order FROM DEFAULT{
 }
 editOrder 'Редактировать' (order) = ACTION EDITFORM Order;
 
-copyOrder 'Копировать' = ACTION (order) NEWSESSION {
-    FOR ADDOBJ o = Order DO {
-        componentsStockOrder(o) <- componentsStockOrder(order);
-        productsStockOrder(o) <- productsStockOrder(order);
-        fromDateOrder(o) <- fromDateOrder(order);
-        toDateOrder(o) <- toDateOrder(order);
-        productsPriceListTypeOrder(o) <- productsPriceListTypeOrder(order);
-        priceListTypeOrder(o) <- priceListTypeOrder(order);
-        VATProductOrder(o) <- VATProductOrder(order);
-        VATComponentOrder(o) <- VATComponentOrder(order);
-        noteOrder(o) <- noteOrder(order);
-
-        FOR orderProductDetail(productDetail) == order ADDOBJ p=ProductDetail DO {
-            orderProductDetail(p) <- o;
-            skuProductDetail(p) <- skuProductDetail(productDetail);
-            productProductDetail(p) <- productProductDetail(productDetail);
-            quantityProductDetail(p) <- quantityProductDetail(productDetail);
-            markupProductDetail(p) <- markupProductDetail(productDetail);
-        }
-        FOR orderComponentDetail(componentDetail) == order ADDOBJ c=ComponentDetail DO {
-            orderComponentDetail(c) <- o;
-            bruttoSkuComponentDetail(c) <- bruttoSkuComponentDetail(componentDetail);
-            productComponentDetail(c) <- productComponentDetail(componentDetail);
-            componentComponentDetail(c) <- componentComponentDetail(componentDetail);
-            bruttoQuantityComponentDetail(c) <- bruttoQuantityComponentDetail(componentDetail);
-        }
-        FOR bruttoQuantitySkuOrder(sku,order) DO {
-            dataBruttoPriceSkuOrder(sku,o) <- dataBruttoPriceSkuOrder(sku,order);
-            costSkuOrder(sku,o) <- costSkuOrder(sku,order);
-            substituteSkuOrder(sku,o) <- substituteSkuOrder(sku,order);
-            multiplierSkuOrder(sku,o) <- multiplierSkuOrder(sku,order);
-        }
-
-        FORM order OBJECTS o = o MANAGESESSION DOCKEDMODAL;
-    }
-} TOOLBAR;
-
-
 //WHEN SESSION FORMS order CHANGED(bruttoQuantitySkuOrder(sku,order)) OR CHANGED(multiplierSkuOrder(sku, order)) DO                                              
 //    substituteQuantitySkuOrder(sku, order) <- bruttoQuantitySkuOrder(sku,order) * multiplierSkuOrder(sku, order);                              
 //                   
@@ -1157,7 +1119,7 @@ WHEN SESSION FORMS order CHANGED(productProductDetail(d)) NOINLINE DO {
     pricePercentProductDetail(d) <- pricePercentProduct(productProductDetail(d))
         WHERE pricePercentProduct(productProductDetail(d));
 } 
-                                                                                                                                                 
+
 FORM orders 'Производственные заказы'
 
     OBJECTS o = Order
@@ -1166,7 +1128,7 @@ FORM orders 'Производственные заказы'
     PROPERTIES(o) READONLY quantityProductDetailOrder, sumProductDetailOrder, quantityComponentDetailOrder, sumComponentDetailOrder
     PROPERTIES(o) READONLYIF isReadonly() nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
 
-    PROPERTIES(o) addo=ADDFORM, EDITFORM SHOWIF isOpenedOrder(o), copyOrder
+    PROPERTIES(o) addo=ADDFORM, EDITFORM SHOWIF isOpenedOrder(o)
     PROPERTIES(o) closeOrder SHOWIF isOpenedOrder(o), openOrder SHOWIF isClosedOrder(o)      
     PROPERTIES(o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedOrder(o)
     PROPERTIES (o) READONLY FORCE PANEL createdNameUserOrder, createdTimeOrder, createdHostnameComputerOrder, 
@@ -1316,6 +1278,47 @@ nameOperationProductDetail 'Операция' (d)= nameOperation(operationProduc
 operationComponentDetail (d) = operationOrder(orderComponentDetail(d));
 nameOperationComponentDetail 'Операция' (d)= nameOperation(operationComponentDetail (d));
 
+copyOrder 'Копировать' = ACTION (order) NEWSESSION {
+    FOR ADDOBJ o = Order DO {
+        componentsStockOrder(o) <- componentsStockOrder(order);
+        productsStockOrder(o) <- productsStockOrder(order);
+        fromDateOrder(o) <- fromDateOrder(order);
+        toDateOrder(o) <- toDateOrder(order);
+        productsPriceListTypeOrder(o) <- productsPriceListTypeOrder(order);
+        priceListTypeOrder(o) <- priceListTypeOrder(order);
+        VATProductOrder(o) <- VATProductOrder(order);
+        VATComponentOrder(o) <- VATComponentOrder(order);
+        noteOrder(o) <- noteOrder(order);
+        operationOrder(o) <- operationOrder(order);
+        
+        FOR orderProductDetail(productDetail) == order ADDOBJ p=ProductDetail DO {
+            orderProductDetail(p) <- o;
+            skuProductDetail(p) <- skuProductDetail(productDetail);
+            productProductDetail(p) <- productProductDetail(productDetail);
+            quantityProductDetail(p) <- quantityProductDetail(productDetail);
+            markupProductDetail(p) <- markupProductDetail(productDetail);
+            pricePercentProductDetail(p) <- pricePercentProductDetail(productDetail);
+        }
+        FOR orderComponentDetail(componentDetail) == order ADDOBJ c=ComponentDetail DO {
+            orderComponentDetail(c) <- o;
+            bruttoSkuComponentDetail(c) <- bruttoSkuComponentDetail(componentDetail);
+            productComponentDetail(c) <- productComponentDetail(componentDetail);
+            componentComponentDetail(c) <- componentComponentDetail(componentDetail);
+            bruttoQuantityComponentDetail(c) <- bruttoQuantityComponentDetail(componentDetail);
+            BOMComponentDetail(c) <- BOMComponentDetail(componentDetail);
+
+        }
+        FOR bruttoQuantitySkuOrder(sku,order) DO {
+            dataBruttoPriceSkuOrder(sku,o) <- dataBruttoPriceSkuOrder(sku,order);
+            costSkuOrder(sku,o) <- costSkuOrder(sku,order);
+            substituteSkuOrder(sku,o) <- substituteSkuOrder(sku,order);
+            multiplierSkuOrder(sku,o) <- multiplierSkuOrder(sku,order);
+        }
+    
+    FORM order OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
 EXTEND FORM order
     PROPERTIES(o) nameOperationOrder
 ;
@@ -1338,7 +1341,7 @@ EXTEND DESIGN order{
     }
 }
 EXTEND FORM orders
-    PROPERTIES(o) READONLY nameOperationOrder AFTER nameProductsStockOrder(o)
+    PROPERTIES(o) nameOperationOrder AFTER nameProductsStockOrder(o) READONLY, copyOrder
 ;
 
 @defineDocumentOperationStock(order, components, 'Склад компонент');
