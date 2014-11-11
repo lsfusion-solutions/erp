@@ -32,7 +32,7 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
    
     public abstract Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException;
     
-    public abstract List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<Integer> nppCashRegisterList) throws ClassNotFoundException, SQLException;
+    public abstract List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException;
 
     public abstract ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException;
 }

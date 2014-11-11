@@ -100,7 +100,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<Integer> nppCashRegisterList) throws ClassNotFoundException, SQLException {
+        public List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
             return null;
         }
 
