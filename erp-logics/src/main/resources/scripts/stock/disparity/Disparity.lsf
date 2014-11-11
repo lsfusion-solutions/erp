@@ -55,6 +55,24 @@ costBatchDisparityDetail(detail) <- prevCostBatch(batchDisparityDetail(detail)) 
 expiryDateBatchDisparityDetail 'Годен до' = DATA DATE (DisparityDetail);
 expiryDateBatchDisparityDetail(detail) <- prevExpiryDateBatch(batchDisparityDetail(detail)) WHEN CHANGED(batchDisparityDetail(detail));
 
+disallowLineDisparities 'Запретить строки без партий в изменениях сортности' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() disallowLineDisparities
+;
+
+EXTEND DESIGN options {
+    pane {        
+        NEW disparity {
+            caption = 'Измнения сортности';
+            ADD PROPERTY(disallowLineDisparities());   
+        }
+    }
+}
+
+CONSTRAINT isPostedDisparityDetail(d) AND disallowLineDisparities() AND NOT batchDisparityDetail(d) 
+    MESSAGE 'Для строки изменения сортности должна быть задана партия';  
+
 @defineDocumentDetailQuantityPrefix (disparity, , ' (расход)');
 @defineDocumentDetailQuantityPrefix (disparity, input, ' (приход)');
 inputQuantityDisparityDetail(detail) <- quantityDisparityDetail(detail) WHEN CHANGED(quantityDisparityDetail(detail));
