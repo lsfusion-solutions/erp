@@ -8,9 +8,9 @@ public class TerminalItemInfo extends ItemInfo {
     public BigDecimal quantity;
     public String image;
     
-    public TerminalItemInfo(String barcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, 
+    public TerminalItemInfo(String barcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry,
                             BigDecimal quantity, String image) {
-        super(barcode, name, price, splitItem, pluNumber);
+        super(barcode, name, price, splitItem, pluNumber, daysExpiry);
         this.quantity = quantity;
         this.image = image;
     }

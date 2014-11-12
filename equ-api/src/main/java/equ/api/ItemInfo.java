@@ -9,12 +9,14 @@ public class ItemInfo implements Serializable {
     public BigDecimal price;
     public boolean splitItem;
     public Integer pluNumber;
+    public Integer daysExpiry;
     
-    public ItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber) {
+    public ItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry) {
         this.idBarcode = idBarcode;
         this.name = name;
         this.price = price;
         this.splitItem = splitItem;
         this.pluNumber = pluNumber;
+        this.daysExpiry = daysExpiry;
     }
 }

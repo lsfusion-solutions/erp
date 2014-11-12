@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 public class ScalesItemInfo extends ItemInfo {
-    public Integer daysExpiry;
     public Integer hoursExpiry;
     public Date expirationDate;
     public Integer labelFormat;
@@ -17,8 +16,7 @@ public class ScalesItemInfo extends ItemInfo {
     public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry,
                           Integer hoursExpiry, Date expirationDate, Integer labelFormat, String description, 
                           Integer descriptionNumber, String idItemGroup) {
-        super(idBarcode, name, price, splitItem, pluNumber);
-        this.daysExpiry = daysExpiry;
+        super(idBarcode, name, price, splitItem, pluNumber, daysExpiry);
         this.hoursExpiry = hoursExpiry;
         this.expirationDate = expirationDate;
         this.labelFormat = labelFormat;

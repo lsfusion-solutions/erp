@@ -151,11 +151,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                         if (item.passScalesItem) {
-                            String ingredientNumber = (item.description != null ? item.idBarcode : "0");
+                            String messageNumber = (item.description != null ? item.idBarcode : "0");
                             Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
                             Object code = useIdItem ? item.idItem : item.idBarcode;
                             String record = "+|" + pluNumber + "|" + code + "|" + "22|" + item.name + "||" +
-                                    "1|0|1|"/*effectiveLife & GoodLinkToScales*/ + ingredientNumber + "|" +
+                                    (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
                                     item.price.intValue();
                             writer.println(record);
                         }

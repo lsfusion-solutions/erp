@@ -245,10 +245,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode"};
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
+                        "expiryDaysMachineryPriceTransactionBarcode"};
                 LCP[] skuProperties = equLM.findProperties("nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode");
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
+                        "expiryDaysMachineryPriceTransactionBarcode");
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("idSkuBarcode", equLM.findProperty("idSkuBarcode").getExpr(barcodeExpr));
@@ -268,9 +270,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
                 }
                 if (scalesItemLM != null) {
-                    String[] scalesSkuNames = new String[]{"expiryDaysMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
+                    String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
                             "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode"};
-                    LCP[] scalesSkuProperties = scalesItemLM.findProperties("expiryDaysMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
+                    LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiryMachineryPriceTransactionBarcode",
                             "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
@@ -333,6 +335,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
+                        Integer expiryDays = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
@@ -347,7 +350,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
                         String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
-                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, pluNumber, idItem, extIdItem,
+                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, pluNumber, expiryDays, idItem, extIdItem,
                                 description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem));
                     }
                     
@@ -440,7 +443,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, split, null));
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, split, null, null));
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
@@ -485,7 +488,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
 
-                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, split, null, null, null));
+                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, split, null, null, null, null));
                     }
 
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
