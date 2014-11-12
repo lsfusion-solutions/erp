@@ -1169,8 +1169,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     private Object getField(PurchaseInvoiceDetail purchaseInvoiceDetail, String fieldName) {
         try {
-            Field field = PurchaseInvoiceDetail.class.getField(fieldName);
-            return field.get(purchaseInvoiceDetail);
+            if (purchaseInvoiceDetail.fieldValues != null && purchaseInvoiceDetail.fieldValues.containsKey(fieldName))
+                return purchaseInvoiceDetail.fieldValues.get(fieldName);
+            else {
+                Field field = PurchaseInvoiceDetail.class.getField(fieldName);
+                return field.get(purchaseInvoiceDetail);
+            }
         } catch (NoSuchFieldException e) {
             return purchaseInvoiceDetail.customValues.get(fieldName);
         } catch (IllegalAccessException e) {
