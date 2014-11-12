@@ -368,7 +368,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo));
                 addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom));
                 addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo));
-                addStringElement(saleDeniedRestriction, "deleted", "false");
+                addStringElement(saleDeniedRestriction, "deleted", stopListInfo.exclude ? "true" : "false");
 
             }
 
