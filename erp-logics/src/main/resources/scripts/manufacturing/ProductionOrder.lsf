@@ -364,21 +364,21 @@ bruttoSubstituteQuantitySkuOrder (sku, order) = GROUP SUM bruttoQuantityComponen
     BY bruttoSkuComponentDetail(componentDetail),
        orderComponentDetail(componentDetail) PERSISTENT;                                                                                                                                   
                                                                                                                                  
-
+// цены по товару
 dataBruttoPriceSkuOrder 'Цена' = DATA NUMERIC[14,2] (Sku, Order);
 costSkuOrder 'Себестоимость' = DATA NUMERIC[14,2] (Sku, Order);
 
 dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order),
                                                                                 sku,
                                                                                 componentsStockOrder(order),
-                                                                                dateTimeOrder(order))
-    WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) ;
+                                                                                dateTimeOrder(order)) IF quantityComponentDetailSkuOrder(sku, order)
+    WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) OR CHANGED(quantityComponentDetailSkuOrder(sku, order));
 
 calcCostSkuStock 'Себестоимость' (sku, stock) = [= GROUP SUM costBatch(b)*currentBalanceBatchStock(b,stock) BY skuBatch(b), stock](sku, stock)/
     (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) != 0);   
 
-costSkuOrder (sku, order) <- calcCostSkuStock(sku, componentsStockOrder(order))
-    WHEN CHANGED (quantityComponentDetailSkuOrder(sku, order)) OR CHANGED (componentsStockOrder(order));
+costSkuOrder (sku, order) <- calcCostSkuStock(sku, componentsStockOrder(order)) IF quantityComponentDetailSkuOrder(sku, order)
+    WHEN CHANGED (quantityComponentDetailSkuOrder(sku, order)) OR CHANGED (componentsStockOrder(order)); 
     
 // --- Замена --- //
 substituteSkuOrder = DATA Sku (Sku, Order);
@@ -1086,11 +1086,19 @@ WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(de
         substituteQuantityComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail);    
     }  
  
+overCalcPriceComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
+overSetPriceComponentDetail (detail) = OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
+                                                overCalcPriceComponentDetail(detail);
  
-WHEN SESSION FORMS order CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) DO
-    priceComponentDetail (detail) <- dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));   
-WHEN SESSION FORMS order CHANGED(costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) DO
-    costComponentDetail (detail) <- costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));           
+WHEN SESSION FORMS order CHANGED(overSetPriceComponentDetail(detail)) DO
+    priceComponentDetail (detail) <- overSetPriceComponentDetail(detail); 
+    
+overCalcCostComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
+overSetCostComponentDetail (detail) = OVERRIDE costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
+                                                overCalcCostComponentDetail(detail);    
+      
+WHEN SESSION FORMS order CHANGED(overSetCostComponentDetail(detail)) OR CHANGED(overSetCostComponentDetail(detail)) DO
+    costComponentDetail (detail) <- overSetCostComponentDetail(detail);           
        
 WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
     skuProductDetail(detail) <-  skuProduct(productProductDetail(detail));                 
@@ -1143,7 +1151,7 @@ FORM orders 'Производственные заказы'
 
     OBJECTS cd = ComponentDetail
     PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,
-                   shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
+                   shortNameUOMComponentDetail, bruttoQuantityComponentDetail, overCalcPriceComponentDetail 
     PROPERTIES(cd) READONLY BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail, substituteQuantityComponentDetail
     PROPERTIES(cd) READONLY costComponentDetail, priceComponentDetail
     PROPERTIES(cd) READONLY sumComponentDetail
