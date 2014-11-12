@@ -1,0 +1,55 @@
+MODULE  PurchaseInvoiceStopList;
+
+REQUIRE PurchaseStopList, PurchaseInvoiceMachinery;
+
+NAMESPACE StopList;
+
+statusStopListInvoiceDetail 'Запрет продаж' (d)= IF skipMachineryPriceTransactionSkuStockDateTime(skuInvoiceDetail(d), Purchase.customerStockInvoiceDetail(d), currentDateTime())
+    THEN 'В стоп-листе'
+    ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
+backgroundStopListInvoiceDetail 'Цвет' (d) = RGB (255,0,0) IF skipMachineryPriceTransactionSkuStockDateTime(skuInvoiceDetail(d), Purchase.customerStockInvoiceDetail(d), currentDateTime());
+
+countInStopListInvoiceSku 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
+    IF skipMachineryPriceTransactionSkuStockDateTime(skuInvoiceDetail(d), Purchase.customerStockInvoiceDetail(d), currentDateTime()) 
+          BY Purchase.invoiceInvoiceDetail(d), skuInvoiceDetail(d);
+
+countSkuInStopListInvoice 'Количество товаров в стоп-листе ' = GROUP SUM 1 
+    IF countInStopListInvoiceSku(i,s) BY i;
+            
+createReversStopListInvoice 'Исключить из стоп-листа'  = ACTION (invoice) {
+
+    NEWSESSION NESTED {   
+        FOR ADDOBJ sl = StopList DO {    
+            inStockStopList(st, sl) <- TRUE WHERE st == customerStockInvoice(invoice);  
+            excludeStopList(sl) <-TRUE;
+            isPostedStopList(sl) <-TRUE;
+                   
+            FOR countInStopListInvoiceSku(invoice, sku) ADDOBJ d = StopListDetail DO {
+                
+                stopListStopListDetail(d) <- sl;
+                skuStopListDetail(d) <- sku;            
+            }   
+            FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
+        }        
+    }
+};
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) READONLY FORCE PANEL SHOWIF countSkuInStopListInvoice(i) TODRAW d countSkuInStopListInvoice,
+                   createReversStopListInvoice EDITABLE 
+    PROPERTIES (d) READONLY statusStopListInvoiceDetail BACKGROUND backgroundStopListInvoiceDetail(d)
+    
+;
+EXTEND DESIGN userInvoice {
+    d.panel {
+        NEW stopList {
+            type = CONTAINERH;
+            caption = 'Стоп-лист';            
+            ADD PROPERTY (countSkuInStopListInvoice(i)) {background = #FF0000;}
+            ADD PROPERTY (createReversStopListInvoice(i));
+        }        
+    }    
+}  
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY statusStopListInvoiceDetail BACKGROUND backgroundStopListInvoiceDetail(d)
+;
