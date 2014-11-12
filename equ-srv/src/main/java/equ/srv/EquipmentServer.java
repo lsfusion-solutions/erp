@@ -603,8 +603,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
                 QueryBuilder<Object, Object> slQuery = new QueryBuilder<Object, Object>(slKeys);
-                String[] slNames = new String[]{"numberStopList", "fromDateStopList", "fromTimeStopList", "toDateStopList", "toTimeStopList"};
-                LCP<?>[] slProperties = stopListLM.findProperties("numberStopList", "fromDateStopList", "fromTimeStopList", "toDateStopList", "toTimeStopList");
+                String[] slNames = new String[]{"excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList", 
+                        "toDateStopList", "toTimeStopList"};
+                LCP<?>[] slProperties = stopListLM.findProperties("excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList",
+                        "toDateStopList", "toTimeStopList");
                 for (int i = 0; i < slProperties.length; i++) {
                     slQuery.addProperty(slNames[i], slProperties[i].getExpr(stopListExpr));
                 }
@@ -614,6 +616,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
                     ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
                     String numberStopList = trim((String) slEntry.get("numberStopList").getValue());
+                    boolean excludeStopList = slEntry.get("excludeStopList").getValue() != null;
                     Date dateFrom = (Date) slEntry.get("fromDateStopList").getValue();
                     Date dateTo = (Date) slEntry.get("toDateStopList").getValue();
                     Time timeFrom = (Time) slEntry.get("fromTimeStopList").getValue();
@@ -641,8 +644,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     if(!handlerDirectoryMap.isEmpty()) {
-                        List<String> stopListItemList = getStopListItemList(session, stopListObject);
-                        stopListInfoMap.put(numberStopList, new StopListInfo(numberStopList, dateFrom, timeFrom, dateTo, timeTo, idStockSet, stopListItemList, handlerDirectoryMap));
+                        Map<String, String> stopListItemMap = getStopListItemMap(session, stopListObject);
+                        stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo, 
+                                idStockSet, stopListItemMap, handlerDirectoryMap));
                     }
                     for(StopListInfo stopList : stopListInfoMap.values())
                         stopListInfoList.add(stopList);
@@ -686,18 +690,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return stockMap;
     }
     
-    private List<String> getStopListItemList(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<String> stopListItemList = new ArrayList<String>();
+    private Map<String, String> getStopListItemMap(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, String> stopListItemList = new HashMap<String, String>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<Object, Object>(sldKeys);
         sldQuery.addProperty("idBarcodeSkuStopListDetail", stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr));
+        sldQuery.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSkuStopListDetail").getExpr(sldExpr));
         sldQuery.and(stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> sldResult = sldQuery.execute(session);
         for (ImMap<Object, Object> sldEntry : sldResult.values()) {
-            stopListItemList.add(trim((String) sldEntry.get("idBarcodeSkuStopListDetail")));
+            stopListItemList.put(trim((String) sldEntry.get("idBarcodeSkuStopListDetail")), trim((String) sldEntry.get("idSkuStopListDetail")));
         }
         return stopListItemList;
     }

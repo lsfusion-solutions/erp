@@ -281,6 +281,7 @@ public class EquipmentServer {
         List<StopListInfo> stopListInfoList = remote.readStopListInfo(sidEquipmentServer);
         for (StopListInfo stopListInfo : stopListInfoList) {
             
+            boolean succeeded = true;
             for(Map.Entry<String, Set<String>> entry : stopListInfo.handlerDirectoryMap.entrySet()) {
 
                 try {
@@ -289,10 +290,11 @@ public class EquipmentServer {
                         ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, entry.getValue());
                 } catch (Exception e) {
                     remote.errorStopListReport(stopListInfo.number, e);
-                    return;
+                    succeeded = false;
                 }
             }
-            remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
+            if(succeeded)
+                remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
         }
         processStopListLogger.info("Process StopListInfo finished");
     }

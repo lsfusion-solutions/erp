@@ -28,6 +28,7 @@ import java.util.*;
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
     protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
     
@@ -84,7 +85,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
-                    String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + item.name + "|" +
+                    Object code = useIdItem ? item.idItem : item.idBarcode;
+                    String record = "+|" + code + "|" + item.idBarcode + "|" + item.name + "|" +
                             (item.passScalesItem && item.splitItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
                             (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.splitItem ? "0.001|" : "1|") +
@@ -479,7 +481,41 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-        
+
+        processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
+
+        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+        boolean useIdItem = kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
+
+        for (String directory : directorySet) {
+
+            String exchangeDirectory = directory.trim() + "/ImpExp/Import/";
+
+            if (!new File(exchangeDirectory).exists())
+                new File(exchangeDirectory).mkdirs();
+
+            //stopList.txt
+            File stopListFile = new File(exchangeDirectory + "stoplist.txt");
+            File flagStopListFile = new File(exchangeDirectory + "WAITSTOPLIST");
+            if (stopListFile.exists() && flagStopListFile.exists()) {
+                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagStopListFile.getAbsolutePath()));
+            } else if (flagStopListFile.createNewFile()) {
+                processTransactionLogger.info("Kristal: creating STOPLIST file");
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
+
+                for (Map.Entry<String, String> item : stopListInfo.stopListItemMap.entrySet()) {
+                    Object code = useIdItem ? item.getValue() : item.getKey();
+                    String record = code + "|" + (stopListInfo.exclude ? "1" : "0");
+                    writer.println(record);
+                }
+                writer.close();
+
+                processTransactionLogger.info("Kristal: waiting for deletion of STOPLIST file");
+                waitForDeletion(stopListFile, flagStopListFile);
+            } else {
+                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagStopListFile.getAbsolutePath()));
+            }
+        }     
     }
 
     @Override

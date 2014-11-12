@@ -342,7 +342,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             Document doc = new Document(rootElement);
             doc.setRootElement(rootElement);
 
-            for (String idBarcode : stopListInfo.stopListItemList) {
+            for (String idBarcode : stopListInfo.stopListItemMap.keySet()) {
                 
                 //parent: rootElement
                 Element saleDeniedRestriction = new Element("sale-denied-restriction");
