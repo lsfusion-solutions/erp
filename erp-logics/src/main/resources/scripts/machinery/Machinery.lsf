@@ -90,9 +90,19 @@ stockMachinery (machinery) = stockGroupMachinery(groupMachineryMachinery(machine
 idStockMachinery (machinery) = idStock(stockMachinery(machinery));
 
 modelMachinery = ABSTRACT Model (Machinery) PERSISTENT;
-sidModelMachinery 'Код' (machinery) = sidModel(modelMachinery(machinery)) IN base;
-nameModelMachinery 'Модель' (machinery) = nameModel(modelMachinery(machinery)) IN base;
-handlerModelMachinery 'Обработчик' (machinery) = handlerModel(modelMachinery(machinery)) IN base;
+
+modelGroupMachinery = ABSTRACT Model(GroupMachinery) PERSISTENT;
+sidModelGroupMachinery 'Код' (groupMachinery) = sidModel(modelGroupMachinery(groupMachinery)) IN base;
+nameModelGroupMachinery 'Модель' (groupMachinery) = nameModel(modelGroupMachinery(groupMachinery)) IN base;
+handlerModelGroupMachinery 'Обработчик' (machinery) = handlerModel(modelGroupMachinery(machinery)) IN base;
+
+//временно, для переноса модели в группу оборудования
+maxModelGroupMachinery (groupMachinery) = GROUP MAX modelMachinery(machinery) BY groupMachineryMachinery(machinery);
+onStarted() += ACTION() {
+    modelGroupMachinery(g) <- maxModelGroupMachinery(g);
+}
+
+handlerModelMachinery (machinery) = handlerModelGroupMachinery(groupMachineryMachinery(machinery));
 
 nppMachinery 'Порядковый номер' = DATA INTEGER (Machinery) IN base;
 descriptionMachinery 'Описание' = DATA VARSTRING[200] (Machinery) IN base;

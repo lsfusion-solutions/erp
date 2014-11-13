@@ -65,6 +65,9 @@ cashRegisterNppGroupCashRegisterNpp (g, npp) = GROUP AGGR cashRegister BY nppGro
 cashRegisterModelCashRegister = DATA CashRegisterModel (CashRegister);
 modelMachinery(machinery) += cashRegisterModelCashRegister(machinery);
 
+cashRegisterModelGroupCashRegister = DATA CashRegisterModel (GroupCashRegister);
+modelGroupMachinery(groupMachinery) += cashRegisterModelGroupCashRegister(groupMachinery);
+
 departmentStoreCashRegister (cashRegister) = departmentStoreGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
 
 countCashRegisterDepartmentStore 'Кол-во касс' (departmentStore) = GROUP SUM 1 BY departmentStoreCashRegister(cashRegister);
@@ -96,19 +99,19 @@ currentCashRegister 'Текущая касса' = cashRegisterComputer(currentCo
 
 departmentStoreCurrentCashRegister 'Подразделение' = departmentStoreCashRegister(currentCashRegister());
 numberCurrentCashRegister 'Номер кассы' = nppMachinery(currentCashRegister());
-sidModelCurrentCashRegister 'Код модели' = sidModelMachinery(currentCashRegister());
+sidModelCurrentCashRegister 'Код модели' = sidModelGroupMachinery(groupMachineryMachinery(currentCashRegister()));
 comPortCurrentCashRegister 'Порт' = comPortCashRegister(currentCashRegister());
 baudRateCurrentCashRegister 'Скорость весов' = baudRateCashRegister(currentCashRegister());
 nppMachineryCurrentCashRegister 'Номер кассового места' = nppMachinery(currentCashRegister());
 operatorNumberCurrentCashRegister (user) = operatorNumberGroupCashRegisterCustomUser(groupCashRegisterCashRegister(currentCashRegister()), user);
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
 countryCurrentCashRegister 'Страна кассы' = countryCashRegister(currentCashRegister());
-maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelCashRegister(currentCashRegister()));
+maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelGroupCashRegister(groupCashRegisterCashRegister(currentCashRegister())));
  
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
     PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, 
-                  comPortCashRegister, baudRateCashRegister, nameModelMachinery, dataDirectoryCashRegister, 
+                  comPortCashRegister, baudRateCashRegister, dataDirectoryCashRegister, 
                   dateCashRegister, hostnameComputerCashRegister
     EDIT CashRegister OBJECT c
 ;
@@ -117,12 +120,12 @@ FORM groupCashRegister 'Группа касс'
     OBJECTS grc=GroupCashRegister FIXED PANEL
     PROPERTIES(grc) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grc),
-                    namePriceListTypeGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister, 
+                    namePriceListTypeGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister, 
                     notDetailedGroupCashRegister
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery,
-                    comPortCashRegister, baudRateCashRegister, nameModelMachinery, dataDirectoryCashRegister,
+                    comPortCashRegister, baudRateCashRegister, dataDirectoryCashRegister,
                     dateCashRegister, hostnameComputerCashRegister, nameLegalEntityCashRegister, ADDOBJ, DELETESESSION
 
     OBJECTS cu=CustomUser
@@ -138,12 +141,12 @@ FORM groupCashRegister 'Группа касс'
 FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
     PROPERTIES(grc)  READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                     filterSkuGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister, 
+                     filterSkuGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister, 
                      notDetailedGroupCashRegister
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery,
-                           comPortCashRegister, baudRateCashRegister, nameModelMachinery, dataDirectoryCashRegister,
+                           comPortCashRegister, baudRateCashRegister, dataDirectoryCashRegister,
                            dateCashRegister, nameLegalEntityCashRegister
     FILTERS groupCashRegisterCashRegister(c) == grc
 ;
@@ -232,7 +235,7 @@ loadDefaultGroupCashRegister 'Сгенерировать группу касс' 
                 groupCashRegisterCashRegister(c) <- g;
                 numCashRegister() <- numCashRegister() + 1;
                 nppMachinery(c) <- numCashRegister();
-                cashRegisterModelCashRegister(c) <- model;
+                cashRegisterModelGroupCashRegister(g) <- model;
                 descriptionMachinery(c) <- CONCAT ' ', 'Касса', VARSTRING[255](numCashRegister()), '(', nameStock(stock), ')';
             }
         }

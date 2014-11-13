@@ -48,6 +48,9 @@ groupMachineryMachinery(machinery) += groupScalesScales(machinery);
 scalesModelScales = DATA ScalesModel (Scales);
 modelMachinery(machinery) += scalesModelScales(machinery);
 
+scalesModelGroupScales = DATA ScalesModel (GroupScales);
+modelGroupMachinery(groupMachinery) += scalesModelGroupScales(groupMachinery);
+
 numberScales 'Заводской(серийный) номер' = DATA VARSTRING[100] (Scales) IN base;
 dateScales 'Дата следующей обязательной поверки' = DATA DATE (Scales) IN base;
 
@@ -55,21 +58,20 @@ scalesNppGroupScalesNpp (g, npp) = GROUP AGGR scales BY nppGroupMachinery(groupS
 
 FORM scales 'Весы'
     OBJECTS s=Scales FIXED PANEL
-    PROPERTIES(s) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales, nameModelMachinery,
-                  dateScales
+    PROPERTIES(s) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales, dateScales
     EDIT Scales OBJECT s
 ;
 
 FORM groupScales 'Группа весов'
     OBJECTS grs=GroupScales FIXED PANEL
     PROPERTIES(grs) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                    directoryGroupScales,
+                    nameModelGroupMachinery, directoryGroupScales,
                     pieceCodeGroupScales, weightCodeGroupScales,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grs),
                     namePriceListTypeGroupMachinery
 
     OBJECTS s=Scales
-    PROPERTIES(s)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales, nameModelMachinery,
+    PROPERTIES(s)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales,
                     dateScales, ADDOBJ, DELETESESSION
     FILTERGROUP filters1
         FILTER 'Показывать только для данной группы' 'F10' groupScalesScales(s) == grs DEFAULT
@@ -79,13 +81,12 @@ FORM groupScales 'Группа весов'
 FORM groupsScales 'Группы весов'
     OBJECTS grs=GroupScales
     PROPERTIES(grs) READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                         filterSkuGroupMachinery, directoryGroupScales,
+                         filterSkuGroupMachinery, nameModelGroupMachinery, directoryGroupScales,
                          pieceCodeGroupScales, weightCodeGroupScales
     PROPERTIES(grs) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS s=Scales
-    PROPERTIES(s)   READONLY nppMachinery, descriptionMachinery, portMachinery, numberScales, nameModelMachinery,
-                             dateScales
+    PROPERTIES(s)   READONLY nppMachinery, descriptionMachinery, portMachinery, numberScales, dateScales
     FILTERS groupScalesScales(s) == grs
 ;
 
@@ -199,7 +200,7 @@ loadDefaultGroupScales 'Сгенерировать группу весов' = AC
                 groupScalesScales(s) <- g;
                 numScales() <- numScales() + 1;
                 nppMachinery(s) <- numScales();
-                scalesModelScales(s) <- model;
+                scalesModelGroupScales(g) <- model;
                 descriptionMachinery(s) <- CONCAT ' ', 'Весы', VARSTRING[255](numScales()), '(', nameStock(stock), ')';
             }
         }

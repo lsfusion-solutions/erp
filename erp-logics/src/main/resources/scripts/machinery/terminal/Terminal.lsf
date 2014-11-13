@@ -45,9 +45,12 @@ groupTerminalDirectory (npp) = GROUP MAX groupTerminal BY directoryGroupTerminal
 terminalModelTerminal = DATA TerminalModel (Terminal);
 modelMachinery(machinery) += terminalModelTerminal(machinery);
 
+terminalModelGroupTerminal = DATA TerminalModel (GroupTerminal);
+modelGroupMachinery(groupMachinery) += terminalModelGroupTerminal(groupMachinery);
+
 FORM terminal 'ТСД'
     OBJECTS t=Terminal FIXED PANEL
-    PROPERTIES(t) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, nameModelMachinery
+    PROPERTIES(t) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery
     EDIT Terminal OBJECT t
 ;
 
@@ -158,13 +161,12 @@ DESIGN groupTerminalDocumentTypes FROM DEFAULT {
 FORM groupTerminal 'Группа ТСД'
     OBJECTS grt=GroupTerminal FIXED PANEL
     PROPERTIES(grt) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                    nameGroupTerminalDocumentTypeGroupTerminal,
+                    nameGroupTerminalDocumentTypeGroupTerminal, nameModelGroupMachinery,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
                     namePriceListTypeGroupMachinery, directoryGroupTerminal
 
     OBJECTS t=Terminal
-    PROPERTIES(t)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, nameModelMachinery,
-                    ADDOBJ, DELETESESSION
+    PROPERTIES(t)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, ADDOBJ, DELETESESSION
 
     FILTERGROUP filters3
         FILTER 'Показывать только для данной группы' 'F10' groupTerminalTerminal(t) == grt DEFAULT
@@ -175,13 +177,13 @@ FORM groupTerminal 'Группа ТСД'
 FORM groupsTerminal 'Группы ТСД'
     OBJECTS grt=GroupTerminal, t=Terminal
     PROPERTIES(grt)  READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                     nameGroupTerminalDocumentTypeGroupTerminal,
+                     nameGroupTerminalDocumentTypeGroupTerminal, nameModelGroupMachinery,
                      filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
                      namePriceListTypeGroupMachinery, directoryGroupTerminal
 
     PROPERTIES(grt)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    PROPERTIES(t) READONLY nppMachinery, descriptionMachinery, portMachinery, nameModelMachinery
+    PROPERTIES(t) READONLY nppMachinery, descriptionMachinery, portMachinery
     FILTERS groupTerminalTerminal(t) == grt
 ;
 
@@ -404,7 +406,7 @@ loadDefaultGroupTerminal 'Сгенерировать группу термина
                 groupTerminalTerminal(t) <- g;
                 numTerminal() <- numTerminal() + 1;
                 nppMachinery(t) <- numTerminal();
-                terminalModelTerminal(t) <- model;
+                terminalModelGroupTerminal(g) <- model;
             }
         }
     }

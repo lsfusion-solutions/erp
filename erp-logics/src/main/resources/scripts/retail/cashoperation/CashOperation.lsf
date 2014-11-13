@@ -96,7 +96,7 @@ numberCashOperation 'Номер' (cashOperation) = ABSTRACT STRING[20] (CashOper
 basisCashOperation 'Основание' = ABSTRACT VARSTRING[100] (CashOperation) IN documentPrm;
 
 cashRegisterCashOperation = ABSTRACT CashRegister(CashOperation);
-cashRegisterModelCashOperation (cashOperation) = cashRegisterModelCashRegister(cashRegisterCashOperation(cashOperation));
+cashRegisterModelCashOperation (cashOperation) = cashRegisterModelGroupCashRegister(groupCashRegisterCashRegister(cashRegisterCashOperation(cashOperation)));
 sidCashRegisterModelCashOperation 'Код модели' (cashOperation) = sidModel(cashRegisterModelCashOperation (cashOperation));
 numberCashRegisterCashOperation 'Касса' (cashOperation) = nppMachinery(cashRegisterCashOperation(cashOperation)) IN documentPrm;
 
@@ -314,7 +314,7 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
                 IF NOT doNotFiscalisation(cashRegister) THEN {
                     fiscalServiceCashRegisterCashOperation(c);                                    
                 }
-                IF cashRegisterModelCashRegister(cashRegister) AND NOT isCompleteCashOperation(c) THEN
+                IF cashRegisterModelGroupCashRegister(groupCashRegisterCashRegister(cashRegister)) AND NOT isCompleteCashOperation(c) THEN
                     fail() <- TRUE;
             }
         }
@@ -410,7 +410,7 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
             IF NOT doNotFiscalisation(cashRegister) THEN {            
                 fiscalServiceCashRegisterCashOperation(c);
             }    
-            IF cashRegisterModelCashRegister(cashRegister) AND NOT isCompleteCashOperation(c) THEN
+            IF cashRegisterModelGroupCashRegister(groupCashRegisterCashRegister(cashRegister)) AND NOT isCompleteCashOperation(c) THEN
                 fail() <- TRUE;
         }
          IF NOT fail() THEN
