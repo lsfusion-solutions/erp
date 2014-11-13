@@ -540,6 +540,7 @@ quantityComponentsBOMSkuOrder 'Кол-во' (BOM, sku, order) = GROUP SUM quanti
 //quantityComponentsBOMOrder 'Кол-во' (BOM, order) = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 
 bruttoSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * priceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
+bruttoSumComponentsBOMOrder =  GROUP SUM bruttoSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
 //premiumSumComponentsBOMSkuOrder 'Сума с надбавкой' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * premiumPriceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
 calcComponentsPriceProductDetail'Цена расчетная с/с' (productDetail)= [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order)/ 
@@ -549,7 +550,7 @@ calcComponentsPriceProductDetail'Цена расчетная с/с' (productDeta
                     
 bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
-calcCostProductDetail'Себестоимость расчетная' (productDetail)= [ = GROUP SUM (bruttoCostSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) / 
+calcCostProductDetail 'Себестоимость расчетная' (productDetail)= [ = GROUP SUM (bruttoCostSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) / 
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
     quantityProduct(product) IF quantityProduct(product)!= 0)  
     BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail);
@@ -603,15 +604,39 @@ calcMarkupProductDetail(d)  = [= round2((X/Y-1)*100)](
 changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
     IF addVATProductDetail(detail) THEN {
         markupProductDetail(detail) <- calcMarkupIsVATProductDetail(detail);
+        pricePercentProductDetail(detail) <- 
+                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProduct(productProductDetail(detail)),orderProductDetail(detail));
     } ELSE {
         markupProductDetail(detail) <- calcMarkupProductDetail(detail);
+        pricePercentProductDetail(detail) <- 
+                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProduct(productProductDetail(detail)),orderProductDetail(detail));
     }
 }
+
+//пересчет цены изделия
+overCalcPriceComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
+overSetPriceComponentDetail (detail) = OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
+                                                overCalcPriceComponentDetail(detail);
+
+overCalcCostComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
+overSetCostComponentDetail (detail) = OVERRIDE costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
+                                                overCalcCostComponentDetail(detail);    
+                                                                                                
+notRecalculateMarkupOrder = ABSTRACT BOOLEAN (Order);
+
 changeProductsPriceProductDetail (detail) = ACTION (detail) {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
         priceProductDetail (detail) <- requestedNumeric();
-        changeValueProductsPriceProductDetail(detail);
+        IF notRecalculateMarkupOrder(orderProductDetail(detail)) THEN {
+            pricePercentProductDetail(detail) <- 
+                            100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProduct(productProductDetail(detail)),orderProductDetail(detail));
+            componentsPriceProductDetail(d) <- calcComponentsPriceProductDetail(d);
+            costComponentDetail(detail) <- overSetCostComponentDetail(detail);
+            costPriceProductDetail(d) <- calcCostProductDetail(d);                
+        } ELSE {
+            changeValueProductsPriceProductDetail(detail);    
+        }   
     }
 }
 
@@ -696,6 +721,7 @@ changePriceCoeffProductDetail = ACTION (detail) {
     IF requestedNumeric() THEN {        
         pricePercentProductDetail(detail) <- NUMERIC[14,3](calcPricePercentProductDetailNumeric(detail, requestedNumeric()));
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
         changeValueMarkupProductDetail(detail);
     }
 }
@@ -704,6 +730,7 @@ changePricePercentProductDetail = ACTION (detail) {
     IF requestedNumeric() THEN {
         pricePercentProductDetail(detail) <- requestedNumeric(); 
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
         changeValueMarkupProductDetail(detail);
     }
 }   
@@ -1086,18 +1113,11 @@ WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(de
         substituteQuantityComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail);    
     }  
  
-overCalcPriceComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
-overSetPriceComponentDetail (detail) = OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
-                                                overCalcPriceComponentDetail(detail);
  
-WHEN SESSION FORMS order CHANGED(overSetPriceComponentDetail(detail)) DO
+WHEN SESSION FORMS order CHANGED(overSetPriceComponentDetail(detail)) OR CHANGED(overCalcPriceComponentDetail(detail)) DO
     priceComponentDetail (detail) <- overSetPriceComponentDetail(detail); 
-    
-overCalcCostComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
-overSetCostComponentDetail (detail) = OVERRIDE costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
-                                                overCalcCostComponentDetail(detail);    
-      
-WHEN SESSION FORMS order CHANGED(overSetCostComponentDetail(detail)) OR CHANGED(overSetCostComponentDetail(detail)) DO
+         
+WHEN SESSION FORMS order CHANGED(overSetCostComponentDetail(detail)) DO
     costComponentDetail (detail) <- overSetCostComponentDetail(detail);           
        
 WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
@@ -1367,8 +1387,11 @@ EXTEND FORM orders
 @defineDocumentHeaderPriceListType (operation, priceListType, , ' (потребность)');
 @deriveDocumentOperationProperty(Order, priceListType);
 
+notRecalculateMarkupOperation 'Не пересчитывать наценку' = DATA BOOLEAN (Operation);
+notRecalculateMarkupOrder(order) += notRecalculateMarkupOperation(operationOrder(order));
+
 EXTEND FORM operation
-     PROPERTIES(o) nameCalcPriceListTypeOperation, nameProductsPriceListTypeOperation, namePriceListTypeOperation
+     PROPERTIES(o) nameCalcPriceListTypeOperation, nameProductsPriceListTypeOperation, namePriceListTypeOperation, notRecalculateMarkupOperation
 
  ;
 EXTEND DESIGN operation {
@@ -1376,6 +1399,7 @@ EXTEND DESIGN operation {
         ADD PROPERTY(nameCalcPriceListTypeOperation(o));
         ADD PROPERTY(nameProductsPriceListTypeOperation(o));
         ADD PROPERTY(namePriceListTypeOperation(o));
+        ADD PROPERTY(notRecalculateMarkupOperation(o));
     }
 }
 
