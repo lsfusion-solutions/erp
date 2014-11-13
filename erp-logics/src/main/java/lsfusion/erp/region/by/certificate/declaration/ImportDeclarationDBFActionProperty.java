@@ -59,14 +59,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                 
                 for (byte[] entry : fileList) {
 
-                    File tempFile = File.createTempFile("tempTnved", ".dbf");
-                    IOUtils.putFileBytes(tempFile, entry);
-
-                    DBF dbfFile = new DBF(tempFile.getPath());
-
-                    importDeclaration(context, declarationObject, dbfFile);
-                    
-                    tempFile.delete();
+                    importDeclaration(context, declarationObject, entry);
 
                 }
             }
@@ -81,11 +74,11 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         }
     }
 
-    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclaration(ExecutionContext context, DataObject declarationObject, byte[] entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         DataSession session = context.createSession();
         
-        List<List<Object>> data = readDeclarationFromDBF(session, declarationObject, dbfFile);
+        List<List<Object>> data = readDeclarationFromDBF(session, declarationObject, entry);
 
         KeyExpr declarationDetailExpr = new KeyExpr("DeclarationDetail");
         ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
@@ -127,56 +120,70 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
             session.pushVolatileStats("DBF_DN");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            session.apply(context);
+            String resultMessage = session.applyMessage(context);
             session.popVolatileStats();
             session.close();
+            if(resultMessage == null) {
+                context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт из декларанта"));
+            }
         }
     }
 
-    private List<List<Object>> readDeclarationFromDBF(DataSession session, DataObject declarationObject, DBF importFile) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
-
-        int recordCount = importFile.getRecordCount();
+    private List<List<Object>> readDeclarationFromDBF(DataSession session, DataObject declarationObject, byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
         
-        BigDecimal homeSum = null, dutySum = null, VATSum = null;
         List<List<Object>> data = new ArrayList<List<Object>>();
-        
-        Integer curNumber = null;
-        
-        for (int i = 0; i < recordCount; i++) {
+        File tempFile = null;
+        DBF dbfFile = null;
+        try {
+            tempFile = File.createTempFile("tempTnved", ".dbf");
+            IOUtils.putFileBytes(tempFile, entry);
 
-            importFile.read();
+            dbfFile = new DBF(tempFile.getPath());
+            int recordCount = dbfFile.getRecordCount();
 
-            Integer numberDeclarationDetail = getDBFIntegerFieldValue(importFile, "G32", charset);
+            BigDecimal homeSum = null, dutySum = null, VATSum = null;
 
-            if (curNumber != null && !curNumber.equals(numberDeclarationDetail)) {
-                data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
-                dutySum = null;
-                VATSum = null;
-                homeSum = null;
-            }
-            curNumber = numberDeclarationDetail;
+            Integer curNumber = null;
 
-            String g471 = trim(getDBFFieldValue(importFile, "G471", charset));
-                    
-            if (g471 != null) {
-                if (g471.equals("2010")) {
-                    homeSum = getDBFBigDecimalFieldValue(importFile, "G472", charset);
-                    dutySum = getDBFBigDecimalFieldValue(importFile, "G474", charset);
-                } else if (g471.equals("5010")) {
-                    if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(importFile, "G472", charset);
-                    VATSum = getDBFBigDecimalFieldValue(importFile, "G474", charset);
-                } else if(g471.equals("1010")) {
-                    BigDecimal g474 = getDBFBigDecimalFieldValue(importFile, "G474", charset);  //dutySum - VATSum
-                    findProperty("registrationSumDeclaration").change(g474, session, declarationObject);
+            for (int i = 0; i < recordCount; i++) {
+
+                dbfFile.read();
+
+                Integer numberDeclarationDetail = getDBFIntegerFieldValue(dbfFile, "G32", charset);
+
+                if (curNumber != null && !curNumber.equals(numberDeclarationDetail)) {
+                    data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
+                    dutySum = null;
+                    VATSum = null;
+                    homeSum = null;
+                }
+                curNumber = numberDeclarationDetail;
+
+                String g471 = trim(getDBFFieldValue(dbfFile, "G471", charset));
+
+                if (g471 != null) {
+                    if (g471.equals("2010")) {
+                        homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
+                        dutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
+                    } else if (g471.equals("5010")) {
+                        if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
+                        VATSum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
+                    } else if (g471.equals("1010")) {
+                        BigDecimal g474 = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);  //dutySum - VATSum
+                        findProperty("registrationSumDeclaration").change(g474, session, declarationObject);
+                    }
                 }
             }
-        }
 
-        if (curNumber != null) {
-            data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
+            if (curNumber != null) {
+                data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
+            }
+        } finally {
+            if(dbfFile != null)
+                dbfFile.close();
+            if(tempFile != null)
+                tempFile.delete();
         }
-
-        importFile.close();
         return data;
     }
 }
