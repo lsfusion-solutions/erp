@@ -85,9 +85,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
+                    boolean isWeightItem = item.passScalesItem && item.splitItem;
                     Object code = useIdItem ? item.idItem : item.idBarcode;
-                    String record = "+|" + code + "|" + item.idBarcode + "|" + item.name + "|" +
-                            (item.passScalesItem && item.splitItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
+                    String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                    String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
+                            (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
                             (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.splitItem ? "0.001|" : "1|") +
                             idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
