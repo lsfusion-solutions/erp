@@ -5,10 +5,11 @@ import java.util.List;
 
 public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInfo, PriceCheckerItemInfo> {
 
-    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, List<PriceCheckerItemInfo> itemsList,
+    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, String handlerModel, List<PriceCheckerItemInfo> itemsList,
                                        List<PriceCheckerInfo> machineryInfoList) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
+        this.handlerModel = handlerModel;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
     }

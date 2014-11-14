@@ -27,6 +27,10 @@ public class EasyCSVHandler {
         public EasyCashRegisterCSVHandler() {
         }
 
+        public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+            return "";
+        }
+        
         @Override
         public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
@@ -115,6 +119,10 @@ public class EasyCSVHandler {
         public EasyPriceCheckerCSVHandler() {
         }
 
+        public String getGroupId(TransactionPriceCheckerInfo transactionInfo) {
+            return "";
+        }
+        
         @Override
         public List<MachineryInfo> sendTransaction(TransactionPriceCheckerInfo transactionInfo, List<PriceCheckerInfo> machineryInfoList) throws IOException {
 
@@ -151,6 +159,10 @@ public class EasyCSVHandler {
         public EasyScalesCSVHandler() {
         }
 
+        public String getGroupId(TransactionScalesInfo transactionInfo) {
+            return "";
+        }
+        
         @Override
         public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 

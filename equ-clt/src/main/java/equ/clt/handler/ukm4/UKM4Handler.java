@@ -27,6 +27,10 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     public UKM4Handler() {
     }
 
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        return "";
+    }
+
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 

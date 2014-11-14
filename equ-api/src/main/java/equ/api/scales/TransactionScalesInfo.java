@@ -8,10 +8,11 @@ import java.util.List;
 
 public class TransactionScalesInfo extends TransactionInfo<ScalesInfo, ScalesItemInfo> {
     public boolean snapshot;
-    public TransactionScalesInfo(Integer id, String dateTimeCode, List<ScalesItemInfo> itemsList,
+    public TransactionScalesInfo(Integer id, String dateTimeCode, String handlerModel, List<ScalesItemInfo> itemsList,
                                  List<ScalesInfo> machineryInfoList, boolean snapshot) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
+        this.handlerModel = handlerModel;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
         this.snapshot = snapshot;

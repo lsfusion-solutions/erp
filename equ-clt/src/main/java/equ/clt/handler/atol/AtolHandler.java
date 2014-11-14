@@ -26,6 +26,10 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     public AtolHandler() {
     }
 
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        return "";
+    }
+    
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 

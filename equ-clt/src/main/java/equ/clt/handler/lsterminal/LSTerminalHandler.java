@@ -27,6 +27,11 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
+    public String getGroupId(TransactionInfo transactionInfo) throws IOException {
+        return "";
+    }
+
+    @Override
     public List<MachineryInfo> sendTransaction(TransactionInfo transactionInfo, List machineryInfoList) throws IOException {
         try {
             Integer nppGroupTerminal = ((TransactionTerminalInfo) transactionInfo).nppGroupTerminal;

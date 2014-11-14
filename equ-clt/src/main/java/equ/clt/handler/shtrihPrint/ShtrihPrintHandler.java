@@ -22,6 +22,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
         this.springContext = springContext;
     }
 
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
+        return "";
+    }
+    
     @Override
     public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 

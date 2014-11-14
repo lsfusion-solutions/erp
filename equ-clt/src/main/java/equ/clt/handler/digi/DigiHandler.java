@@ -18,6 +18,10 @@ public class DigiHandler extends ScalesHandler {
     public DigiHandler() {
     }
 
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
+        return "";
+    }
+
     @Override
     public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 

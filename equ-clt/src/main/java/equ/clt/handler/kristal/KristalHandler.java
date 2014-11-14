@@ -51,6 +51,20 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         this.springContext = springContext;
     }
 
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        List<String> directoriesList = getDirectoriesList(transactionInfo.machineryInfoList);
+        return directoriesList.isEmpty() ? null : directoriesList.get(0);
+    }
+
+    protected List<String> getDirectoriesList(List<CashRegisterInfo> machineryInfoList) {
+        List<String> directoriesList = new ArrayList<String>();
+        for (CashRegisterInfo machinery : machineryInfoList) {
+            if (machinery.directory != null && !directoriesList.contains(machinery.directory.trim()))
+                directoriesList.add(machinery.directory.trim());
+        }
+        return directoriesList;
+    }
+    
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
@@ -80,7 +94,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (pluFile.exists() && flagPluFile.exists()) {
                 throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
             } else if (flagPluFile.createNewFile()) {
-                processTransactionLogger.info("Kristal: creating PLU file");
+                processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -97,7 +111,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
                 writer.close();
 
-                processTransactionLogger.info("Kristal: waiting for deletion of PLU file");
+                processTransactionLogger.info(String.format("Kristal: waiting for deletion of PLU file (Transaction #%s)", transactionInfo.id));
                 waitForDeletion(pluFile, flagPluFile);
             } else {
                 throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
@@ -117,17 +131,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (messageFile.exists() && flagMessageFile.exists()) {
                     throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
                 } else if (flagMessageFile.createNewFile()) {
-                    processTransactionLogger.info("Kristal: creating MESSAGE file");
+                    processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                         if (item.description != null && !item.description.equals("")) {
-                            String record = "+|" + item.idBarcode + "|" + item.description + "|||";
+                            String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
                             writer.println(record);
                         }
                     }
                     writer.close();
-                    processTransactionLogger.info("Kristal: waiting for deletion of MESSAGE file");
+                    processTransactionLogger.info(String.format("Kristal: waiting for deletion of MESSAGE file (Transaction #%s)", transactionInfo.id));
                     waitForDeletion(messageFile, flagMessageFile);
                 } else {
                     throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
@@ -148,7 +162,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (scaleFile.exists() && flagScaleFile.exists()) {
                     throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
                 } else if (flagScaleFile.createNewFile()) {
-                    processTransactionLogger.info("Kristal: creating SCALES file");
+                    processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -163,7 +177,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     }
                     writer.close();
-                    processTransactionLogger.info("Kristal: waiting for deletion of SCALES file");
+                    processTransactionLogger.info(String.format("Kristal: waiting for deletion of SCALES file, (Transaction #%s)", transactionInfo.id));
                     waitForDeletion(scaleFile, flagScaleFile);
 
                 } else {
@@ -178,7 +192,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (groupsFile.exists() && flagGroupsFile.exists()) {
                     throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
                 } else if (flagGroupsFile.createNewFile()) {
-                    processTransactionLogger.info("Kristal: creating GROUPS file");
+                    processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
                     Set<String> numberGroupItems = new HashSet<String>();
@@ -195,7 +209,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     }
                     writer.close();
-                    processTransactionLogger.info("Kristal: waiting for deletion of GROUPS file");
+                    processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file (Transaction #%s)", transactionInfo.id));
                     waitForDeletion(groupsFile, flagGroupsFile);
 
                 } else {
@@ -502,7 +516,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (stopListFile.exists() && flagStopListFile.exists()) {
                 throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagStopListFile.getAbsolutePath()));
             } else if (flagStopListFile.createNewFile()) {
-                processTransactionLogger.info("Kristal: creating STOPLIST file");
+                processStopListLogger.info("Kristal: creating STOPLIST file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
 
                 for (Map.Entry<String, String> item : stopListInfo.stopListItemMap.entrySet()) {
@@ -512,7 +526,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
                 writer.close();
 
-                processTransactionLogger.info("Kristal: waiting for deletion of STOPLIST file");
+                processStopListLogger.info("Kristal: waiting for deletion of STOPLIST file");
                 waitForDeletion(stopListFile, flagStopListFile);
             } else {
                 throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagStopListFile.getAbsolutePath()));

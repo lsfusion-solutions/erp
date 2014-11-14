@@ -35,6 +35,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     public HTCHandler() {
     }
 
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        return transactionInfo.nameGroupCashRegister;
+    }
+
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 

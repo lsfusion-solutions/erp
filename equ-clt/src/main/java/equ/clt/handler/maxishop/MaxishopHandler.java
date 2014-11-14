@@ -22,6 +22,10 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     public MaxishopHandler() {
     }
 
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        return "";
+    }
+    
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 

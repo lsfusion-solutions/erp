@@ -354,8 +354,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, date, itemGroupMap, cashRegisterItemInfoList, cashRegisterInfoList, snapshotTransaction, 
-                            nppGroupMachinery, nameGroupMachinery));
+                            dateTimeCode, date, handlerModelGroupMachinery, itemGroupMap, cashRegisterItemInfoList, cashRegisterInfoList, snapshotTransaction, 
+                            String.valueOf(groupMachineryObject.object), nppGroupMachinery, nameGroupMachinery));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();
@@ -409,7 +409,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, scalesItemInfoList, scalesInfoList, snapshotTransaction));
+                            dateTimeCode,  handlerModelGroupMachinery, scalesItemInfoList, scalesInfoList, snapshotTransaction));
 
                 } else if (priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClass("PriceCheckerPriceTransaction"))) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<PriceCheckerInfo>();
@@ -444,7 +444,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, priceCheckerItemInfoList, priceCheckerInfoList));
+                            dateTimeCode, handlerModelGroupMachinery, priceCheckerItemInfoList, priceCheckerInfoList));
 
 
                 } else if (terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClass("TerminalPriceTransaction"))) {
@@ -494,7 +494,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, priceListTypeGroupMachinery, stockGroupTerminal);
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, terminalItemInfoList, terminalInfoList, terminalHandbookTypeList,
+                            dateTimeCode, handlerModelGroupMachinery, terminalItemInfoList, terminalInfoList, terminalHandbookTypeList,
                             terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList, 
                             nppGroupTerminal, directoryGroupTerminal, snapshotTransaction));
                 }

@@ -36,6 +36,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public Kristal10Handler() {
     }
 
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        return "";
+    }
+
     @Override
     public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 

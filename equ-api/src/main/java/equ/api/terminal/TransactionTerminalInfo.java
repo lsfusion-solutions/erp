@@ -15,12 +15,13 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
     public String directoryGroupTerminal;
     public Boolean snapshot;
     
-    public TransactionTerminalInfo(Integer id, String dateTimeCode, List<TerminalItemInfo> itemsList, List<TerminalInfo> machineryInfoList,
+    public TransactionTerminalInfo(Integer id, String dateTimeCode, String handlerModel, List<TerminalItemInfo> itemsList, List<TerminalInfo> machineryInfoList,
                                    List<TerminalHandbookType> terminalHandbookTypeList, List<TerminalDocumentType> terminalDocumentTypeList,
                                    List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalAssortment> terminalAssortmentList, 
                                    Integer nppGroupTerminal, String directoryGroupTerminal, Boolean snapshot) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
+        this.handlerModel = handlerModel;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
         this.terminalHandbookTypeList = terminalHandbookTypeList;
