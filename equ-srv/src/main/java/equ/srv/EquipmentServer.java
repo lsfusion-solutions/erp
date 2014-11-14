@@ -1907,7 +1907,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
                     else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
                         machineryObject = scalesLM.findProperty("scalesNppGroupScalesNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                    if (machineryObject != null) {
+                    if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo)machineryInfo).succeeded)) {
                         machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").change(true, session,
                                 (DataObject) machineryObject, machineryPriceTransactionObject);
                         machineryPriceTransactionLM.findProperty("dateTimeSucceededMachineryMachineryPriceTransaction").change(dateTime, session,
