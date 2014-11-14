@@ -76,7 +76,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
                 String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*") : null;
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
-
+                String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetailImportType").read(session, importTypeObject);
+                
                 ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = importDocumentSettings.getFileExtension();
                 
@@ -130,7 +131,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                     int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                             currentSession, invoiceObject, importTypeObject, file, fileExtension,
-                                            importDocumentSettings, staticNameImportType, checkInvoiceExistence);
+                                            importDocumentSettings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
                                     if (importResult >= IMPORT_RESULT_OK)
                                         currentSession.apply(context);
 
