@@ -148,7 +148,7 @@ updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
 }
 
 WHEN SESSION FORMS userInvoice
-    (CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) DO {
+    (CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) DO {
         updateManufacturingPriceUserInvoiceDetail(d);
     }    
 
@@ -165,19 +165,6 @@ changeManufacturingPriceUserInvoiceDetail = ACTION (d) {
     } ELSE {
         manufacturingPriceUserInvoiceDetail(d) <- NULL;
         manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);     
-    }
-}
-
-
-changeManufacturingMarkupUserInvoiceDetail = ACTION (d) {
-    REQUEST NUMERIC[8,2] INPUT;
-
-    IF requestedNumeric() THEN {
-        manufacturingMarkupUserInvoiceDetail(d) <- requestedNumeric();
-        updateManufacturingPriceUserInvoiceDetail(d);
-    } ELSE {
-        manufacturingMarkupUserInvoiceDetail(d) <- NULL;
-        updateManufacturingPriceUserInvoiceDetail(d);
     }
 }
 
@@ -235,7 +222,7 @@ EXTEND FORM userInvoice
                   nameManufacturingCalcPriceListTypeUserInvoice
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) AFTER invoiceSumUserInvoiceDetail(d) 
-                  manufacturingMarkupUserInvoiceDetail ON CHANGE changeManufacturingMarkupUserInvoiceDetail(d),
+                  manufacturingMarkupUserInvoiceDetail,
                   manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d), includeVATUserInvoiceDetail, 
                   manufacturingSumUserInvoiceDetail
     PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i)
