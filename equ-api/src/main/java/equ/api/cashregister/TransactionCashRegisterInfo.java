@@ -13,11 +13,13 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     public boolean snapshot;
     public String idGroupCashRegister;
     public Integer nppGroupCashRegister;
+    public Integer departmentNumberGroupCashRegister;
     public String nameGroupCashRegister;
     
     public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Map<String, List<ItemGroup>> itemGroupMap,
-                                       List<CashRegisterItemInfo> itemsList, List<CashRegisterInfo> machineryInfoList, 
-                                       boolean snapshot, String idGroupCashRegister, Integer nppGroupCashRegister, String nameGroupCashRegister) {
+                                       List<CashRegisterItemInfo> itemsList, List<CashRegisterInfo> machineryInfoList, boolean snapshot, 
+                                       String idGroupCashRegister, Integer nppGroupCashRegister, Integer departmentNumberGroupCashRegister, 
+                                       String nameGroupCashRegister) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.date = date;
@@ -28,6 +30,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
         this.snapshot = snapshot;
         this.idGroupCashRegister = idGroupCashRegister;
         this.nppGroupCashRegister = nppGroupCashRegister;
+        this.departmentNumberGroupCashRegister = departmentNumberGroupCashRegister;
         this.nameGroupCashRegister = nameGroupCashRegister;
     }
 

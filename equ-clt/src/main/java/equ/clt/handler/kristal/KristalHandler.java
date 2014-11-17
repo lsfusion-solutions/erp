@@ -97,6 +97,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
 
+                Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
+                
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
                     boolean isWeightItem = item.passScalesItem && item.splitItem;
@@ -104,9 +106,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
                     String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
                             (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
-                            (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + "|"/*section*/ +
-                            item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.splitItem ? "0.001|" : "1|") +
-                            idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
+                            departmentNumber + "|"/*section*/ + item.price.intValue() + "|" + "0|"/*fixprice*/ + 
+                            (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
                     writer.println(record);
                 }
                 writer.close();

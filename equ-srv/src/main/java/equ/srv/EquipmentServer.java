@@ -297,6 +297,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDateGroupCashRegister").read(session, groupMachineryObject);
                     Boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
+                    Integer departmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberGroupCashRegister").read(session, groupMachineryObject);
 
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
                     LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) cashRegisterLM.is(cashRegisterLM.findClass("CashRegister"));
@@ -355,7 +356,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
                             dateTimeCode, date, handlerModelGroupMachinery, itemGroupMap, cashRegisterItemInfoList, cashRegisterInfoList, snapshotTransaction, 
-                            String.valueOf(groupMachineryObject.object), nppGroupMachinery, nameGroupMachinery));
+                            String.valueOf(groupMachineryObject.object), nppGroupMachinery, departmentNumberGroupCashRegister, nameGroupMachinery));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();
