@@ -8,8 +8,8 @@ REQUIRE System,
         Numerator,
         Barcode,
         Document,
-        EmployeeStock,
-        StockDocument,
+        EmployeeStock,        
+        StockDocumentSkuLedger,
         Utils;
 
 // -------------------------------- Комиссия для инвентаризации ----------------------------------//
@@ -652,11 +652,13 @@ EXTEND CLASS OutInventorySkuDetail : OutFIFOSkuLedger;
 quantityOutFIFOSkuLedger (ledger) += quantityOutInventorySkuDetail(ledger);
 @implementSkuLedgerOutFIFOBalance(outInventorySkuDetail, stock);
 sumOutSkuLedger (ledger) += sumOutInventorySkuDetail(ledger);
+stockDocumentLedgerSkuLedger(ledger) += collationSheetOutInventorySkuDetail(ledger);
 
 EXTEND CLASS InInventorySkuDetail : InLIFOSkuLedger;
 quantityInLIFOSkuLedger (ledger) += quantityInInventorySkuDetail(ledger);
 @implementSkuLedgerInLIFOBalance(inInventorySkuDetail, stock);
 sumInSkuLedger (ledger) += sumInInventorySkuDetail(ledger);
+stockDocumentLedgerSkuLedger(ledger) += collationSheetInInventorySkuDetail(ledger);
 
 //---------------------------- Изменение остатка инвентаризации batch----------------------------//
 
@@ -722,12 +724,14 @@ EXTEND CLASS OutInventoryBatchDetail : OutFIFOSkuLedger;
 quantityOutFIFOSkuLedger (ledger) += quantityOutInventoryBatchDetail(ledger);
 limitOutFIFOSkuLedgerBatch(ledger, batch) += quantityOutInventoryBatchDetail(ledger) IF batchInventoryBatchDetail(ledger) == batch;
 sumOutSkuLedger (ledger) += sumOutInventoryBatchDetail(ledger);
+stockDocumentLedgerSkuLedger(ledger) += collationSheetOutInventoryBatchDetail(ledger);
 
 EXTEND CLASS InInventoryBatchDetail : InLIFOSkuLedger;
 quantityInLIFOSkuLedger (ledger) += quantityInInventoryBatchDetail(ledger);
 limitInLIFOSkuLedgerBatch (ledger, batch) += quantityInInventoryBatchDetail(ledger) IF batchInventoryBatchDetail(ledger) == batch;
 sumInSkuLedger (ledger) += sumInInventoryBatchDetail(ledger);
 
+stockDocumentLedgerSkuLedger(ledger) += collationSheetInInventoryBatchDetail(ledger);
 //------------------------------------ Выбор складов для инвентаризации------------------------------------------//
 
 FORM dialogStockInventory 'Выбор складов для инвентаризации'

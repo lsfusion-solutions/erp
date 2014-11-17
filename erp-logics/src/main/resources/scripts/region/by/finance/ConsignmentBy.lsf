@@ -232,6 +232,8 @@ noteConsignment 'Примечание' (consignment) = OVERRIDE dataNoteConsignm
 namePayerConsignment 'Заказчик перевозки ' (consignment) =
     nameLegalEntity(payerConsignment(consignment)) + ' , ' + UNPLegalEntity(payerConsignment(consignment)) IN carConsignment;
 
+indexConsignmentDetail 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail); 
+
 batchConsignmentDetail = ABSTRACT Batch (ConsignmentDetail);
 descriptionBatchConsignmentDetail 'Партия' (consignmentDetail) = descriptionBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 nameBatchConsignmentDetail 'Партия' (consignmentDetail) = nameBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
@@ -404,10 +406,10 @@ META defineConsignmentFormSimple(form, caption)
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
-        PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
+        PROPERTIES(d) indexConsignmentDetail, nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
                       sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                       noteConsignmentDetail, extraDescriptionConsignmentDetail
-
+        ORDER BY indexConsignmentDetail(d)
         FILTERS consignmentConsignmentDetail(d) == c
     ;
     print###consignmentSimple###form caption (consignment) = ACTION FORM consignmentSimple###form OBJECTS c = consignment PRINT IMAGE 'print.png' IN print;
@@ -475,14 +477,14 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
  
         OBJECTS prefix##d=ConsignmentDetail
 
-        PROPERTIES(prefix##d) prefix##nameSkuConsignmentDetail=nameSkuConsignmentDetail, prefix##shortNameUOMConsignmentDetail=shortNameUOMConsignmentDetail, 
+        PROPERTIES(prefix##d) prefix##indexConsignmentDetail=indexConsignmentDetail, prefix##nameSkuConsignmentDetail=nameSkuConsignmentDetail, prefix##shortNameUOMConsignmentDetail=shortNameUOMConsignmentDetail, 
                       prefix##quantityConsignmentDetail=quantityConsignmentDetail, prefix##priceConsignmentDetail=priceConsignmentDetail,
                       prefix##sumConsignmentDetail=sumConsignmentDetail, prefix##vatConsignmentDetail=vatConsignmentDetail, 
                       prefix##sumVATConsignmentDetail=sumVATConsignmentDetail, prefix##sumInvoiceConsignmentDetail=sumInvoiceConsignmentDetail,
                       prefix##packQuantityConsignmentDetail=packQuantityConsignmentDetail, prefix##grossWeightTonConsignmentDetail=grossWeightTonConsignmentDetail,
                       prefix##grossWeightConsignmentDetail=grossWeightConsignmentDetail,prefix##noteConsignmentDetail=noteConsignmentDetail, 
                       prefix##extraDescriptionConsignmentDetail=extraDescriptionConsignmentDetail
-
+        ORDER BY prefix##indexConsignmentDetail
         FILTERS consignmentConsignmentDetail(prefix##d) == prefix
     ;        
           
@@ -569,9 +571,10 @@ FORM consignment 'Атрибуты накладной'
 
     OBJECTS d=ConsignmentDetail
 
-    PROPERTIES(d) nameSkuConsignmentDetail READONLY, shortNameUOMConsignmentDetail READONLY, quantityConsignmentDetail, priceConsignmentDetail,
+    PROPERTIES(d) indexConsignmentDetail, nameSkuConsignmentDetail READONLY, shortNameUOMConsignmentDetail READONLY, quantityConsignmentDetail, priceConsignmentDetail,
                   sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                   packQuantityConsignmentDetail, grossWeightConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY
+    ORDER BY indexConsignmentDetail(d)  
 
     FILTERS consignmentConsignmentDetail(d) == c
 ;
@@ -1036,7 +1039,8 @@ END
 
 META implementConsignmentDetailInner (concrete, concreteClass, skuProp, batchProp)
     EXTEND CLASS concreteClass##Detail : ConsignmentDetail;
-
+    
+    indexConsignmentDetail (consignmentDetail) += index###concrete##Detail (consignmentDetail);
     consignmentConsignmentDetail (consignmentDetail) += concrete###concrete##Detail (consignmentDetail);
     skuConsignmentDetail (consignmentDetail) += skuProp###concrete##Detail (consignmentDetail);
     batchConsignmentDetail (consignmentDetail) += batchProp###concrete##Detail (consignmentDetail);    
