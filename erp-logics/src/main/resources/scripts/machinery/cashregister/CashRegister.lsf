@@ -24,15 +24,17 @@ dateToCashRegisterModel 'Дата, до которой модель внесен
 
 maxSumCashRegisterModel 'Максимальная сумма чека' = DATA NUMERIC[16,2] (CashRegisterModel) IN base;
 
+ignoreCashRegisterServerCashRegisterModel 'Не работать с кассовым сервером' = DATA BOOLEAN (CashRegisterModel) IN base;
+
 FORM cashRegisterModel 'Модель касс'
     OBJECTS c=CashRegisterModel FIXED PANEL
-    PROPERTIES(c) nameCashRegisterModel, sidModel, noteModel, handlerModel, dateToCashRegisterModel, maxSumCashRegisterModel
+    PROPERTIES(c) nameCashRegisterModel, sidModel, noteModel, handlerModel, dateToCashRegisterModel, maxSumCashRegisterModel, ignoreCashRegisterServerCashRegisterModel
     EDIT CashRegisterModel OBJECT c
 ;
 
 FORM cashRegistersModels 'Модели касс'
     OBJECTS c=CashRegisterModel
-    PROPERTIES(c) READONLY nameCashRegisterModel, sidModel, handlerModel, noteModel, maxSumCashRegisterModel
+    PROPERTIES(c) READONLY nameCashRegisterModel, sidModel, handlerModel, noteModel, maxSumCashRegisterModel, ignoreCashRegisterServerCashRegisterModel
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG CashRegisterModel OBJECT c
 ;
@@ -109,7 +111,9 @@ operatorNumberCurrentCashRegister (user) = operatorNumberGroupCashRegisterCustom
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
 countryCurrentCashRegister 'Страна кассы' = countryCashRegister(currentCashRegister());
 maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelGroupCashRegister(groupCashRegisterCashRegister(currentCashRegister())));
- 
+
+ignoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr) = ignoreCashRegisterServerCashRegisterModel(cashRegisterModelGroupCashRegister(gcr));
+notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr) = gcr IS GroupCashRegister AND NOT ignoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr);
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
     PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, 
@@ -122,12 +126,14 @@ FORM groupCashRegister 'Группа касс'
     OBJECTS grc=GroupCashRegister FIXED PANEL
     PROPERTIES(grc) nppGroupMachinery, departmentNumberGroupCashRegister, nameStockGroupMachinery, nameGroupMachinery,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grc),
-                    namePriceListTypeGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister, 
-                    notDetailedGroupCashRegister
+                    namePriceListTypeGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                    startDateGroupCashRegister, notDetailedGroupCashRegister
 
     OBJECTS c=CashRegister
-    PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery,
-                    comPortCashRegister, baudRateCashRegister, dataDirectoryCashRegister,
+    PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                    comPortCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc), 
+                    baudRateCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                    dataDirectoryCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
                     dateCashRegister, hostnameComputerCashRegister, nameLegalEntityCashRegister, ADDOBJ, DELETESESSION
 
     OBJECTS cu=CustomUser
@@ -143,12 +149,14 @@ FORM groupCashRegister 'Группа касс'
 FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
     PROPERTIES(grc)  READONLY nppGroupMachinery, departmentNumberGroupCashRegister, nameStockGroupMachinery, nameGroupMachinery,
-                     filterSkuGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister, 
-                     notDetailedGroupCashRegister
+                     filterSkuGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                     startDateGroupCashRegister, notDetailedGroupCashRegister
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery,
-                           comPortCashRegister, baudRateCashRegister, dataDirectoryCashRegister,
+    PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                           comPortCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc), 
+                           baudRateCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                           dataDirectoryCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc), 
                            dateCashRegister, nameLegalEntityCashRegister
     FILTERS groupCashRegisterCashRegister(c) == grc
 ;
