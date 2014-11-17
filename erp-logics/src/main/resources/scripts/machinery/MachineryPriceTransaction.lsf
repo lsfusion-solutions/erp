@@ -77,6 +77,9 @@ dateTimeSucceededMachineryMachineryPriceTransaction 'Время загрузки
 
 countSucceededMachineriesPriceTransactionDocument'Кол-во загруженного оборудования' (priceTransactionDocument) = GROUP SUM 1 IF succeededMachineryMachineryPriceTransaction(m,t) 
     BY priceTransactionDocumentMachineryPriceTransaction(t);
+    
+countSucceededMachineriesMachineryPriceTransaction'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
+    IF succeededMachineryMachineryPriceTransaction(m,t) BY t;
 
 countMachineriesGroupMachinery 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachineryMachinery(m);
 countMachineriesPriceTransactionDocument 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(t)) BY priceTransactionDocumentMachineryPriceTransaction(t);
@@ -702,3 +705,34 @@ EXTEND DESIGN machineryPriceTransaction {
         ADD m.box;
     }
 }
+
+EXTEND FORM machineryPriceTransactions
+    OBJECTS dt = DATE FIXED  PANEL
+    PROPERTIES(dt) val = OBJVALUE 
+
+    OBJECTS tt = MachineryPriceTransaction
+    PROPERTIES(tt) READONLY FORCE GRID snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
+                            timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, succeededMachineryPriceTransaction, 
+                            dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
+                            quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(tt),
+                            nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(tt)
+    PROPERTIES(tt) READONLY FORCE GRID createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+    PROPERTIES(tt)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    FILTERS NOT succeededMachineryPriceTransaction(tt) OR (countSucceededMachineriesMachineryPriceTransaction(tt) != countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(tt)))
+    FILTERGROUP stockFilter
+        FILTER 'По складу' 'F11' stockMachineryPriceTransaction(tt) == s      
+    FILTERGROUP dateFilter
+        FILTER 'На дату' 'F10' dateMachineryPriceTransaction(tt) == dt      
+;
+
+EXTEND DESIGN machineryPriceTransactions{
+    specContainer {
+        NEW notSucceeded {
+            fill = 1;
+            caption = 'Не загруженные';
+            ADD dt.box;
+            ADD tt.box;
+        }
+    }
+}
+            

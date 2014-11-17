@@ -416,6 +416,27 @@ pricingPricePricingDetail (detail) = OVERRIDE pricePricingDetail(detail), overPr
 // Цена розничная
 @defineDocumentInterfaceDetailPricePrefix(pricing, retail, ' розничная');
 
+disallowLinePricings 'Запретить строки без розничной цены в актах расценки' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() disallowLinePricings
+;
+
+EXTEND DESIGN options {
+    pane {        
+        NEW pricing {
+            caption = 'Измнения сортности';
+            ADD PROPERTY(disallowLinePricings());   
+        }
+    }
+}
+
+CONSTRAINT isPostedPricingDetail(d) AND disallowLinePricings() AND NOT retailPricePricingDetail(d) 
+    MESSAGE 'Для строки акта расценки должна быть задана розничная цена'; 
+
+
+
+
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
 overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
 @changeDocumentDetailMarkupCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
