@@ -110,11 +110,12 @@ incomePriceUserInvoiceDetail (detail) = IF isHomeCurrencyUserInvoice(userInvoice
                                         ELSE priceUserInvoiceDetail(detail);
 incomeSumUserInvoice(invoice) = GROUP SUM incomePriceUserInvoiceDetail(detail) * quantityUserInvoiceDetail(detail) BY userInvoiceUserInvoiceDetail(detail);
 
+// todo : переделать на обычный +, чтобы incomePriceInvoiceDetail суммировался с остальными через OVERRIDE, 0
 costPriceInvoiceDetail(detail) = NUMERIC[14,2] (incomePriceInvoiceDetail(detail) (+) extraCostPriceInvoiceDetail(detail) (+)
-                                                customCostPriceInvoiceDetail(detail) (+) certificateCostPriceInvoiceDetail(detail));
+                                                customCostPriceInvoiceDetail(detail) (+) certificateCostPriceInvoiceDetail(detail)) IF incomePriceInvoiceDetail(detail);
 
 costPriceUserInvoiceDetail(detail) = NUMERIC[14,2] (incomePriceUserInvoiceDetail(detail) (+) extraCostPriceUserInvoiceDetail(detail) (+)
-                                                    customCostPriceUserInvoiceDetail(detail) (+) certificateCostPriceUserInvoiceDetail(detail));
+                                                    customCostPriceUserInvoiceDetail(detail) (+) certificateCostPriceUserInvoiceDetail(detail)) IF incomePriceUserInvoiceDetail(detail);
 
 // -------------------------------------- Формирование задолженности ---------------------------------------------------
 

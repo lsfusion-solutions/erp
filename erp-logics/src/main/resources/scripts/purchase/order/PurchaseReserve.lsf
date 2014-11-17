@@ -25,7 +25,7 @@ quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantit
 recQuantitySkuStockUserOrder  (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder)) (+) quantitySoldSkuStockUserOrder(sku, stock, userOrder) (-)
                                                         currentReservePurchaseSkuStock(sku, stock) (-) currentBalanceSkuStock(sku, stock); //(+) (PREV(quantitySkuUserOrderCustomerStock(sku, userOrder, stock)) IF isPostedUserOrder(userOrder));
 
-recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = recQuantitySkuStockUserOrder(sku, stock, userOrder) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
+recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = (recQuantitySkuStockUserOrder(sku, stock, userOrder)) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
 stockReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
 
 diffStockReserveStockSkuDate 'Потребность' (stock, sku, date) = (overStockReserveStockSkuDate(stock, sku, date) (-) (currentBalanceSkuStock(sku, stock) IF date IS DATE)) IF overStockReserveStockSkuDate(stock, sku, date)>0;
@@ -50,7 +50,7 @@ fillRecommendedQuantityStockUserOrder 'Заполнить рекомендуем
         ADDOBJ d = UserOrderDetail DO {
             userOrderUserOrderDetail(d) <- userOrder;
             skuUserOrderDetail(d) <- sku;
-            quantityUserOrderDetail (d) <- r;
+            quantityUserOrderDetail (d) <- IF amountPackSku(sku) > 0 THEN ceil(r, amountPackSku(sku)) ELSE r;
         }
 } TOOLBAR CONFIRM;
 
