@@ -1142,13 +1142,15 @@ indexDocumentDetail 'Номер' = ABSTRACT INTEGER(DocumentDetail);
 
 countDocumentDetailDocument 'Кол-во строк' (o) = GROUP SUM 1 BY documentDocumentDetail(d);
 
+fillPriceDocuments 'Использовать цены' = DATA SESSION BOOLEAN ();
+
 FORM documents 'Документы с товарами'
     OBJECTS d=Document
     PROPERTIES(d) READONLY numberDocument, seriesDocument, dateDocument, nameSupplierDocument, nameSupplierStockDocument,
                   nameCustomerDocument, nameCustomerStockDocument, objectClassName
-
+    PROPERTIES()  FORCE PANEL TOOLBAR fillPriceDocuments TODRAW d
     OBJECTS dd=DocumentDetail
-    PROPERTIES(dd) READONLY indexDocumentDetail, nameSkuDocumentDetail, quantityDocumentDetail, priceDocumentDetail
+    PROPERTIES(dd) READONLY indexDocumentDetail, nameSkuDocumentDetail, quantityDocumentDetail, priceDocumentDetail SHOWIF fillPriceDocuments()
 
     FILTERS documentDocumentDetail(dd)==d
 ;
@@ -1181,7 +1183,7 @@ META implementDocument(object)
                 user###object##User###object##Detail(i) <- user###object;
                 skuUser###object##Detail(i) <- skuDocumentDetail(documentDetail);
                 quantityUser###object##Detail(i) <- quantityDocumentDetail(documentDetail);
-                priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail);
+                priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail) WHERE fillPriceDocuments();
                 overFillDocument###object##DetailDocumentDetail(i, documentDetail);
             }
         }
