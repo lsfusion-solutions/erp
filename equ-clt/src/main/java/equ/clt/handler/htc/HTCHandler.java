@@ -594,6 +594,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
                         BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
 
+                        String idEmployee = getDBFFieldValue(dbfFile, "CASHIER", charset);
                         Date dateReceipt = getDBFDateFieldValue(dbfFile, "DATE", charset);
                         Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm:ss"}).getTime());
                         
@@ -615,8 +616,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
                         
                         salesInfoList.add(new SalesInfo(nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
-                                timeReceipt, null, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail, priceReceiptDetail,
-                                sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, numberReceiptDetail,
+                                timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail, 
+                                priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, numberReceiptDetail,
                                 salesFile.getName()));
 
                     }
