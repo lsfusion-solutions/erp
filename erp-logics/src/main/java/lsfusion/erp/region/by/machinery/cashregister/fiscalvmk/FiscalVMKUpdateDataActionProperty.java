@@ -21,7 +21,7 @@ import java.sql.SQLException;
 public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
 
     public FiscalVMKUpdateDataActionProperty(ScriptingLogicsModule LM) {
-        super(LM, new ValueClass[]{});
+        super(LM);
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {

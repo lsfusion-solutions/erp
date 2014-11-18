@@ -15,7 +15,7 @@ import java.sql.SQLException;
 public class FiscalDatecsZReportActionProperty extends ScriptingActionProperty {
 
     public FiscalDatecsZReportActionProperty(ScriptingLogicsModule LM) {
-        super(LM, new ValueClass[]{});
+        super(LM);
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {

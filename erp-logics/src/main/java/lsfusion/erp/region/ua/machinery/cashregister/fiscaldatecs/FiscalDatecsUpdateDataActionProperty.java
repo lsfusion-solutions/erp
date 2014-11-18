@@ -26,7 +26,7 @@ import java.util.*;
 public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionProperty {
 
     public FiscalDatecsUpdateDataActionProperty(ScriptingLogicsModule LM) {
-        super(LM, new ValueClass[]{});
+        super(LM);
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
