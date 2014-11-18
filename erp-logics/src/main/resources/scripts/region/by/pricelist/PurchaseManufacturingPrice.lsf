@@ -139,6 +139,7 @@ calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufact
 
 baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
 
+skipChangeManufacturingPriceUserInvoiceDetail 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
 updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
     manufacturingPriceUserInvoiceDetail(d) <- 
         IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
@@ -148,7 +149,9 @@ updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
 }
 
 WHEN SESSION FORMS userInvoice
-    (CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) DO {
+    (CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) 
+        AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) AND NOT skipChangeManufacturingPriceUserInvoiceDetail(d) DO {
+        
         updateManufacturingPriceUserInvoiceDetail(d);
     }    
 
@@ -216,16 +219,19 @@ showManufacturingPriceHomeCurrencyUserInvoice(invoice) = showManufacturingPriceU
 
 
 backgroundManufacturingInvoice 'Цвет' (invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
+overBackgroundManufacturingInvoiceDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
+backgroundManufacturingInvoiceDetail (d) = OVERRIDE backgroundManufacturingInvoice(invoiceInvoiceDetail(d)), overBackgroundManufacturingInvoiceDetail(d);
+
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPriceUserInvoice BACKGROUND backgroundManufacturingInvoice(i)
     PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) addCostPriceToManufacturingPriceUserInvoice,
                   nameManufacturingCalcPriceListTypeUserInvoice
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
-    PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) AFTER invoiceSumUserInvoiceDetail(d) 
+    PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoiceDetail(d) AFTER invoiceSumUserInvoiceDetail(d) 
                   manufacturingMarkupUserInvoiceDetail,
                   manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d), includeVATUserInvoiceDetail, 
                   manufacturingSumUserInvoiceDetail
-    PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i)
+    PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoiceDetail(d)
                   rateManufacturingExchangeUserInvoiceDetail BEFORE manufacturingMarkupUserInvoiceDetail(d)
              
                   
