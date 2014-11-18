@@ -183,6 +183,46 @@ priceALedgerPriceListTypeSkuStockRangeRev 'Цена' (pt, s, st, v)=
 nameCompanyALedgerPriceListTypeSkuStockRangeRev 'Поставщик' (pt, s, st, v)=  
     nameCompanyALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
 
+
+currentBalanceDepartmentsSku 'Остаток (все магазины)' (sku) = GROUP SUM currentBalanceSkuStock(sku, stock) IF stock IS DepartmentStore  BY sku;
+quantitySoldDepartmentsSkuDateFromTo 'Продано за интервал (кол-во) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
+        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
+        BY sku, dateFrom, dateTo;
+sumSoldDepartmentsSkuDateFromTo 'Продано за интервал (сумма) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
+        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
+        BY sku, dateFrom, dateTo;
+
+currentBalanceSkuStore 'Остаток (все магазины)' (sku, store) = GROUP SUM currentBalanceSkuStock(sku, stock) IF stock IS DepartmentStore  BY sku, storeDepartmentStore(stock);
+quantitySoldStoreSkuDateFromTo 'Продано за интервал (кол-во)' (store, sku, dateFrom, dateTo) = GROUP SUM
+        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
+        BY storeDepartmentStore(stock), sku, dateFrom, dateTo;
+sumSoldStoreSkuDateFromTo 'Продано за интервал (сумма)' (store, sku, dateFrom, dateTo) = GROUP SUM
+        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
+        BY storeDepartmentStore(stock), sku, dateFrom, dateTo;
+
+
+FORM currentBalanceSku 'Текущие остатки'
+    OBJECTS s = Sku FIXED PANEL 
+    PROPERTIES nameSku(s) READONLY 
+        
+    OBJECTS st = Store
+    PROPERTIES  READONLY nameStore(st), currentBalanceSkuStore(s,st)
+    FILTERS currentBalanceSkuStore(s,st)
+;
+reviewCurrentBalanceSku (sku) = ACTION FORM currentBalanceSku OBJECTS s=sku MODAL;
+
+FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
+    OBJECTS s = Sku FIXED PANEL 
+    PROPERTIES nameSku(s) READONLY 
+    OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
+    PROPERTIES READONLY valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+        
+    OBJECTS st = Store
+    PROPERTIES  READONLY nameStore(st), quantitySoldStoreSkuDateFromTo(st,s,dFrom,dTo), sumSoldStoreSkuDateFromTo(st,s,dFrom,dTo)
+    FILTERS quantitySoldStoreSkuDateFromTo(st,s,dFrom,dTo) OR sumSoldStoreSkuDateFromTo(st,s,dFrom,dTo)
+;
+reviewSoldStoreSkuDateFromTo (sku, dFrom, dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
+
 FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL
     PROPERTIES(v) dateTimeRangeRev
@@ -208,7 +248,8 @@ FORM rangeRev 'Версия ассортиментной матрицы'
                            markupPriceASkuDepartmentStoreRangeRev(pt, s, d, v)
     PROPERTIES(v, s) nameLevelRangeRevSku
     PROPERTIES READONLY currentBalanceSkuStock(s,d), quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo), sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)
-    
+    PROPERTIES currentBalanceDepartmentsSku(s) ON CHANGE reviewCurrentBalanceSku(s), quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo), 
+               sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo)
     FILTERS inChildRangeSkuGroup(rangeRangeRev(v), skuGroupSku(s)),
             (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
                 (s IS Sku AND NOT filterSupplier())
@@ -246,6 +287,10 @@ DESIGN rangeRev FROM DEFAULT {
         PROPERTY(currentBalanceSkuStock(s,d)) { background = #F4FFBD; }  
         PROPERTY(quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
         PROPERTY(sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+        
+        PROPERTY(currentBalanceDepartmentsSku(s)) { background = #F4FFBD; }  
+        PROPERTY(quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }  
+        PROPERTY(sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }          
     }
     ADD functions.box;
 }
