@@ -310,6 +310,7 @@ quantityLabelTransactionDetail 'Кол-во' = DATA INTEGER (LabelTransactionDet
 nameLabelTransactionDetail 'Наименование' = DATA VARSTRING[255] (LabelTransactionDetail);  
 priceLabelTransactionDetail 'Цена' = DATA NUMERIC[14,2] (LabelTransactionDetail);
 retailPriceLabelTransactionDetail 'Цена до'  = DATA NUMERIC[14,2] (LabelTransactionDetail);
+overRetailPriceLabelTransactionDetail = ABSTRACT NUMERIC[14,2] (LabelTransactionDetail);
 
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
@@ -442,6 +443,7 @@ WHEN SESSION FORMS customLabelTransaction
         priceLabelTransactionDetail(d) <- OVERRIDE 
             calcPriceLabelTransactionDetail(d), 
             documentPriceLabelTransactionDetail(d);
+        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);   
 }
 
 WHEN SESSION FORMS customLabelTransaction
@@ -632,6 +634,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                                                              ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
 
                         priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d); 
                     }
                     DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND (NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d)); 
                     FORM printLabelTransaction OBJECTS l = t PRINT;
@@ -758,6 +761,7 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
                                                  ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
                                                  
             priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
         } 
         // вызываем печатную форму для каждого из них        
         FORM printLabelTransaction OBJECTS l = t PRINT;                 
