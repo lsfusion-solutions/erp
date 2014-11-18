@@ -270,6 +270,20 @@ createRecComponentsOrder 'Заполнить из спецификации (ре
     }
 } TOOLBAR;
 
+countBOMBruttoSkuOrder 'Кол-во строк' (BOM, sku, order) = GROUP SUM 1 BY BOMComponentDetail(d), bruttoSkuComponentDetail(d), orderComponentDetail(d);
+countBOMsOrder (order) = GROUP SUM 1 IF countBOMBruttoSkuOrder (BOM, sku, order) >1 BY order;
+
+
+updateComponentsOrder 'Пересчитать кол-во для всех' = ACTION (order) {
+    IF NOT countBOMsOrder(order) THEN {
+        FOR q == recBruttoQuantityBOMOrderSku(BOM, order, sku) DO {    
+            bruttoQuantityComponentDetail(d) <- q WHERE BOMComponentDetail(d)==BOM AND orderComponentDetail(d)==order AND bruttoSkuComponentDetail(d) == sku;
+        }        
+    } ELSE {
+        MESSAGE 'Изменить количество нет возможности. Попробуйте заново содтать строки компонента, предварительно удалив старые.';
+    }
+} TOOLBAR;
+
 // ------------- Заполнение изделий из спецификаций --------------- //
 
 quantityComponentsBOMOrder 'Кол-во спецификаций' (BOM, order) =
@@ -317,7 +331,7 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
 
 backgroundComponentDetail 'Цвет' (componentDetail) = RGB(255,255,229) IF productComponentDetail(componentDetail);
 
-aaa 'Заполнить из спец. (рекурсивно по компонентам)' = ACTION (order) {
+createForRecComponentsOrder 'Заполнить из спец. (рекурсивно по компонентам)' = ACTION (order) {
 
     FOR quantityProductsBOMOrder(BOM, order) DO {
 
@@ -882,6 +896,14 @@ fillSubstitutePriceMaxBalanceOrder 'Исп. цену большего остат
 } TOOLBAR; 
     
 backgroundMarkupProductDetail = ABSTRACT CASE COLOR (ProductDetail);  
+
+  
+  //toSkuSubstitute(substitute)
+bruttoBalanceSkuOrder 'Текущий остаток с учетом замен' (sku,order) = currentBalanceSkuStock(sku, componentsStockOrder(order)) (+) 
+    [ = GROUP SUM currentBalanceSubstituteOrder(substitute, order) / (multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0) 
+        BY fromSkuSubstitute(substitute), order](sku,order);  
+ 
+bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом замен' (su, order)= bruttoBalanceSkuOrder(toSkuSubstitute(su), order); 
   
 FORM order 'Производственный заказ'
 
@@ -906,12 +928,12 @@ FORM order 'Производственный заказ'
     OBJECTS cd = ComponentDetail
     PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameMaterialComponentDetail, 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
-                   fullNameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
+                   fullNameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
     PROPERTIES(cd) BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail ON CHANGE chooseSubstituteComponentDetail(cd), substituteQuantityComponentDetail
     PROPERTIES(cd) costComponentDetail, priceComponentDetail
     PROPERTIES(cd) sumComponentDetail
 
-    PROPERTIES(o) TODRAW cd createComponentsOrder, createRecComponentsOrder, aaa
+    PROPERTIES(o) TODRAW cd createComponentsOrder, createRecComponentsOrder, createForRecComponentsOrder
     PROPERTIES(cd) TODRAW cd expandComponentDetail SHOWIF productComponentDetail(cd)
     PROPERTIES(cd) ADDOBJ, deletecd=DELETESESSION
     PROPERTIES(o) TODRAW cd deleteComponentsOrder
@@ -920,7 +942,7 @@ FORM order 'Производственный заказ'
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY nameSku, idBarcodeSku, shortNameUOMSku
-    PROPERTIES(s,o) READONLY bruttoQuantitySkuOrder
+    PROPERTIES(s,o) READONLY bruttoQuantitySkuOrder, bruttoBalanceSkuOrder
 
     PROPERTIES(s,o) BACKGROUND backgroundSubstitutesOrder(o) nameSubstituteSkuOrder ON CHANGE chooseSubstituteSkuOrder(s,o), 
                     multiplierSkuOrder, substituteQuantitySkuOrder 
@@ -932,7 +954,7 @@ FORM order 'Производственный заказ'
     OBJECTS su = Substitute
     PROPERTIES(su) READONLY nameToSkuSubstitute, multiplierSubstitute
     PROPERTIES(su,s,o) isSubstituteSkuOrder ON CHANGE changeSubstituteSkuOrder(su,s,o)
-    PROPERTIES     READONLY currentBalanceSubstituteOrder(su,o)
+    PROPERTIES     READONLY currentBalanceSubstituteOrder(su,o), bruttoBalanceToSkuSubstituteOrder(su,o)
     FILTERS fromSkuSubstitute(su) == s
     FILTERGROUP filter3
         FILTER 'Сырье' 'F10' isComponentGroupSku(toSkuSubstitute(su)) DEFAULT 
