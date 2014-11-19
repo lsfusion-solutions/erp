@@ -249,11 +249,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
-                        "expiryDaysMachineryPriceTransactionBarcode"};
+                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode"};
                 LCP[] skuProperties = equLM.findProperties("nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
-                        "expiryDaysMachineryPriceTransactionBarcode");
+                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode");
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("idSkuBarcode", equLM.findProperty("idSkuBarcode").getExpr(barcodeExpr));
@@ -337,6 +337,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
                         Integer expiryDays = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
@@ -351,7 +352,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, pluNumber, expiryDays, idItem, extIdItem,
-                                description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem));
+                                description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem, flags));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
