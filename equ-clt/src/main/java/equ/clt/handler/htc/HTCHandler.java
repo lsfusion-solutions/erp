@@ -40,24 +40,30 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transaction, List<CashRegisterInfo> cashRegisterList) throws IOException {
 
-        List<MachineryInfo> succeededMachineryInfoList = new ArrayList<MachineryInfo>();
+        List<MachineryInfo> succeededCashRegisterList = new ArrayList<MachineryInfo>();
         
-        if (transactionInfo.itemsList.isEmpty()) {
-            processTransactionLogger.info(String.format("HTC: Transaction # %s has no items", transactionInfo.id));
+        if (transaction.itemsList.isEmpty()) {
+            processTransactionLogger.info(String.format("HTC: Transaction # %s has no items", transaction.id));
         } else {
-            processTransactionLogger.info(String.format("HTC: Send Transaction # %s", transactionInfo.id));
+            processTransactionLogger.info(String.format("HTC: Send Transaction # %s", transaction.id));
 
+            List<CashRegisterInfo> enabledCashRegisterList = new ArrayList<CashRegisterInfo>();
+            for (CashRegisterInfo cashRegister : cashRegisterList) {
+                if (cashRegister.enabled)
+                    enabledCashRegisterList.add(cashRegister);
+            }
+            
             Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<String, List<CashRegisterInfo>>();
-            for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
-                if (cashRegisterInfo.succeeded)
-                    succeededMachineryInfoList.add(cashRegisterInfo);
-                else if (cashRegisterInfo.directory != null) {
-                    String directory = cashRegisterInfo.directory.trim();
-                    List<CashRegisterInfo> cashRegisterInfoEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
-                    cashRegisterInfoEntry.add(cashRegisterInfo);
-                    directoryMap.put(directory, cashRegisterInfoEntry);
+            for (CashRegisterInfo cashRegister : enabledCashRegisterList.isEmpty() ? cashRegisterList : enabledCashRegisterList) {
+                if (cashRegister.succeeded)
+                    succeededCashRegisterList.add(cashRegister);
+                else if (cashRegister.directory != null) {
+                    String directory = cashRegister.directory.trim();
+                    List<CashRegisterInfo> cashRegisterEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
+                    cashRegisterEntry.add(cashRegister);
+                    directoryMap.put(directory, cashRegisterEntry);
                 }
             }
 
@@ -85,12 +91,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
                     
                     String directory = entry.getKey();
-                    String fileName = transactionInfo.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
+                    String fileName = transaction.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
                     processTransactionLogger.info(String.format("HTC: creating %s file", fileName));
                     File priceFile = new File(directory + "/" + fileName);
                     File flagPriceFile = new File(directory + "/price.qry");
 
-                    boolean append = !transactionInfo.snapshot && priceFile.exists();
+                    boolean append = !transaction.snapshot && priceFile.exists();
 
                     if (append || cachedPriceFile == null) {
 
@@ -116,10 +122,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                         // item groups
                         putField(dbfFile, ISGROUP, "T", append);
-                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (item.idItemGroup != null) {
                                 String parent = null;
-                                for (ItemGroup itemGroup : Lists.reverse(transactionInfo.itemGroupMap.get(item.idItemGroup))) {
+                                for (ItemGroup itemGroup : Lists.reverse(transaction.itemGroupMap.get(item.idItemGroup))) {
                                     String idItemGroup = (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "").replace(".", ""));
                                     if (!usedBarcodes.contains(idItemGroup)) {
                                         Integer recordNumber = null;
@@ -162,7 +168,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         String lastUnit = null;
 
                         putField(dbfFile, ISGROUP, "F", append);
-                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
                             String barcode = appendBarcode(item.idBarcode);
                             if (!usedBarcodes.contains(barcode)) {
                                 Integer recordNumber = null;
@@ -261,7 +267,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(2);
                     processTransactionLogger.info("HTC: waiting for deletion: " + flagPriceFile.getAbsolutePath());
                     if (waitForDeletion(priceFile, flagPriceFile))
-                        succeededMachineryInfoList.addAll(cashRegisterInfoList);
+                        succeededCashRegisterList.addAll(cashRegisterInfoList);
                 }
                 
                 if(cachedPriceFile != null)
@@ -273,7 +279,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 throw Throwables.propagate(e);
             }
         }
-        return succeededMachineryInfoList;
+        return succeededCashRegisterList;
     }
 
     @Override

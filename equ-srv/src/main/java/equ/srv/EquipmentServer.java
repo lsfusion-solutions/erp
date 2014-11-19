@@ -314,6 +314,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if(cashRegisterPriceTransactionLM != null)
                         cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction", 
                             cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterKey, transactionObject.getExpr()));
+                    cashRegisterQuery.addProperty("inMachineryPriceTransactionMachinery",
+                            equLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), cashRegisterKey));
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
 
@@ -324,8 +326,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String portMachinery = (String) row.get("portMachinery");
                         String directoryCashRegister = (String) row.get("overDirectoryMachinery");
                         Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededMachineryMachineryPriceTransaction") != null;
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModelGroupMachinery, handlerModelGroupMachinery,
-                                portMachinery, directoryCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister));
+                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
+                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery, 
+                                handlerModelGroupMachinery, portMachinery, directoryCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister,
+                                succeededCashRegister));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
@@ -1082,7 +1086,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                    cashRegisterInfoList.add(new CashRegisterInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             (String) row.get("overDirectoryMachinery"), null, false, null));
                 }
