@@ -6,11 +6,16 @@ public class Employee {
     public String firstNameEmployee;
     public String lastNameEmployee;
     public String idPosition;
+    public String loginEmployee;
+    public Boolean limitAccessEmployee;
 
-    public Employee(String idEmployee, String firstNameEmployee, String lastNameEmployee, String idPosition) {
+    public Employee(String idEmployee, String firstNameEmployee, String lastNameEmployee, String idPosition, 
+                    String loginEmployee, Boolean limitAccessEmployee) {
         this.idEmployee = idEmployee;
         this.firstNameEmployee = firstNameEmployee;
         this.lastNameEmployee = lastNameEmployee;
         this.idPosition = idPosition;
+        this.loginEmployee = loginEmployee;
+        this.limitAccessEmployee = limitAccessEmployee;
     }
 }
