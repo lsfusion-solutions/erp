@@ -6,9 +6,9 @@ public class ScalesInfo extends MachineryInfo {
     public String pieceCodeGroupScales;
     public String weightCodeGroupScales;
     
-    public ScalesInfo(Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory,
+    public ScalesInfo(boolean enabled, Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory,
                       String pieceCodeGroupScales, String weightCodeGroupScales) {
-        super(numberGroup, number, nameModel, handlerModel, port, directory);
+        super(enabled, numberGroup, number, nameModel, handlerModel, port, directory);
         this.pieceCodeGroupScales = pieceCodeGroupScales;
         this.weightCodeGroupScales = weightCodeGroupScales;
     }

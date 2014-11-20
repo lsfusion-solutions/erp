@@ -380,6 +380,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (int i = 0; i < scalesProperties.length; i++) {
                         scalesQuery.addProperty(scalesPropertyNames[i], scalesProperties[i].getExpr(scalesKey));
                     }
+                    scalesQuery.addProperty("inMachineryPriceTransactionMachinery", 
+                            scalesLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), scalesKey));
                     scalesQuery.and(isScales.property.getExpr(scalesKeys).getWhere());
                     scalesQuery.and(scalesLM.findProperty("groupScalesScales").getExpr(scalesKey).compare(groupMachineryObject, Compare.EQUALS));
 
@@ -388,8 +390,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (ImMap<Object, Object> values : scalesResult.valueIt()) {
                         String portMachinery = (String) values.get("portMachinery");
                         Integer nppMachinery = (Integer) values.get("nppMachinery");
-                        scalesInfoList.add(new ScalesInfo(nppGroupMachinery, nppMachinery, nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, 
-                                directory, pieceCodeGroupScales, weightCodeGroupScales));
+                        boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
+                        scalesInfoList.add(new ScalesInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery, handlerModelGroupMachinery, 
+                                portMachinery, directory, pieceCodeGroupScales, weightCodeGroupScales));
                     }
 
                     List<ScalesItemInfo> scalesItemInfoList = new ArrayList<ScalesItemInfo>();
@@ -437,7 +440,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session);
 
                     for (ImMap<Object, Object> values : checkResult.valueIt()) {
-                        priceCheckerInfoList.add(new PriceCheckerInfo(nppGroupMachinery, (Integer) values.get("nppMachinery"), 
+                        priceCheckerInfoList.add(new PriceCheckerInfo(true, nppGroupMachinery, (Integer) values.get("nppMachinery"), 
                                 (String) values.get("nameCheckModelCheck"), null, (String) values.get("portMachinery"), null));
                     }
 
@@ -480,7 +483,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
 
                     for (ImMap<Object, Object> values : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo(nppGroupMachinery, (Integer) values.get("nppMachinery"),
+                        terminalInfoList.add(new TerminalInfo(true, nppGroupMachinery, (Integer) values.get("nppMachinery"),
                                 nameModelGroupMachinery, handlerModelGroupMachinery,
                                 (String) values.get("portMachinery"), directoryGroupTerminal, idPriceListType));
                     }
@@ -1133,7 +1136,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     Integer priceListType = (Integer) row.get("priceListTypeGroupMachinery");
                     String idPriceListType = priceListType == null ? null : (String) terminalLM.findProperty("idPriceListType").read(session, new DataObject(priceListType));
-                    terminalInfoList.add(new TerminalInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelGroupMachinery"), 
+                    terminalInfoList.add(new TerminalInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelGroupMachinery"), 
                             (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"), (String) row.get("directoryGroupTerminal"), idPriceListType));
                 }
             }
@@ -1177,7 +1180,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    machineryInfoList.add(new MachineryInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                    machineryInfoList.add(new MachineryInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             (String) row.get("overDirectoryMachinery")));
                 }
