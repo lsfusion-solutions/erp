@@ -32,7 +32,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSaleslogger");
     
     String weightPrefix = "21";
-
+    String giftCardPrefix = "00000";
+    
     public Kristal10Handler() {
     }
 
@@ -511,12 +512,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                                     List positionEntryList = ((Element) positionNode).getChildren("position");
 
+                                    int count = 1;
                                     for (Object positionEntryNode : positionEntryList) {
 
                                         String barcode = readStringXMLAttribute(positionEntryNode, "barCode");
+                                        
+                                        //обнаруживаем продажу сертификатов
+                                        boolean isGiftCard = false;
+                                        if(barcode != null && barcode.startsWith(giftCardPrefix)) {
+                                            isGiftCard = true;
+                                            barcode = dateTimeReceipt + "/" + count;
+                                        }
+                                        
                                         //временное решение для весовых товаров
                                         if(barcode != null && barcode.startsWith(weightPrefix))
                                             barcode = barcode.substring(2);
+                                        
                                         BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
                                         quantity = (quantity != null && !isSale) ? quantity.negate() : quantity;
                                         BigDecimal price = readBigDecimalXMLAttribute(positionEntryNode, "cost");
@@ -529,10 +540,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                            currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
+                                            currentSalesInfoList.add(new SalesInfo(isGiftCard, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                     numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
                                                     sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, 
                                                     numberReceiptDetail, fileName));
+                                        count++;
                                     }
 
                                 }
