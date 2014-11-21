@@ -51,8 +51,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
         Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
-        boolean brandIsManufacturer = kristalSettings != null && kristalSettings.brandIsManufacturer;
-        boolean seasonIsCountry = kristalSettings != null && kristalSettings.seasonIsCountry;
+        boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
+        boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
         
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
