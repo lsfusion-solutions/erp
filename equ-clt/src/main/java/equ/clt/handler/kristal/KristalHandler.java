@@ -664,7 +664,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     
                                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                        currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
+                                                        currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode,
                                                                 null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName));
                                                 }
@@ -727,7 +727,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                         if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                            currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
+                                                            currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                                     numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode,
                                                                     null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                                     numberReceiptDetail, fileName));
