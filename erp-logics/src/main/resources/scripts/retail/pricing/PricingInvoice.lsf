@@ -37,6 +37,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // Розничная
     @defineDocumentInterfaceDetailPricePrefix(invoice, retail, ' розничная');
+    extraRetailPriceInvoiceDetail = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
 
     // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
     @changeDocumentDetailMarkupCustomPrefix(userInvoiceDetail, retail, pricing, retail, retail);
@@ -49,10 +50,11 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
     // НДС
     @defineDocumentInterfaceDetailVATDataSumPrefix (invoice, retail, ' розничная');
-
+    extraRetailVATSumInvoiceDetail = ABSTRACT NUMERIC[16,2] (InvoiceDetail) PERSISTENT;
     // Выходная
     @defineDocumentInterfaceDetailDataSumPrefix (invoice, retail, ' розничная');
-
+    extraRetailSumInvoiceDetail = ABSTRACT NUMERIC[16,2] (InvoiceDetail) PERSISTENT;
+    
     // Расчет сумм обратным счетом
     @deriveDocumentDetailSumPrefix(userInvoice, retail, currency, pricingQuantity);
     @deriveDocumentDetailReverseVATSumPrefix(userInvoice, retail, retail);
@@ -214,7 +216,9 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     valueRetailVATPricingDetail(pricingDetail) += valueRetailVAT###concrete###pricingDetail(pricingDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailPrice, 'Розничная цена');
-    retailPricePricingDetail(pricingDetail) += retailPrice###concrete###pricingDetail(pricingDetail);
+    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailPrice, );
+    extraRetailPricePricingDetail(pricingDetail) += extraRetailPrice###concrete###pricingDetail(pricingDetail);
+    retailPricePricingDetail(pricingDetail) += retailPrice###concrete###pricingDetail(pricingDetail) (+) extraRetailPrice###concrete###pricingDetail(pricingDetail);
 
     // -- Суммы по строкам
 
@@ -225,10 +229,14 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     retailMarkupSumPricingDetail(pricingDetail) += retailMarkupSum###concrete###pricingDetail(pricingDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailVATSum, 'Сумма НДС');
-    retailVATSumPricingDetail(pricingDetail) += retailVATSum###concrete###pricingDetail(pricingDetail);
+    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailVATSum, );
+    extraRetailVATSumPricingDetail(pricingDetail) += extraRetailVATSum###concrete###pricingDetail(pricingDetail);
+    retailVATSumPricingDetail(pricingDetail) += retailVATSum###concrete###pricingDetail(pricingDetail) (+) extraRetailVATSum###concrete###pricingDetail(pricingDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailSum, 'Сумма розничная');
-    retailSumPricingDetail(pricingDetail) += retailSum###concrete###pricingDetail(pricingDetail);
+    @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, extraRetailSum, );
+    extraRetailSumPricingDetail(pricingDetail) += extraRetailSum###concrete###pricingDetail(pricingDetail);
+    retailSumPricingDetail(pricingDetail) += retailSum###concrete###pricingDetail(pricingDetail) (+) extraRetailSum###concrete###pricingDetail(pricingDetail);
 
 END
 //--  Связь накладной и расценки
