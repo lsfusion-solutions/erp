@@ -70,6 +70,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule equipmentCashRegisterLM;
     private ScriptingLogicsModule giftCardLM;
     private ScriptingLogicsModule itemLM;
+    private ScriptingLogicsModule itemFashionLM;    
     private ScriptingLogicsModule legalEntityLM;
     private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
@@ -136,6 +137,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         giftCardLM = getBusinessLogics().getModule("GiftCard");
         itemLM = getBusinessLogics().getModule("Item");
+        itemFashionLM = getBusinessLogics().getModule("ItemFashion");
         legalEntityLM = getBusinessLogics().getModule("LegalEntity");
         machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
@@ -259,6 +261,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("idSkuBarcode", equLM.findProperty("idSkuBarcode").getExpr(barcodeExpr));
+                if(itemLM != null) {
+                    skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrandBarcode").getExpr(barcodeExpr));
+                    skuQuery.addProperty("nameBrandBarcode", itemLM.findProperty("nameBrandBarcode").getExpr(barcodeExpr));
+                }
+                if(itemFashionLM != null) {
+                    skuQuery.addProperty("idSeasonBarcode", itemFashionLM.findProperty("idSeasonBarcode").getExpr(barcodeExpr));
+                    skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeasonBarcode").getExpr(barcodeExpr));
+                }
                 if(storeItemLM != null)
                     skuQuery.addProperty("notPromotionSkuBarcode", storeItemLM.findProperty("notPromotionSkuBarcode").getExpr(barcodeExpr));
                 if(cashRegisterItemLM != null) {
@@ -347,6 +357,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
+                        String idBrand = itemLM == null ? null : (String) row.get("idBrandBarcode").getValue();
+                        String nameBrand = itemLM == null ? null : (String) row.get("nameBrandBarcode").getValue();
+                        String idSeason = itemFashionLM == null ? null : (String) row.get("idSeasonBarcode").getValue();
+                        String nameSeason = itemFashionLM == null ? null : (String) row.get("nameSeasonBarcode").getValue();
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
                         ObjectValue itemObject = row.get("skuBarcode");
                         Integer idItem = (Integer) itemObject.getValue();
@@ -358,7 +372,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, pluNumber, expiryDays, idItem, extIdItem,
-                                description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem, flags));
+                                description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, nameSeason, passScales, valueVAT, notPromotionItem, flags));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),

@@ -10,6 +10,7 @@ import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
@@ -33,8 +34,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     
     String weightPrefix = "21";
     String giftCardPrefix = "00000";
-    
-    public Kristal10Handler() {
+
+    private FileSystemXmlApplicationContext springContext;
+
+    public Kristal10Handler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
@@ -46,6 +50,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
+        Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
+        boolean brandIsManufacturer = kristalSettings != null && kristalSettings.brandIsManufacturer;
+        boolean seasonIsCountry = kristalSettings != null && kristalSettings.seasonIsCountry;
+        
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
             if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
@@ -129,6 +137,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 addStringElement(measureType, "name", item.shortNameUOM);
                 good.addContent(measureType);
 
+                if(brandIsManufacturer) {
+                    //parent: good
+                    Element manufacturer = new Element("manufacturer");
+                    setAttribute(manufacturer, "id", item.idBrand);
+                    addStringElement(manufacturer, "name", item.nameBrand);
+                    good.addContent(manufacturer);
+                }
+                
+                if(seasonIsCountry) {
+                    //parent: good
+                    Element country = new Element("country");
+                    setAttribute(country, "id", item.idSeason);
+                    addStringElement(country, "name", item.nameSeason);
+                    good.addContent(country);
+                }
+                
                 addStringElement(good, "delete-from-cash", "false");
 
 
