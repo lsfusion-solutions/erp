@@ -29,6 +29,9 @@ addVATCalcPriceListType 'Добавлять НДС' (t) = includeVATCalcPriceLis
 @defineDocumentHeaderCurrency(calcPriceListType);
 currencyPriceListType(calcPriceListType) += currencyCalcPriceListType(calcPriceListType);
 
+parentCalcPriceListType = DATA CalcPriceListType (CalcPriceListType);
+nameParentCalcPriceListType 'Родительский вид цены' = nameCalcPriceListType(parentCalcPriceListType(t));
+
 // ---------------- Надбавка по классификатору ------------------- //
 
 groupTypeCalcPriceListType = DATA GroupType (CalcPriceListType);
@@ -48,11 +51,15 @@ nearestMarkupCalcPriceListTypeGroup 'Расчетная надбавка, %' (ca
 
 markupCalcPriceListTypeGroup 'Надбавка, %' (type, group) =
     OVERRIDE nearestMarkupCalcPriceListTypeGroup(type, group), dataMarkupCalcPriceListTypeGroup(type, group) PERSISTENT;
-
-markupCalcPriceListTypeSku 'Надбавка, % (перегруженная)' (type, sku) = OVERRIDE
+overMarkupCalcPriceListTypeSku 'Надбавка, % (перегруженная)' = OVERRIDE 
     markupCalcPriceListTypeGroup(type, groupGroupTypeSku(groupTypeCalcPriceListType(type), sku)),
-    dataMarkupCalcPriceListTypeSku(type, sku) PERSISTENT;
+    dataMarkupCalcPriceListTypeSku(type, sku) PERSISTENT ;
 
+markupCalcPriceListTypeSku 'Надбавка, %' (type, sku) = OVERRIDE
+    markupCalcPriceListTypeGroup(type, groupGroupTypeSku(groupTypeCalcPriceListType(type), sku)),
+    dataMarkupCalcPriceListTypeSku(type, sku),
+    overMarkupCalcPriceListTypeSku(parentCalcPriceListType(type), sku) PERSISTENT;
+    
 multiplierCalcPriceListTypeSku (type, sku) = NUMERIC[10,4]((100.0 + markupCalcPriceListTypeSku(type, sku)) / 100.0) PERSISTENT;
 
 VATCalcPriceListTypeSkuDate(type, sku, date) = IF addVATCalcPriceListType(type) THEN (100.0 + valueVATSkuCountryDate(sku, countryCalcPriceListType(type), date)) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType AND date IS DATE;
@@ -112,7 +119,7 @@ backgroundMarkup 'Цвет' (calcPriceListType, group) = RGB(255,160,160) IF dat
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType FIXED PANEL
     PROPERTIES(c) nameCalcPriceListType, idCalcPriceListType SHOWIF showIDs(), includeVATPriceListType, nameCurrencyCalcPriceListType, nameCountryCalcPriceListType, nameBasePriceListTypeCalcPriceListType,
-                  nameRoundConditionPriceListType, nameGroupTypeCalcPriceListType
+                  nameRoundConditionPriceListType, nameGroupTypeCalcPriceListType, nameParentCalcPriceListType
 
     TREE treeGroup g=Group PARENT parentGroup
     PROPERTIES READONLY orderGroup(g), nameGroup(g)
@@ -124,7 +131,7 @@ FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS s = Sku
     PROPERTIES(s) READONLY nameSku, idBarcodeSku
     FILTERS isParentGroupSku(g, s) OR s IS Sku AND NOT g
-    PROPERTIES(c, s) dataMarkupCalcPriceListTypeSku, markupCalcPriceListTypeSku, nameRoundConditionCalcPriceListTypeSku
+    PROPERTIES(c, s) dataMarkupCalcPriceListTypeSku, overMarkupCalcPriceListTypeSku, nameRoundConditionCalcPriceListTypeSku
 
     EDIT CalcPriceListType OBJECT c
 ;
