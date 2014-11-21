@@ -32,10 +32,14 @@ retailVATSumInBOMProductDetail 'Сумма НДС в спец' (productDetail) =
 retailMarkupSumInBOMProductDetail 'Сумма надбавки' (productDetail) =  VATMarkupSumInBOMProductDetail(productDetail) (-) retailVATSumInBOMProductDetail(productDetail);
 
 VATMarkupSumInBOMIsVATProductDetail 'Сумма НДС' (productDetail) = (roundPriceCurrency([= X*Y/(100+Y)](productsSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
-retMarkupSumIsVATProductDetail 'Сумма надбавки' (productDetail) = (roundPriceCurrency(productsSumInBOMProductDetail(productDetail) (-) VATMarkupSumInBOMIsVATProductDetail(productDetail) (-) componentsSumProductDetail(productDetail), currencyProductDetail(productDetail)));
+retMarkupSumIsVATProductDetail 'Сумма надбавки' (productDetail) = (roundPriceCurrency(productsSumInBOMProductDetail(productDetail) (-) VATMarkupSumInBOMIsVATProductDetail(productDetail) (-) componentsSumInBOMProductDetail(productDetail), currencyProductDetail(productDetail)));
 
 overRetailVATSumInBOMProductDetail 'Сумма НДС' (d) = IF VATProductProductDetail(d) THEN VATMarkupSumInBOMIsVATProductDetail(d) ELSE retailVATSumInBOMProductDetail(d);
 overRetailMarkupSumInBOMProductDetail 'Сумма надбавки' (d) = IF VATProductProductDetail(d) THEN retMarkupSumIsVATProductDetail(d) ELSE retailMarkupSumInBOMProductDetail(d);
+
+EXTEND FORM orders 
+    PROPERTIES (pd) VATProductProductDetail, productsSumInBOMProductDetail, VATMarkupSumInBOMIsVATProductDetail, retMarkupSumIsVATProductDetail, componentsSumInBOMProductDetail 
+;
 
 
 retailMarkupPriceProductDetail 'Цена надбавки (ед.)' (productDetail)= overRetailMarkupSumInBOMProductDetail(productDetail)/
