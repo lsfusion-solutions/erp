@@ -7,7 +7,10 @@ REQUIRE PriceListCalc, Store;
 retailPriceListTypeStoreType 'Розничная цена (управленческая)' = DATA PriceListType(StoreType);
 nameRetailPriceListTypeStoreType 'Розничная цена (управленческая)' (t) = namePriceListType(retailPriceListTypeStoreType(t)); 
 
-retailPriceListTypeStore (s) = retailPriceListTypeStoreType(storeTypeStore(s)) PERSISTENT;
+dataRetailPriceListTypeStore 'Розничная цена (управленческая)' = DATA PriceListType(Store);
+nameDataRetailPriceListTypeStore 'Розничная цена (управленческая)' (s) = namePriceListType(dataRetailPriceListTypeStore(s));
+
+retailPriceListTypeStore (s) = OVERRIDE retailPriceListTypeStoreType(storeTypeStore(s)), dataRetailPriceListTypeStore(s) PERSISTENT;
 retailPriceListTypeDepartmentStore (d) = retailPriceListTypeStore(storeDepartmentStore(d)) PERSISTENT;
 
 retailPriceASkuDepartmentStoreDateTime 'Розничная цена (управленческая)' (s, d, t) =  
@@ -16,7 +19,10 @@ retailPriceASkuDepartmentStoreDateTime 'Розничная цена (управ�
 retailCalcPriceListTypeStoreType 'Розничная цена (расчетная)' = DATA CalcPriceListType(StoreType);
 nameRetailCalcPriceListTypeStoreType 'Розничная цена (расчетная)' (t) = nameCalcPriceListType(retailCalcPriceListTypeStoreType(t)); 
 
-retailCalcPriceListTypeStore (s) = retailCalcPriceListTypeStoreType(storeTypeStore(s)) PERSISTENT;
+dataRetailCalcPriceListTypeStore 'Розничная цена (расчетная)' = DATA CalcPriceListType(Store);
+nameDataRetailCalcPriceListTypeStore 'Розничная цена (расчетная)' (s) = namePriceListType(dataRetailPriceListTypeStore(s));
+
+retailCalcPriceListTypeStore (s) = OVERRIDE retailCalcPriceListTypeStoreType(storeTypeStore(s)), dataRetailCalcPriceListTypeStore(s) PERSISTENT;
 retailCalcPriceListTypeDepartmentStore (d) = retailCalcPriceListTypeStore(storeDepartmentStore(d)) PERSISTENT;
 
 markupSkuDepartmentStore 'Надбавка, % (расчетная)' (s, st) =
@@ -31,3 +37,14 @@ markupPriceABasePriceListTypeSkuDepartmentStoreDateTime 'Розничная це
 EXTEND FORM chainStores
     PROPERTIES(s) nameRetailPriceListTypeStoreType, nameRetailCalcPriceListTypeStoreType AFTER nameStoreType(s) 
 ;
+
+EXTEND FORM store
+    PROPERTIES(s) nameDataRetailPriceListTypeStore, nameDataRetailCalcPriceListTypeStore
+;
+
+EXTEND DESIGN store {
+    headerPriceParams {
+        ADD PROPERTY(nameDataRetailPriceListTypeStore(s));
+        ADD PROPERTY(nameDataRetailCalcPriceListTypeStore(s));
+    }
+}
