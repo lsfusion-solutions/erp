@@ -802,7 +802,7 @@ EXTEND DESIGN legalEntity {
     }
 }
 
-META defineScheduleOrderDashboard(sign)
+META defineScheduleOrderDashboard(sign, filterSupplier, filterCustomer)
 
 countRemainingScheduleOrderDate 'Кол-во оставшихся заказов'##sign (scheduleOrder,date) = GROUP SUM 1 IF dateSupplyScheduleOrderDetail(d) >= (date AS DATE) 
                                                                                         BY scheduleOrderScheduleOrderDetail(d), date; 
@@ -868,6 +868,19 @@ lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) =
         ADD ss.box;
         ADD functions.box;
     }
+    @extendFormFilterAccessStock(scheduleOrder, s, scheduleOrderDashboard, supplierStock, filterSupplier);
+    @extendFormFilterAccessLegalEntity(scheduleOrder, s, scheduleOrderDashboard, supplier, filterSupplier);
+    @extendFormFilterAccessStock(scheduleOrder, ss, scheduleOrderDashboard, supplierStock, filterSupplier);
+    @extendFormFilterAccessLegalEntity(scheduleOrder, ss, scheduleOrderDashboard, supplier, filterSupplier);    
+    
+    @extendFormFilterAccessLegalEntity(scheduleOrder, s, scheduleOrderDashboard, customer, filterCustomer);    
+    @extendFormFilterAccessLegalEntity(scheduleOrder, ss, scheduleOrderDashboard, customer, filterCustomer); 
+    countStocksScheduleOrder (order)= GROUP SUM 1 IF inScheduleOrderStock(order,stock)
+        BY order;       
+    countAccess###filterCustomer###employeeStockScheduleOrder (order)= GROUP SUM 1 IF access###filterCustomer###employeeStock(currentUser(),stock) AND inScheduleOrderStock(order,stock)
+        BY order;
+    EXTEND FORM scheduleOrderDashboard FILTERS countAccess###filterCustomer###employeeStockScheduleOrder(s) OR NOT countStocksScheduleOrder(s);
+    EXTEND FORM scheduleOrderDashboard FILTERS countAccess###filterCustomer###employeeStockScheduleOrder(ss) OR NOT countStocksScheduleOrder(ss);
     
 END
 

@@ -5,7 +5,7 @@ REQUIRE ScheduleOrder, PriceList;
 NAMESPACE  ScheduleOrder;
 
 //--
-META addScheduleOrder(filter, cap) 
+META addScheduleOrder(filter, cap, filterStock) 
     countPriceLists###filter###stockDate 'Поставщики, у которых есть действующие прайсы' (filter, stock, date) = GROUP SUM 1 
         IF is###filter###legalEntity(companyPriceList(priceList)) AND isPostedPriceList(priceList) AND fromDatePriceList(priceList) <= (date AS DATE) 
         AND NOT (toDatePriceList(priceList) < (date AS DATE)) AND inPriceListStock(priceList, stock)
@@ -64,4 +64,6 @@ META addScheduleOrder(filter, cap)
             }
         }
     }
+    @extendFormFilterLegalEntityAccess(scheduleOrder, l, scheduleOrderDashboard, filter);
+    @extendFormFilterStockAccess(st, scheduleOrderDashboard, filterStock);
 END
