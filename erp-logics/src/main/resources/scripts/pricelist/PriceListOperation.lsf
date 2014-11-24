@@ -133,13 +133,22 @@ groupTypeUserPriceList(priceList) <- IF operationUserPriceList(priceList) THEN g
                                         ELSE SystemGroupType.skuGroupType
     WHEN CHANGED(operationUserPriceList(priceList)) OR
          SET(priceList IS UserPriceList);
+         
+doNotSetStocksUserPriceList 'Не проставлять склады по умолчанию' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) doNotSetStocksUserPriceList
+;
+EXTEND DESIGN operation {
+    st.box {
+        ADD PROPERTY(doNotSetStocksUserPriceList(o)) FIRST;
+    }
+}
 
-allStocksUserPriceList(priceList) <- allStocksOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
-dataInUserPriceListStockGroup(priceList, stockGroup) <- dataInStockGroupOperation(stockGroup, operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
-dataInUserPriceListStock(priceList, stock) <- dataInStockOperation(stock, operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+WHEN SESSION CHANGED(operationUserPriceList(priceList)) AND NOT doNotSetStocksUserPriceList(operationUserPriceList(priceList)) DO {
+    allStocksUserPriceList(priceList) <- allStocksOperation(operationUserPriceList(priceList));
+    dataInUserPriceListStockGroup(priceList, stockGroup) <- dataInStockGroupOperation(stockGroup, operationUserPriceList(priceList));
+    dataInUserPriceListStock(priceList, stock) <- dataInStockOperation(stock, operationUserPriceList(priceList));
+} 
 
 CONSTRAINT operationUserPriceList(priceList) AND NOT inStockOperation(stock, operationUserPriceList(priceList)) AND inPriceListStock(priceList, stock)
     CHECKED BY inPriceListStock MESSAGE 'Склады прайса должна соответствовать ограничениям операции';
