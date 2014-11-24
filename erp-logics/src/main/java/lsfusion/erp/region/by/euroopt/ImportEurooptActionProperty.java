@@ -166,6 +166,21 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 object(findClass("Brand")).getMapping(brandKey), true));
         fields.add(idBrandField);
 
+        ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extIdBarcode"));
+        ImportKey<?> packBarcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
+                findProperty("extBarcodeId").getMapping(extIdPackBarcodeSkuField));
+        keys.add(packBarcodeKey);
+        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extIdBarcode").getMapping(packBarcodeKey)));
+        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("skuBarcode").getMapping(packBarcodeKey),
+                object(findClass("Item")).getMapping(itemKey)));
+        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
+                object(findClass("Barcode")).getMapping(packBarcodeKey)));
+        fields.add(extIdPackBarcodeSkuField);
+
+        ImportField amountPackBarcodeField = new ImportField(findProperty("amountBarcode"));
+        props.add(new ImportProperty(amountPackBarcodeField, findProperty("amountBarcode").getMapping(packBarcodeKey)));
+        fields.add(amountPackBarcodeField);
+
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
@@ -243,13 +258,14 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         List<List<Object>> itemsList = new ArrayList<List<Object>>();
         List<List<Object>> userPriceListsList = new ArrayList<List<Object>>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
+        Set<String> amountPackSkuSet = getAmountPackSkuSet(context);
         try {
 
             String idPriceList = String.valueOf(Calendar.getInstance().getTimeInMillis());
             Set<String> itemsSet = getItemsSet();
             int idPriceListDetail = 1;
             for (String item : itemsSet) {
-                    Document doc = getDocument(item);
+                Document doc = getDocument(item);
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("prodImage");
                     File imageItem = prodImage.size() == 0 ? null : readImage(doc.getElementsByClass("prodImage").get(0).attr("src"));
@@ -262,6 +278,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                     String brandItem = null;
                     BigDecimal netWeight = null;
                     String UOMItem = null;
+                    BigDecimal quantityPack = null;
+                    String idBarcodePack = null;
                     for (Element itemAttribute : itemAttributes) {
                         String[] textAttribute = itemAttribute.text().split(":");
                         if (textAttribute.length == 2) {
@@ -275,6 +293,9 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                                 String[] split = textAttribute[1].split(" ");
                                 netWeight = new BigDecimal(split[0]);
                                 UOMItem = split.length >= 2 ? split[1] : null;
+                            } else if(textAttribute[0].equals("Кол-во товара в заводской таре")) {
+                                quantityPack = new BigDecimal(textAttribute[1]);
+                                idBarcodePack = idBarcode + "pack";
                             }
                         }
                     }
@@ -309,7 +330,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                     if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
                         if (importItems)
                             itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
-                                    fatsItem, carbohydratesItem, energyItem, IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem, brandItem));
+                                    fatsItem, carbohydratesItem, energyItem, imageItem == null ? null : IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem,
+                                    brandItem, idBarcodePack, quantityPack));
                         if (importUserPriceLists) {
                             userPriceListsList.add(Arrays.asList((Object) idPriceList, String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
                             idPriceListDetail++;
@@ -387,6 +409,24 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             barcodeSet.put(idBarcode, idItemGroupBarcode);
         }
         return barcodeSet;
+    }
+
+    private Set<String> getAmountPackSkuSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> amountPackSkuSet = new HashSet<String>();
+        KeyExpr skuExpr = new KeyExpr("sku");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "sku", skuExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        query.addProperty("idBarcodeSku", findProperty("idBarcodeSku").getExpr(skuExpr));
+        query.addProperty("amountPackSku", findProperty("Purchase.amountPackSku").getExpr(skuExpr));
+        query.and(findProperty("amountPackSku").getExpr(skuExpr).getWhere());
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemResult = query.executeClasses(context);
+        for (ImMap<Object, ObjectValue> entry : itemResult.values()) {
+            String idBarcodeSku = trim((String) entry.get("idBarcodeSku").getValue());
+            BigDecimal amountPackSku = (BigDecimal) entry.get("amountPackSku").getValue();
+            if(amountPackSku != null)
+            amountPackSkuSet.add(idBarcodeSku);
+        }
+        return amountPackSkuSet;
     }
 
     private Document getDocument(String url) throws IOException {
