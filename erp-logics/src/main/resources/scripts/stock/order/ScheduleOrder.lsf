@@ -394,8 +394,14 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             supplierStockUserOrder(o) <- supplierStockScheduleOrderDetail(scheduleOrderDetail);
             customerStockUserOrder(o) <- customerStockScheduleOrderDetail(scheduleOrderDetail);
 
-            IF countOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser()) == 1 THEN 
-                operationUserOrder(o) <- defaultOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser());
+            IF operationScheduleOrderDetail(scheduleOrderDetail) THEN
+                operationUserOrder(o) <- operationScheduleOrderDetail(scheduleOrderDetail)
+            ELSE
+                IF countOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser()) == 1 THEN 
+                    operationUserOrder(o) <- defaultOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser());
+                    
+            IF defaultPriceListTypeOperation(operationUserOrder(o)) THEN
+                priceListTypeUserOrder(o) <- defaultPriceListTypeOperation(operationUserOrder(o)); 
 
             EXEC overCreateOrder(o);
 
