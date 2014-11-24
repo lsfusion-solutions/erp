@@ -1,6 +1,6 @@
 MODULE LabelPriceList;
 
-REQUIRE PriceList, Label;
+REQUIRE PriceListOperation, Label;
 
 //--------------- Акционные ценники -------------//
 
@@ -28,3 +28,16 @@ inOverPriceListTypeSkuStock (type, sku, stock)= priceListTypeLabelType(labelType
 overLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) += 
     TRUE IF labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, departmentStore, currentDateTime()))==labelType 
         AND departmentStore IS DepartmentStore;
+        
+labelTypeOperation = DATA LabelType (PriceList.Operation);   
+nameLabelTypeOperation 'Тип ценника' = nameLabelType(labelTypeOperation(o));
+
+EXTEND FORM PriceList.operation
+    PROPERTIES (o) nameLabelTypeOperation 
+;
+EXTEND DESIGN PriceList.operation {
+    showContainer {
+        ADD PROPERTY(nameLabelTypeOperation(o));
+    }    
+}
+@deriveDocumentOperationProperty(UserPriceList, labelType);
