@@ -73,16 +73,19 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 NumField GROUP = new NumField("GROUP", 6, 0);
                 LogicalField ISGROUP = new LogicalField("ISGROUP");
                 CharField ARTICUL = new CharField("ARTICUL", 20);
-                NumField BAR_CODE = new NumField("BAR_CODE", 13, 0);
+                NumField BAR_CODE = new NumField("BAR_CODE", 15, 0);
                 CharField PRODUCT_ID = new CharField("PRODUCT_ID", 64);
-                CharField TABLO_ID = new CharField("TABLO_ID", 20);
-                NumField PRICE = new NumField("PRICE", 10, 0);
-                NumField QUANTITY = new NumField("QUANTITY", 10, 3);
+                CharField TABLO_ID = new CharField("TABLO_ID", 32);
+                NumField PRICE = new NumField("PRICE", 15, 0);
+                NumField QUANTITY = new NumField("QUANTITY", 15, 3);
                 LogicalField WEIGHT = new LogicalField("WEIGHT");
-                NumField SECTION = new NumField("SECTION", 1, 0);
-                NumField FLAGS = new NumField("FLAGS", 3, 0);
-                CharField STRFLAGS = new CharField("STRFLAGS", 16);
+                NumField SECTION = new NumField("SECTION", 2, 0);
+                NumField FLAGS = new NumField("FLAGS", 4, 0);
                 CharField UNIT = new CharField("UNIT", 20);
+                NumField CMD = new NumField("CMD", 2, 0);
+                CharField STRFLAGS = new CharField("STRFLAGS", 16);
+                NumField NDS = new NumField("NDS", 5, 2);
+                NumField NALOG = new NumField("NALOG", 1, 0);
 
                 File cachedPriceFile = null;
                 File cachedPriceMdxFile = null;
@@ -108,7 +111,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             cachedPriceMdxFile = new File(cachedPriceFile.getAbsolutePath().replace(".dbf", ".mdx"));
                             dbfFile = new DBF(cachedPriceFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                             if (!append)
-                                dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, STRFLAGS, UNIT});
+                                if(transaction.snapshot)
+                                    dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, STRFLAGS, NDS, NALOG});
+                                else
+                                    dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, CMD, NDS, NALOG});
                         }
                         
                         Set<String> usedBarcodes = new HashSet<String>();
@@ -245,8 +251,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         putField(dbfFile, QUANTITY, null, append);
                         putField(dbfFile, SECTION, null, append);
                         putField(dbfFile, FLAGS, null, append);
-                        putField(dbfFile, STRFLAGS, null, append);
                         putField(dbfFile, UNIT, null, append);
+                        if(transaction.snapshot)
+                            putField(dbfFile, STRFLAGS, null, append);
+                        else
+                            putField(dbfFile, CMD, null, append);
+                        putField(dbfFile, NDS, null, append);
+                        putField(dbfFile, NALOG, null, append);
                         
                         dbfFile.close();
                     }
