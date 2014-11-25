@@ -46,6 +46,9 @@ descriptionPriceListLedger 'Описание' = ABSTRACT VARSTRING[200] (PriceLi
 companyPriceListLedger = ABSTRACT LegalEntity (PriceListLedger) PERSISTENT;
 nameCompanyPriceListLedger 'Компания' = nameLegalEntity(companyPriceListLedger(ledger));
 
+companyStockPriceListLedger = ABSTRACT Stock (PriceListLedger) PERSISTENT;
+nameCompanyStockPriceListLedger 'Склад компании' = nameStock(companyStockPriceListLedger(ledger));
+
 TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
 inPriceListLedgerLedgerPriceListType = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) PERSISTENT;
 pricePriceListLedgerLedgerPriceListType 'Цена' = ABSTRACT NUMERIC[14,2] (PriceListLedger, LedgerPriceListType) PERSISTENT;
@@ -371,6 +374,22 @@ activePriceALedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, st
           WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
                 fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;                
                 
+
+// ------------------ Расчет цен для sku / stock / company / stockCompany / datetime
+
+priceBLedgerPriceListTypeSkuStockCompanyStockDateTime 'Цена' (type, sku, stock, company, companyStock, dateTime) =
+    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
+          BY type, skuPriceListLedger(ledger), stock, companyPriceListLedger(ledger), companyStockPriceListLedger(ledger), dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+
+priceALedgerPriceListTypeSkuStockCompanyStockDateTime 'Цена' (type, sku, stock, company, companyStock, dateTime) =
+    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
+          BY type, skuPriceListLedger(ledger), stock, companyPriceListLedger(ledger), companyStockPriceListLedger(ledger), dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
 
 countStockBPriceListTypeSkuCompanyDateTime 'Кол-во складов' (type, sku, company, dateTime) =
     GROUP SUM 1 IF priceBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
