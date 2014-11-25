@@ -92,14 +92,30 @@ useShipmentQuantityUserInvoice (invoice) <- useShipmentQuantityOperation(pricing
                                                         WHEN CHANGED(operationUserInvoice(invoice));
                                                             
 // Записываем тип цены по умолчанию из операции
+skipSetPriceListTypesDepartmentStoreOperation 'Не подставлять виды цен магазина' = DATA BOOLEAN (Pricing.Operation);
+
+EXTEND FORM Pricing.operation
+    PROPERTIES (o) skipSetPriceListTypesDepartmentStoreOperation
+;
+
+EXTEND DESIGN Pricing.operation {
+    createContainer{
+        ADD PROPERTY(skipSetPriceListTypesDepartmentStoreOperation(o));
+    }    
+}
+
 calcRetailPriceListTypeUserInvoice (invoice) <- IF pricingPriceListTypeOperation(pricingOperationUserInvoice(invoice)) 
                 THEN pricingPriceListTypeOperation(pricingOperationUserInvoice(invoice))
-                ELSE retailPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
+                ELSE 
+                    IF TRUE AND NOT skipSetPriceListTypesDepartmentStoreOperation(pricingOperationUserInvoice(invoice))
+                        THEN retailPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
                     WHEN CHANGED(pricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice));
 
-calcRetailCalcPriceListTypeUserInvoice (invoice) <- IF pricingCalcPriceListTypeOperation(pricingOperationUserInvoice(invoice))
+calcRetailCalcPriceListTypeUserInvoice (invoice) <- IF pricingCalcPriceListTypeOperation(pricingOperationUserInvoice(invoice)) 
                 THEN pricingCalcPriceListTypeOperation(pricingOperationUserInvoice(invoice))
-                ELSE retailCalcPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
+                ELSE 
+                    IF TRUE AND NOT skipSetPriceListTypesDepartmentStoreOperation(pricingOperationUserInvoice(invoice))
+                        THEN retailCalcPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
                     WHEN CHANGED(pricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice));
 
 EXTEND FORM operation
