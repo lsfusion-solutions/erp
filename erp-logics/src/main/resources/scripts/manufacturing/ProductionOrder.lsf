@@ -1300,25 +1300,46 @@ FORM productDetails 'Строка изделия'
 
 // ---------- Требование на сырье -------- //
 
-FORM requestForMaterialsOrder 'Требование на сырье'
+FORM requestSkusProductOrder 'Требование на сырье по изделиям'
 
     OBJECTS o = Order FIXED PANEL
     PROPERTIES(o) nameProductsLegalEntityStockOrder, nameComponentsStockOrder, nameProductsStockOrder, numberOrder, seriesOrder, seriesNumberOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder
-
+                  
+    OBJECTS pd=ProductDetail
+    PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, idProductProductDetail, nameProductProductDetail, 
+                   shortNameUOMProductDetail, quantityProductDetail, calcComponentsPriceProductDetail, componentsPriceProductDetail, 
+                   costPriceProductDetail, markupProductDetail, pricePercentProductDetail, calcPriceCoeffProductDetail,
+                   priceProductDetail, sumProductDetail
+    FILTERS orderProductDetail(pd)==o                  
+                  
     OBJECTS cd = ComponentDetail
     PROPERTIES(cd) READONLY indexComponentDetail, nameSkuComponentDetail, nameComponentComponentDetail, shortNameUOMSkuComponentDetail,
                    idBarcodeSkuComponentDetail, quantityComponentDetail
 
-    FILTERS orderComponentDetail(cd)==o
-
+    FILTERS orderComponentDetail(cd)==o,
+            BOMComponentDetail(cd) == BOMProduct(productProductDetail(pd))
 ;
-printRequestForMaterialsOrder 'Требование на сырье' (order) = ACTION FORM requestForMaterialsOrder OBJECTS o = order PRINT IMAGE 'print.png' IN print;
+printRequestSkusProductOrder'Требование на сырье по изделиям' (order) = ACTION FORM requestSkusProductOrder OBJECTS o = order PRINT IMAGE 'print.png' IN print;
+
+currentBalanceSkuComponentsStockOrder 'Текущий остаток' = currentBalanceSkuStock(sku, componentsStockOrder(order));
+FORM requestSkusOrder 'Требование на сырье'
+
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES(o) nameProductsLegalEntityStockOrder, nameComponentsStockOrder, nameProductsStockOrder, numberOrder, seriesOrder, seriesNumberOrder,
+                  dateOrder, timeOrder, fromDateOrder, toDateOrder
+                  
+    OBJECTS sk = Sku
+    PROPERTIES(sk) READONLY nameSku, idBarcodeSku, shortNameUOMSku
+        
+    PROPERTIES(sk,o) READONLY quantityComponentDetailSkuOrder, currentBalanceSkuComponentsStockOrder
+    FILTERS quantityComponentDetailSkuOrder(sk,o)    
+;
+printRequestSkusOrder 'Требование на сырье' (order) = ACTION FORM requestSkusOrder OBJECTS o = order PRINT IMAGE 'print.png' IN print;
 EXTEND FORM orders
-    PROPERTIES(o) FORCE PANEL printRequestForMaterialsOrder
+    PROPERTIES(o) FORCE PANEL printRequestSkusOrder, printRequestSkusProductOrder
 ;
 EXTEND DESIGN orders {printTab { ADD o.print {align = LEADING;}}}
-
 //------------------------------------------ Опеределение операции для order ------------------------------------//
 
 operationOrder = DATA Operation (Order) PERSISTENT;
