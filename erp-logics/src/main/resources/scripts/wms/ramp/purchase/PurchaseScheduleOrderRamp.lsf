@@ -155,3 +155,49 @@ EXTEND DESIGN scheduleOrder {
     
     }
 }
+
+includeShipmentDowSupplierCustomerRampIntervalDate '' = GROUP SUM 1 IF isOpenedScheduleOrderDetail(d) AND dateSupplyScheduleOrderDetail(d) >= date AND
+    inScheduleOrderDetailRampInterval(d,r,i) 
+        BY extractDOW(dateSupplyScheduleOrderDetail(d)), supplierScheduleOrderDetail(d), customerScheduleOrderDetail(d), r, i, date;
+        
+descriptionSuppliersDOWCustomerRampIntervalDate 'Поставщики' (dow, c, r, i, date)= 
+    GROUP CONCAT nameLegalEntity(s) IF includeShipmentDowSupplierCustomerRampIntervalDate(dow, s, c, r, i,date), ', ' 
+    BY dow, c, r, i, date
+    ORDER includeShipmentDowSupplierCustomerRampIntervalDate(dow, s, c, r, i, date) 
+    MINCHARWIDTH 20 PREFCHARWIDTH 30; 
+  
+descriptionSuppliersScheduleOrderTimeRampInterval 'Поставщики' (d,r,i) =  descriptionSuppliersDOWCustomerRampIntervalDate(shipmentDOWScheduleOrderTime(d), customerScheduleOrder(scheduleOrderScheduleOrderTime(d)), r, i, startDateScheduleOrder(scheduleOrderScheduleOrderTime(d)));
+    
+EXTEND FORM scheduleOrder
+    PROPERTIES (d,r,in) READONLY descriptionSuppliersScheduleOrderTimeRampInterval
+;
+
+FORM listScheduleOrderDetail 'Список предварительных заказов'
+    OBJECTS dt = DATE FIXED PANEL
+    OBJECTS dow = DOW FIXED PANEL
+    OBJECTS c = LegalEntity FIXED PANEL
+    OBJECTS r = Ramp FIXED PANEL
+    OBJECTS i = Interval FIXED PANEL
+    
+    OBJECTS d=ScheduleOrderDetail
+    PROPERTIES (d) READONLY isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
+    PROPERTIES (d) READONLY monthInDateScheduleOrderDetail, DOWInDateScheduleOrderDetail,
+                    nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
+                    nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail,
+                    nameOperationScheduleOrderDetail
+
+    ORDER BY dateSupplyScheduleOrderDetail(d)
+    FILTERS dateSupplyScheduleOrderDetail(d) >= dt,
+            customerScheduleOrderDetail(d) ==c,
+            inScheduleOrderDetailRampInterval(d,r,i),
+            extractDOW(dateSupplyScheduleOrderDetail(d)) == dow
+    FILTERGROUP curDate
+        FILTER 'Больше текущей даты' 'F9' dateSupplyScheduleOrderDetail(d) > currentDate()
+;
+showListScheduleOrderDetail 'Показать список предварительных заказов' (d,r,in) = ACTION {
+    FORM listScheduleOrderDetail OBJECTS dt = startDateScheduleOrder(scheduleOrderScheduleOrderTime(d)), 
+                                         dow = shipmentDOWScheduleOrderTime(d),
+                                         c = customerScheduleOrder(scheduleOrderScheduleOrderTime(d)),
+                                         r = r,
+                                         i = in MODAL; 
+} SHORTCUT descriptionSuppliersScheduleOrderTimeRampInterval;

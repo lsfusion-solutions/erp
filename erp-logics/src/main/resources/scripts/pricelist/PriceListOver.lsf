@@ -25,14 +25,14 @@ priceBOverPriceListTypeBatchStockDateTime = OVERRIDE priceBLedgerPriceListTypeBa
 priceAOverPriceListTypeBatchStockDateTime = OVERRIDE priceALedgerPriceListTypeBatchStockDateTime(baseBPriceListLedgerOverPriceListType(type), batch, stock, dateTime), 
     priceALedgerPriceListTypeBatchStockDateTime(baseAPriceListLedgerOverPriceListType(type), batch, stock, dateTime);
     
-countIncludeVATTypesOverPriceListType(type) = OVERRIDE(0 IF type IS OverPriceListType),
-    ((1 IF includeVATLedgerPriceListType(baseAPriceListLedgerOverPriceListType(type))) (+) (1 IF includeVATLedgerPriceListType(baseBPriceListLedgerOverPriceListType(type))));    
+countIncludeVATTypesOverPriceListType(type) = (1 IF includeVATLedgerPriceListType(baseAPriceListLedgerOverPriceListType(type))) (+) 
+                                                         (1 IF includeVATLedgerPriceListType(baseBPriceListLedgerOverPriceListType(type)));    
 
 CONSTRAINT countIncludeVATTypesOverPriceListType(type) == 1 IF type IS OverPriceListType
    MESSAGE 'Вид цены 1 и вид цены 2 должны быть одновременно или с НДС или без НДС' ;  
         
 namePriceListType(type) += nameOverPriceListType(type);
-//includeVATPriceListType (type) += countIncludeVATTypesOverPriceListType(type) == 2 IF type IS OverPriceListType;
+includeVATPriceListType (type) += countIncludeVATTypesOverPriceListType(type) ==2;
 
 priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBOverPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
 priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceAOverPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
