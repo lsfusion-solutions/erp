@@ -361,6 +361,20 @@ nameMaterial(material) += VARISTRING[255] (CONCAT '/',
 UOMMaterial(material) += UOMSku(skuProduct(material));
 skuMaterial (material) += skuProduct(material);
 
+calcPriceCoeffProduct 'Коэффициент цены' (product) = quantityProductBOM(BOMProduct(product)) * pricePercentProduct(product) 
+    / ((quantityProduct(product) IF quantityProduct(product)!=0)*100);  
+
+calcPricePercentProductNumeric '%' (product, num) = (num AS NUMERIC[8,5]) * quantityProduct(product)*100 
+    /(quantityProductBOM(BOMProduct(product)) IF quantityProductBOM(BOMProduct(product))!= 0); 
+    
+changePriceCoeffProduct = ACTION (product) {
+    REQUEST NUMERIC[8,5] INPUT;
+    IF requestedNumeric() THEN {        
+        pricePercentProduct(product) <- NUMERIC[14,3](calcPricePercentProductNumeric(product, requestedNumeric()));
+
+    }
+}
+
 FORM products 'Изделия'
     OBJECTS p=Product
     PROPERTIES(p) idProduct SHOWIF showIDs()
@@ -584,7 +598,7 @@ FORM BOM 'Спецификация'
     PROPERTIES(p) indexProduct 
     PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct     
     
-    PROPERTIES(p) quantityProduct, overNettoNetWeightProduct READONLY,pricePercentProduct
+    PROPERTIES(p) quantityProduct, overNettoNetWeightProduct READONLY, pricePercentProduct, calcPriceCoeffProduct ON CHANGE changePriceCoeffProduct(p)
 
     PROPERTIES(p) ADDOBJ, deletep=DELETESESSION
     PROPERTIES(b) TODRAW p deleteProductBOM
