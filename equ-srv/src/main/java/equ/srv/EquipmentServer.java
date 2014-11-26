@@ -584,8 +584,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
 
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<Object, Object>(discountCardKeys);
-                String[] discountCardNames = new String[]{"numberDiscountCard", "nameDiscountCard", "percentDiscountCard"};
-                LCP[] discountCardProperties = retailCRMLM.findProperties("numberDiscountCard", "nameDiscountCard", "percentDiscountCard");
+                String[] discountCardNames = new String[]{"numberDiscountCard", "nameDiscountCard", "percentDiscountCard",
+                        "dateDiscountCard", "dateToDiscountCard"};
+                LCP[] discountCardProperties = retailCRMLM.findProperties("numberDiscountCard", "nameDiscountCard", "percentDiscountCard",
+                        "dateDiscountCard", "dateToDiscountCard");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
@@ -600,8 +602,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String numberDiscountCard = trim((String) discountCardValue.get("numberDiscountCard").getValue());
                     String nameDiscountCard = trim((String) discountCardValue.get("nameDiscountCard").getValue());
                     BigDecimal percentDiscountCard = (BigDecimal) discountCardValue.get("percentDiscountCard").getValue();
-
-                    discountCardList.add(new DiscountCard(numberDiscountCard, nameDiscountCard, percentDiscountCard));
+                    Date dateFromDiscountCard = (Date) discountCardValue.get("dateDiscountCard").getValue();
+                    Date dateToDiscountCard = (Date) discountCardValue.get("dateToDiscountCard").getValue();
+                    
+                    discountCardList.add(new DiscountCard(numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 throw Throwables.propagate(e);

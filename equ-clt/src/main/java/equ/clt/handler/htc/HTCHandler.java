@@ -298,6 +298,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
         machineryExchangeLogger.info("HTCHandler: sending discount cards");
         
+        Date currentDate = new java.sql.Date(Calendar.getInstance().getTimeInMillis());
+        
         try {
 
             File cachedDiscFile = null;
@@ -332,6 +334,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             putField(dbfFile, PERCENT, String.valueOf(discountCard.percentDiscountCard), false);
                             lastPercent = discountCard.percentDiscountCard;
                         }
+
+                        boolean isStop = (discountCard.dateFromDiscountCard != null && discountCard.dateFromDiscountCard.compareTo(currentDate) > 0) ||
+                                (discountCard.dateToDiscountCard != null && discountCard.dateToDiscountCard.compareTo(currentDate) < 0);                        
+                        putField(dbfFile, ISSTOP, isStop ? "T" : "F", false);                        
+                        
                         dbfFile.write();
                     }
                     dbfFile.close();
