@@ -1,0 +1,13 @@
+MODULE PurchaseReturnInvoiceAlcohol;
+
+REQUIRE PurchaseReturnInvoice, InvoiceAlcohol;
+
+NAMESPACE PurchaseReturn;
+
+@defineInvoiceAlcohol();
+alcoholDirectionTypeInvoice(i) += WHEN  i IS Invoice AND isCompanyStock(customerStockInvoice(i)) AND NOT isCompanyStock(supplierStockInvoice(i)) THEN AlcoholDirectionType.income;
+alcoholIncomeTypeInvoice(i) += WHEN i IS Invoice AND isCompanyStock(customerStockInvoice(i)) AND NOT isHomeCurrencyInvoice(i) THEN AlcoholIncomeType.internal;
+alcoholIncomeTypeInvoice(i) += WHEN i IS Invoice AND isCompanyStock(customerStockInvoice(i)) AND isHomeCurrencyInvoice(i) THEN AlcoholIncomeType.external;
+
+volumeInvoiceDetail(d) += volumeItem(skuInvoiceDetail(d))*quantityInvoiceDetail(d);
+signetVolumeInvoiceDetail(d) += - (volumeItem(skuInvoiceDetail(d))*quantityInvoiceDetail(d));
