@@ -1136,8 +1136,7 @@ WHEN SESSION FORMS order
 WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO {
         substituteSkuComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail); 
         substituteQuantityComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail);    
-    }  
- 
+    }   
  
 WHEN SESSION FORMS order CHANGED(overSetPriceComponentDetail(detail)) OR CHANGED(overCalcPriceComponentDetail(detail)) DO
     priceComponentDetail (detail) <- overSetPriceComponentDetail(detail); 
@@ -1159,10 +1158,15 @@ WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
 countComponentsSku (material) = GROUP SUM 1 BY materialComponent(c) AS Sku;
 defaultComponentsSku (material)= GROUP MIN component BY materialComponent(component) AS Sku;                                                                     
                                                                      
-WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
-    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
-        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
-} 
+//WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
+//    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
+//        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
+//}  todo: переделано, потому что не срабатывает событие по CHANGED(componentComponentDetail(d)), которое следует за ним.
+
+WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) AND NOT CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) AND countComponentsSku(bruttoSkuComponentDetail(d)) == 1 NOINLINE DO {
+    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d));
+    BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));              
+}
 WHEN SESSION FORMS order CHANGED(componentComponentDetail(d)) NOINLINE DO {
     BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));    
     bruttoSkuComponentDetail(d) <- skuMaterial(materialComponent(componentComponentDetail(d)));       
