@@ -34,6 +34,9 @@ quantityPurchaseLedger 'Кол-во' (ledger) = ABSTRACT NUMERIC[14,3] (Purchase
 
 sumPurchaseLedger 'Сумма покупки' (ledger) = ABSTRACT NUMERIC[16,2] (PurchaseLedger) PERSISTENT;
 
+currencyPurchaseLedger = ABSTRACT Currency (PurchaseLedger) PERSISTENT;
+nameCurrencyPurchaseLedger 'Валюта' = nameCurrency(currencyPurchaseLedger(ledger));
+
 supplierPurchaseLedger  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) PERSISTENT;
 nameSupplierPurchaseLedger 'Поставщик' (ledger) = nameLegalEntity(supplierPurchaseLedger (ledger));
 
@@ -58,8 +61,8 @@ lastSupplierSku (sku) =
 inSupplierSku 'Были поставки' (legalEntity, sku) = TRUE IF quantityPurchaseSupplierSku(legalEntity, sku) PERSISTENT;
 prevInSupplierSku 'Были поставки (пред.)' (legalEntity, sku) = PREV(inSupplierSku(legalEntity, sku));
 
-sumPurchaseTypeExchangePurchaseLedger 'Сумма покупки валюта' (typeExchange, purchaseLedger)= roundPriceCurrency((sumPurchaseLedger (purchaseLedger)/
-    rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockPurchaseLedger(purchaseLedger)), datePurchaseLedger(purchaseLedger))), currencyTypeExchange(typeExchange));
+sumPurchaseTypeExchangePurchaseLedger 'Сумма покупки валюта' (typeExchange, purchaseLedger)= roundPriceCurrency((sumPurchaseLedger (purchaseLedger)*
+    rateOnTypeExchangeCurrencyDate(typeExchange, currencyPurchaseLedger(purchaseLedger), datePurchaseLedger(purchaseLedger))), currencyTypeExchange(typeExchange));
 
 editPurchaseLedger 'Редактировать' = ABSTRACT ACTION LIST (PurchaseLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
@@ -213,7 +216,7 @@ FORM purchaseLedger 'Регистр поступлений'
     PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, numberDocumentPurchaseLedger, nameStockPurchaseLedger, nameSupplierPurchaseLedger, nameOperationPurchaseLedger,
                            canonicalNameSkuGroupPurchaseLedger, nameSkuGroup1SkuPurchaseLedger, nameSkuGroup2SkuPurchaseLedger, nameSkuGroup3SkuPurchaseLedger, nameSkuGroup4SkuPurchaseLedger, nameSkuGroup5SkuPurchaseLedger, 
                            nameSkuPurchaseLedger, descriptionPurchaseLedger,
-                           quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
+                           quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger, nameCurrencyPurchaseLedger
     PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
     PROPERTIES(s) editPurchaseLedger
     
