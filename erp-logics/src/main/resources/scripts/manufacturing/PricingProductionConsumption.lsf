@@ -1,0 +1,174 @@
+MODULE  PricingProductionConsumption;
+
+REQUIRE ProductionConsumption, Pricing, CostCardOrderBy;
+
+NAMESPACE Production;
+
+// ----------------  Расценка ------------------- //
+roundConditionUserConsumptionDetail(userWriteOffDetail) = roundConditionDepartmentStore(stockUserConsumptionDetail(userWriteOffDetail));
+
+@defineDocumentInterfaceHeaderPricingCommittee (consumption, stock);
+@defineDocumentInterfaceProperty (consumption, createPricing, 'Создать акт расценки');
+
+// Операция расценки
+@defineDocumentInterfaceOperationPrefix (consumption, pricing, Pricing, ' (расценка)');
+
+@defineDocumentInterfaceDetailPricePrefix(consumption, supplier, ' входная');
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userConsumption, supplierPricingPriceListType, supplier, sku, stock);
+
+@defineDocumentInterfaceDetailDataSumPrefix (consumption, supplier, ' входная');
+
+@deriveDocumentDetailSumPrefix(userConsumption, supplier, currency, quantity);
+
+@defineDocumentHeaderSumCustomPrefix (consumption, consumptionDetail, supplier,' входная');
+
+@defineDocumentInterfaceDetailPricePrefix(consumption, retail, ' выходная');
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userConsumption, retailPricingPriceListType, retail, sku, stock);
+@defineDocumentInterfaceDetailVAT(consumption, countryStock, retail, );
+// Не проставляется НДС, поскольку для прихода он равен НДС поставщика
+@deriveDocumentDetailVAT(userConsumption, retail, date, sku, stock);
+@deriveDocumentDetailValueVAT(userConsumption, retail);
+
+
+@defineDocumentInterfaceDetailMarkupPrefix (consumption, retail, );
+@defineDocumentInterfaceDetailDataSumPrefix (consumption, retail, ' выходная');
+@deriveDocumentDetailSumPrefix(userConsumption, retail, currency, quantity);
+
+@defineDocumentInterfaceHeaderSumPrefix (consumption, retail, ' выходная');
+
+@defineDocumentInterfaceDetailVATDataSumPrefix (consumption, retail, ' розничная');
+@deriveDocumentDetailReverseVATSumPrefix(userConsumption, retail, retail);
+@defineDocumentInterfaceDetailMarkupSumPrefix (consumption, retail);
+
+@deriveDocumentDetailMarkupSumPrefix(userConsumption, retail, retail, supplier);
+
+@defineDocumentInterfaceHeaderSumPrefix (consumption, retailMarkup, ' надбавки');
+@defineDocumentInterfaceHeaderSumPrefix (consumption, retailVAT, ' НДС');
+
+
+// Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
+@changeDocumentDetailMarkupCustomPrefix(userConsumptionDetail, retail, , retail, retail);
+@changeDocumentDetailPriceCustomPrefix(userConsumptionDetail, retail, , retail, retail);
+
+// Автоматический расчет розничной надбавки
+retailMarkupUserConsumptionDetail(userConsumptionDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    retailPriceUserConsumptionDetail(userConsumptionDetail),
+    valueRetailVATUserConsumptionDetail(userConsumptionDetail),
+    supplierPriceUserConsumptionDetail(userConsumptionDetail))
+    WHEN CHANGED(retailPriceUserConsumptionDetail(userConsumptionDetail)) OR
+         CHANGED (valueRetailVATUserConsumptionDetail(userConsumptionDetail)) OR
+         CHANGED(supplierPriceUserConsumptionDetail(userConsumptionDetail));
+
+
+backgroundRetailConsumption 'Цвет' (consumption) = RGB(224, 255, 255) IF consumption IS Consumption;
+
+EXTEND FORM userConsumption
+    PROPERTIES(o)  BACKGROUND backgroundRetailConsumption(o) createPricingUserConsumption, namePricingOperationUserConsumption SHOWIF createPricingUserConsumption(o),
+                   namePricingCommitteeUserConsumption SHOWIF createPricingUserConsumption(o)
+
+    PROPERTIES (d) BEFORE deleted SHOWIF createPricingUserConsumption(o) BACKGROUND backgroundRetailConsumption(o)
+                   supplierPriceUserConsumptionDetail, supplierSumUserConsumptionDetail, retailMarkupUserConsumptionDetail ON CHANGE changeRetailMarkupUserConsumptionDetail(d), 
+                   retailMarkupSumUserConsumptionDetail, valueRetailVATUserConsumptionDetail, retailVATSumUserConsumptionDetail, 
+                   retailPriceUserConsumptionDetail ON CHANGE changeRetailPriceUserConsumptionDetail(d), retailSumUserConsumptionDetail
+;
+EXTEND DESIGN userConsumption {
+    headerRow12 {
+        NEW headerRow121 BEFORE o.order {
+            caption = 'Расценка';
+            type = CONTAINERH;
+            ADD PROPERTY(createPricingUserConsumption(o));
+            ADD PROPERTY(namePricingOperationUserConsumption(o));
+            ADD PROPERTY(namePricingCommitteeUserConsumption(o));
+        }
+    }
+}
+
+EXTEND FORM consumptions
+    PROPERTIES(d) READONLY SHOWIF createPricingConsumption(o) BACKGROUND backgroundRetailConsumption(o) supplierPriceConsumptionDetail, supplierSumConsumptionDetail, retailMarkupConsumptionDetail, retailMarkupSumConsumptionDetail,
+                  valueRetailVATConsumptionDetail, retailVATSumConsumptionDetail, retailPriceConsumptionDetail, retailSumConsumptionDetail
+;
+
+CLASS ConsumptionPricing 'Акт расценки на основе списания сырья' : Pricing;
+CLASS ConsumptionPricingDetail 'Строка акта расценки на основе списания сырья' : PricingDetail;
+
+@defineDocumentTables(consumptionPricing);
+
+@defineDocumentAggregation(consumption, consumptionPricing, createPricing);
+
+printPricingConsumption 'Акт расценки' (consumption) = ACTION printPricing(consumptionPricingConsumption(consumption)) IMAGE 'print.png' IN print;
+EXTEND FORM consumptions
+    PROPERTIES(o) FORCE PANEL printPricingConsumption SHOWIF createPricingConsumption(o)
+;
+EXTEND DESIGN consumptions {printTab { ADD o.print {align = LEADING;}}}
+
+pricingPricingDetail(detail) += consumptionPricingConsumptionPricingDetail(detail);
+
+indexPricingDetail(detail) += indexConsumptionPricingDetail(detail);
+
+datePricing(pricing) += dateConsumptionPricing(pricing);
+timePricing(pricing) += timeConsumptionPricing(pricing);
+
+departmentStorePricing(pricing) += stockConsumption(consumptionConsumptionPricing(pricing)) AS DepartmentStore;
+dataDepartmentStorePricingDetail(pricingDetail) += stockConsumption(consumptionConsumptionPricing(consumptionPricingConsumptionPricingDetail(pricingDetail))) AS DepartmentStore;
+
+supplierPricing(pricing) += legalEntityStockConsumption(consumptionConsumptionPricing(pricing));
+
+@defineDocumentAggregationPosted(consumption, consumptionPricing);
+isPostedPricing(pricing) += isPostedConsumptionPricing(pricing);
+
+@defineDocumentAggregationClosed(consumption, consumptionPricing);
+isClosedPricing(pricing) += isClosedConsumptionPricing(pricing);
+
+numberConsumptionPricing 'Номер документа' (consumptionPricing) = numberConsumption(consumptionConsumptionPricing(consumptionPricing));
+numberPricing(pricing) += numberConsumptionPricing(pricing);
+seriesConsumptionPricing 'Серия документа' (consumptionPricing) = seriesConsumption(consumptionConsumptionPricing(consumptionPricing));
+seriesPricing(pricing) += seriesConsumptionPricing(pricing);
+seriesNumberConsumptionPricing 'Серия/номер документа' (consumptionPricing) = seriesNumberConsumption(consumptionConsumptionPricing(consumptionPricing));
+
+
+notePricing(pricing) += noteConsumption(consumptionConsumptionPricing(pricing));
+currencyPricing (pricing) += currencyConsumption(consumptionConsumptionPricing(pricing));
+pricingCommitteePricing(pricing) += pricingCommitteeConsumption(consumptionConsumptionPricing(pricing));
+operationPricing(pricing) += pricingOperationConsumption(consumptionConsumptionPricing(pricing));
+
+@defineDocumentDescription(consumptionPricing, ConsumptionPricingDetail, 'Акт расценки на основе производства');
+descriptionPricing (pricing) += descriptionConsumptionPricing(pricing);
+
+skuPricingDetail(pricingDetail) +=  skuConsumptionDetail(consumptionDetailConsumptionPricingDetail(pricingDetail));
+quantityPricingDetail(pricingDetail) += quantityConsumptionDetail(consumptionDetailConsumptionPricingDetail(pricingDetail));
+
+//-------------------------- Ценовые характеристики------------------------------------------
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, supplierPrice, 'Цена входная');
+pricePricingDetail(pricingDetail) += supplierPriceConsumptionPricingDetail(pricingDetail);
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, supplierSum, 'Сумма входная');
+sumPricingDetail(pricingDetail) += supplierSumConsumptionPricingDetail(pricingDetail);
+
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, retailPrice, 'Цена выходная');
+retailPricePricingDetail(pricingDetail) += retailPriceConsumptionPricingDetail(pricingDetail);
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, retailSum, 'Сумма выходная');
+retailSumPricingDetail(pricingDetail) += retailSumConsumptionPricingDetail(pricingDetail);
+
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, retailMarkup, 'Надбавка');
+retailMarkupPricingDetail(pricingDetail) += retailMarkupConsumptionPricingDetail(pricingDetail);
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, retailMarkupSum, 'Сумма надбавки');
+retailMarkupSumPricingDetail(pricingDetail) += retailMarkupSumConsumptionPricingDetail(pricingDetail);
+
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, valueRetailVAT, 'НДС,%');      // пока только значение ставки, без самой шкалы.!!!!!
+valueRetailVATPricingDetail(pricingDetail) += valueRetailVATConsumptionPricingDetail(pricingDetail);
+@defineDocumentAggregationDetailProperty (consumption, consumptionPricing, retailVATSum, 'Сумма НДС');
+retailVATSumPricingDetail(pricingDetail) += retailVATSumConsumptionPricingDetail(pricingDetail);
+
+editPricingDetail (d)+= ACTION editConsumptionDetail(consumptionDetailConsumptionPricingDetail(d));
+
+editPricing (p)+= ACTION editConsumption(consumptionConsumptionPricing(p));
+//--
+quantityConsumptionConsumptionPricing (consumption, consumptionPricing) = GROUP SUM quantityConsumptionDetail(consumptionDetailConsumptionPricingDetail(detail)) BY consumptionConsumptionDetail(consumptionDetailConsumptionPricingDetail(detail)), consumptionPricingConsumptionPricingDetail(detail);
+
+consumptionsConsumptionPricing 'Документы производства' (consumptionPricing) = GROUP CONCAT VARSTRING[255](descriptionConsumption(consumption)) IF quantityConsumptionConsumptionPricing (consumption, consumptionPricing) , ', '
+                                                BY consumptionPricing
+                                                ORDER consumption MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+
+// Помечаем, что этот акт расценки не меняет текущие цены и является обратным
+skipChangeLedgerPricing(pricing) += pricing IS ConsumptionPricing;
+isReturnPricing(pricing) += pricing IS ConsumptionPricing;

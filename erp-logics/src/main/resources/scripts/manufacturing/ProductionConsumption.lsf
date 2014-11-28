@@ -17,7 +17,11 @@ CLASS UserConsumptionDetail 'Строка списания сырья (поль�
 @defineDocumentInterfaceNumber(consumption);
 @defineNumeratedDefault(UserConsumption, 'Списание сырья', 'СС');
 
-@defineDocumentInterfaceStock(consumption, stock, 'Склад', );
+@defineDocumentInterfaceDataStock(consumption, stock, 'Склад', );
+CONSTRAINT stockUserConsumption(o) AND NOT  isCompanyStock(stockUserConsumption(o))
+    CHECKED BY stockUserConsumption
+    MESSAGE 'Выбран склад, который не принадлежит компании';
+    
 @defineDocumentInterfacePosted(consumption);
 @defineDocumentInterfaceClosed(consumption);
 
@@ -28,6 +32,23 @@ CLASS UserConsumptionDetail 'Строка списания сырья (поль�
 @defineDocumentInterfacePriceListType(consumption); // объявляем вид цены
 
 @defineDocumentInterfaceDetailSku(consumption, sku);
+// Для инвентаризации по партиям
+@defineDocumentInterfaceDetailBatch(consumption, batch);
+changeBatchUserConsumptionDetail = ACTION (detail) {
+
+    FORM dialogBatchStock OBJECTS st = stockUserConsumptionDetail(detail),
+                             t = dateTimeUserConsumptionDetail(detail),
+                             sk = skuUserConsumptionDetail(detail) DIALOG SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        batchUserConsumptionDetail(detail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        batchUserConsumptionDetail(detail) <- NULL;
+    }
+}
+replaceSkuBatch(s, b) += ACTION (s, b){ skuUserConsumptionDetail(detail) <- s WHERE batchUserConsumptionDetail(detail) == b;}
+
+
     
 @defineDocumentInterfaceDetailQuantity(consumption);
 
@@ -35,7 +56,7 @@ CLASS UserConsumptionDetail 'Строка списания сырья (поль�
 priceListTypeUserConsumptionDetail(detail) <- priceListTypeUserConsumption(userConsumptionUserConsumptionDetail(detail))
         WHEN CHANGED(priceListTypeUserConsumption(userConsumptionUserConsumptionDetail(detail)));
 
-@deriveDocumentDetailPricePriceListType (userConsumption, stock); // записываем цену
+@deriveDocumentDetailPriceBatchPriceListTypeCustom (userConsumptionDetail, stock);
 
 // суммма
 @defineDocumentInterfaceDetailDataSum(consumption);
@@ -57,6 +78,7 @@ priceListTypeUserConsumptionDetail(detail) <- priceListTypeUserConsumption(userC
 editConsumption 'Редактировать' = ABSTRACT ACTION LIST (Consumption) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 @implementDocument(consumption);
+@implementDocumentBatch(consumption);
 supplierStockDocument(consumption) += stockConsumption(consumption);
 
 //--  Связь накладной и поставки
@@ -214,7 +236,8 @@ sumContainerOutStockDocumentLedger (ledger) += sumContainerConsumptionDetailCons
 // Проводим по регистру
 @implementSkuLedgerOutFIFO(ConsumptionDetail, sku, stock);
 quantityOutFIFOSkuLedger (ledger) += quantityConsumptionDetail(ledger);
-@implementSkuLedgerOutFIFOBalance (consumptionDetail, stock);
+batchSkuLedger(ledger) += batchConsumptionDetail(ledger);
+@implementSkuLedgerOutFIFOBatchBalance(ConsumptionDetail, stock);
 sumOutSkuLedger (ledger) += sumConsumptionDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += consumptionConsumptionDetail(ledger); 
 
@@ -310,8 +333,9 @@ FORM userConsumption 'Списание сырья'
 
     OBJECTS d = UserConsumptionDetail
     PROPERTIES (d) indexUserConsumptionDetail, idBarcodeSkuUserConsumptionDetail, nameSkuUserConsumptionDetail, shortNameUOMSkuUserConsumptionDetail,
-                   namePriceListTypeUserConsumptionDetail, quantityUserConsumptionDetail, priceUserConsumptionDetail, sumUserConsumptionDetail,
-                   descriptionIndexComponentDetailUserConsumptionDetail, ADDOBJ, DELETESESSION
+                   nameBatchUserConsumptionDetail ON CHANGE changeBatchUserConsumptionDetail(d), namePriceListTypeUserConsumptionDetail, 
+                   quantityUserConsumptionDetail, priceUserConsumptionDetail, sumUserConsumptionDetail,
+                   descriptionIndexComponentDetailUserConsumptionDetail, ADDOBJ, deleted = DELETESESSION
 
     PROPERTIES(o) TODRAW d fillDocumentConsumption, addDetailDialogSkuStockUserConsumptionDetailUserConsumption,
                            addDetailInputBarcodeUserConsumptionDetailUserConsumption, deleteUserConsumptionDetailUserConsumption
@@ -375,7 +399,15 @@ DESIGN userConsumption FROM DEFAULT{
         PROPERTY(sumUserConsumptionDetailUserConsumption(o)) { preferredCharWidth = 13;}
     }
 }
-
+WHEN SESSION FORMS userConsumption CHANGED(batchUserConsumptionDetail(detail)) DO {
+    skuUserConsumptionDetail (detail)  <- skuBatch(batchUserConsumptionDetail(detail)) WHERE batchUserConsumptionDetail(detail);
+}
+//WHEN SESSION FORMS userConsumption 
+//    CHANGED(skuUserConsumptionDetail(detail)) OR CHANGED(batchUserConsumptionDetail(detail)) OR CHANGED(stockUserConsumptionDetail(detail)) OR CHANGED (dateTimeUserConsumptionDetail(detail)) DO
+//    priceUserConsumptionDetail (detail)  <- IF batchUserConsumptionDetail(detail)
+//                    THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail))
+//                    ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail));
+                    
 editConsumptionDetail 'Редактировать' = ABSTRACT ACTION LIST  (ConsumptionDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editUserConsumptionDetail(d) = ACTION (d) NEWSESSION {
     FORM userConsumption OBJECTS o = userConsumptionUserConsumptionDetail(d), d = d MANAGESESSION DOCKEDMODAL;
@@ -390,8 +422,23 @@ editComponentDetail(d) = ACTION (d) NEWSESSION {
 
 editConsumptionDetail(d) += ACTION editComponentDetail(componentDetailOrderConsumptionDetail(d));
 
-
 //-- SKU
+@defineDocumentSkuStockPriceListTypeSystemLedger(userConsumption, accountPriceListType, );
+@extendFormDocumentSkuStock(userConsumption, userConsumption, o, legalEntityStock, );
+
+@defineDocumentBatchStockPriceListTypeSystemLedger(userConsumption, accountPriceListType, );
+@extendFormDocumentBatchStock(userConsumption, userConsumption, o, legalEntityStock, );
+
+@defineMovementSku(consumptionDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(userConsumptionDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(consumptionDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(userConsumptionDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+// История по правой кнопке
+@defineBalancesBatch(consumptionDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userConsumptionDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(consumptionDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userConsumptionDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
 addUserConsumption 'Добавить' = ACTION ADDFORM UserConsumption;
 editUserConsumption 'Редактировать' (userConsumption) = ACTION EDITFORM UserConsumption;
@@ -417,6 +464,20 @@ copyConsumption 'Копировать' = ACTION (userConsumption) NEWSESSION {
         FORM userConsumption OBJECTS o = o MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
+
+EXTEND FORM userConsumption
+
+    FILTERGROUP filter
+        FILTER 'С остатком ' 'F10' prevCurrentBalanceSkuStock(ks, st) DEFAULT
+        FILTER 'В документе ' 'F9' quantitySkuUserConsumptionStock(ks, o, st)
+;
+
+EXTEND FORM userConsumption
+
+    FILTERGROUP filter3
+        FILTER 'С остатком ' 'F10' prevCurrentBalanceBatchStock(b, sto) DEFAULT
+        FILTER 'В документе ' 'F9' quantityBatchUserConsumptionStock(b, o, sto)
+;
 
 
 createShipmentConsumption 'Создать поставку для Сырья' = ACTION (consumption)  {
@@ -461,7 +522,7 @@ FORM consumptions 'Списания сырья'
     PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedConsumption(o)
 
     OBJECTS d=ConsumptionDetail
-    PROPERTIES (d) READONLY indexConsumptionDetail, idBarcodeSkuConsumptionDetail, nameSkuConsumptionDetail, shortNameUOMSkuConsumptionDetail
+    PROPERTIES (d) READONLY indexConsumptionDetail, idBarcodeSkuConsumptionDetail, nameSkuConsumptionDetail, shortNameUOMSkuConsumptionDetail, nameBatchConsumptionDetail
     PROPERTIES (d) READONLY namePriceListTypeConsumptionDetail, quantityConsumptionDetail, priceConsumptionDetail, sumConsumptionDetail,
                    descriptionIndexComponentDetailConsumptionDetail
 
