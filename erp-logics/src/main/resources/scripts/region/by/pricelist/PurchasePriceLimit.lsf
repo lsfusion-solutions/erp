@@ -40,12 +40,13 @@ EXTEND FORM invoices
 overLimitBasePriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
 limitBasePriceUserInvoiceDetail(d) = OVERRIDE priceUserInvoiceDetail(d), overLimitBasePriceUserInvoiceDetail(d);
  
-limitPriceUserInvoiceDetail (detail) = IF limitMarkupUserInvoiceDetail(detail) > 100 THEN
-                                            roundPriceRoundCondition([= (X+Y)*(Z+100)/100](
+limitPriceUserInvoiceDetail (detail) = roundPriceRoundCondition(
+                                       IF limitMarkupUserInvoiceDetail(detail) > 100 THEN
+                                            [= (X+Y)*(Z+100)/100](
                                                 limitBasePriceUserInvoiceDetail(detail),
                                                 limitMarkupUserInvoiceDetail(detail),
-                                                valueRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)))
-                                       ELSE roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
+                                                valueRetailVATUserInvoiceDetail(detail))
+                                       ELSE [= X*(Y+100)*(Z+100)/10000](
                                                 limitBasePriceUserInvoiceDetail(detail),
                                                 limitMarkupUserInvoiceDetail(detail),
                                                 valueRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)));
