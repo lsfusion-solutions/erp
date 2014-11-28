@@ -351,4 +351,44 @@ NAVIGATOR {
 overShowEditInvoice (i) += showEditDeleteUserInvoice(i) AND isOpenedInvoice(i);
 overShowDeleteInvoice (i) += showEditDeleteUserInvoice(i) AND isUserOpenedInvoice(i); 
 
+dateBanBarcodeStock 'Дата запрета приемки накладных без штрихкодов'  = DATA DATE (Stock); 
 
+EXTEND FORM options
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, dateBanBarcodeStock EDITABLE 
+    ORDER BY stockName
+    
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
+            isCompanyStock(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(s) DEFAULT     
+    
+;
+EXTEND DESIGN options {
+    stock {
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;            
+            
+            ADD stockTree.tree.box {
+                caption = 'Группы складов';
+            }
+
+            ADD s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+    }
+}
+
+CONSTRAINT  isPostedInvoiceDetail(d) AND isItemSku(skuInvoiceDetail(d)) AND
+    dateInvoiceDetail(d) >= dateBanBarcodeStock(customerStockInvoiceDetail(d)) AND NOT idBarcodeSkuInvoiceDetail(d)
+        MESSAGE 'Для строки накладной (закупка) обязан быть задан штрихкод';   
