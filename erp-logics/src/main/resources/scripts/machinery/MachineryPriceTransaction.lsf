@@ -137,6 +137,8 @@ errorTraceMachineryPriceTransactionError 'След исключения' = DATA 
 machineryPriceTransactionMachineryPriceTransactionError 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) IN base;
 quantityMachineryPriceTransactionErrorMachineryPriceTransaction 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransactionMachineryPriceTransactionError (machineryPriceTransactionError) IN base;
 
+@defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log, date);
+
 // Загрузка в конкретные устройства
 TABLE machineryPriceTransactionMachinery (MachineryPriceTransaction, Machinery);
 inMachineryPriceTransactionMachinery 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
@@ -473,7 +475,7 @@ createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) N
 } IN snapshotMachineryPrice;
 
 GROUP documentMachineryPrice 'Из документа' : public;
-createMachineryPriceTransactionStock 'Из документа' = ACTION (stock) NEWSESSION AUTOAPPLY {
+createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION (stock) NEWSESSION AUTOAPPLY {
     FORM documents DIALOG;
     IF formResult() == FormResult.ok THEN {
         createMachineryPriceTransactionSku(sku) <- TRUE WHERE quantityDocumentDetailSkuDocument(sku, chosenObject('d'));        
@@ -485,7 +487,7 @@ createMachineryPriceTransactionStock 'Из документа' = ACTION (stock) 
 
 EXTEND FORM machineryPriceTransactions
     PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, createSnapshotMachineryPriceTransaction, 
-                  snapshotGroupMachineryDepartmentStore, createMachineryPriceTransactionStock
+                  snapshotGroupMachineryDepartmentStore, createDocumentMachineryPriceTransactionStock
 ;
 
 EXTEND DESIGN machineryPriceTransactions {
