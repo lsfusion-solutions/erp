@@ -295,7 +295,7 @@ extraStocksRequestExchange 'Дополнительные склады' (requestE
     BY requestExchange MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;;                                                                          
 dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
 dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
-startDateRequestExchange 'Дата начала' = DATA DATE (RequestExchange);
+startDateRequestExchange 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
 requestExchangeTypeRequestExchange 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
 nameRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticName(requestExchangeTypeRequestExchange(requestExchange));
 captionRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticCaption(requestExchangeTypeRequestExchange(requestExchange));
@@ -320,7 +320,7 @@ FORM requestExchange 'Запрос обмена данными'
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
                   captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r),
                   startDateRequestExchange SHOWIF showStartDate(r)
-    OBJECTS s = Stock
+    OBJECTS s = Stock FIXED GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
     PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock
     FILTERS isCompanyStock(s)
@@ -334,8 +334,9 @@ FORM requestExchanges 'Запросы обмена данными'
     FILTERS isCompanyStock(s)
     
     OBJECTS r = RequestExchange
-    PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange SHOWIF showExtraStocks(r), dateFromRequestExchange, dateToRequestExchange, 
-                           captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r)
+    PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange SHOWIF showExtraStocks(r) FORCE PANEL, dateFromRequestExchange, dateToRequestExchange, 
+                           captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r),
+                           startDateRequestExchange SHOWIF showStartDate(r) FORCE PANEL
     PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     FILTERS stockRequestExchange(r) == s
     
