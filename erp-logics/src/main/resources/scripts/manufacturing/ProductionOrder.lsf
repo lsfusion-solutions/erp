@@ -665,12 +665,14 @@ recordMarkupProductDetail(detail) = ACTION (detail) {
 // расчет НДС
 valueVATSkuOrder 'НДС, %' = DATA NUMERIC[10,5] (Sku, Order);
 
-valueVATSkuOrder(sku, order) <- valueVATSkuCountryDate(sku, componentsCountryOrder(order), dateOrder(order)) 
-        WHEN (CHANGED(componentsCountryOrder(order)) OR
+WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
               CHANGED(dateOrder(order)) OR 
-              CHANGED(VATOrder(order)))
-             AND quantityComponentDetailSkuOrder(sku, order)
-             AND VATOrder(order);                                      
+              CHANGED(VATOrder(order)) OR 
+              SET(quantityComponentDetailSkuOrder(sku, order)))
+                 AND quantityComponentDetailSkuOrder(sku, order)
+                 AND VATOrder(order) DO {                                      
+    valueVATSkuOrder(sku, order) <- valueVATSkuCountryDate(sku, componentsCountryOrder(order), dateOrder(order));
+}
      
 calcPriceVATProductDetail 'Цена НДС' (productDetail)= [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) *(valueVATSkuOrder(sku, order)/(100+valueVATSkuOrder(sku, order)))/ 
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
