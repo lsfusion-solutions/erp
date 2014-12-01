@@ -295,6 +295,7 @@ extraStocksRequestExchange 'Дополнительные склады' (requestE
     BY requestExchange MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;;                                                                          
 dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
 dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
+startDateRequestExchange 'Дата начала' = DATA DATE (RequestExchange);
 requestExchangeTypeRequestExchange 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
 nameRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticName(requestExchangeTypeRequestExchange(requestExchange));
 captionRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticCaption(requestExchangeTypeRequestExchange(requestExchange));
@@ -303,6 +304,7 @@ notSucceededRequestExchange 'Не обработан' (requestExchange) = reques
 dateTimeSucceededRequestExchange 'Время обработки' = DATA DATETIME (RequestExchange);
 showExtraStocks(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.checkZReport OR 
                                    requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.salesInfo;
+showStartDate(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.discountCard;
 
 CLASS RequestExchangeLog 'Ошибки обмена данными';
 TABLE requestExchangeLog (RequestExchangeLog);
@@ -316,7 +318,8 @@ requestExchangeRequestExchangeLog = DATA RequestExchange (RequestExchangeLog);
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
-                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r)
+                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r),
+                  startDateRequestExchange SHOWIF showStartDate(r)
     OBJECTS s = Stock
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
     PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock

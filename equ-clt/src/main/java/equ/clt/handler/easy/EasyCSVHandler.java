@@ -8,6 +8,7 @@ import equ.api.scales.TransactionScalesInfo;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.ParseException;
@@ -67,7 +68,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directory) throws IOException {
+        public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException {
         }
 
         @Override

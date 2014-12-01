@@ -946,8 +946,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                String[] names = new String[]{"stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
-                LCP[] properties = machineryPriceTransactionLM.findProperties("stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange");
+                String[] names = new String[]{"stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", 
+                        "startDateRequestExchange", "nameRequestExchangeTypeRequestExchange"};
+                LCP[] properties = machineryPriceTransactionLM.findProperties("stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", 
+                        "startDateRequestExchange", "nameRequestExchangeTypeRequestExchange");
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
                 }
@@ -966,6 +968,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
                     Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
                     Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
+                    Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
                     
                     Set<String> extraStockSet = typeRequestExchange.contains("salesInfo") ? new HashSet<String>() : readExtraStockMapRequestExchange(session, requestExchangeObject);
@@ -975,7 +978,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     else
                         requestExchangeMap.put(stockRequestExchange, new RequestExchange((Integer) result.getKey(i).get("requestExchange").getValue(), 
                                 new HashSet<String>(Arrays.asList(directoryMachinery)), idStockMachinery, extraStockSet,
-                                dateFromRequestExchange, dateToRequestExchange, typeRequestExchange));
+                                dateFromRequestExchange, dateToRequestExchange, startDateRequestExchange, typeRequestExchange));
                 }
               
                 for (RequestExchange entry : requestExchangeMap.values())

@@ -11,16 +11,18 @@ public class RequestExchange implements Serializable {
     public Set<String> extraStockSet;
     public Date dateFrom;
     public Date dateTo;
+    public Date startDate;
     private String typeRequestExchange;
 
     public RequestExchange(Integer requestExchange, Set<String> directorySet, String idStock, Set<String> extraStockSet, 
-                           Date dateFrom, Date dateTo, String typeRequestExchange) {
+                           Date dateFrom, Date dateTo, Date startDate, String typeRequestExchange) {
         this.requestExchange = requestExchange;
         this.directorySet = directorySet;
         this.idStock = idStock;
         this.extraStockSet = extraStockSet;
         this.dateFrom = dateFrom;
         this.dateTo = dateTo;
+        this.startDate = startDate;
         this.typeRequestExchange = typeRequestExchange;
     }
 

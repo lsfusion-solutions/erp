@@ -294,19 +294,18 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Set<String> directorySet) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directorySet) throws IOException {
 
         machineryExchangeLogger.info("HTCHandler: sending discount cards");
         
         Date currentDate = new java.sql.Date(Calendar.getInstance().getTimeInMillis());
-        
         try {
 
             File cachedDiscFile = null;
             
             for(String directory : directorySet) {
 
-                File discountCardFile = new File(directory + "/Discnew.dbf");
+                File discountCardFile = new File(directory + (startDate == null ? "/Discnew.dbf" : "/Discupd.dbf"));
                 if (cachedDiscFile != null) {
                     FileCopyUtils.copy(cachedDiscFile, discountCardFile);
                 } else {
@@ -323,28 +322,33 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     String lastName = null;
                     BigDecimal lastPercent = null;
                     for (DiscountCard discountCard : discountCardList) {
-                        putField(dbfFile, DISC, discountCard.numberDiscountCard, false);
 
-                        if (lastName == null || !lastName.equals(discountCard.nameDiscountCard)) {
-                            putField(dbfFile, NAME, discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard, false);
-                            lastName = discountCard.nameDiscountCard;
-                        }
-
-                        if (lastPercent == null || !lastPercent.equals(discountCard.percentDiscountCard)) {
-                            putField(dbfFile, PERCENT, String.valueOf(discountCard.percentDiscountCard), false);
-                            lastPercent = discountCard.percentDiscountCard;
-                        }
-
+                        boolean active = discountCard.dateFromDiscountCard != null && startDate != null && discountCard.dateFromDiscountCard.compareTo(startDate) >= 0;
                         boolean isStop = (discountCard.dateFromDiscountCard != null && discountCard.dateFromDiscountCard.compareTo(currentDate) > 0) ||
-                                (discountCard.dateToDiscountCard != null && discountCard.dateToDiscountCard.compareTo(currentDate) < 0);                        
-                        putField(dbfFile, ISSTOP, isStop ? "T" : "F", false);                        
-                        
-                        dbfFile.write();
+                                (discountCard.dateToDiscountCard != null && discountCard.dateToDiscountCard.compareTo(currentDate) < 0);
+                        if (startDate == null || active || isStop) {
+
+                            putField(dbfFile, DISC, discountCard.numberDiscountCard, false);
+
+                            if (lastName == null || !lastName.equals(discountCard.nameDiscountCard)) {
+                                putField(dbfFile, NAME, discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard, false);
+                                lastName = discountCard.nameDiscountCard;
+                            }
+
+                            if (lastPercent == null || !lastPercent.equals(discountCard.percentDiscountCard)) {
+                                putField(dbfFile, PERCENT, String.valueOf(discountCard.percentDiscountCard), false);
+                                lastPercent = discountCard.percentDiscountCard;
+                            }
+
+                            putField(dbfFile, ISSTOP, isStop ? "T" : "F", false);
+
+                            dbfFile.write();
+                        }
                     }
                     dbfFile.close();
                     FileCopyUtils.copy(cachedDiscFile, discountCardFile);
                 }
-                File discountFlag = new File(directory + "/TMC.dcn");
+                File discountFlag = new File(directory + startDate == null ? "/TMC.dcn" : "/TMC.dcu");
                 discountFlag.createNewFile();
             }
             if(cachedDiscFile != null) {

@@ -522,7 +522,7 @@ public class EquipmentServer {
                                         if (requestExchange.isDiscountCard()) {
                                             List<DiscountCard> discountCardList = remote.readDiscountCardList();
                                             if (discountCardList != null && !discountCardList.isEmpty())
-                                                ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, directorySet);
+                                                ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange.startDate, directorySet);
                                             remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
                                         } 
 
