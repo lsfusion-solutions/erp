@@ -31,7 +31,9 @@ import java.util.Map;
 // yyy is caption (optional)
 // zzz is number format (optional)
 // n is column width (optional)
-
+//IFERROR(xxx, a)
+// xxx is formula
+// a is default value
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
     String idForm;
     String titleProperty;

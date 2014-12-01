@@ -338,7 +338,7 @@ public class ExportExcelPivotAction implements ClientAction {
     
     private String getResultFormula(List<List<Object>> cellFieldsEntry, String formula) {
         String resultFormula = "";
-        Pattern pattern = Pattern.compile("(\\$?[\\d]+)?(\\+|\\-|\\*|\\/|\\(|\\))?");
+        Pattern pattern = Pattern.compile("(\\$?[\\d]+)?(\\+|\\-|\\*|\\/|\\(|\\)|IFERROR|,)?");
         Matcher matcher = pattern.matcher(formula);
         while (matcher.find()) {
             resultFormula += getFormulaCell(cellFieldsEntry, matcher.group(1), formula) + (matcher.group(2) == null ? "" : matcher.group(2));
@@ -348,14 +348,18 @@ public class ExportExcelPivotAction implements ClientAction {
         }
         return resultFormula;
     }
-    
+
     private String getFormulaCell(List<List<Object>> cellFieldsEntry, String field, String formula) {
         try {
             if (field == null) return "";
-            List<Object> indexEntry = cellFieldsEntry.get(Integer.parseInt(field.replace("$", "")) - 1);
-            return (field.startsWith("$") ? ("'" + indexEntry.get(0) + "'") : field);
+            if (field.startsWith("$")) {
+                List<Object> indexEntry = cellFieldsEntry.get(Integer.parseInt(field.replace("$", "")) - 1);
+                return "'" + indexEntry.get(0) + "'";
+            } else {
+                return field;
+            }
         } catch (Exception e) {
-            throw new RuntimeException("Error Formula: " + formula);                 
+            throw new RuntimeException("Error Formula: " + formula, e);
         }
     }
 }
