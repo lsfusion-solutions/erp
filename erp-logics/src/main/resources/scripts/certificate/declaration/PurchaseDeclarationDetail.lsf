@@ -386,7 +386,7 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(d)
                                               customsGroupUserInvoiceDetail(d),
                                               noneVATCustomsExceptionUserInvoiceDetail(d),
                                               countrySkuUserInvoiceDetail(d),
-                                              priceUserInvoiceDetail(d); //PERSISTENT;
+                                              priceUserInvoiceDetail(d); 
 
 sumGroupDeclaration 'Стоимость' = GROUP SUM sumUserInvoiceDetail(d)
                                            BY declarationUserInvoiceDetail(d),
@@ -395,48 +395,101 @@ sumGroupDeclaration 'Стоимость' = GROUP SUM sumUserInvoiceDetail(d)
                                               customsGroupUserInvoiceDetail(d),
                                               noneVATCustomsExceptionUserInvoiceDetail(d),
                                               countrySkuUserInvoiceDetail(d),
-                                              priceUserInvoiceDetail(d); //PERSISTENT;
+                                              priceUserInvoiceDetail(d); 
+                                              
+countNotQuantityDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT quantityUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);                                                                           
+countNotSumDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT sumUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);                                                                             
+countNotNameDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT nameCustomsUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d); 
+countNotUOMDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT UOMUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);  
+countNotCustomsGroupDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT customsGroupUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);                                                                                                                                                                                                                                       
+countNotVATCustomsExceptionDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT noneVATCustomsExceptionUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);  
+countNotCountrySkuDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT countrySkuUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);  
+countNotPriceDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT priceUserInvoiceDetail(d)
+    BY declarationUserInvoiceDetail(d);  
+    
+filterUserInvoiceDetailDeclaration = countNotNameDeclaration(declaration) OR
+                                                countNotUOMDeclaration(declaration) OR 
+                                                countNotCustomsGroupDeclaration(declaration) OR 
+                                                countNotVATCustomsExceptionDeclaration(declaration) OR
+                                                countNotCountrySkuDeclaration(declaration) OR
+                                                countNotPriceDeclaration(declaration) OR 
+                                                countNotQuantityDeclaration(declaration) OR 
+                                                countNotSumDeclaration(declaration);
 
+    
 overCreateDeclarationInvoiceDetailDeclaration = ABSTRACT ACTION LIST (Declaration);
 
 // скрипт для проставления старых
 //sumDeclarationInvoiceDetail(dd) <- sumGroupDeclaration(declarationDeclarationInvoiceDetail(dd), nameCustomsDeclarationInvoiceDetail(dd), UOMDeclarationInvoiceDetail(dd), customsGroupDeclarationInvoiceDetail(dd), VATCustomsExceptionDeclarationInvoiceDetail(dd), countryDeclarationInvoiceDetail(dd), priceDeclarationInvoiceDetail(dd));
 
 createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTION (declaration) {
-    DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration;
-
-    FOR quantity == quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) AND
-        sum == sumGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
-        // Ключи
-        declarationDeclarationInvoiceDetail(dd) <- declaration;
-        nameCustomsDeclarationInvoiceDetail(dd) <- customsName;
-        UOMDeclarationInvoiceDetail(dd) <- UOM;
-        customsGroupDeclarationInvoiceDetail(dd) <- customsGroup;
-        VATCustomsExceptionDeclarationInvoiceDetail(dd) <- IF customsException != VATCustomsException.none THEN customsException ELSE NULL;
-        countryDeclarationInvoiceDetail(dd) <- country;
-        priceDeclarationInvoiceDetail(dd) <- price;
-
-        // Значения
-        quantityDeclarationInvoiceDetail (dd) <- quantity;
-        sumDeclarationInvoiceDetail(dd) <- sum;
-
-        // связываем строки накладной и декларации
-        declarationInvoiceDetailUserInvoiceDetail(id) <- dd WHERE
-            declarationUserInvoiceDetail(id) == declaration AND
-            nameCustomsUserInvoiceDetail(id) == customsName AND
-            UOMUserInvoiceDetail(id) == UOM AND
-            customsGroupUserInvoiceDetail(id) == customsGroup AND
-            noneVATCustomsExceptionUserInvoiceDetail(id) == customsException AND
-            countrySkuUserInvoiceDetail(id) == country AND
-            priceUserInvoiceDetail(id) == price;
-    }
-
-    sumNetWeightDeclarationInvoiceDetail(dd) <- [= GROUP SUM sumNetWeightUserInvoiceDetail(d) BY declarationInvoiceDetailUserInvoiceDetail(d)](dd) WHERE declarationDeclarationInvoiceDetail(dd) == declaration;
-    sumGrossWeightDeclarationInvoiceDetail(dd) <- [= GROUP SUM sumGrossWeightUserInvoiceDetail(d) BY declarationInvoiceDetailUserInvoiceDetail(d)](dd) WHERE declarationDeclarationInvoiceDetail(dd) == declaration;
+    IF NOT filterUserInvoiceDetailDeclaration(declaration) THEN {
+        DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration;
     
-    overCreateDeclarationInvoiceDetailDeclaration(declaration);
+        FOR quantity == quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) AND
+            sum == sumGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
+            // Ключи
+            declarationDeclarationInvoiceDetail(dd) <- declaration;
+            nameCustomsDeclarationInvoiceDetail(dd) <- customsName;
+            UOMDeclarationInvoiceDetail(dd) <- UOM;
+            customsGroupDeclarationInvoiceDetail(dd) <- customsGroup;
+            VATCustomsExceptionDeclarationInvoiceDetail(dd) <- IF customsException != VATCustomsException.none THEN customsException ELSE NULL;
+            countryDeclarationInvoiceDetail(dd) <- country;
+            priceDeclarationInvoiceDetail(dd) <- price;
+    
+            // Значения
+            quantityDeclarationInvoiceDetail (dd) <- quantity;
+            sumDeclarationInvoiceDetail(dd) <- sum;
+    
+            // связываем строки накладной и декларации
+            declarationInvoiceDetailUserInvoiceDetail(id) <- dd WHERE
+                declarationUserInvoiceDetail(id) == declaration AND
+                nameCustomsUserInvoiceDetail(id) == customsName AND
+                UOMUserInvoiceDetail(id) == UOM AND
+                customsGroupUserInvoiceDetail(id) == customsGroup AND
+                noneVATCustomsExceptionUserInvoiceDetail(id) == customsException AND
+                countrySkuUserInvoiceDetail(id) == country AND
+                priceUserInvoiceDetail(id) == price;
+        }
+    
+        sumNetWeightDeclarationInvoiceDetail(dd) <- [= GROUP SUM sumNetWeightUserInvoiceDetail(d) BY declarationInvoiceDetailUserInvoiceDetail(d)](dd) WHERE declarationDeclarationInvoiceDetail(dd) == declaration;
+        sumGrossWeightDeclarationInvoiceDetail(dd) <- [= GROUP SUM sumGrossWeightUserInvoiceDetail(d) BY declarationInvoiceDetailUserInvoiceDetail(d)](dd) WHERE declarationDeclarationInvoiceDetail(dd) == declaration;
+        
+        overCreateDeclarationInvoiceDetailDeclaration(declaration);
+    } ELSE {
+        MESSAGE 'В декларации присутствуют строки накладной, у которых не задан: '+(CONCAT'; ',
+            ('Наименование (декл.) - '+ countNotNameDeclaration(declaration)+'шт.'),
+            ('Ед. изм. - '+ countNotUOMDeclaration(declaration)+' шт.'),
+            ('ТН ВЭД - '+ countNotCustomsGroupDeclaration(declaration)+' шт.'),
+            ('Льгота НДС - '+ countNotVATCustomsExceptionDeclaration(declaration)+' шт.'),
+            ('Страна производства - '+ countNotCountrySkuDeclaration(declaration)+' шт.'),
+            ('Цена - '+ countNotPriceDeclaration(declaration)+' шт.'),
+            ('Количество - '+ countNotQuantityDeclaration(declaration)+' шт.'),
+            ('Сумма - '+ countNotSumDeclaration(declaration)+' шт.')
+        );
+    }
 } TOOLBAR CONFIRM;
 
+
+filterDeclarationUserInvoiceDetail = d IS UserInvoiceDetail AND NOT 
+    (quantityUserInvoiceDetail(d) AND
+    sumUserInvoiceDetail(d) AND 
+    nameCustomsUserInvoiceDetail(d) AND 
+    UOMUserInvoiceDetail(d) AND
+    customsGroupUserInvoiceDetail(d) AND
+    noneVATCustomsExceptionUserInvoiceDetail(d) AND 
+    countrySkuUserInvoiceDetail(d) AND 
+    priceUserInvoiceDetail(d)
+    );
+
+                                                
 EXTEND FORM declaration
     OBJECTS di = DeclarationInvoiceDetail
     PROPERTIES(di) nameCustomsDeclarationInvoiceDetail, shortNameUOMDeclarationInvoiceDetail, nameCountryDeclarationInvoiceDetail,                       
@@ -446,6 +499,17 @@ EXTEND FORM declaration
     
     PROPERTIES(d) createDeclarationInvoiceDetailDeclaration TODRAW di FORCE PANEL TOOLBAR
     FILTERS declarationDeclarationInvoiceDetail(di) == d
+    
+    FILTERGROUP notParams 
+        FILTER 'Без параметров' 'F11' filterDeclarationUserInvoiceDetail(id) 
+        FILTER 'Без наим. (декл.)' 'F10'  NOT nameCustomsUserInvoiceDetail(id)
+        FILTER 'Без ед. изм.' 'F9'  NOT UOMUserInvoiceDetail(id)
+        FILTER 'Без ТН ВЭД' 'F8'  NOT customsGroupUserInvoiceDetail(id)
+        FILTER 'Без льготы НДС' 'F7'  NOT noneVATCustomsExceptionUserInvoiceDetail(id)
+        FILTER 'Без страны пр-ва' 'F6'  NOT countrySkuUserInvoiceDetail(id)
+        FILTER 'Без кол-ва' 'F5'  NOT quantityUserInvoiceDetail(id)                
+        FILTER 'Без цены' 'ctrl F5'  NOT priceUserInvoiceDetail(id)           
+        FILTER 'Без суммы' 'shift F5'  NOT sumUserInvoiceDetail(id)   
 ;
 EXTEND DESIGN declaration {
     declarationDetails {
