@@ -146,9 +146,58 @@ DESIGN wares FROM DEFAULT {
     ADD functions.box;
 }
 
+@extendFormEditable(wares);
+
 NAVIGATOR {
     skuNavigator {
         ADD wareGroups AFTER UOMs;
         ADD wares AFTER wareGroups;
     }
 }
+// ------------------ Дополнительные группы --------------- //
+TABLE customGroupTypeWare(CustomGroupType, Ware);
+customGroupCustomGroupTypeWare = DATA CustomGroup (CustomGroupType, Ware);
+customGroupCustomGroupTypeSku(type, item) += customGroupCustomGroupTypeWare(type, item);
+
+nameCustomGroupCustomGroupTypeWare 'Имя' (type, ware) = nameCustomGroup(customGroupCustomGroupTypeWare(type, ware));
+canonicalNameCustomGroupCustomGroupTypeWare'Каноническое имя' (type, ware) = canonicalNameCustomGroup(customGroupCustomGroupTypeWare(type, ware));
+idCustomGroupCustomGroupTypeWare'Код' (type, ware) = idCustomGroup(customGroupCustomGroupTypeWare(type, ware));
+
+CONSTRAINT customGroupTypeCustomGroup(customGroupCustomGroupTypeWare(type, ware)) != type
+           CHECKED BY customGroupCustomGroupTypeWare
+           MESSAGE 'Выбранный объект классификатора SKU имеет неправильный тип';
+           
+TABLE customGroupTypeWareGroup(CustomGroupType, WareGroup);
+dataCustomGroupCustomGroupTypeWareGroup 'Дополнительная группа (по умолчанию)' = DATA CustomGroup (CustomGroupType, WareGroup);
+dataNameCustomGroupCustomGroupCustomGroupTypeWareGroup 'Дополнительная группа (по умолчанию)' (customGroupType, wareGroup) = nameCustomGroup(dataCustomGroupCustomGroupTypeWareGroup(customGroupType, wareGroup));
+
+levelParentCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) = GROUP MIN levelWareGroupWareGroup(wareGroup, parent) IF dataCustomGroupCustomGroupTypeWareGroup(customGroupType, parent)
+                                                              BY customGroupType, wareGroup PERSISTENT;    
+nearestParentCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) = wareGroupWareGroupLevel(wareGroup, levelParentCustomGroupCustomGroupTypeWareGroup(customGroupType, wareGroup));
+nearestCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) = dataCustomGroupCustomGroupTypeWareGroup(customGroupType, nearestParentCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup));
+
+customGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) =
+    OVERRIDE nearestCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup), 
+             dataCustomGroupCustomGroupTypeWareGroup(customGroupType, wareGroup) PERSISTENT;    
+
+nameCustomGroupCustomGroupTypeWareGroup 'Дополнительная группа (по умолчанию)' (customGroupType, wareGroup) = nameCustomGroup(customGroupCustomGroupTypeWareGroup(customGroupType, wareGroup));
+
+EXTEND FORM ware
+    OBJECTS cgt = CustomGroupType
+    PROPERTIES nameCustomGroupType(cgt) READONLY, canonicalNameCustomGroupCustomGroupTypeWare(cgt, w)
+;
+EXTEND DESIGN ware {
+    ADD cgt.box BEFORE functions.box;
+}
+
+EXTEND FORM wareGroup
+    OBJECTS dc=CustomGroupType 
+    PROPERTIES(dc)   READONLY nameCustomGroupType, idCustomGroupType
+    PROPERTIES(dc, g) nameCustomGroupCustomGroupTypeWareGroup    
+;    
+EXTEND DESIGN wareGroup {
+    ADD dc.box BEFORE functions.box;
+}
+
+WHEN SESSION CHANGED(wareGroupWare(w)) AND dc IS CustomGroupType AND NOT customGroupCustomGroupTypeWare(dc, w) DO
+    customGroupCustomGroupTypeWare(dc, w) <- customGroupCustomGroupTypeWareGroup(dc, wareGroupWare(w));
