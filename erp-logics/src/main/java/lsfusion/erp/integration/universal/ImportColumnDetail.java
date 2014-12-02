@@ -6,8 +6,7 @@ public class ImportColumnDetail {
     private String fullIndex;
     String[] indexes;
     boolean replaceOnlyNull;
-    public String moduleName;
-    public String property;
+    public String propertyCanonicalName;
     public String key;
 
     public ImportColumnDetail(String field, String singleIndex, boolean replaceOnlyNull) {
@@ -19,17 +18,16 @@ public class ImportColumnDetail {
     }
     
     public ImportColumnDetail(String field, String fullIndex, String[] indexes, boolean replaceOnlyNull) {
-        this(field, fullIndex, indexes, replaceOnlyNull, null, null, null);
+        this(field, fullIndex, indexes, replaceOnlyNull, null, null);
     }
     
     public ImportColumnDetail(String field, String fullIndex, String[] indexes, boolean replaceOnlyNull, 
-                              String moduleName, String property, String key) {
+                              String propertyCanonicalName, String key) {
         this.field = field;
         this.fullIndex = fullIndex;
         this.indexes = indexes;
         this.replaceOnlyNull = replaceOnlyNull;
-        this.moduleName = moduleName;
-        this.property = property;
+        this.propertyCanonicalName = this.propertyCanonicalName;
         this.key = key;
     }
     

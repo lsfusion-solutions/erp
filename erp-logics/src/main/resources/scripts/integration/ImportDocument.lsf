@@ -95,7 +95,22 @@ CLASS ImportTypeDetail 'Свойство' {
 }
 TABLE ImportTypeDetail(ImportTypeDetail);
 
-propertyImportTypeDetail 'Свойство' (ImportTypeDetail) = DATA VARSTRING[100] (ImportTypeDetail);
+// todo : delete in future releases 
+propertyImportTypeDetail 'Свойство (устар.)' (ImportTypeDetail) = DATA VARSTRING[100] (ImportTypeDetail);
+
+propImportTypeDetail 'Свойство' (ImportTypeDetail) = DATA Property (ImportTypeDetail);
+canonicalNamePropImportTypeDetail 'Свойство' (d) = canonicalNameProperty(propImportTypeDetail(d));
+migratePropImportTypeDetail = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportPropertyActionProperty' (ImportTypeDetail);
+propsMigrated() = DATA BOOLEAN ();
+migrateProps() = ACTION {
+    IF NOT propsMigrated() THEN {
+        FOR propertyImportTypeDetail(ImportTypeDetail d) DO
+            migratePropImportTypeDetail(d);
+        propsMigrated() <- TRUE;
+    }
+}
+onStarted() += ACTION migrateProps();
+
 keyImportTypeDetail 'Ключ' (ImportTypeDetail) = DATA CustomKeyType (ImportTypeDetail);
 nameKeyImportTypeDetail (ImportTypeDetail) = staticName(keyImportTypeDetail(ImportTypeDetail));
 captionKeyImportTypeDetail 'Ключ' (ImportTypeDetail) = staticCaption(keyImportTypeDetail(ImportTypeDetail));
@@ -120,7 +135,7 @@ nameSecondaryKeyTypeImportType 'Тип вторичного ключа' (importT
 keyIsDigitImportType 'Ключ содержит только цифры' (importType) = DATA BOOLEAN(ImportType);
 checkArticlesImportType 'Проверять артикулы на изменение' (importType) = DATA BOOLEAN(ImportType); 
 importTypeDetailImportType (ImportType) = DATA ImportTypeDetail(ImportType);
-propertyImportTypeDetailImportType 'Свойство артикула' (importType) = propertyImportTypeDetail(importTypeDetailImportType(importType)); 
+propertyImportTypeDetailImportType 'Свойство артикула' (importType) = canonicalNamePropImportTypeDetail(importTypeDetailImportType(importType)); 
 staticNameImportTypeDetailImportType  (importType) = staticName(importTypeDetailImportType(importType)); 
 staticCaptionImportTypeDetailImportType  (importType) = staticCaption(importTypeDetailImportType(importType)); 
 
@@ -161,13 +176,13 @@ idStockStockMappingEntry (stockMappingEntry) = idStock(stockStockMappingEntry(st
 
 FORM importTypeDetails
     OBJECTS itd = ImportTypeDetail
-    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
     DIALOG ImportTypeDetail OBJECT itd
 ;
 
 FORM importTypeDetail 'Свойство импорта'
     OBJECTS itd = ImportTypeDetail FIXED PANEL
-    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
     EDIT ImportTypeDetail OBJECT itd
 ;
 
@@ -210,7 +225,7 @@ FORM importType 'Тип импорта'
     FILTERS importTypeStockMappingEntry(s) == i
               
     OBJECTS d = ImportTypeDetail
-    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
     PROPERTIES(i,d) indexImportTypeImportTypeDetail, replaceOnlyNullImportTypeImportTypeDetail                   
     PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
     EDIT ImportType OBJECT i

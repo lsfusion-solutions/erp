@@ -458,16 +458,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
-                ScriptingLogicsModule customModuleLM = context.getBL().getModule(customColumn.moduleName);
-                if (customModuleLM != null) {
-                    ImportField customField = new ImportField(customModuleLM.findProperty(customColumn.property));
+                LCP<?> customProp = (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                if (customProp != null) {
+                    ImportField customField = new ImportField(customProp);
                     ImportKey<?> customKey = null;
                     if (customColumn.key.equals("userPriceListDetail"))
                         customKey = userPriceListDetailKey;
                     else if(customColumn.key.equals("item"))
                         customKey = itemKey;
                     if (customKey != null) {
-                        props.add(new ImportProperty(customField, customModuleLM.findProperty(customColumn.property).getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
+                        props.add(new ImportProperty(customField, customProp.getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userPriceListDetailList.size(); i++)
                             data.get(i).add(userPriceListDetailList.get(i).customValues.get(entry.getKey()));
@@ -908,7 +908,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull));
                 else if(keyImportTypeDetail != null)
                     customColumns.put(staticCaptionProperty, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull,
-                            moduleName, sidProperty, keyImportTypeDetail));
+                            (String) entry.get("propertyImportUserPriceListTypeDetail"), keyImportTypeDetail));
             }
         }
         return Arrays.asList(defaultColumns, customColumns);

@@ -54,7 +54,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
-        LCP[] properties = findProperties("staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail");
+        LCP[] properties = findProperties("staticName", "staticCaption", "canonicalNamePropImportTypeDetail", "nameKeyImportTypeDetail");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importTypeDetailExpr));
         }
@@ -69,8 +69,6 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             String field = getSplittedPart(staticNameProperty, "\\.", -1);
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
             String propertyImportTypeDetail = (String) entry.get("propertyImportTypeDetail");
-            String moduleName = getSplittedPart(propertyImportTypeDetail, "\\.", 0);
-            String sidProperty = getSplittedPart(propertyImportTypeDetail, "\\.", 1);
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportTypeDetail"), "\\.", 1);
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportTypeImportTypeDetail") != null;
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
@@ -82,7 +80,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
                     defaultColumns.put(field, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull));
                 else if(keyImportTypeDetail != null)
                     customColumns.put(staticCaptionProperty, new ImportColumnDetail(staticCaptionProperty, indexes, splittedIndexes, replaceOnlyNull,
-                            moduleName, sidProperty, keyImportTypeDetail));
+                            (String) entry.get("propertyImportTypeDetail"), keyImportTypeDetail));
             }
         }
         return Arrays.asList(defaultColumns, customColumns);

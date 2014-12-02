@@ -556,9 +556,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
-                ScriptingLogicsModule customModuleLM = context.getBL().getModule(customColumn.moduleName);
-                if (customModuleLM != null) {
-                    ImportField customField = new ImportField(customModuleLM.findProperty(customColumn.property));
+                LCP<?> customProp = (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                if (customProp != null) {
+                    ImportField customField = new ImportField(customProp);
                     ImportKey<?> customKey = null;
                     if (customColumn.key.equals("item"))
                         customKey = itemKey;
@@ -567,12 +567,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     else if (customColumn.key.equals("documentDetail"))
                         customKey = userInvoiceDetailKey;
                     if (customKey != null) {
-                        props.add(new ImportProperty(customField, customModuleLM.findProperty(customColumn.property).getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
+                        props.add(new ImportProperty(customField, customProp.getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
                     } else if(customColumn.key.equals("document")) {
-                        props.add(new ImportProperty(customField, customModuleLM.findProperty(customColumn.property).getMapping(userInvoiceObject), getReplaceOnlyNull(customColumns, entry.getKey())));
+                        props.add(new ImportProperty(customField, customProp.getMapping(userInvoiceObject), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
@@ -1085,12 +1085,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     private boolean checkArticles(ExecutionContext context, DataSession session, String propertyImportType, String staticNameImportType, 
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        if (propertyImportType != null && propertyImportType.contains(".")) {
-            String sidProperty = getSplittedPart(propertyImportType, "\\.", 1);
-            ScriptingLogicsModule moduleLM = context.getBL().getModule(getSplittedPart(propertyImportType, "\\.", 0));
+        if (propertyImportType != null) {
+            LCP<?> sidProp = (LCP)context.getBL().findSafeProperty(propertyImportType);
+            if (sidProp != null) {
+                ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
+                LCP<?> idArticleProp = itemArticleLM.findProperty("idArticle");
 
-            if (moduleLM != null) {
-                List<Object> articles = getArticlesMap(session, moduleLM, sidProperty);
+                List<Object> articles = getArticlesMap(session, idArticleProp, sidProp);
                 Set<String> articleSet = articles == null ? null : (Set<String>) articles.get(0);
                 Map<String, String> articlePropertyMap = articles == null ? null : (Map<String, String>) articles.get(1);
                 Map<String, Object[]> duplicateArticles = new HashMap<String, Object[]>();
@@ -1113,7 +1114,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 if (overridingArticles != null) {
                     for (Map.Entry<String, String> entry : overridingArticles.entrySet()) {
-                        moduleLM.findProperty("idArticle").change(entry.getValue(), context, (DataObject) moduleLM.findProperty("articleId").readClasses(context, new DataObject(entry.getKey())));
+                        idArticleProp.change(entry.getValue(), context, (DataObject) itemArticleLM.findProperty("articleId").readClasses(context, new DataObject(entry.getKey())));
                     }
                 }
             }
@@ -1121,7 +1122,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return true;
     }
     
-    private List<Object> getArticlesMap(DataSession session, ScriptingLogicsModule LM, String sidProperty) 
+    private List<Object> getArticlesMap(DataSession session, LCP<?> idArticleProp, LCP<?> sidProperty)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {        
         
         Set<String> articleSet = new HashSet<String>();
@@ -1131,16 +1132,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev((Object) "Article", articleExpr);
 
         QueryBuilder<Object, Object> articleQuery = new QueryBuilder<Object, Object>(articleKeys);
-        articleQuery.addProperty("idArticle", LM.findProperty("idArticle").getExpr(session.getModifier(), articleExpr));
-        articleQuery.addProperty(sidProperty, LM.findProperty(sidProperty).getExpr(session.getModifier(), articleExpr));
-        articleQuery.and(LM.findProperty("idArticle").getExpr(session.getModifier(), articleExpr).getWhere());
+        articleQuery.addProperty("idArticle", idArticleProp.getExpr(session.getModifier(), articleExpr));
+        articleQuery.addProperty("sid", sidProperty.getExpr(session.getModifier(), articleExpr));
+        articleQuery.and(idArticleProp.getExpr(session.getModifier(), articleExpr).getWhere());
         
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(session);
 
         for (ImMap<Object, Object> entry : articleResult.values()) {
 
             String idArticle = (String) entry.get("idArticle");
-            String property = (String) entry.get(sidProperty);
+            String property = (String) entry.get("sid");
             if(property != null)
                 articlePropertyMap.put(idArticle, property);
             articleSet.add(idArticle);           
