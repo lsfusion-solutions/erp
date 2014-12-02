@@ -376,8 +376,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
         
     editInvoice 'Редактировать' = ABSTRACT ACTION LIST (Invoice) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
     Invoice.editInvoice (invoice) += ACTION editInvoice(invoice);
-
+    skipShowQuantityInvoice = ABSTRACT BOOLEAN (Invoice);
+    showQuantityInvoice (i) = i IS Invoice AND NOT skipShowQuantityInvoice(i);
     editSkuUserInvoiceDetail 'Редактировать SKU' (d) = ACTION editSku(skuUserInvoiceDetail(d));
+    
     FORM userInvoice 'Накладная'###sign
         OBJECTS i = UserInvoice FIXED PANEL
         PROPERTIES (i) isPostedUserInvoice, nameSupplierUserInvoice ON CHANGE changeSupplier###supplierFilter###userInvoice(i),
@@ -395,7 +397,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
         PROPERTIES (d) indexUserInvoiceDetail
         PROPERTIES (d) ON EDIT editSkuUserInvoiceDetail(d) BACKGROUND backgroundSkuUserInvoiceDetail(d) idBarcodeSkuUserInvoiceDetail, 
                        nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail
-        PROPERTIES (d) quantityUserInvoiceDetail, namePriceListTypeUserInvoiceDetail,
+        PROPERTIES (d) quantityUserInvoiceDetail SHOWIF showQuantityInvoice(i), namePriceListTypeUserInvoiceDetail,
                        priceUserInvoiceDetail ON CHANGE changePriceUserInvoiceDetail(d), sumUserInvoiceDetail,
                        numberVATUserInvoiceDetail ON CHANGE changeNumberVATUserInvoiceDetail(d) BACKGROUND backgroundVATUserInvoiceDetail(d),
                        valueVATUserInvoiceDetail ON CHANGE changeValueVATUserInvoiceDetail(d) BACKGROUND backgroundVATUserInvoiceDetail(d),
