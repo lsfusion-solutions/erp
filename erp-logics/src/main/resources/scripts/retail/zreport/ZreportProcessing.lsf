@@ -2,6 +2,10 @@ MODULE ZReportProcessing;
 
 REQUIRE ZReport;
 
+retailPriceReceiptDetail 'Розничная цена' (d)= IF batchReceiptDetail(d) 
+    THEN priceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batchReceiptDetail(d), departmentStoreReceiptDetail(d), dateTimeReceiptDetail(d)) 
+    ELSE priceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuReceiptDetail(d), departmentStoreReceiptDetail(d), dateTimeReceiptDetail(d));
+
 FORM ZReportProcessing 'Обработка Z-отчетов'
     OBJECTS ds = DepartmentStore FIXED PANEL
     PROPERTIES(ds) SELECTOR nameDepartmentStore 
@@ -16,7 +20,9 @@ FORM ZReportProcessing 'Обработка Z-отчетов'
                   valueVATReceiptDetail
     ORDER BY dateTimeReceiptDetail(d)              
     FILTERS departmentStoreReceiptDetail(d) == ds                  
-    
+    FILTERGROUP priceFilter
+        FILTER  'Без расценки' 'F11' skuReceiptDetail(d) AND NOT retailPriceReceiptDetail(d)
+        FILTER  'Разные цены' 'F10' retailPriceReceiptDetail(d) != priceReceiptDetail(d)
 ;
 
 @extendFormFilterStockAccess(ds, ZReportProcessing);
