@@ -16,9 +16,10 @@ public class ImportPriceListSettings {
     private Boolean isPosted;
     private boolean doNotCreateItems;
     private boolean barcodeMaybeUPC;
+    private String checkColumn;
 
     public ImportPriceListSettings(String fileExtension, String quantityAdjustmentColumn, DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject, String itemKeyType, String separator, 
-                                   Integer startRow, Boolean isPosted, boolean doNotCreateItems, boolean barcodeMaybeUPC) {
+                                   Integer startRow, Boolean isPosted, boolean doNotCreateItems, boolean barcodeMaybeUPC, String checkColumn) {
         this.fileExtension = fileExtension; 
         this.quantityAdjustmentColumn = quantityAdjustmentColumn;
         this.operationObject = operationObject;
@@ -31,6 +32,7 @@ public class ImportPriceListSettings {
         this.isPosted = isPosted;
         this.doNotCreateItems = doNotCreateItems;
         this.barcodeMaybeUPC = barcodeMaybeUPC;
+        this.checkColumn = checkColumn;
     }
 
     public String getFileExtension() {
@@ -79,5 +81,9 @@ public class ImportPriceListSettings {
 
     public boolean isBarcodeMaybeUPC() {
         return barcodeMaybeUPC;
+    }
+
+    public String getCheckColumn() {
+        return checkColumn;
     }
 }
