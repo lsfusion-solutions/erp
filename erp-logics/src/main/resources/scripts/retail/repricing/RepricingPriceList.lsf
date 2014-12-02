@@ -35,6 +35,25 @@ calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o
     formRefresh();
 } TOOLBAR;
 
+calculateDashboardManagementRepricing 'Рассчитать позиции (упр.)' = ACTION (d, o, dt) {
+    
+    IF onStockPriceListRepricing() THEN {
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
+                                                                                     sku, d, dt);
+        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+    } ELSE {
+        managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
+                                                                                  sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
+                                                                                     sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
+        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+    }
+    
+    inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+    
+    formRefresh();
+} TOOLBAR;
+
 createDashboardRepricing 'Создать переоценку' = ACTION (d, o, dt) {
     NEWSESSION (*) {
         FOR ADDOBJ r = UserRepricing DO {
