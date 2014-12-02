@@ -16,6 +16,7 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.interop.Compare;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.classes.DynamicFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -132,6 +133,10 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                     int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                             currentSession, invoiceObject, importTypeObject, file, fileExtension,
                                             importDocumentSettings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
+
+                                    findProperty("originalInvoice").change(
+                                            new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
+
                                     if (importResult >= IMPORT_RESULT_OK)
                                         currentSession.apply(context);
 
