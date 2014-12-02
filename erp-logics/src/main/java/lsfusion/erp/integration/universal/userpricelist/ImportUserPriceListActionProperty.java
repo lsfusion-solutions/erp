@@ -464,7 +464,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         itemAlcoholLM.findProperty("alcoholSupplierTypeNumber").getMapping(numberAlcoholSupplierTypeField));
                 alcoholSupplierTypeKey.skipKey = true;
                 keys.add(alcoholSupplierTypeKey);
-                props.add(new ImportProperty(numberAlcoholSupplierTypeField, itemAlcoholLM.findProperty("numberAlcoholSupplierType").getMapping(alcoholSupplierTypeKey)));
                 if (settings.getCompanyObject() != null)
                     props.add(new ImportProperty(numberAlcoholSupplierTypeField, itemAlcoholLM.findProperty("alcoholSupplierTypeLegalEntityItem").getMapping(settings.getCompanyObject(), itemKey),
                             object(itemAlcoholLM.findClass("AlcoholSupplierType")).getMapping(alcoholSupplierTypeKey), getReplaceOnlyNull(defaultColumns, "alcoholSupplierType")));
