@@ -1,0 +1,55 @@
+MODULE  RepricingStopList;
+
+REQUIRE StopList, MachineryPriceTransaction, Repricing;
+
+NAMESPACE StopList;
+
+statusStopListRepricingDetail 'Запрет продаж' (d)= IF skipMachineryPriceTransactionSkuStockDateTime(skuRepricingDetail(d), departmentStoreRepricingDetail(d), currentDateTime())
+    THEN 'В стоп-листе'
+    ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
+backgroundStopListRepricingDetail 'Цвет' (d) = RGB (255,0,0) IF skipMachineryPriceTransactionSkuStockDateTime(skuRepricingDetail(d), departmentStoreRepricingDetail(d), currentDateTime());
+
+countInStopListRepricingSku 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
+    IF skipMachineryPriceTransactionSkuStockDateTime(skuRepricingDetail(d), departmentStoreRepricingDetail(d), currentDateTime()) 
+          BY repricingRepricingDetail(d), skuRepricingDetail(d);
+
+countSkuInStopListRepricing 'Количество товаров в стоп-листе ' = GROUP SUM 1 
+    IF countInStopListRepricingSku(i,s) BY i;
+            
+createReversStopListRepricing 'Исключить из стоп-листа'  = ACTION (repricing) {
+
+    NEWSESSION NESTED {   
+        FOR ADDOBJ sl = StopList DO {    
+            inStockStopList(st, sl) <- TRUE WHERE st == departmentStoreRepricing(repricing);  
+            excludeStopList(sl) <-TRUE;
+            isPostedStopList(sl) <-TRUE;
+                   
+            FOR countInStopListRepricingSku(repricing, sku) ADDOBJ d = StopListDetail DO {
+                
+                stopListStopListDetail(d) <- sl;
+                skuStopListDetail(d) <- sku;            
+            }   
+            FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
+        }        
+    }
+};
+
+EXTEND FORM userRepricing
+    PROPERTIES (p) READONLY FORCE PANEL SHOWIF countSkuInStopListRepricing(p) TODRAW d countSkuInStopListRepricing,
+                   createReversStopListRepricing EDITABLE 
+    PROPERTIES (d) READONLY statusStopListRepricingDetail BACKGROUND backgroundStopListRepricingDetail(d) AFTER nameSkuUserRepricingDetail(d)
+    
+;
+EXTEND DESIGN userRepricing {
+    d.panel {
+        NEW stopList {
+            type = CONTAINERH;
+            caption = 'Стоп-лист';            
+            ADD PROPERTY (countSkuInStopListRepricing(p)) {background = #FF0000;}
+            ADD PROPERTY (createReversStopListRepricing(p));
+        }        
+    }    
+}  
+EXTEND FORM repricings
+    PROPERTIES (d) READONLY statusStopListRepricingDetail BACKGROUND backgroundStopListRepricingDetail(d) AFTER nameSkuRepricingDetail(d)
+;
