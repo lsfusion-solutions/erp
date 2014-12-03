@@ -12,9 +12,8 @@ alcoholIncomeTypeInvoice = ABSTRACT CASE AlcoholIncomeType(Invoice);
 nameAlcoholIncomeTypeInvoice 'Тип приобретения алкоголя' (i) = staticCaption(alcoholIncomeTypeInvoice(i));
 alcoholIncomeTypeInvoiceDetail (d) = alcoholIncomeTypeInvoice(invoiceInvoiceDetail(d)) PERSISTENT;
  
-alcoholSupplierTypeInvoice = ABSTRACT AlcoholSupplierType(Invoice);
-nameAlcoholSupplierTypeInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeInvoice(i));
-alcoholSupplierTypeInvoiceDetail (d) = alcoholSupplierTypeInvoice(invoiceInvoiceDetail(d)) PERSISTENT;
+alcoholSupplierTypeInvoiceDetail = ABSTRACT AlcoholSupplierType(InvoiceDetail) PERSISTENT;
+nameAlcoholSupplierTypeInvoiceDetail 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeInvoiceDetail(i));
 
 volumeInvoiceDetail 'Объем' = ABSTRACT NUMERIC[14,3] (InvoiceDetail) PERSISTENT;
 signetVolumeInvoiceDetail 'Объем' = ABSTRACT NUMERIC[14,3] (InvoiceDetail) PERSISTENT; 
@@ -112,12 +111,14 @@ NAVIGATOR {
 }
    
 META defineInvoiceAlcohol(dumb)
-    alcoholSupplierTypeInvoice = ABSTRACT AlcoholSupplierType(Invoice);
-    nameAlcoholSupplierTypeInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeInvoice(i));
-    alcoholSupplierTypeInvoiceDetail (d) = alcoholSupplierTypeInvoice(invoiceInvoiceDetail(d));
-    alcoholSupplierTypeUserInvoice = DATA AlcoholSupplierType(UserInvoice);
-    nameAlcoholSupplierTypeUserInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeUserInvoice(i));
-    alcoholSupplierTypeUserInvoiceDetail (d) = alcoholSupplierTypeUserInvoice(userInvoiceUserInvoiceDetail(d));
-    alcoholSupplierTypeInvoice(i) += alcoholSupplierTypeUserInvoice(i); 
-    Invoice.alcoholSupplierTypeInvoice(i) += alcoholSupplierTypeInvoice(i);            
+    alcoholSupplierTypeInvoiceDetail = ABSTRACT AlcoholSupplierType(InvoiceDetail);
+    nameAlcoholSupplierTypeInvoiceDetail 'Тип поставщика алкоголя' (d) = staticCaption(alcoholSupplierTypeInvoiceDetail(d));
+    alcoholSupplierTypeUserInvoiceDetail = DATA AlcoholSupplierType(UserInvoiceDetail);
+    nameAlcoholSupplierTypeUserInvoiceDetail 'Тип поставщика алкоголя' (d) = staticCaption(alcoholSupplierTypeUserInvoiceDetail(d));
+    alcoholSupplierTypeInvoiceDetail(d) += alcoholSupplierTypeUserInvoiceDetail(d); 
+    Invoice.alcoholSupplierTypeInvoiceDetail(d) += alcoholSupplierTypeInvoiceDetail(d);  
+    
+    alcoholSupplierTypeUserInvoiceDetail (d) <- alcoholSupplierTypeLegalEntityItem(supplierInvoiceDetail(d),skuInvoiceDetail(d))
+        WHEN CHANGED(skuInvoiceDetail(d)) OR CHANGED(supplierInvoiceDetail(d));
+  
 END
