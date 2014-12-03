@@ -6,6 +6,61 @@ NAMESPACE Repricing;
 
 //------------------------ Управленческая переоценка ----------------------------//
 
+createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распечатать ценники' = ACTION (departmentStore, operation, dateTime) {
+    IF [=GROUP SUM 1 IF inDashboardRepricingSku(sku)]() THEN {
+        selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- inDashboardRepricingSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
+        FOR [= GROUP SUM 1 IF selectSkuLabelTypeDepartmentStore(s,l,d) BY l, d](labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
+            departmentStoreLabelTransaction(t) <- departmentStore;
+            labelTypeLabelTransaction(t) <- labelType;
+            priceListTypeLabelTransaction(t) <- priceListTypeOperation(operation);   
+            dateLabelTransaction(t) <- toDate(dateTime);      
+            timeLabelTransaction(t) <- toTime(dateTime);      
+            
+            FOR selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
+                
+                labelTransactionLabelTransactionDetail(d) <- t;
+                skuLabelTransactionDetail(d) <- sku;
+    
+                nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+                createAttributeLabelTransactionDetail(d);
+    
+                quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
+                                                        THEN INTEGER(currentBalanceSkuStock(sku, departmentStore))
+                                                     ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                                                     
+                priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
+            } 
+            FORM printLabelTransaction OBJECTS l = t PRINT;                 
+        }
+    }   
+} TOOLBAR;
+
+createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime)  {
+
+    FOR ADDOBJ t = LabelTransaction DO {
+        departmentStoreLabelTransaction(t) <- departmentStore;
+        priceListTypeLabelTransaction(t) <- priceListTypeOperation(operation);   
+        dateLabelTransaction(t) <- toDate(dateTime);      
+        timeLabelTransaction(t) <- toTime(dateTime);          
+
+        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
+            labelTransactionLabelTransactionDetail(d) <- t;
+            skuLabelTransactionDetail(d) <- sku;
+
+            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+            documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
+
+            createAttributeLabelTransactionDetail(d);
+        }
+        
+        FORM customLabelTransaction OBJECTS l = t MODAL;
+        IF formResult() == FormResult.ok THEN {    
+            FORM printLabelTransaction OBJECTS l = t PRINT;
+        }  
+    }
+} TOOLBAR;
+
 clearDashboardRepricing = ACTION() {
     inDashboardRepricingSku(sk) <- NULL;
     managementRetailPriceSku(sk) <- NULL;
@@ -27,10 +82,12 @@ FORM repricingDashboard 'Переоценка'
     PROPERTIES(t) OBJVALUE
     
     OBJECTS sk=Sku
-    PROPERTIES(sk)          inDashboardRepricingSku
+    PROPERTIES(sk)          inDashboardRepricingSku, selectSku
     PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     PROPERTIES     READONLY currentBalanceSkuStock(sk,d), managementRetailPriceSku(sk), retailPricingPriceBSkuStockDateTime(sk,d,t) 
-    PROPERTIES (d,o,t)  TODRAW sk FORCE PANEL calculateDashboardRepricing, calculateDashboardManagementRepricing, createDashboardRepricing
+    PROPERTIES (d,o,t)  TODRAW sk FORCE PANEL calculateDashboardRepricing, calculateDashboardManagementRepricing, createDashboardRepricing,
+                                              createRepricingLabelTransactionDepartmentStoreOperationDateTime,
+                                              createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime
     FILTERS inDashboardRepricingSku(sk)
 
     OBJECTS p = Repricing
@@ -45,7 +102,7 @@ FORM repricingDashboard 'Переоценка'
     PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
                    createSnapshotRepricingLabelTransaction FORCE PANEL
                    
-    PROPERTIES(p)  createMachineryPriceTransactionRepricing FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
+    PROPERTIES (p) createMachineryPriceTransactionRepricing FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
     PROPERTIES (p) printRepricing FORCE PANEL TOOLBAR                                           
     PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
     PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
@@ -72,6 +129,9 @@ DESIGN repricingDashboard FROM DEFAULT {
                 caption = 'Товары, для которых необходима переоценка';
                 PROPERTY(retailPricingPriceBSkuStockDateTime(sk,d,t)) {
                     caption = 'Цена (текущая)';
+                }
+                PROPERTY(selectSku(sk)) {
+                    caption = 'Печать';
                 }
             }        
             ADD p.box;            

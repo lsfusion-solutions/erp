@@ -269,6 +269,9 @@ nameLabelTypeLabelTransaction 'Тип ценника' (transaction) = nameLabelT
 
 CONSTRAINT labelTypeLabelTransaction(transaction) AND NOT inLabelTypeDepartmentStore(labelTypeLabelTransaction(transaction), departmentStoreLabelTransaction(transaction))
            CHECKED BY labelTypeLabelTransaction MESSAGE 'Тип ценника запрещен для выбранного подразделения';
+           
+priceListTypeLabelTransaction = DATA PriceListType (LabelTransaction);     
+namePriceListTypeLabelTransaction 'Вид цен' (labelTransaction) = namePriceListType(priceListTypeLabelTransaction(labelTransaction));         
 
 fileTemplateLabelTransaction 'Файл шаблона' (transaction) = fileTemplateLabelType(labelTypeLabelTransaction(transaction));
 
@@ -291,7 +294,10 @@ TABLE LabelTransactionDetail(LabelTransactionDetail);
 labelTransactionLabelTransactionDetail = DATA LabelTransaction (LabelTransactionDetail);
 
 labelTypeLabelTransactionDetail (d) = labelTypeLabelTransaction(labelTransactionLabelTransactionDetail(d));
-priceListTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d)) PERSISTENT;
+
+priceListTypeLabelTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d));
+priceListTypeLabelTransactionDetail(d) = OVERRIDE priceListTypeLabelTypeLabelTransactionDetail(d), priceListTypeLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
+namePriceListTypeLabelTransactionDetail 'Вид цен' (labelTransactionDetail) = namePriceListType(priceListTypeLabelTransactionDetail(labelTransactionDetail));     
 
 printNullPriceLabelTransactionDetail = printNullPriceLabelType(labelTypeLabelTransactionDetail(detail));
 
@@ -311,6 +317,8 @@ nameLabelTransactionDetail 'Наименование' = DATA VARSTRING[255] (Lab
 priceLabelTransactionDetail 'Цена' = DATA NUMERIC[14,2] (LabelTransactionDetail);
 retailPriceLabelTransactionDetail 'Цена до'  = DATA NUMERIC[14,2] (LabelTransactionDetail);
 overRetailPriceLabelTransactionDetail = ABSTRACT NUMERIC[14,2] (LabelTransactionDetail);
+operationLabelTransactionDetail = ABSTRACT Operation.Operation (LabelTransactionDetail);
+nameOperationLabelTransactionDetail 'Операция' = nameOperation(operationLabelTransactionDetail(detail));
 
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
@@ -338,7 +346,7 @@ FORM customLabelTransaction 'Печать ценников'
                    
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail READONLY, nameSkuLabelTransactionDetail READONLY, nameBatchLabelTransactionDetail,
-                  quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail,
+                  nameOperationLabelTransactionDetail, quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail,
                   DELETESESSION
     FILTERS labelTransactionLabelTransactionDetail(d) == l
     
