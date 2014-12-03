@@ -122,3 +122,38 @@ EXTEND DESIGN options {
         ADD PROPERTY (prefixWeightItem());
     }
 }
+
+//--
+@defineItemGroupDefaultValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
+
+dataExpiredItem 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
+expiredItem 'Не грузить с истекшим ср. год-ти' (item) = OVERRIDE expiredItemGroup(itemGroupItem(item)), dataExpiredItem(item) IN itemBase PERSISTENT ;
+
+
+expiredSkuBarcode (barcode) = expiredItem(skuBarcode(barcode));
+
+quantityChildWithExpiredItemGroup (itemGroup) = GROUP SUM 1 IF dataExpiredItemGroup(childItemGroup) AND isParentItemGroupItemGroup(childItemGroup, itemGroup) BY itemGroup PERSISTENT;
+quantityParentWithExpiredItemGroup (itemGroup) = GROUP SUM 1 IF dataExpiredItemGroup(parentItemGroup) AND isParentItemGroupItemGroup(itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
+
+showExpiredItemGroup 'Не грузить с истекшим ср. год-ти' (itemGroup) = TRUE IF (quantityChildWithExpiredItemGroup (itemGroup) (+) quantityParentWithExpiredItemGroup (itemGroup)) > 0 PERSISTENT;
+
+backgroundShowExpiredItemGroup (itemGroup) =
+    IF dataExpiredItemGroup(itemGroup) THEN
+        RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithExpiredItemGroup (itemGroup) != descendantNumberItemGroup(itemGroup)
+                         AND NOT quantityParentWithExpiredItemGroup (itemGroup);
+                             
+setNullShowExpiredItemGroup 'Снять признак для всех потомков' = ACTION (itemGroup) {
+    FOR isParentItemGroupItemGroup (childGroup, itemGroup) DO {
+        ASSIGN dataExpiredItemGroup(childGroup) <- NULL;
+    }
+} SHORTCUT dataExpiredItemGroup CONFIRM;     
+
+
+EXTEND FORM itemGroup PROPERTIES(g) dataExpiredItemGroup;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpiredItemGroup BACKGROUND backgroundShowExpiredItemGroup(g) BEFORE deleteg;
+EXTEND FORM item PROPERTIES(i) expiredItem;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei expiredItem;
+
+skipInGroupMachinerySku(groupMachinery, sku) += WHEN expiredItem(sku) AND expiryDateSkuStock(sku, stockGroupMachinery(groupMachinery)) < currentDate() THEN TRUE;
