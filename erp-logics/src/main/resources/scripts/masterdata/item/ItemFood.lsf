@@ -42,17 +42,17 @@ CLASS CoolingDegree 'Степень охлаждения товара';
 TABLE coolingDegree(CoolingDegree);
 
 nameCoolingDegree 'Наименование' = DATA VARISTRING[50](CoolingDegree);
-shortNameCoolingDegree 'Краткое наименование' = DATA ISTRING[10](CoolingDegree);
+coolingDegreeName = GROUP AGGR d BY nameCoolingDegree(d); 
 
 FORM coolingDegree 'Степень охлаждения товара'
     OBJECTS t=CoolingDegree FIXED PANEL
-    PROPERTIES(t) nameCoolingDegree, shortNameCoolingDegree
+    PROPERTIES(t) nameCoolingDegree
     EDIT CoolingDegree OBJECT t
 ;
 
 FORM coolingDegrees 'Степени охлаждения товара'
     OBJECTS t=CoolingDegree
-    PROPERTIES(t) nameCoolingDegree READONLY, shortNameCoolingDegree READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) nameCoolingDegree READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
     ORDER BY nameCoolingDegree(t)
     DIALOG CoolingDegree OBJECT t
@@ -61,10 +61,11 @@ DESIGN coolingDegrees FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(coolingDegree, CoolingDegree, name, 'Степень охлаждения', itemFood);
 @defineUniteAttributeItem(coolingDegree, nameCoolingDegree, 'степень охлаждения', 'степени охлаждения', item);
-EXTEND FORM attributesItem
-    PROPERTIES(coolingDegree) READONLY AFTER nameCoolingDegree(coolingDegree) shortNameCoolingDegree
-;
 @defineObjectItemAttributeBatch (coolingDegree, nameCoolingDegree, 'Степень охлаждения');
+
+@implementItemAttribute(nameCoolingDegree, 'Степень охлаждения', String, itemCoolingDegree);
+@defineItemFilterValue(coolingDegree, 'Степень охлаждения');
+@defineItemExtractObjectAttribute(coolingDegree, nameCoolingDegree, coolingDegreeName);
 //@implementObjectShortItemAttribute(coolingDegree, 'Степень охлаждения (сокр.)');
 
 // Жирность
