@@ -918,6 +918,49 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
                NOT inInvoiceDetailBatch(invoiceDetailUserInvoiceDetail(detail), batchUserInvoiceDetail(detail))
                CHECKED BY batchUserInvoiceDetail, invoiceDetailUserInvoiceDetail
                MESSAGE 'Выбрана партия, которая не была списана в соответствующей строке продажи';
+               
+    equalsPriceLineInvoices 'Цена в возвратной накладной должна соответстовать цене в основании' = DATA BOOLEAN ();
+    
+    
+    EXTEND FORM options
+        PROPERTIES() nsret###equalsPriceLineInvoices = equalsPriceLineInvoices
+    ;
+    
+    EXTEND DESIGN options {
+        invoice##nsret {
+            ADD PROPERTY(nsret###equalsPriceLineInvoices);    
+        }
+    }
+
+    CONSTRAINT isPostedUserInvoiceDetail(d) AND equalsPriceLineInvoices() AND NOT (nsret.priceUserInvoiceDetail(d) ==  nsdir.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(d)))
+        MESSAGE 'Цена в возвратной накладной не соответствует цене в основании';  
+            
+    //----------- Автоматическое заполнение основания для возвратной накладной ------------------//
+    countInvoiceDetailsSupplierStockCustomerStockSkuPriceDate 'Количество строк основания' = GROUP SUM 1 
+        IF nsdir.dateInvoiceDetail(d) <= date AND nsdir.isPostedInvoiceDetail(d)
+            BY nsdir.supplierInvoiceDetail(d), nsdir.supplierStockInvoiceDetail(d), nsdir.customerInvoiceDetail(d), nsdir.customerStockInvoiceDetail(d), nsdir.skuInvoiceDetail(d), nsdir.priceInvoiceDetail(d), date;
+    
+    invoiceDetailSupplierStockCustomerStockSkuPriceDate 'Количество строк основания' = GROUP MAX d 
+        IF nsdir.dateInvoiceDetail(d) <= date AND nsdir.isPostedInvoiceDetail(d)
+            BY nsdir.supplierInvoiceDetail(d), nsdir.supplierStockInvoiceDetail(d), nsdir.customerInvoiceDetail(d), nsdir.customerStockInvoiceDetail(d), nsdir.skuInvoiceDetail(d), nsdir.priceInvoiceDetail(d), date;
+                
+    maxSaleInvoiceDetailUserInvoiceDetail(d) = invoiceDetailSupplierStockCustomerStockSkuPriceDate(supplierUserInvoiceDetail(d),supplierStockUserInvoiceDetail(d), customerUserInvoiceDetail(d),customerStockUserInvoiceDetail(d),skuUserInvoiceDetail(d), priceUserInvoiceDetail(d),dateUserInvoiceDetail(d));
+    countSaleInvoiceDetailsUserInvoiceDetail(d) = countInvoiceDetailsSupplierStockCustomerStockSkuPriceDate(supplierUserInvoiceDetail(d),supplierStockUserInvoiceDetail(d), customerUserInvoiceDetail(d),customerStockUserInvoiceDetail(d),skuUserInvoiceDetail(d), priceUserInvoiceDetail(d), dateUserInvoiceDetail(d));
+    balanceReturnQuantityInvoiceDetail(detail) = nsdir.quantityInvoiceDetail(detail) (-) returnQuantityInvoiceDetail(detail);
+    
+    //-- пока берем без учета того, что в данной накладной может быть несколько строк с одним товаром
+    fillInvoiceDetailUserInvoiceDetail 'Проставить основание'  = ACTION (d) {    
+        invoiceDetailUserInvoiceDetail(d) <- maxSaleInvoiceDetailUserInvoiceDetail(d)
+            WHERE NOT invoiceDetailUserInvoiceDetail(d)  AND countSaleInvoiceDetailsUserInvoiceDetail(d) == 1 AND        
+            balanceReturnQuantityInvoiceDetail(maxSaleInvoiceDetailUserInvoiceDetail(d)) >= quantityUserInvoiceDetail(d);
+    } SHORTCUT descriptionInvoiceDetailUserInvoiceDetail;
+    
+    
+    fillAllInvoiceDetailUserInvoiceDetail 'Проставить основание для всех' = ACTION (detail) {
+       FOR userInvoiceUserInvoiceDetail(detail) == userInvoiceUserInvoiceDetail(d) DO
+           fillInvoiceDetailUserInvoiceDetail(d);
+    } SHORTCUT descriptionInvoiceDetailUserInvoiceDetail;               
+               
 END
 
 META defineInvoiceDestination(fromLegalEntity, toLegalEntity)
