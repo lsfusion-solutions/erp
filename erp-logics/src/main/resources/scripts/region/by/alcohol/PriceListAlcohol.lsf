@@ -1,0 +1,39 @@
+MODULE PriceListAlcohol;
+
+REQUIRE PriceList, ItemAlcohol;
+
+NAMESPACE PriceList;
+
+alcoholSupplierTypeUserPriceListDetail = alcoholSupplierTypeLegalEntityItem(companyPriceList(priceListPriceListDetail(detail)), skuPriceListDetail(detail)); 
+nameAlcoholSupplierTypeUserPriceListDetail 'Тип поставщика алкоголя' = staticCaption(alcoholSupplierTypeUserPriceListDetail(detail));
+
+showAlcoholSupplierTypeUserPriceList 'Тип поставщика алкоголя' = DATA BOOLEAN (UserPriceList);
+showAlcoholSupplierTypeUserPriceListDetail = showAlcoholSupplierTypeUserPriceList(priceListPriceListDetail(detail));
+
+changeAlcoholSupplierTypePriceListDetail = ACTION (detail) {
+    REQUEST OBJECT d
+    FORM alcoholSupplierTypies DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        FOR l==companyPriceListDetail(detail) AND i==skuPriceListDetail(detail) DO {
+            alcoholSupplierTypeLegalEntityItem(l, i) <- requestedObject();
+            }
+        } ELSE {
+            IF formResult() == FormResult.drop THEN {
+                FOR l==companyPriceListDetail(detail) AND i==skuPriceListDetail(detail) DO {
+                            alcoholSupplierTypeLegalEntityItem(l, i) <- NULL;   
+            }             
+        } 
+    }    
+}   
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) showAlcoholSupplierTypeUserPriceList
+    PROPERTIES (d) nameAlcoholSupplierTypeUserPriceListDetail ON CHANGE changeAlcoholSupplierTypePriceListDetail(d) 
+                                SHOWIF showAlcoholSupplierTypeUserPriceListDetail(d) AFTER nameSkuUserPriceListDetail(d)
+;
+
+EXTEND DESIGN userPriceList{
+    param {
+        ADD PROPERTY(showAlcoholSupplierTypeUserPriceList(p)); 
+    }    
+}
