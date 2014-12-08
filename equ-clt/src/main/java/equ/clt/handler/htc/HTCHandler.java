@@ -36,7 +36,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return transactionInfo.nameGroupCashRegister;
+        return transactionInfo.nameGroupMachinery;
     }
 
     @Override
@@ -184,7 +184,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                         dbfFile.gotoRecord(recordNumber);
                                 }
 
-                                String code = item.extIdItem;
+                                String code = item.idItem;
                                 if (lastCode == null || !lastCode.equals(code)) {
                                     putField(dbfFile, CODE, code, append);
                                     putField(dbfFile, ARTICUL, code, append);
@@ -624,30 +624,32 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                         String idEmployee = getDBFFieldValue(dbfFile, "CASHIER", charset);
                         Date dateReceipt = getDBFDateFieldValue(dbfFile, "DATE", charset);
-                        Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm:ss"}).getTime());
-                        
-                        String barcodeItem = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
-                        //временный чит для корректировки весовых штрихкодов
-                        barcodeItem = (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length()==13) ? barcodeItem.substring(2, 7) : barcodeItem;
-                        
-                        BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "COUNT", charset);
-                        BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
-                        BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "COST", charset);
-                        BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "SUMDISC_ON", charset);
-                        BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(dbfFile, "SUMDISC_OF", charset);
+                        if(dateReceipt != null) {
+                            Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm:ss"}).getTime());
 
-                        Integer nppMachinery = directoryCashRegisterMap.get(directory);
-                        Integer nppGroupMachinery = directoryGroupCashRegisterMap.get(directory);
-                        Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
-                        numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
-                        numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
-                        String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
-                        
-                        salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
-                                timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail, 
-                                priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, numberReceiptDetail,
-                                salesFile.getName()));
+                            String barcodeItem = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
+                            //временный чит для корректировки весовых штрихкодов
+                            barcodeItem = (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) ? barcodeItem.substring(2, 7) : barcodeItem;
 
+                            BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "COUNT", charset);
+                            BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
+                            BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "COST", charset);
+                            BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "SUMDISC_ON", charset);
+                            BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(dbfFile, "SUMDISC_OF", charset);
+                            discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discountSumReceipt);
+                            
+                            Integer nppMachinery = directoryCashRegisterMap.get(directory);
+                            Integer nppGroupMachinery = directoryGroupCashRegisterMap.get(directory);
+                            Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
+                            numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
+                            numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
+                            String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
+
+                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
+                                    timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail,
+                                    priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail,
+                                    salesFile.getName()));
+                        }
                     }
 
                     dbfFile.close();
@@ -710,7 +712,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fieldName, charset);
-        return dateString.isEmpty() ? null : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
+        return dateString == null || dateString.isEmpty() ? null : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
@@ -723,6 +725,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         return result == null ? null : new Double(result).intValue();
     }
 
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+    
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }

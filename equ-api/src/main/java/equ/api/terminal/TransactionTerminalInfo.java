@@ -13,24 +13,28 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
     public List<TerminalAssortment> terminalAssortmentList;
     public Integer nppGroupTerminal;
     public String directoryGroupTerminal;
-    public Boolean snapshot;
     
-    public TransactionTerminalInfo(Integer id, String dateTimeCode, String handlerModel, List<TerminalItemInfo> itemsList, List<TerminalInfo> machineryInfoList,
-                                   List<TerminalHandbookType> terminalHandbookTypeList, List<TerminalDocumentType> terminalDocumentTypeList,
-                                   List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalAssortment> terminalAssortmentList, 
-                                   Integer nppGroupTerminal, String directoryGroupTerminal, Boolean snapshot) {
+    public TransactionTerminalInfo(Integer id, String dateTimeCode, String handlerModel, Integer idGroupMachinery, Integer nppGroupMachinery, 
+                                   String nameGroupMachinery, String comment, List<TerminalItemInfo> itemsList, 
+                                   List<TerminalInfo> machineryInfoList, Boolean snapshot, List<TerminalHandbookType> terminalHandbookTypeList, 
+                                   List<TerminalDocumentType> terminalDocumentTypeList, List<TerminalLegalEntity> terminalLegalEntityList, 
+                                   List<TerminalAssortment> terminalAssortmentList, Integer nppGroupTerminal, String directoryGroupTerminal) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.handlerModel = handlerModel;
+        this.idGroupMachinery = idGroupMachinery;
+        this.nppGroupMachinery = nppGroupMachinery;
+        this.nameGroupMachinery = nameGroupMachinery;
+        this.comment = comment;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
+        this.snapshot = snapshot;
         this.terminalHandbookTypeList = terminalHandbookTypeList;
         this.terminalDocumentTypeList = terminalDocumentTypeList;
         this.terminalLegalEntityList = terminalLegalEntityList;
         this.terminalAssortmentList = terminalAssortmentList;
         this.nppGroupTerminal = nppGroupTerminal;
         this.directoryGroupTerminal = directoryGroupTerminal;
-        this.snapshot = snapshot;
     }
 
     @Override

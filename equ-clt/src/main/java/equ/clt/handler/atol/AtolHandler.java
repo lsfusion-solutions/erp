@@ -56,7 +56,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             goodsWriter.println("#");
 
             goodsWriter.println("$$$ADDENTERPRISES");
-            goodsWriter.println(format(transactionInfo.nppGroupCashRegister, ";") + ";" + format(transactionInfo.nameGroupCashRegister, ";"));
+            goodsWriter.println(format(transactionInfo.nppGroupMachinery, ";") + ";" + format(transactionInfo.nppGroupMachinery, ";"));
 
             if (!transactionInfo.itemsList.isEmpty()) {
                 goodsWriter.println("$$$ADDQUANTITY");
@@ -79,7 +79,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
                             format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
                             ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                            (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
+                            (transactionInfo.nppGroupMachinery == null ? "1" : transactionInfo.nppGroupMachinery) + ";";
                     goodsWriter.println(itemGroupRecord);
                 }
 
@@ -88,7 +88,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
                             format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
                             ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                            (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
+                            (transactionInfo.nppGroupMachinery == null ? "1" : transactionInfo.nppGroupMachinery) + ";";
                     goodsWriter.println(record);
                 }
             }

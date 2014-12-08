@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 public class ItemInfo implements Serializable {
+    public String idItem;
     public String idBarcode;
     public String name;
     public BigDecimal price;
@@ -11,7 +12,8 @@ public class ItemInfo implements Serializable {
     public Integer pluNumber;
     public Integer daysExpiry;
     
-    public ItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry) {
+    public ItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry) {
+        this.idItem = idItem;
         this.idBarcode = idBarcode;
         this.name = name;
         this.price = price;

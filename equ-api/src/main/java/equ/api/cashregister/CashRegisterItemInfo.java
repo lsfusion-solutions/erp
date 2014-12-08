@@ -4,8 +4,7 @@ import equ.api.ItemInfo;
 import java.math.BigDecimal;
 
 public class CashRegisterItemInfo extends ItemInfo {
-    public Integer idItem;
-    public String extIdItem;
+    public Integer idItemObject;
     public String description;
     public String idItemGroup;
     public String nameItemGroup;
@@ -20,13 +19,12 @@ public class CashRegisterItemInfo extends ItemInfo {
     public boolean notPromotionItem;
     public Integer flags;
 
-    public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry,
-                                Integer idItem, String extIdItem, String description, String idItemGroup, String nameItemGroup, 
+    public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, 
+                                Integer daysExpiry, Integer idItemObject, String description, String idItemGroup, String nameItemGroup, 
                                 String idUOM, String shortNameUOM,  String idBrand, String nameBrand, String idSeason, String nameSeason,
                                 boolean passScalesItem, BigDecimal vat, boolean notPromotionItem, Integer flags) {
-        super(idBarcode, name, price, splitItem, pluNumber, daysExpiry);
-        this.idItem = idItem;
-        this.extIdItem = extIdItem;
+        super(idItem, idBarcode, name, price, splitItem, pluNumber, daysExpiry);
+        this.idItemObject = idItemObject;
         this.description = description;
         this.idItemGroup = idItemGroup;
         this.nameItemGroup = nameItemGroup;

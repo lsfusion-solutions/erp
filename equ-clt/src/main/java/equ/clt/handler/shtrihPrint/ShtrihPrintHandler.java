@@ -80,7 +80,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                 for (ScalesItemInfo item : transaction.itemsList) {
                                     Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                     Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
-                                    Integer shelfLife = item.expirationDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
+                                    Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
                                     int len = item.name.length();
                                     String firstName = item.name.substring(0, len < 28 ? len : 28);
@@ -97,7 +97,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                     shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                                     shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                                     shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                                    shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate == null ? new Date(2001 - 1900, 0, 1) : item.expirationDate));
+                                    shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate));
                                     shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
                                     String description = item.description == null ? "" : item.description;

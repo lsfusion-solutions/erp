@@ -5,13 +5,19 @@ import java.util.List;
 
 public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInfo, PriceCheckerItemInfo> {
 
-    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, String handlerModel, List<PriceCheckerItemInfo> itemsList,
-                                       List<PriceCheckerInfo> machineryInfoList) {
+    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, String handlerModel, Integer idGroupMachinery, Integer nppGroupMachinery,
+                                       String nameGroupMachinery, String comment, List<PriceCheckerItemInfo> itemsList,
+                                       List<PriceCheckerInfo> machineryInfoList, Boolean snapshot) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.handlerModel = handlerModel;
+        this.idGroupMachinery = idGroupMachinery;
+        this.nppGroupMachinery = nppGroupMachinery;
+        this.nameGroupMachinery = nameGroupMachinery;
+        this.comment = comment;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
+        this.snapshot = snapshot;
     }
 
     @Override

@@ -7,18 +7,18 @@ import java.util.Date;
 
 public class ScalesItemInfo extends ItemInfo {
     public Integer hoursExpiry;
-    public Date expirationDate;
+    public Date expiryDate;
     public Integer labelFormat;
     public String description;
     public Integer descriptionNumber;
     public String idItemGroup;
     
-    public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry,
-                          Integer hoursExpiry, Date expirationDate, Integer labelFormat, String description, 
+    public ScalesItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, 
+                          Integer daysExpiry, Integer hoursExpiry, Date expiryDate, Integer labelFormat, String description, 
                           Integer descriptionNumber, String idItemGroup) {
-        super(idBarcode, name, price, splitItem, pluNumber, daysExpiry);
+        super(idItem, idBarcode, name, price, splitItem, pluNumber, daysExpiry);
         this.hoursExpiry = hoursExpiry;
-        this.expirationDate = expirationDate;
+        this.expiryDate = expiryDate;
         this.labelFormat = labelFormat;
         this.description = description;
         this.descriptionNumber = descriptionNumber;

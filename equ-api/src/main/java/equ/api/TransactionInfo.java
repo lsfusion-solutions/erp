@@ -11,9 +11,15 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public String dateTimeCode;
     public Date date;
     public String handlerModel;
+    public Integer idGroupMachinery;
+    public Integer nppGroupMachinery;
+    public String nameGroupMachinery;
+    public String idStock;
+    public String comment;
     public Map<String, List<ItemGroup>> itemGroupMap;
     public List<I> itemsList;
     public List<M> machineryInfoList;
+    public Boolean snapshot;
 
     public abstract List<MachineryInfo> sendTransaction(Object handler, List<M> machineryInfoList) throws IOException;
 }

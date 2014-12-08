@@ -74,6 +74,7 @@ numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (Receipt
 numberZReportReceipt 'Номер Z-отчета' (receipt) = numberZReport(zReportReceipt(receipt)) IN recognize;
 cashRegisterReceipt (receipt) = cashRegisterZReport(zReportReceipt(receipt));
 numberCashRegisterReceipt 'Номер кассы' (receipt) = nppMachinery(cashRegisterReceipt(receipt)) IN recognize;
+numberGroupCashRegisterReceipt 'Номер кассы' (receipt) = nppGroupMachineryMachinery(cashRegisterReceipt(receipt)) IN recognize;
 
 groupCashRegisterReceipt (receipt) = groupCashRegisterCashRegister(cashRegisterReceipt(receipt));
 
@@ -81,6 +82,9 @@ cashRegisterModelReceipt (receipt) = cashRegisterModelGroupCashRegister(groupCas
 sidCashRegisterModelReceipt 'Код модели' (receipt) = sidModel(cashRegisterModelReceipt(receipt));
 
 employeeReceipt = DATA Employee(Receipt);
+idEmployeeReceipt (receipt) = idEmployee(employeeReceipt(receipt));
+firstNameEmployeeReceipt (receipt) = firstNameContact(employeeReceipt(receipt));
+lastNameEmployeeReceipt (receipt) = lastNameContact(employeeReceipt(receipt));
 nameEmployeeReceipt 'Кассир' (receipt) = nameContact(employeeReceipt(receipt));
 employeeReceipt(receipt) <- currentUser() WHEN SET(receipt IS Receipt);
 
@@ -693,6 +697,7 @@ importReceiptsZReport 'Импортировать чеки' = ACTION CUSTOM 'lsf
 
 exportReceipt 'Экспортировать' (receipt) = DATA SESSION BOOLEAN (Receipt);
 exportedIncrementReceipt 'Экспортировано (инкрементно)' (receipt) = DATA BOOLEAN (Receipt);
+notExportedIncrementReceipt (r) = NOT exportedIncrementReceipt(r);
 pathExportReceipts 'Путь' = DATA VARSTRING[100] ();
 
 exportIncrementReceipts 'Экспортировать (инкрементно) чеки' = ACTION() {
