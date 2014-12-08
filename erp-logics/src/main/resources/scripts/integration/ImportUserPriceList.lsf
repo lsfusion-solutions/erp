@@ -46,7 +46,22 @@ CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-�
 }
 TABLE importPriceListTypeDetail(ImportUserPriceListTypeDetail);
 
-propertyImportTypeDetail 'Свойство' = DATA VARSTRING[100] (ImportUserPriceListTypeDetail);
+// todo : delete in future releases 
+propertyImportTypeDetail 'Свойство (устар.)' = DATA VARSTRING[100] (ImportUserPriceListTypeDetail);
+
+propImportTypeDetail 'Свойство' (ImportTypeDetail) = DATA Property (ImportUserPriceListTypeDetail);
+canonicalNamePropImportTypeDetail 'Свойство' (d) = canonicalNameProperty(propImportTypeDetail(d));
+migratePropImportTypeDetail = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportUserPriceListPropertyActionProperty' (ImportUserPriceListTypeDetail);
+propsMigrated() = DATA BOOLEAN ();
+migrateProps() = ACTION {
+    IF NOT propsMigrated() THEN {
+        FOR propertyImportTypeDetail(d) DO
+            migratePropImportTypeDetail(d);
+        propsMigrated() <- TRUE;
+    }
+}
+onStarted() += ACTION migrateProps();
+
 keyImportTypeDetail 'Ключ' = DATA CustomKeyType (ImportUserPriceListTypeDetail);
 nameKeyImportTypeDetail 'Ключ' (importTypeDetail) = staticName(keyImportTypeDetail(importTypeDetail));
 captionKeyImportTypeDetail 'Ключ' (importTypeDetail) = staticCaption(keyImportTypeDetail(importTypeDetail));
@@ -117,13 +132,13 @@ FORM customKeyTypes 'Ключи свойства'
 
 FORM importUserPriceListTypeDetails
     OBJECTS itd = ImportUserPriceListTypeDetail
-    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
     DIALOG ImportUserPriceListTypeDetail OBJECT itd
 ;
 
 FORM importUserPriceListTypeDetail 'Свойство импорта'
     OBJECTS itd = ImportUserPriceListTypeDetail FIXED PANEL
-    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
     EDIT ImportUserPriceListTypeDetail OBJECT itd
 ;
 
@@ -152,7 +167,7 @@ FORM importUserPriceListType 'Тип импорта'
     PROPERTIES(i) autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType FORCE PANEL SHOWIF autoImportImportUserPriceListType(i)
                    
     OBJECTS d = ImportUserPriceListTypeDetail
-    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
     PROPERTIES(i,d) indexImportUserPriceListTypeImportUserPriceListTypeDetail, replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail 
     PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
                       

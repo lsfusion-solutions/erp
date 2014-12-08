@@ -14,9 +14,9 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class MigrateImportPropertyActionProperty extends ScriptingActionProperty {
+public class MigrateImportDocumentPropertyActionProperty extends ScriptingActionProperty {
 
-    public MigrateImportPropertyActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public MigrateImportDocumentPropertyActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, "Migrate", LM.findClass("ImportTypeDetail"));
     }
 

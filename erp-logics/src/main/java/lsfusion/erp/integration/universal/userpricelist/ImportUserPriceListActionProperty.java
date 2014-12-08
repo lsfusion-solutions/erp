@@ -920,7 +920,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importUserPriceListTypeDetail", importUserPriceListTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportUserPriceListTypeDetail", "nameKeyImportUserPriceListTypeDetail"};
-        LCP[] properties = findProperties("staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail");
+        LCP[] properties = findProperties("staticName", "staticCaption", "canonicalNamePropImportTypeDetail", "nameKeyImportTypeDetail");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importUserPriceListTypeDetailExpr));
         }
@@ -935,8 +935,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String field = getSplittedPart(staticNameProperty, "\\.", -1);
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
             String propertyImportTypeDetail = (String) entry.get("propertyImportUserPriceListTypeDetail");
-            String moduleName = getSplittedPart(propertyImportTypeDetail, "\\.", 0);
-            String sidProperty = getSplittedPart(propertyImportTypeDetail, "\\.", 1);
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportUserPriceListTypeDetail"), "\\.", 1);
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail") != null;
             String indexes = (String) entry.get("indexImportUserPriceListTypeImportUserPriceListTypeDetail");
