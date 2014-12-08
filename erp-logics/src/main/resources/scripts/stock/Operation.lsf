@@ -216,14 +216,22 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
     dataIn###prop###propPostfix##Operation 'Отм.' = DATA BOOLEAN (LegalEntity, Operation);
     in###prop###propPostfix##Operation 'Отм' (legalEntity, operation) =
         OVERRIDE nearestIn###prop###propPostfix##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation), dataIn###prop###propPostfix##Operation(legalEntity, operation);
+        
+    background###in###prop###propPostfix##GroupOperation 'Цвет' (legalEntityGroup, operation) = IF dataIn###prop###propPostfix##GroupOperation(legalEntityGroup, operation) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF nearestIn###prop###propPostfix##GroupOperation(legalEntityGroup, operation);    
+        
+    background###in###prop###propPostfix##Operation'Цвет' (legalEntity, operation) = IF dataIn###prop###propPostfix##Operation(legalEntity, operation) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF nearestIn###prop###propPostfix##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation);   
 
     EXTEND FORM operation
         TREE prop###propPostfix###groupTree object##g = LegalEntityGroup PARENT parentLegalEntityGroup
         PROPERTIES READONLY object##gTreeName = nameLegalEntityGroup(object##g)
-        PROPERTIES in###prop###propPostfix###GroupOperation(object##g, o)
+        PROPERTIES in###prop###propPostfix###GroupOperation(object##g, o) BACKGROUND background###in###prop###propPostfix##GroupOperation(object##g, o)
 
         OBJECTS object = LegalEntity
-        PROPERTIES(object, o) in###prop###propPostfix##Operation
+        PROPERTIES(object, o) in###prop###propPostfix##Operation BACKGROUND background###in###prop###propPostfix##Operation(object, o)
         PROPERTIES(object) READONLY nameLegalEntity, fullNameLegalEntity, shortNameOwnershipLegalEntity, nameLegalEntityGroupLegalEntity,
                                addressLegalEntity, phoneLegalEntity,
                                isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
@@ -293,19 +301,29 @@ META defineOperationStock(prop, object, tabcaption)
     // Отметка для складов
     dataIn###prop##StockOperation 'Отм.' = DATA BOOLEAN (Stock, Operation);
     in###prop##StockOperation 'Отм' (stock, operation) =
-        OVERRIDE all###prop##StocksOperation(operation) AND stock IS Stock,
-                 nearestIn###prop##StockGroupOperation(stockGroupStock(stock), operation),
+        OVERRIDE in###prop##StockGroupOperation(stockGroupStock(stock), operation),
                  dataIn###prop##StockOperation(stock, operation);
+                                  
+    background###all###prop##StocksOperation 'Цвет' (operation) = RGB(0,0,0) IF all###prop##StocksOperation(operation);       
+           
+    background###in###prop##StockGroupOperation 'Цвет' (stockGroup, operation) = IF dataIn###prop##StockGroupOperation(stockGroup, operation) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF (OVERRIDE all###prop##StocksOperation(operation) AND stockGroup IS StockGroup, nearestIn###prop##StockGroupOperation(stockGroup, operation));    
+        
+    background###in###prop##StockOperation 'Цвет' (stock, operation) = IF dataIn###prop##StockOperation(stock, operation) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF in###prop##StockGroupOperation(stockGroupStock(stock), operation);                           
+                    
 
     EXTEND FORM operation
         TREE prop###stockGroupTree object##a=STRING[3], object##g = StockGroup PARENT parentStockGroup
         PROPERTIES READONLY OBJVALUE(object##a), object##gTreeName = nameStockGroup(object##g)
-        PROPERTIES(o) all###prop##StocksOperation TODRAW object##a FORCE GRID
-        PROPERTIES in###prop###StockGroupOperation(object##g, o)
+        PROPERTIES(o) all###prop##StocksOperation TODRAW object##a FORCE GRID BACKGROUND background###all###prop##StocksOperation(o)
+        PROPERTIES in###prop###StockGroupOperation(object##g, o) BACKGROUND background###in###prop##StockGroupOperation(object##g, o)
         FILTERS stringEqualsAll(object##a)
 
         OBJECTS object = Stock
-        PROPERTIES(object, o) in###prop##StockOperation
+        PROPERTIES(object, o) in###prop##StockOperation BACKGROUND background###in###prop##StockOperation(object, o)
         PROPERTIES(object) READONLY nameStock###object = nameStock, nameStockGroupStock
         ORDER BY nameStock###object
         FILTERS object IS Stock AND NOT object##g IS StockGroup OR

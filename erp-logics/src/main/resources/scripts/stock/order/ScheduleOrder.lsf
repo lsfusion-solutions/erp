@@ -136,7 +136,20 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         (OVERRIDE inScheduleOrderStockGroup(scheduleOrder, stockGroupStock(stock)),                  
                   dataInScheduleOrderStock(scheduleOrder, stock))
         AND is###customerFilter###stock(stock)
-        AND inLegalEntityStock(customerScheduleOrder(scheduleOrder), stock);      
+        AND inLegalEntityStock(customerScheduleOrder(scheduleOrder), stock);     
+         
+         
+    backgroundAllStocksScheduleOrder 'Цвет' (scheduleOrder) = RGB(0,0,0) IF allStocksScheduleOrder(scheduleOrder);      
+           
+    backgroundScheduleOrderStockGroup 'Цвет' (scheduleOrder, stockGroup) = IF dataInScheduleOrderStockGroup(scheduleOrder, stockGroup) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF (OVERRIDE allStocksScheduleOrder(scheduleOrder) AND stockGroup IS StockGroup, inParentScheduleOrderStockGroup (scheduleOrder, stockGroup));    
+        
+    backgroundScheduleOrderStock'Цвет' (scheduleOrder, stock) = IF dataInScheduleOrderStock(scheduleOrder, stock) AND is###customerFilter###stock(stock) AND inLegalEntityStock(customerScheduleOrder(scheduleOrder), stock) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF inScheduleOrderStockGroup(scheduleOrder, stockGroupStock(stock)) AND is###customerFilter###stock(stock) AND inLegalEntityStock(customerScheduleOrder(scheduleOrder), stock);           
+         
+         
     
     stocksScheduleOrder 'Склады' (scheduleOrder) = VARSTRING[500]([ = GROUP CONCAT nameStock(stock) IF inScheduleOrderStock(scheduleOrder, stock) , ', '
                                            BY scheduleOrder
@@ -460,15 +473,15 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         
         TREE stockTree a=STRING[3], sg = StockGroup PARENT parentStockGroup
         PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
-        PROPERTIES(s) allStocksScheduleOrder TODRAW a FORCE GRID
-        PROPERTIES(s, sg) inScheduleOrderStockGroup
+        PROPERTIES(s) allStocksScheduleOrder TODRAW a FORCE GRID BACKGROUND backgroundAllStocksScheduleOrder(s)
+        PROPERTIES(s, sg) inScheduleOrderStockGroup BACKGROUND backgroundScheduleOrderStockGroup(s, sg)
         ORDER BY sgTreeName
         FILTERS stringEqualsAll(a)
         FILTERS count###customerFilter###stockStockGroup(sg)
     
         OBJECTS ts = Stock
         PROPERTIES READONLY  nameStock(ts)
-        PROPERTIES(s, ts)    inScheduleOrderStock
+        PROPERTIES(s, ts)    inScheduleOrderStock BACKGROUND backgroundScheduleOrderStock(s, ts)
         FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ts),
                 inLegalEntityStock(customerScheduleOrder(s), ts),
                 is###customerFilter###stock(ts)

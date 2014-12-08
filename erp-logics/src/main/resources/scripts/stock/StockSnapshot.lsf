@@ -48,7 +48,9 @@ includeSnapshotTypeStockGroup 'Вкл' (snapshotType, stockGroup) =
 includeSnapshotTypeStock 'Вкл' (snapshotType, stock) =
     (OVERRIDE includeSnapshotTypeStockGroup(snapshotType, stockGroupStock(stock)),
              dataIncludeSnapshotTypeStock(snapshotType, stock)) IF isCompanyStock(stock) PERSISTENT;
-             
+                        
+@defineBackgroundNearestBoolean(allStockInclude, include, snapshotType, nearestInclude, isCompany);            
+                          
 countIncludeStockSnapshotType  (snapshotType) = GROUP SUM 1 IF includeSnapshotTypeStock(snapshotType, stock) BY snapshotType;      
 
 
@@ -99,9 +101,9 @@ FORM snapshotType 'Тип аналитического отчета'
                      
 //-- выбор складов                  
     TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parentStockGroup, ts2 = Stock
-    PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshotType(t) TODRAW a2, 
-               nameStockGroup(sg2) READONLY, includeSnapshotTypeStockGroup(t,sg2),
-               nameStock(ts2) READONLY, includeSnapshotTypeStock(t,ts2)
+    PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshotType(t) TODRAW a2 BACKGROUND backgroundAllStockIncludeSnapshotType(t), 
+               nameStockGroup(sg2) READONLY, includeSnapshotTypeStockGroup(t,sg2) BACKGROUND backgroundIncludeSnapshotTypeStockGroup(t,sg2),
+               nameStock(ts2) READONLY, includeSnapshotTypeStock(t,ts2) BACKGROUND backgroundIncludeSnapshotTypeStock(t,ts2)
     ORDER BY nameStockGroup(sg2)
     FILTERS stringEqualsAll(a2),
             stockGroupStock(ts2) == sg2,
@@ -589,6 +591,8 @@ includeSnapshotStock 'Вкл' (snapshot, stock) =
     (OVERRIDE includeSnapshotStockGroup(snapshot, stockGroupStock(stock)),
              dataIncludeSnapshotStock(snapshot, stock)) IF isCompanyStock(stock) PERSISTENT;
              
+@defineBackgroundNearestBoolean(allStockInclude, include, snapshot, nearestInclude, isCompany);
+                      
 countIncludeStockSnapshot  (snapshot) = GROUP SUM 1 IF includeSnapshotStock(snapshot, stock) BY snapshot;      
 
 
@@ -1003,9 +1007,9 @@ FORM snapshot 'Аналитический отчет'
                    isNetWeightSnapshot 
 //-- выбор складов                  
     TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parentStockGroup, ts2 = Stock
-    PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshot(r) TODRAW a2, 
-               nameStockGroup(sg2) READONLY, includeSnapshotStockGroup(r,sg2),
-               nameStock(ts2) READONLY, includeSnapshotStock(r,ts2)
+    PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshot(r) TODRAW a2 BACKGROUND backgroundAllStockIncludeSnapshot(r), 
+               nameStockGroup(sg2) READONLY, includeSnapshotStockGroup(r,sg2) BACKGROUND backgroundIncludeSnapshotStockGroup(r,sg2),
+               nameStock(ts2) READONLY, includeSnapshotStock(r,ts2) BACKGROUND backgroundIncludeSnapshotStock(r,ts2)
     ORDER BY nameStockGroup(sg2)
     FILTERS stringEqualsAll(a2),
             stockGroupStock(ts2) == sg2,

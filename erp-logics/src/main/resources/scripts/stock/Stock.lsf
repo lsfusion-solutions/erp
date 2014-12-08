@@ -642,3 +642,22 @@ EXTEND DESIGN options {
 loadDefaultStockGroups 'Загрузить стандарные группы складов' () = ABSTRACT ACTION LIST () IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultStockGroups);
+
+//---------------- Подсветка отмеченных групп ---------------//
+//-- С фильтром
+META defineBackgroundNearestBoolean(allProp, property, object, nearestProp, filterProp)
+
+    background###allProp###object 'Цвет' (o) = RGB(0,0,0) IF allProp###object(o);
+    
+    background###property###object###stockGroup 'Цвет' (o, sg) = IF data###property###object###stockGroup(o, sg) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF (OVERRIDE allProp###object(o) IF sg IS StockGroup, nearestProp###object###stockGroup (o, sg));    
+        
+    background###property###object###stock 'Цвет' (o, st) = IF data###property###object###stock(o, st) AND isCompanyStock(st) THEN RGB(0,0,0)
+        ELSE RGB(203,203,206) 
+        IF property###object###stockGroup(o, stockGroupStock(st)) AND filterProp###stock(st);     
+
+END
+
+
+
