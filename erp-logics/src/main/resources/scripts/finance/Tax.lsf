@@ -72,7 +72,7 @@ descriptionTaxUnit 'Название налогового субъекта' = AB
 
 TABLE rangeTaxUnit (Range, TaxUnit);
 inRangeTaxUnit 'Вкл.' (range, taxUnit) = DATA BOOLEAN (Range, TaxUnit);
-inRangeTaxUnit (range, taxUnit) => isUnitsTypeRange(range) RESOLVE FALSE;
+inRangeTaxUnit (range, taxUnit) => isUnitsTypeRange(range) RESOLVE RIGHT;
 
 rangeTaxTaxUnit 'Шкала по налогу и субъекту' (tax, taxUnit) = GROUP AGGR range BY taxRange(range), taxUnit
                                                                        WHERE inRangeTaxUnit(range, taxUnit) AND Tax.taxVAT == taxRange(range);
@@ -571,3 +571,18 @@ loadDefaultVAT 'Добавить значение НДС' = ACTION (idCountry, n
 loadDefaultVATs 'Загрузить стандартные НДС' = ABSTRACT ACTION LIST () IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultVATs);
+
+CLASS AA;
+
+left(AA a) = DATA INTEGER (AA);
+right(AA a) = DATA INTEGER (AA);  
+
+left(AA a) => right(a) RESOLVE LEFT RIGHT SESSION;
+
+FORM Test
+OBJECTS a=AA
+PROPERTIES(a) OBJVALUE, left, right, ADDOBJ;
+
+NAVIGATOR {
+    ADD Test;
+}
