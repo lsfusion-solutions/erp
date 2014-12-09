@@ -629,7 +629,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                             String barcodeItem = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
                             //временный чит для корректировки весовых штрихкодов
-                            barcodeItem = (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) ? barcodeItem.substring(2, 7) : barcodeItem;
+                            if(barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
+                                barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                            }
 
                             BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "COUNT", charset);
                             BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
