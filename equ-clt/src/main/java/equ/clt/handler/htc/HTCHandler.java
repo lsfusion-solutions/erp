@@ -627,10 +627,14 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         if(dateReceipt != null) {
                             Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm:ss"}).getTime());
 
+                            String codeItem = getDBFFieldValue(dbfFile, "CODE", charset);
                             String barcodeItem = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
                             //временный чит для корректировки весовых штрихкодов
                             if(barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
                                 barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                            }
+                            if ("00000".equals(barcodeItem)) {
+                                barcodeItem = codeItem;
                             }
 
                             BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(dbfFile, "COUNT", charset);

@@ -430,6 +430,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     prevLastOrderBatch##postfix##SkuStock(sku, stock) = PREV(lastOrderBatch##postfix##SkuStock(sku, stock));
     dateTimeLastOrderBatch##postfix##SkuStock 'Время последней партии' (sku, stock) = dateTimeBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
     
+    lastBatchManufactureDate##postfix##SkuStock 'Дата изготовления последней партии' (sku, stock) = manufactureDateBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
+    lastBatchExpiryDate##postfix##SkuStock 'Срок годности последней партии' (sku, stock) = expiryDateBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
+    
     lastOrderBatch##postfix##Sku (sku) = GROUP MIN lastOrderBatch##postfix##SkuStock(sku, stock) BY sku;
 
     currentBalance##postfix##Batch 'Остаток (всего)'###caption (batch) = GROUP SUM currentBalance##postfix##BatchStock(batch, stock) BY batch PERSISTENT;
@@ -548,12 +551,6 @@ END
 
 @defineSkuLedgerBalanceProperties(,);
 
-expiryDateSkuStock 'Годен до (max.)' (sku, stock) = GROUP MAX expiryDateBatch(batch) IF currentBalanceBatchStock(batch, stock)
-                                                          BY skuBatch(batch), stock PERSISTENT;
-                                                          
-manufactureDateSkuStock 'Дата изг. (max.)' (sku, stock) = GROUP MAX manufactureDateBatch(batch) IF currentBalanceBatchStock(batch, stock)
-                                                          BY skuBatch(batch), stock PERSISTENT;                                                          
-                                                          
 banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN ();
 
 EXTEND FORM options 
