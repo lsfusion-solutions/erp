@@ -53,6 +53,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     // Опциональные модули
     private ScriptingLogicsModule itemAlcoholLM;
+    private ScriptingLogicsModule itemFoodLM;
     private ScriptingLogicsModule itemArticleLM;
     private ScriptingLogicsModule purchasePackLM;
     private ScriptingLogicsModule salePackLM;
@@ -119,6 +120,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
         this.itemAlcoholLM = context.getBL().getModule("ItemAlcohol");
+        this.itemFoodLM = context.getBL().getModule("ItemFood");
         this.purchasePackLM = context.getBL().getModule("PurchasePack");
         this.salePackLM = context.getBL().getModule("SalePack");
         this.stockAdjustmentLM = context.getBL().getModule("ImportUserPriceListStockAdjustment");
@@ -130,7 +132,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         String fileExtension = settings.getFileExtension();
 
         List<String> stringFields = Arrays.asList("idUserPriceList", "idItemGroup", "extraBarcodeItem", "articleItem", "captionItem", 
-                "idUOMItem", "valueVAT", "originalName", "originalBarcode");
+                "idUOMItem", "valueVAT", "originalName", "originalBarcode", "alcoholItem");
 
         List<String> bigDecimalFields = Arrays.asList("amountPackBarcode", "netWeightItem", "grossWeightItem", "alcoholSupplierType");
 
@@ -473,6 +475,19 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 fields.add(numberAlcoholSupplierTypeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("alcoholSupplierType"));
+            }
+
+            if (itemFoodLM != null && showField(userPriceListDetailList, "alcoholItem")) {
+                ImportField nameAlcoholField = new ImportField(itemFoodLM.findProperty("nameAlcohol"));
+                ImportKey<?> alcoholKey = new ImportKey((ConcreteCustomClass) itemFoodLM.findClass("Alcohol"),
+                        itemFoodLM.findProperty("alcoholName").getMapping(nameAlcoholField));
+                keys.add(alcoholKey);
+                props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("nameAlcohol").getMapping(alcoholKey), getReplaceOnlyNull(defaultColumns, "alcoholItem")));
+                props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("alcoholItem").getMapping(itemKey),
+                            object(itemFoodLM.findClass("Alcohol")).getMapping(alcoholKey), getReplaceOnlyNull(defaultColumns, "alcoholItem")));
+                fields.add(nameAlcoholField);
+                for (int i = 0; i < userPriceListDetailList.size(); i++)
+                    data.get(i).add(userPriceListDetailList.get(i).getFieldValue("alcoholItem"));
             }
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
