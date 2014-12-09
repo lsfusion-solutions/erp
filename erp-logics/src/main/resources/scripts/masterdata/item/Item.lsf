@@ -739,7 +739,23 @@ META defineItemDefaultValueCustom(property, caption, type, object)
 END 
 
 // Ограничения на выбор значений справочника
-META defineItemFilterValue(object, caption)
+META defineItemAttributeForm(attribute, formProperty, caption, group)
+    @defineItemAttribute(attribute, caption, group);
+    
+    EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
+    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
+    
+    background###attribute###item = ABSTRACT COLOR (Item);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###attribute###item SHOWIF show###attribute##ItemGroup(g);
+END
+
+META defineObjectItemAttributeForm(attribute, attributeClass, identity, caption, group)
+    attribute##Item = DATA attributeClass (Item);
+    identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
+    @defineItemAttributeForm(attribute, identity, caption, group);
+END
+
+META defineItemFilterValue(object, captionProp)
     TABLE object##ItemGroup (###object, ItemGroup);
       
     dataIn###object##ItemGroup 'Вкл' = DATA BOOLEAN (###object, ItemGroup);
@@ -752,6 +768,20 @@ META defineItemFilterValue(object, caption)
     in###object##ItemGroup 'Вкл' (object, itemGroup) =
         OVERRIDE nearestIn###object##ItemGroup (object, itemGroup), 
                  dataIn###object##ItemGroup(object, itemGroup) PERSISTENT;    
+                 
+    quantityChild###object###itemGroup (object, itemGroup) = GROUP SUM 1 IF 
+        dataIn###object##ItemGroup(object, childItemGroup) AND isParentItemGroupItemGroup(childItemGroup, itemGroup) 
+            BY object, itemGroup PERSISTENT;
+    quantityParent###object###itemGroup (object, itemGroup) = GROUP SUM 1 IF 
+        dataIn###object##ItemGroup(object, parentItemGroup) AND isParentItemGroupItemGroup(itemGroup, parentItemGroup) 
+            BY object, itemGroup PERSISTENT;                 
+
+    backgroundWith###object##ItemGroup (object, itemGroup) =
+        IF dataIn###object##ItemGroup(object, itemGroup) THEN
+            RGB(0,0,0) //IF itemGroup IS ItemGroup
+        ELSE
+            RGB(203,203,206) IF quantityChild###object###itemGroup (object, itemGroup) != descendantNumberItemGroup(itemGroup)
+                             AND NOT quantityParent###object###itemGroup (object, itemGroup);
  
     countRec###object##ItemGroup 'Кол-во (рек.)' (object, itemGroup)= GROUP SUM 1 IF 
         in###object##ItemGroup(object, child) AND isParent##ItemGroup##ItemGroup(child, parent) 
@@ -761,12 +791,12 @@ META defineItemFilterValue(object, caption)
 
     CONSTRAINT object##Item(item) AND itemGroupItem(item) AND countData##ItemGroup###object(object##Item(item)) AND NOT countRec###object##ItemGroup(object##Item(item), itemGroupItem(item))
         CHECKED BY object##Item  
-            MESSAGE caption##' должен быть доступен для товарной группы (товар)';    
+            MESSAGE captionProp##' должен быть доступен для товарной группы (товар)';    
 
     EXTEND FORM object
         TREE groupTree g=ItemGroup PARENT parentItemGroup
         PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g)
-        PROPERTIES in###object##ItemGroup(t,g)
+        PROPERTIES in###object##ItemGroup(t,g) BACKGROUND backgroundWith###object##ItemGroup(t,g)
         
         ORDER BY orderItemGroup(g), nameItemGroup(g)
         FILTERS activeItemGroup(g)
@@ -776,6 +806,77 @@ META defineItemFilterValue(object, caption)
             ADD groupTree.tree.box BEFORE functions.box;
         }
     }
+    
+    FORM object###session 'Добавить'    
+        OBJECTS gg = ItemGroup FIXED PANEL 
+           
+        OBJECTS v = VARISTRING[100] FIXED PANEL    
+        PROPERTIES (v) val = OBJVALUE 
+    ;    
+    
+    DESIGN object###session FROM DEFAULT { 
+        main{ 
+            REMOVE gg.box;
+            preferredSize = (600, 400); 
+            ADD v.box {        
+                caption = captionProp;
+                PROPERTY (val) {
+                    caption = 'Наименование';
+                    panelLabelAbove = TRUE;
+                    font = 'bold 24';
+                }
+            }
+            ADD functions.box;
+        }
+    }    
+    FORM object##s###session captionProp
+        OBJECTS gg = ItemGroup FIXED PANEL
+    
+        OBJECTS t= ###object
+        PROPERTIES(t) name###object READONLY, DELETE FORCE PANEL TOOLBAR
+        PROPERTIES(t) EDITFORM
+        ORDER BY name###object(t)
+    ;
+    DESIGN object##s###session FROM DEFAULT { main{ preferredSize = (600, 400); } }    
+  
+    add###object 'Добавить' = ACTION (gg) {
+        FORM object###session OBJECTS gg = gg MODAL;    
+        IF formResult() == FormResult.ok THEN {
+            LOCAL loc = ###object();
+            loc() <- NULL;
+            IF object###name(chosenString('v')) THEN {
+                dataIn###object###ItemGroup(t, gg) <- TRUE WHERE  t == object###name(chosenString('v'));
+            } ELSE {
+                FOR ADDOBJ p = ###object DO {
+                    name###object(p) <- chosenString('v');
+                    dataIn###object###itemGroup(p, gg) <- TRUE;
+                    loc() <- p;
+                }
+            }
+            SEEK object##s###session.t (IF object###name(chosenString('v')) THEN object###name(chosenString('v')) ELSE loc());
+        }
+    } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+    
+    EXTEND FORM object##s###session
+        PROPERTIES add###object(gg) FORCE PANEL TOOLBAR TODRAW t
+    ; 
+    
+    change###object###item = ACTION (i) {
+        REQUEST OBJECT t
+        IF object###item(i) THEN {
+            FORM object##s###session OBJECTS gg = itemGroupItem(i), t = object###item(i) CONTEXTFILTER t = object###item(i) DIALOG SHOWDROP;
+        } ELSE {
+            FORM object##s###session OBJECTS gg = itemGroupItem(i) CONTEXTFILTER t = object###item(i) DIALOG SHOWDROP;
+        }
+           
+        IF formResult() == FormResult.ok THEN {
+            object###item(i) <- requestedObject();
+    
+        } ELSE IF formResult() == FormResult.drop THEN {
+            object###item(i) <- NULL;
+        }
+    }    
+    EXTEND FORM item PROPERTIES(i) name###object###item SHOWIF show###object##Item(i) BACKGROUND background###object###item(i) ON CHANGE change###object###item(i);
 END
 
 // ---------------------------- Выделение атрибутов -------------------------------- //
@@ -1042,7 +1143,7 @@ FORM brands 'Бренды'
 ;
 DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
+@defineObjectItemAttributeForm(brand, Brand, name, 'Бренд', itemBase);
 
 idBrandBarcode(barcode) = idBrand(brandItem(skuBarcode(barcode)));
 nameBrandBarcode(barcode) = nameBrand(brandItem(skuBarcode(barcode)));

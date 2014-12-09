@@ -28,7 +28,7 @@ FORM types 'Виды товара'
 ;
 DESIGN types FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(type, Type, name, 'Вид', itemDescription);
+@defineObjectItemAttributeForm(type, Type, name, 'Вид', itemDescription);
 @defineUniteAttributeItem(type, nameType, 'вид товара', 'виды товара', item);
 @defineObjectItemAttributeBatch (type, nameType, 'Вид');
 @implementItemAttribute(nameType, 'Вид', String, itemType);
@@ -59,7 +59,7 @@ FORM kinds 'Типы товара'
 ;
 DESIGN kinds FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(kind, Kind, name, 'Тип', itemDescription);
+@defineObjectItemAttributeForm(kind, Kind, name, 'Тип', itemDescription);
 @defineUniteAttributeItem(kind, nameKind, 'тип товара', 'типы товара', item);
 @defineObjectItemAttributeBatch (kind, nameKind, 'Тип');
 @implementItemAttribute(nameKind, 'Тип', String, itemKind);
@@ -90,7 +90,7 @@ FORM sorts 'Сорта товара'
 ;
 DESIGN sorts FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(sort, Sort, name, 'Сорт', itemDescription);
+@defineObjectItemAttributeForm(sort, Sort, name, 'Сорт', itemDescription);
 @defineUniteAttributeItem(sort, nameSort, 'сорт товара', 'сорта товара', item);
 @defineObjectItemAttributeBatch (sort, nameSort, 'Сорт');
 @implementItemAttribute(nameSort, 'Сорт', String, itemSort);
@@ -121,7 +121,7 @@ FORM forms 'Формы товара'
 ;
 DESIGN forms FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(form, Form, name, 'Форма', itemDescription);
+@defineObjectItemAttributeForm(form, Form, name, 'Форма', itemDescription);
 @defineUniteAttributeItem(form, nameForm, 'форма товара', 'формы товара', item);
 @defineObjectItemAttributeBatch (form, nameForm, 'Форма');
 @implementItemAttribute(nameForm, 'Форма', String, itemForm);
@@ -152,7 +152,7 @@ FORM features 'Особенности товара'
 ;
 DESIGN features FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(feature, Feature, name, 'Особенность', itemDescription);
+@defineObjectItemAttributeForm(feature, Feature, name, 'Особенность', itemDescription);
 @defineUniteAttributeItem(feature, nameFeature, 'особенность товара', 'особенности товара', item);
 @defineObjectItemAttributeBatch (feature, nameFeature, 'Особенность');
 @implementItemAttribute(nameFeature, 'Особенность', String, itemFeature);
@@ -188,7 +188,7 @@ FORM packTypes 'Упаковки товара'
 ;
 DESIGN packTypes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(packType, PackType, name, 'Упаковка', itemDescription);
+@defineObjectItemAttributeForm(packType, PackType, name, 'Упаковка', itemDescription);
 @defineUniteAttributeItem(packType, namePackType, 'упаковка товара', 'упаковки товара', item);
 @defineObjectItemAttributeBatch (packType, namePackType, 'Упаковка');
 @implementItemAttribute(namePackType, 'Упаковка', String, itemPackType);
@@ -219,7 +219,9 @@ FORM packs 'Фасовки товара'
 ;
 DESIGN packs FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(pack, Pack, name, 'Фасовка', itemDescription);
+
+@defineObjectItemAttributeForm(pack, Pack, name, 'Фасовка', itemDescription);
+
 @defineUniteAttributeItem(pack, namePack, 'фасовка товара', 'фасовки товара', item);
 @defineObjectItemAttributeBatch (pack, namePack, 'Фасовка');
 @implementItemAttribute(namePack, 'Фасовка', String, itemPack);
@@ -227,6 +229,75 @@ DESIGN packs FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineItemDefaultValue(pack, 'Фасовка', Pack, namePack);
 @defineItemFilterValue(pack, 'Фасовка');
 @defineItemExtractObjectAttribute(pack, namePack, packName);
+
+//-------------------------------------------------------------------//
+
+//FORM packSession 'Добавить'    
+//    OBJECTS gg = ItemGroup FIXED PANEL 
+//       
+//    OBJECTS v = VARISTRING[100] FIXED PANEL    
+//    PROPERTIES (v) val = OBJVALUE 
+//;
+//DESIGN packSession FROM DEFAULT { 
+//    main{ 
+//        REMOVE gg.box;
+//        preferredSize = (600, 400); 
+//        ADD v.box {        
+//            caption = 'Фасовкa товара';
+//            PROPERTY (val) {
+//                caption = 'Наименование';
+//                panelLabelAbove = TRUE;
+////                font = 'bold 24';
+//            }
+//        }
+//        ADD functions.box;
+//    }
+//}
+
+//FORM packsSession 'Фасовки товара'
+//    OBJECTS gg = ItemGroup FIXED PANEL
+//
+//    OBJECTS t=Pack
+//    PROPERTIES(t) namePack READONLY, DELETE FORCE PANEL TOOLBAR
+//    PROPERTIES(t) EDITFORM
+//    ORDER BY namePack(t)
+//;
+//DESIGN packsSession FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+//addPack 'Добавить' = ACTION (gg) {
+//    FORM packSession OBJECTS gg = gg MODAL;    
+//    IF formResult() == FormResult.ok THEN {
+//        LOCAL loc = Pack();
+//        loc() <- NULL;
+//        IF packName(chosenString('v')) THEN {
+//            dataInPackItemGroup(pack, gg) <- TRUE WHERE  pack == packName(chosenString('v'));
+//        } ELSE {
+//            FOR ADDOBJ p = Pack DO {
+//                namePack(p) <- chosenString('v');
+//                dataInPackItemGroup(p, gg) <- TRUE;
+//                loc() <- p;
+//            }
+//        }
+//        SEEK packsSession.t (IF packName(chosenString('v')) THEN packName(chosenString('v')) ELSE loc());
+//    }
+//} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+//
+//EXTEND FORM packsSession
+//    PROPERTIES addPack(gg) FORCE PANEL TOOLBAR TODRAW t
+//;
+
+//changePackItem = ACTION (i) {
+//    REQUEST OBJECT t
+//    FORM packsSession OBJECTS gg = itemGroupItem(i) CONTEXTFILTER t = packItem(i) DIALOG SHOWDROP;   
+//    IF formResult() == FormResult.ok THEN {
+//        packItem(i) <- requestedObject();
+//
+//    } ELSE IF formResult() == FormResult.drop THEN {
+//        packItem(i) <- NULL;
+//    }
+//}
+
+//EXTEND FORM item PROPERTIES(i) vv = namePackItem SHOWIF showPackItem(i) BACKGROUND backgroundPackItem(i) ON CHANGE changePackItem(i);
 
 // Свойство
 @defineStringItemAttribute(property, VARSTRING[100], 'Свойство', itemDescription);
