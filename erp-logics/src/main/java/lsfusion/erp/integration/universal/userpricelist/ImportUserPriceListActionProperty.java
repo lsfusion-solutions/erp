@@ -172,14 +172,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
+            ObjectValue companyDocument = findProperty("companyUserPriceList").readClasses(context, userPriceListObject);
+            DataObject companyObject = companyDocument instanceof NullValue ? settings.getCompanyObject() : (DataObject) companyDocument;
+            
             List<List<Object>> data = initData(userPriceListDetailList.size());
 
             if (settings.getOperationObject() != null) {
                 props.add(new ImportProperty(settings.getOperationObject(), findProperty("operationUserPriceList").getMapping(userPriceListObject)));
             }
 
-            if (settings.getCompanyObject() != null) {
-                props.add(new ImportProperty(settings.getCompanyObject(), findProperty("companyUserPriceList").getMapping(userPriceListObject)));
+            if (companyObject!= null) {
+                props.add(new ImportProperty(companyObject, findProperty("companyUserPriceList").getMapping(userPriceListObject)));
             }
 
             ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
@@ -464,8 +467,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         itemAlcoholLM.findProperty("alcoholSupplierTypeNumber").getMapping(numberAlcoholSupplierTypeField));
                 alcoholSupplierTypeKey.skipKey = true;
                 keys.add(alcoholSupplierTypeKey);
-                if (settings.getCompanyObject() != null)
-                    props.add(new ImportProperty(numberAlcoholSupplierTypeField, itemAlcoholLM.findProperty("alcoholSupplierTypeLegalEntityItem").getMapping(settings.getCompanyObject(), itemKey),
+                if (companyObject != null)
+                    props.add(new ImportProperty(numberAlcoholSupplierTypeField, itemAlcoholLM.findProperty("alcoholSupplierTypeLegalEntityItem").getMapping(companyObject, itemKey),
                             object(itemAlcoholLM.findClass("AlcoholSupplierType")).getMapping(alcoholSupplierTypeKey), getReplaceOnlyNull(defaultColumns, "alcoholSupplierType")));
                 fields.add(numberAlcoholSupplierTypeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
