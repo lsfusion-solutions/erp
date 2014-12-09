@@ -48,8 +48,13 @@ CONSTRAINT ((charLength(idBarcode(barcode)) > 5 AND charLength(idBarcode(barcode
     
 setIdBarcodeSku 'Штрихкод обязателен для товара' = DATA BOOLEAN ();
 
+onlyActiveBarcode 'Запретить неактивные штрихкоды' = DATA BOOLEAN ();
+
+CONSTRAINT idBarcode(b) AND onlyActiveBarcode() AND NOT activeBarcode(b)
+    MESSAGE 'В системе уже присутствует такой штрихкод';
+
 EXTEND FORM options
-    PROPERTIES() allowIncorrectBarcode, onlyEANBarcode, setIdBarcodeSku
+    PROPERTIES() allowIncorrectBarcode, onlyEANBarcode, setIdBarcodeSku, onlyActiveBarcode
 ;
 
 EXTEND DESIGN options {
@@ -57,6 +62,7 @@ EXTEND DESIGN options {
         ADD PROPERTY(allowIncorrectBarcode());   
         ADD PROPERTY(onlyEANBarcode());   
         ADD PROPERTY(setIdBarcodeSku());   
+        ADD PROPERTY(onlyActiveBarcode());   
     }
 }
 
@@ -64,7 +70,7 @@ EXTEND DESIGN options {
 skuBarcode = DATA Sku(Barcode) IN base NOT NULL DELETE;
 nameSkuBarcode 'Наименование' (barcode) = nameSku(skuBarcode(barcode)) IN recognize;
 
-idSkuBarcode 'Код SKU' (b) = idSku(skuBarcode(b));
+idSkuBarcode 'Код SKU' (b) = idSku(skuBarcode(b)) IN recognize;
 
 skuBarcodeIdDate (id, date) = skuBarcode(barcodeIdDate(id, date));
 skuBarcodeId (id) = skuBarcodeIdDate(id, currentDate());
