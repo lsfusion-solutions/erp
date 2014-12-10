@@ -601,6 +601,8 @@ public class EquipmentServer {
     };
 
     public void stop() {
+        if (singleTransactionExecutor != null)
+            singleTransactionExecutor.shutdownNow();
         thread.interrupt();
     }
 
