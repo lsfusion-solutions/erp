@@ -17,10 +17,12 @@ public class DBSettings implements Serializable{
         this.sqlUsername = sqlUsername;
         this.sqlPassword = sqlPassword;       
         this.sqlHost = new HashMap<String, String>();
-        String[] hosts = sqlHost.split(",");
-        for(String host : hosts) {
-            String[] entry = host.split("->");
-            this.sqlHost.put(entry[0], entry.length >= 2 ? entry[1] : entry[0]);
+        if(!sqlHost.isEmpty()) {
+            String[] hosts = sqlHost.split(",");
+            for (String host : hosts) {
+                String[] entry = host.split("->");
+                this.sqlHost.put(entry[0], entry.length >= 2 ? entry[1] : entry[0]);
+            }
         }
         this.sqlPort = sqlPort;
         this.sqlDBName = sqlDBName;
