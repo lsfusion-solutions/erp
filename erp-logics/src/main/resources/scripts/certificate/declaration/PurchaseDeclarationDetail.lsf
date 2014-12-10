@@ -690,10 +690,39 @@ homeSumDeclarationDetailDeclaration 'Стоимость (декл.)' = GROUP SUM
 
 dutySumDeclarationDetailDeclaration 'Пошлина' (declaration) = GROUP SUM dutySumDeclarationDetail(declarationDetail)
                                                                     BY declarationDeclarationDetail(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
+dataDutySumDeclaration 'Пошлина' (declaration) = DATA NUMERIC[16,2] (Declaration) MINCHARWIDTH 15;                                                                 
+dutySumDeclaration 'Пошлина' (declaration)  =  OVERRIDE dutySumDeclarationDetailDeclaration(declaration), dataDutySumDeclaration(declaration);                                                                    
+backgroundDutySumDeclaration = RGB(222,222,222) IF dataDutySumDeclaration(declaration);
+changeDutySumDeclaration = ACTION (declaration) {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF requestedNumeric() != dutySumDeclarationDetailDeclaration(declaration) THEN {
+            dataDutySumDeclaration(declaration) <- requestedNumeric();    
+        }
+    } ELSE {
+        IF dataDutySumDeclaration(declaration) THEN {
+            dataDutySumDeclaration(declaration) <- NULL; 
+        }  
+    }
+}
 
 VATSumDeclarationDetailDeclaration 'НДС' (declaration) = GROUP SUM VATSumDeclarationDetail(declarationDetail)
                                                                    BY declarationDeclarationDetail(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
-
+dataVATSumDeclaration 'НДС' (declaration) = DATA NUMERIC[16,2] (Declaration) MINCHARWIDTH 15;  
+VATSumDeclaration 'НДС' (declaration)  = OVERRIDE VATSumDeclarationDetailDeclaration(declaration), dataVATSumDeclaration(declaration);
+backgroundVATSumDeclaration = RGB(222,222,222) IF dataVATSumDeclaration(declaration);
+changeVATSumDeclaration = ACTION (declaration) {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF requestedNumeric() != VATSumDeclarationDetailDeclaration(declaration) THEN {
+            dataVATSumDeclaration(declaration) <- requestedNumeric();    
+        }
+    } ELSE {
+        IF dataVATSumDeclaration(declaration) THEN {
+            dataVATSumDeclaration(declaration) <- NULL; 
+        }  
+    }
+}
 // ---------------------------------------------------- Суммы расходов по документу -------------------------------- //
 
 // Транспортные расходы
@@ -719,8 +748,8 @@ registrationSumRoundDeclaration 'Таможенный сбор (округлен
 EXTEND FORM declaration
     PROPERTIES(d)          sumDeclarationDetailDeclaration
     PROPERTIES(d)          deliverySumDeclaration, chargeSumDeclaration
-    PROPERTIES(d) READONLY homeSumDeclarationDetailDeclaration, dutySumDeclarationDetailDeclaration, VATSumDeclarationDetailDeclaration
-    PROPERTIES(d)          registrationSumDeclaration
+    PROPERTIES(d) READONLY homeSumDeclarationDetailDeclaration, dutySumDeclaration BACKGROUND backgroundDutySumDeclaration(d) EDITABLE ON CHANGE changeDutySumDeclaration(d), 
+                           VATSumDeclaration BACKGROUND backgroundVATSumDeclaration(d) EDITABLE ON CHANGE changeVATSumDeclaration(d), registrationSumDeclaration EDITABLE
 
     PROPERTIES(d) READONLY deliverySumRoundDeclaration, chargeSumRoundDeclaration, dutySumRoundDeclaration, registrationSumRoundDeclaration
 ;
@@ -735,8 +764,8 @@ EXTEND DESIGN declaration {
             ADD PROPERTY(deliverySumDeclaration(d));
             ADD PROPERTY(chargeSumDeclaration(d));
             ADD PROPERTY(homeSumDeclarationDetailDeclaration(d));
-            ADD PROPERTY(dutySumDeclarationDetailDeclaration(d));
-            ADD PROPERTY(VATSumDeclarationDetailDeclaration(d));
+            ADD PROPERTY(dutySumDeclaration(d));
+            ADD PROPERTY(VATSumDeclaration(d));
             ADD PROPERTY(registrationSumDeclaration(d));
         }
     }
@@ -983,11 +1012,19 @@ calcDutySumUserInvoiceDetail (d) =
 
 calcDutyPriceUserInvoiceDetail 'Пошлина (ед.)' (d) = round(calcDutySumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
                                                            roundDeclaration(declarationUserInvoiceDetail(d)));
-
-// Таможенный сбор
-
+                                                           
 coeffDeclarationUserInvoiceDetail 'Удельный вес' (d) =
     NUMERIC[22,8](sumUserInvoiceDetail(d)) / sumUserInvoiceDetailDeclaration(declarationUserInvoiceDetail(d));
+                                                               
+calcDataDutySumUserInvoiceDetail (d) =
+    PARTITION UNGROUP dataDutySumDeclaration
+              PROPORTION ROUND(8) coeffDeclarationUserInvoiceDetail(d)
+              BY declarationUserInvoiceDetail(d)
+              ORDER d;
+
+calcDataDutyPriceUserInvoiceDetail 'Пошлина (ед.)' (d) = round(calcDataDutySumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
+                                                           roundDeclaration(declarationUserInvoiceDetail(d)));
+// Таможенный сбор
 
 calcRegistrationSumUserInvoiceDetail 'Таможенный сбор' (d) =
     PARTITION UNGROUP registrationSumDeclaration
@@ -1008,10 +1045,20 @@ calcVATSumUserInvoiceDetail (d) =
 
 calcVATPriceUserInvoiceDetail 'НДС (ед.)' (d) = round(calcVATSumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
                                                            roundDeclaration(declarationUserInvoiceDetail(d)));                                                                                                                                                                   
-
+calcDataVATSumUserInvoiceDetail (d) =
+    PARTITION UNGROUP dataVATSumDeclaration
+              PROPORTION ROUND(8) coeffDeclarationUserInvoiceDetail(d)
+              BY declarationUserInvoiceDetail(d)
+              ORDER d;
+calcDataVATPriceUserInvoiceDetail 'НДС (ед.)' (d) = round(calcDataVATSumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
+                                                           roundDeclaration(declarationUserInvoiceDetail(d)));                
 // Расчет расходов
 recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (за ед.)' = ACTION (declaration) {
-    dutyPriceUserInvoiceDetail(d) <- calcDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+    IF NOT dataDutySumDeclaration(declaration) THEN {
+        dutyPriceUserInvoiceDetail(d) <- calcDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+    } ELSE {
+        dutyPriceUserInvoiceDetail(d) <- calcDataDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;    
+    }
 } TOOLBAR;
 
 recalculateRegistrationPriceInvoiceDeclaration 'Рассчитать сбор (за ед.)' = ACTION (declaration) {
@@ -1019,7 +1066,11 @@ recalculateRegistrationPriceInvoiceDeclaration 'Рассчитать сбор (�
 } TOOLBAR;
 
 recalculateVATPriceInvoiceDeclaration 'Рассчитать НДС (за ед.)' = ACTION (declaration) {
-    VATPriceUserInvoiceDetail(d) <- calcVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+    IF NOT dataVATSumDeclaration(declaration) THEN {
+        VATPriceUserInvoiceDetail(d) <- calcVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;    
+    } ELSE {
+        VATPriceUserInvoiceDetail(d) <- calcDataVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+    }
 } TOOLBAR;
 
 EXTEND FORM declaration
