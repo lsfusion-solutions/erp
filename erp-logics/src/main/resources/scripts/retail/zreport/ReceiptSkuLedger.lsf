@@ -5,14 +5,14 @@ REQUIRE ZReport,SkuLedger;
 //---------------------- Продажа ----------------//
 CLASS ReceiptSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
 
-quantityReceiptSaleDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptSaleDetail(d) IF activeReceiptSaleDetail(d)
+quantityReceiptSaleDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
     BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
-sumReceiptSaleDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptSaleDetail(d) IF activeReceiptSaleDetail(d)
+sumReceiptSaleDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
     BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
-discountSumReceiptSaleDetailDepartmentSkuDatePrice 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSumReceiptSaleDetail(d) IF activeReceiptSaleDetail(d)
+discountSumReceiptSaleDetailDepartmentSkuDatePrice 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSumReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
     BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
 
-countReceiptSaleDetailDepartmentStoreSkuDatePrice (department, sku, date, price) = GROUP SUM 1 IF activeReceiptSaleDetail(d)
+countReceiptSaleDetailDepartmentStoreSkuDatePrice (department, sku, date, price) = GROUP SUM 1 IF isPostedReceiptSaleDetail(d)
     BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
 
 @defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
@@ -22,6 +22,8 @@ isPostedDataSkuLedger (ledger) += ledger IS ReceiptSaleSkuLedger;
 skuDataSkuLedger (ledger) += skuReceiptSaleSkuLedger(ledger);
 stockDataSkuLedger (ledger) += departmentStoreReceiptSaleSkuLedger(ledger);
 descriptionDataSkuLedger (ledger) += VARSTRING[200]('Продажа за день')IF ledger IS ReceiptSaleSkuLedger;
+
+skipSkuLedger (ledger) += dateReceiptSaleSkuLedger(ledger) < startDateGroupCashRegisterDepartmentStore(departmentStoreReceiptSaleSkuLedger(ledger));
 
 quantityOutFIFOSkuLedger (ledger) += NUMERIC[14,3](quantityReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger)));
 sumOutSkuLedger (ledger) += NUMERIC[16,2](sumReceiptSaleDetailDepartmentSkuDatePrice(departmentStoreReceiptSaleSkuLedger(ledger), skuReceiptSaleSkuLedger(ledger), dateReceiptSaleSkuLedger(ledger), priceReceiptSaleSkuLedger(ledger))
@@ -48,14 +50,14 @@ costSumSaleLedger (ledger) += costSumSkuLedger(ledger) IF ledger IS ReceiptSaleS
 //---------------------- Возврат ----------------//
 
 CLASS ReceiptReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
-quantityReceiptReturnDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptReturnDetail(d) IF activeReceiptReturnDetail(d)
+quantityReceiptReturnDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
     BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
-sumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptReturnDetail(d) IF activeReceiptReturnDetail(d)
+sumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
     BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
-discountSumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSumReceiptReturnDetail(d) IF activeReceiptReturnDetail(d)
+discountSumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSumReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
     BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
 
-countReceiptReturnDetailDepartmentStoreSkuDatePrice  (department, sku, date, price) = GROUP SUM 1 IF activeReceiptReturnDetail(d)
+countReceiptReturnDetailDepartmentStoreSkuDatePrice  (department, sku, date, price) = GROUP SUM 1 IF isPostedReceiptReturnDetail(d)
     BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
 
 @defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);

@@ -72,8 +72,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             shtrihActiveXComponent.setProperty("Password", pass);
                             if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
                                 Variant clear = Dispatch.call(shtrihDispatch, "ClearGoodsDB");
-                                if (isError(clear))
+                                if (isError(clear)) {
+                                    processTransactionLogger.error(String.format("ShtrihPrintHandler. ClearGoodsDb, Error # %s (%s)", clear.getInt(), getErrorText(clear)));
                                     error = true;
+                                }    
                             }
 
                             if (!error) {
