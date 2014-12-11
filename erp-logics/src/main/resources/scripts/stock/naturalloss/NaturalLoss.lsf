@@ -1,6 +1,6 @@
 MODULE NaturalLoss;
 
-REQUIRE Document, PriceListType, SaleLedger, Integration, PriceListLedger;
+REQUIRE Document, PriceListType, SaleLedger, PurchaseLedger, Integration, PriceListLedger;
 
 GROUP rate 'Нормы' : public;
 
@@ -208,8 +208,15 @@ CLASS NaturalLossDetail 'Строка ведомости естественно�
 @defineDocumentDetailSku(naturalLoss, sku);
 //@defineDocumentDetailSkuItem(naturalLoss);
 
-@defineDocumentDetailQuantity(naturalLoss);
-//@defineDocumentDetailBasePrice(naturalLoss, departmentStore);
+//@defineDocumentDetailQuantity(naturalLoss){
+//    @defineDocumentDetailQuantityPrefix(naturalLoss, , ){
+//    @defineDocumentDetailQuantityCustomPrefix(naturalLossDetail, , ){
+//    quantityNaturalLossDetail 'Кол-во' = DATA NUMERIC[14,3] (NaturalLossDetail);
+//};
+//};
+//};
+quantityNaturalLossDetail 'Кол-во' = DATA NUMERIC[14,4] (NaturalLossDetail);
+
 
 @defineDocumentHeaderQuantity(naturalLoss);
 
@@ -233,6 +240,8 @@ codeNaturalLossDetail 'Код нормы естественной убыли' =
     codeSubNaturalLossGroup(subNaturalLossGroupNaturalLossDetail(naturalLossDetail));
 
 quantityLossNaturalLossDetail 'Кол-во' = DATA NUMERIC[14,3] (NaturalLossDetail);
+quantityLossNaturalLossDetailNaturalLoss 'Кол-во (всего)' (naturalLoss) = GROUP SUM quantityLossNaturalLossDetail(idetail) 
+    BY naturalLossNaturalLossDetail(idetail) IN documentSum PERSISTENT;
 
 @defineDocumentDetailBatchCustomPrefix(naturalLossDetail, batch, );
 quantityLossNaturalLossDetail(naturalLossDetail) <- shippedQuantityBatch(batchNaturalLossDetail(naturalLossDetail))
@@ -259,8 +268,8 @@ quantityNaturalLossDetail (naturalLossDetail) <- percentNaturalLossDetail(natura
     WHEN CHANGED(percentNaturalLossDetail(naturalLossDetail)) OR
          CHANGED(quantityLossNaturalLossDetail(naturalLossDetail));
 
-quantitySoldSkuDepartmentNaturalLoss 'Продано' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
-    GROUP SUM quantitySaleLedger(ledger) IF dateSaleLedger(ledger) >= dateFrom AND dateSaleLedger(ledger) <= dateTo
+quantitySaleSkuDepartmentNaturalLoss 'Продано' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
+    GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger) AND dateSaleLedger(ledger) >= dateFrom AND dateSaleLedger(ledger) <= dateTo
               AND inIntervalNaturalLoss(dateSaleLedger(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroupCountrySku(countryStock(stockSaleLedger(ledger)), skuSaleLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
               BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
@@ -273,8 +282,8 @@ sumNaturalLossDetail (naturalLossDetail) <- priceNaturalLossDetail(naturalLossDe
 sumNaturalLoss 'Сумма' (naturalLoss) = GROUP SUM sumNaturalLossDetail(naturalLossDetail)
     BY naturalLossNaturalLossDetail(naturalLossDetail) IN documentSum;
 
-toFillNaturalLossDetail 'Заполнить на основе продаж' = ACTION (naturalLoss) {
-    FOR quantitySoldSkuDepartmentNaturalLoss( sku,
+toSaleFillNaturalLossDetail 'Заполнить на основе продаж' = ACTION (naturalLoss) {
+    FOR quantitySaleSkuDepartmentNaturalLoss( sku,
                                               stockNaturalLoss(naturalLoss),
                                               dateFromNaturalLoss(naturalLoss),
                                               dateToNaturalLoss(naturalLoss),
@@ -284,7 +293,39 @@ toFillNaturalLossDetail 'Заполнить на основе продаж' = AC
             ASSIGN naturalLossNaturalLossDetail(d) <- naturalLoss;
             ASSIGN skuNaturalLossDetail(d) <- sku;
             ASSIGN subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
-            ASSIGN quantityLossNaturalLossDetail(d) <- quantitySoldSkuDepartmentNaturalLoss(
+            ASSIGN quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLoss(
+                                                                    sku,
+                                                                    stockNaturalLoss(naturalLoss),
+                                                                    dateFromNaturalLoss(naturalLoss),
+                                                                    dateToNaturalLoss(naturalLoss),
+                                                                    subNaturalLossGroupDetail);
+            ASSIGN subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
+            ASSIGN percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
+            ASSIGN quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
+            ASSIGN sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
+        };
+    };
+} IN fillNaturalLoss CONFIRM;
+
+//--
+quantityPurchaseSkuDepartmentNaturalLoss 'Поступило' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
+    GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger) AND datePurchaseLedger(ledger) >= dateFrom AND datePurchaseLedger(ledger) <= dateTo
+              AND inIntervalNaturalLoss(datePurchaseLedger(ledger), subNaturalLossGroupDetail)
+              AND subNaturalLossGroupCountrySku(countryStock(stockPurchaseLedger(ledger)), skuPurchaseLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
+              BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
+              
+toPurchaseFillNaturalLossDetail 'Заполнить на основе поступлений' = ACTION (naturalLoss) {
+    FOR quantityPurchaseSkuDepartmentNaturalLoss( sku,
+                                              stockNaturalLoss(naturalLoss),
+                                              dateFromNaturalLoss(naturalLoss),
+                                              dateToNaturalLoss(naturalLoss),
+                                              subNaturalLossGroupDetail) ORDER nameSku(sku), subNaturalLossGroupDetail
+        DO {
+        FOR ADDOBJ d = NaturalLossDetail DO {
+            ASSIGN naturalLossNaturalLossDetail(d) <- naturalLoss;
+            ASSIGN skuNaturalLossDetail(d) <- sku;
+            ASSIGN subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
+            ASSIGN quantityLossNaturalLossDetail(d) <- quantityPurchaseSkuDepartmentNaturalLoss(
                                                                     sku,
                                                                     stockNaturalLoss(naturalLoss),
                                                                     dateFromNaturalLoss(naturalLoss),
@@ -301,7 +342,7 @@ toFillNaturalLossDetail 'Заполнить на основе продаж' = AC
 FORM naturalLoss 'Ведомость естественной убыли'
     OBJECTS s=NaturalLoss FIXED PANEL
     PROPERTIES(s) isPostedNaturalLoss, nameNumeratorNaturalLoss, numberNaturalLoss, seriesNaturalLoss, nameStockNaturalLoss, timeNaturalLoss,
-                  dateNaturalLoss, dateFromNaturalLoss, dateToNaturalLoss, toFillNaturalLossDetail,
+                  dateNaturalLoss, dateFromNaturalLoss, dateToNaturalLoss, toSaleFillNaturalLossDetail, toPurchaseFillNaturalLossDetail,
                   quantityNaturalLossDetailNaturalLoss, sumNaturalLoss, noteNaturalLoss
     OBJECTS d=NaturalLossDetail
     PROPERTIES(d) indexNaturalLossDetail, idBarcodeSkuNaturalLossDetail, nameSkuNaturalLossDetail, shortNameUOMSkuNaturalLossDetail,
@@ -344,7 +385,7 @@ DESIGN naturalLoss FROM DEFAULT{
                     columns = 2;
                 }
                 ADD s.fillNaturalLoss {
-                    columns = 3;
+                    columns = 4;
                 }
             }
 
