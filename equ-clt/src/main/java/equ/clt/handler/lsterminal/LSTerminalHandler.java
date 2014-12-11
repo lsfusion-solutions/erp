@@ -425,16 +425,19 @@ public class LSTerminalHandler extends TerminalHandler {
             statement.close();
         }
         if (listNotEmpty(transactionInfo.itemsList)) {
-            Statement statement = connection.createStatement();
-            String sql = "BEGIN TRANSACTION;";
+            String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?);";
+            PreparedStatement statement = connection.prepareStatement(sql);
             for (TerminalItemInfo item : transactionInfo.itemsList) {
-                if (item.idBarcode != null)
-                    sql += String.format("INSERT OR REPLACE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(item.idBarcode), formatValue(item.name), formatValue(item.price),
-                            formatValue(item.quantity), "", "", "", "", "", formatValue(item.image));
+                if (item.idBarcode != null) {
+                    statement.setObject(1, formatValue(item.idBarcode));
+                    statement.setObject(2, formatValue(item.name));
+                    statement.setObject(3, formatValue(item.price));
+                    statement.setObject(4, formatValue(item.quantity));
+                    statement.setObject(5, formatValue(item.image));
+                    statement.addBatch();
+                }
             }
-            sql += "COMMIT;";
-            statement.executeUpdate(sql);
+            statement.executeBatch();
             statement.close();
         }
     }
