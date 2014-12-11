@@ -311,16 +311,16 @@ public class LSTerminalHandler extends TerminalHandler {
 
     private void updateANATable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         if (listNotEmpty(transactionInfo.terminalLegalEntityList)) {
-            Statement statement = connection.createStatement();
-            String sql = "BEGIN TRANSACTION;";
+            String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '');";
+            PreparedStatement statement = connection.prepareStatement(sql);
             for (TerminalLegalEntity legalEntity : transactionInfo.terminalLegalEntityList) {
                 if (legalEntity.idLegalEntity != null) {
-                    sql += String.format("INSERT OR REPLACE INTO ana VALUES('%s', '%s', '%s', '%s', '%s');",
-                            "ПС" + formatValue(legalEntity.idLegalEntity), formatValue(legalEntity.nameLegalEntity), "", "", "");
+                    statement.setString(1, "ПС" + formatValue(legalEntity.idLegalEntity));
+                    statement.setString(2, (String) formatValue(legalEntity.nameLegalEntity));
+                    statement.addBatch();
                 }
             }
-            sql += "COMMIT;";
-            statement.executeUpdate(sql);
+            statement.executeBatch();
             statement.close();
         }
     }
