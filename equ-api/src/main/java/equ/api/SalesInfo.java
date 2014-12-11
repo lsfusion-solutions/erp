@@ -60,4 +60,16 @@ public class SalesInfo implements Serializable {
         this.numberReceiptDetail = numberReceiptDetail;
         this.filename = filename;
     }
+    
+    public String getIdZReport() {
+        return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
+    }
+    
+    public String getIdReceipt() {
+        return getIdZReport() + "_" + numberReceipt;
+    }
+
+    public String getIdReceiptDetail() {
+        return getIdReceipt() + "_" + numberReceiptDetail;
+    }
 }

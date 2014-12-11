@@ -210,10 +210,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "commentMachineryPriceTransaction"};
+                    "descriptionMachineryPriceTransaction"};
             LCP[] mptProperties = equLM.findProperties("dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "commentMachineryPriceTransaction");
+                    "descriptionMachineryPriceTransaction");
             for (int i = 0; i < mptProperties.length; i++) {
                 query.addProperty(mptNames[i], mptProperties[i].getExpr(key));
             }
@@ -224,15 +224,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             List<Object[]> transactionObjects = new ArrayList<Object[]>();
             for (int i = 0, size = result.size(); i < size; i++) {
                 ImMap<Object, ObjectValue> value = result.getValue(i);
-                DataObject dateTimeMPT = (DataObject) value.get("dateTimeMachineryPriceTransaction");
-                DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMachineryPriceTransaction");
-                Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
-                String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
-                DataObject transactionObject = result.getKey(i).singleValue();
-                Boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
-                String commentMPT = (String) value.get("commentMachineryPriceTransaction").getValue();
-                transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                        dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, commentMPT});
+                ObjectValue dateTimeMPT = value.get("dateTimeMachineryPriceTransaction");
+                if(dateTimeMPT instanceof DataObject) {
+                    DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMachineryPriceTransaction");
+                    Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
+                    String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
+                    DataObject transactionObject = result.getKey(i).singleValue();
+                    Boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
+                    String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
+                    transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
+                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT});
+                }
             }
 
             Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
@@ -246,7 +248,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String dateTimeCode = (String) transaction[4];
                 Date date = new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime());
                 Boolean snapshotTransaction = (Boolean) transaction[6];
-                String commentTransaction = (String) transaction[7];
+                String descriptionTransaction = (String) transaction[7];
                 
                 String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModelGroupMachinery").read(session, groupMachineryObject);
                 String nameModelGroupMachinery = (String) equLM.findProperty("nameModelGroupMachinery").read(session, groupMachineryObject);
@@ -357,8 +359,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        Integer expiryDays = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
@@ -371,19 +373,21 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         ObjectValue itemObject = row.get("skuBarcode");
                         Integer idItemObject = (Integer) itemObject.getValue();
                         String idItem = (String) row.get("idSkuBarcode").getValue();
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
                         boolean notPromotionItem = storeItemLM != null && row.get("notPromotionSkuBarcode").getValue() != null;
                         String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
                         String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
-                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, pluNumber, expiryDays, idItemObject,
-                                description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, nameSeason, passScales, valueVAT, notPromotionItem, flags));
+                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
+                                pluNumber, flags, idItemObject, description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, 
+                                nameSeason, notPromotionItem));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, 
-                            nameGroupMachinery, commentTransaction, itemGroupMap, cashRegisterItemInfoList, 
+                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList, 
                             cashRegisterInfoList, snapshotTransaction, departmentNumberGroupCashRegister));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"))) {
@@ -426,25 +430,31 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
                         Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        Integer expiryDays = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
                         String description = (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
-
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
+                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
+                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
+                        
                         String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
                         Integer cellScalesObject = description == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesDescription").read(session, groupMachineryObject, new DataObject(description, StringClass.text));
                         Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
-                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, pluNumber, expiryDays, 
-                                hoursExpiry, expiryDate, labelFormat, description, descriptionNumberCellScales, idItemGroup));
+                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, 
+                                passScales, valueVAT, pluNumber, flags, hoursExpiry, labelFormat, description, descriptionNumberCellScales, 
+                                idItemGroup, idUOM, shortNameUOM));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode, 
-                            handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, 
-                            nameGroupMachinery, commentTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction));
+                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, 
+                            nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction));
 
                 } else if (priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClass("PriceCheckerPriceTransaction"))) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<PriceCheckerInfo>();
@@ -476,12 +486,20 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split, null, null));
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
+                        
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split, 
+                                daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags));
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(), dateTimeCode, 
-                            handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, commentTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
+                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
+                            nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
                             snapshotTransaction));
 
 
@@ -523,8 +541,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-
-                        terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, null, null, null, null));
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
+                        
+                        terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry, 
+                                expiryDate, passScales, valueVAT, pluNumber, flags, null, null));
                     }
 
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
@@ -533,8 +558,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, priceListTypeGroupMachinery, stockGroupTerminal);
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
-                            handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
-                            commentTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, 
+                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
+                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, 
                             terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList, 
                             nppGroupTerminal, directoryGroupTerminal));
                 }
@@ -1697,22 +1722,20 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             barcode = trim((String) itemLM.findProperty("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
                             barcodeMap.put(sale.itemObject, barcode);
                         }
-                                                
-                        String idZReport = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_" + sale.numberZReport; 
-                        String idReceipt = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_" + sale.numberZReport + "_" + sale.numberReceipt;
-                        String idReceiptDetail = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_"  + sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail;
+                        
+                        String idReceipt = sale.getIdReceipt();
                         if(sale.isGiftCard) {
                             //giftCard 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, idReceiptDetail, sale.numberReceiptDetail, barcode,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail);
                             dataGiftCard.add(row);
                         } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                             //return 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact, 
-                                    idReceipt, sale.numberReceipt, idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
@@ -1721,9 +1744,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             dataReturn.add(row);
                         } else {
                             //sale 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
@@ -1829,10 +1852,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     message = message.substring(0, message.length() - 2);
 
-                    message += "\nИз файлов: ";
-                    for (String filename : fileNames)
-                        message += filename + ", ";
-                    message = message.substring(0, message.length() - 2);
+                    if(!fileNames.isEmpty()) {
+                        message += "\nИз файлов: ";
+                        for (String filename : fileNames)
+                            message += filename + ", ";
+                        message = message.substring(0, message.length() - 2);
+                    }
                     
                     if(notNullNorEmpty(dates)) {
                         message += "\nЗа даты: ";

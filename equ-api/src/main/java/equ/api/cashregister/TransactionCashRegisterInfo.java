@@ -13,7 +13,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     public Integer departmentNumberGroupCashRegister;
     
     public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
-                                       Integer nppGroupMachinery, String nameGroupMachinery, String comment, 
+                                       Integer nppGroupMachinery, String nameGroupMachinery, String description, 
                                        Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItemInfo> itemsList, 
                                        List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Integer departmentNumberGroupCashRegister) {
         this.id = id;
@@ -23,7 +23,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
         this.idGroupMachinery = idGroupMachinery;
         this.nppGroupMachinery = nppGroupMachinery;
         this.nameGroupMachinery = nameGroupMachinery;
-        this.comment = comment;
+        this.description = description;
         this.itemGroupMap = itemGroupMap;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
