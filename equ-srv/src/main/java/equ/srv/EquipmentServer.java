@@ -602,16 +602,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         
         itemGroupQuery.and(itemLM.findProperty("idItemGroup").getExpr(itemGroupExpr).getWhere());
         
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemGroupResult = itemGroupQuery.executeClasses(session);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemGroupResult = itemGroupQuery.execute(session);
 
-        for (int i = 0, size = itemGroupResult.size(); i < size; i++) {
-
-            ImMap<Object, ObjectValue> resultValues = itemGroupResult.getValue(i);
-
-            String idItemGroup = trim((String) resultValues.get("idItemGroup").getValue());
-            String nameItemGroup = trim((String) resultValues.get("nameItemGroup").getValue());
-            String idParentItemGroup = trim((String) resultValues.get("idParentItemGroup").getValue()); 
-            
+        for (ImMap<Object, Object> row : itemGroupResult.valueIt()) {
+            String idItemGroup = trim((String) row.get("idItemGroup"));
+            String nameItemGroup = trim((String) row.get("nameItemGroup"));
+            String idParentItemGroup = trim((String) row.get("idParentItemGroup"));
             itemGroupMap.put(idItemGroup, new ItemGroup(idItemGroup, nameItemGroup, idParentItemGroup));
         }
         
@@ -648,17 +644,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
                 discountCardQuery.and(retailCRMLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
 
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> discountCardResult = discountCardQuery.executeClasses(session);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
 
-                for (int i = 0, size = discountCardResult.size(); i < size; i++) {
-
-                    ImMap<Object, ObjectValue> discountCardValue = discountCardResult.getValue(i);
-
-                    String numberDiscountCard = trim((String) discountCardValue.get("numberDiscountCard").getValue());
-                    String nameDiscountCard = trim((String) discountCardValue.get("nameDiscountCard").getValue());
-                    BigDecimal percentDiscountCard = (BigDecimal) discountCardValue.get("percentDiscountCard").getValue();
-                    Date dateFromDiscountCard = (Date) discountCardValue.get("dateDiscountCard").getValue();
-                    Date dateToDiscountCard = (Date) discountCardValue.get("dateToDiscountCard").getValue();
+                for (ImMap<Object, Object> row : discountCardResult.valueIt()) {
+                    
+                    String numberDiscountCard = trim((String) row.get("numberDiscountCard"));
+                    String nameDiscountCard = trim((String) row.get("nameDiscountCard"));
+                    BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
+                    Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
+                    Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
                     
                     discountCardList.add(new DiscountCard(numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
                 }
@@ -886,8 +880,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<Object, Object>(orderKeys);
-                String[] orderNames = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
-                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.dateOrder", "Purchase.numberOrder", "Purchase.supplierOrder");
+                String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
+                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.dateOrder", "Purchase.numberOrder", "Purchase.idSupplierOrder");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
@@ -913,19 +907,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
                 orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.isOpenedOrder").getExpr(orderExpr).getWhere());
                 orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
-                for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
-                    Date dateOrder = (Date) entry.get("dateOrder").getValue();
-                    String numberOrder = trim((String) entry.get("numberOrder").getValue());
-                    String idSupplier = trim((String) purchaseInvoiceAgreementLM.findProperty("idLegalEntity").read(session, entry.get("supplierOrder")));
-                    String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail").getValue());
-                    String name = trim((String) entry.get("nameSkuOrderDetail").getValue());
-                    BigDecimal price = (BigDecimal) entry.get("priceOrderDetail").getValue();
-                    BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail").getValue();
-                    BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail").getValue();
-                    BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail").getValue();
-                    BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail").getValue();
-                    BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail").getValue();
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
+                for (ImMap<Object, Object> entry : orderResult.values()) {
+                    Date dateOrder = (Date) entry.get("dateOrder");
+                    String numberOrder = trim((String) entry.get("numberOrder"));
+                    String idSupplier = trim((String) entry.get("idSupplierOrder"));
+                    String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
+                    String name = trim((String) entry.get("nameSkuOrderDetail"));
+                    BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
+                    BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
+                    BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail");
+                    BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
+                    BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
+                    BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
                     terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
                             quantity, minQuantity, maxQuantity, minPrice, maxPrice));
                 }
@@ -1211,9 +1205,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
 
                 String[] groupTerminalNames = new String[] {"nameModelGroupMachinery", "handlerModelGroupMachinery",
-                        "directoryGroupTerminal", "priceListTypeGroupMachinery", "nppGroupMachinery"};
+                        "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery"};
                 LCP[] groupTerminalProperties = terminalLM.findProperties("nameModelGroupMachinery", "handlerModelGroupMachinery",
-                        "directoryGroupTerminal", "priceListTypeGroupMachinery", "nppGroupMachinery");
+                        "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery");
                 for (int i = 0; i < groupTerminalProperties.length; i++) {
                     query.addProperty(groupTerminalNames[i], groupTerminalProperties[i].getExpr(groupTerminalExpr));
                 }
@@ -1226,10 +1220,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    Integer priceListType = (Integer) row.get("priceListTypeGroupMachinery");
-                    String idPriceListType = priceListType == null ? null : (String) terminalLM.findProperty("idPriceListType").read(session, new DataObject(priceListType));
                     terminalInfoList.add(new TerminalInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelGroupMachinery"), 
-                            (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"), (String) row.get("directoryGroupTerminal"), idPriceListType));
+                            (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"), (String) row.get("directoryGroupTerminal"),
+                            (String) row.get("idPriceListTypeGroupMachinery")));
                 }
             }
             return terminalInfoList;
@@ -1428,10 +1421,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
                 query.and(zReportLM.findProperty("departmentStoreZReport").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
                 query.and(zReportLM.findProperty("numberZReport").getExpr(zReportExpr).getWhere());
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> zReportResult = query.executeClasses(session);
-                for (ImMap<Object, ObjectValue> entry : zReportResult.values()) {
-                    String numberZReport = trim((String) entry.get("numberZReport").getValue());
-                    BigDecimal sumZReport = (BigDecimal) entry.get("sumReceiptDetailZReport").getValue();
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
+                for (ImMap<Object, Object> entry : zReportResult.values()) {
+                    String numberZReport = trim((String) entry.get("numberZReport"));
+                    BigDecimal sumZReport = (BigDecimal) entry.get("sumReceiptDetailZReport");
                     zReportSumMap.put(numberZReport, sumZReport);
                 }
                 
@@ -1492,11 +1485,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             
             query.and(equipmentCashRegisterLM.findProperty("departmentStoreCashRegister").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
             query.and(equipmentCashRegisterLM.findProperty("nppMachinery").getExpr(cashRegisterExpr).getWhere());
-            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> zReportResult = query.executeClasses(session);
-            for (ImMap<Object, ObjectValue> entry : zReportResult.values()) {
-                Integer nppMachinery = (Integer) entry.get("nppMachinery").getValue();
-                Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery").getValue();
-                String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery").getValue());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
+            for (ImMap<Object, Object> entry : zReportResult.values()) {
+                Integer nppMachinery = (Integer) entry.get("nppMachinery");
+                Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery");
+                String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery"));
                 if(nppMachinery != null && nppGroupMachinery != null && overDirectoryMachinery != null) {
                     List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<List<Object>>();
                     nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery));
@@ -2201,9 +2194,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         try {
             ThreadLocalContext.set(logicsInstance.getContext());
             DataSession session = getDbManager().createSession();
-            Integer equipmentServerID = (Integer) equLM.findProperty("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
-            if (equipmentServerID != null) {
-                DataObject equipmentServerObject = new DataObject(equipmentServerID, (ConcreteClass) equLM.findClass("EquipmentServer"));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(equipmentServer));
+            if (equipmentServerObject instanceof DataObject) {
                 Integer delay = (Integer) equLM.findProperty("delayEquipmentServer").read(session, equipmentServerObject);
                 Integer numberAtATime = (Integer) equLM.findProperty("numberAtATimeEquipmentServer").read(session, equipmentServerObject);
                 return new EquipmentServerSettings(delay, numberAtATime);
