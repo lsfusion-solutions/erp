@@ -18,6 +18,7 @@ import lsfusion.server.classes.*;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
+import lsfusion.server.data.expr.ValueExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.lifecycle.LifecycleAdapter;
@@ -257,7 +258,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModelGroupMachinery").read(session, groupMachineryObject);
                 String nameModelGroupMachinery = (String) equLM.findProperty("nameModelGroupMachinery").read(session, groupMachineryObject);
-                
+
+                ValueExpr transactionExpr = transactionObject.getExpr();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
                 ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
 
@@ -272,12 +274,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
                         "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode");
                 for (int i = 0; i < skuProperties.length; i++) {
-                    skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
+                    skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
                 }
-                
-                skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
-                skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
-                skuQuery.addProperty("idSkuBarcode", equLM.findProperty("idSkuBarcode").getExpr(barcodeExpr));
+
+                String[] barcodeNames = new String[]{"idBarcode", "skuBarcode", "idSkuBarcode"};
+                LCP[] barcodeProperties = equLM.findProperties("idBarcode", "skuBarcode", "idSkuBarcode");
+                for (int i = 0; i < barcodeProperties.length; i++) {
+                    skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
+                }
                 
                 if(itemLM != null) {
                     skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrandBarcode").getExpr(barcodeExpr));
@@ -295,14 +299,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 if(cashRegisterItemLM != null) {
                     skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode", 
-                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                     skuQuery.addProperty("canonicalNameSkuGroupMachineryPriceTransactionBarcode", 
-                            cashRegisterItemLM.findProperty("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                            cashRegisterItemLM.findProperty("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if(scalesItemLM != null) {
                     skuQuery.addProperty("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode", 
-                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if (scalesItemLM != null) {
@@ -311,7 +315,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiryMachineryPriceTransactionBarcode",
                             "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
-                        skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
+                        skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
                 }
                 
@@ -319,14 +323,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String[] taxNames = new String[]{"VATMachineryPriceTransactionBarcode"};
                     LCP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VATMachineryPriceTransactionBarcode");
                     for (int i = 0; i < taxProperties.length; i++) {
-                        skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
+                        skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
                 }
 
-                skuQuery.and(equLM.findProperty("inMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr).getWhere());
+                skuQuery.and(equLM.findProperty("inMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr).getWhere());
 
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> skuResult = skuQuery.executeClasses(session);                
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
 
+                String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
+                LCP[] machineryProperties = machineryLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery");
+                
                 if (isCashRegisterPriceTransaction) {
                     
                     java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDateGroupCashRegister").read(session, groupMachineryObject);
@@ -339,17 +346,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImRevMap<PropertyInterface, KeyExpr> cashRegisterKeys = isCashRegister.getMapKeys();
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
-
-                    String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                    LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery");
-                    for (int i = 0; i < cashRegisterProperties.length; i++) {
-                        cashRegisterQuery.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterKey));
+                    
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        cashRegisterQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterKey));
                     }
                     if(cashRegisterPriceTransactionLM != null)
                         cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction", 
-                            cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterKey, transactionObject.getExpr()));
+                            cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterKey, transactionExpr));
                     cashRegisterQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            equLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), cashRegisterKey));
+                            equLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, cashRegisterKey));
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
 
@@ -368,34 +373,33 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
 
-                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                        String barcode = trim((String) row.get("idBarcode").getValue());
-                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
-                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
-                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
-                        String idBrand = itemLM == null ? null : (String) row.get("idBrandBarcode").getValue();
-                        String nameBrand = itemLM == null ? null : (String) row.get("nameBrandBarcode").getValue();
-                        String idSeason = itemFashionLM == null ? null : (String) row.get("idSeasonBarcode").getValue();
-                        String nameSeason = itemFashionLM == null ? null : (String) row.get("nameSeasonBarcode").getValue();
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
-                        ObjectValue itemObject = row.get("skuBarcode");
-                        Integer idItemObject = (Integer) itemObject.getValue();
-                        String idItem = (String) row.get("idSkuBarcode").getValue();
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
-                        boolean notPromotionItem = storeItemLM != null && row.get("notPromotionSkuBarcode").getValue() != null;
-                        String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
+                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
+                        String idBrand = itemLM == null ? null : (String) row.get("idBrandBarcode");
+                        String nameBrand = itemLM == null ? null : (String) row.get("nameBrandBarcode");
+                        String idSeason = itemFashionLM == null ? null : (String) row.get("idSeasonBarcode");
+                        String nameSeason = itemFashionLM == null ? null : (String) row.get("nameSeasonBarcode");
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        Integer itemObject = (Integer) row.get("skuBarcode");
+                        String idItem = (String) row.get("idSkuBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        boolean notPromotionItem = storeItemLM != null && row.get("notPromotionSkuBarcode") != null;
+                        String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
 
-                        String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
-                        String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
+                        String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
+                        String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
-                                pluNumber, flags, idItemObject, description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, 
+                                pluNumber, flags, itemObject, description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, 
                                 nameSeason, notPromotionItem));
                     }
                     
@@ -415,14 +419,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImRevMap<PropertyInterface, KeyExpr> scalesKeys = isScales.getMapKeys();
                     KeyExpr scalesKey = scalesKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> scalesQuery = new QueryBuilder<PropertyInterface, Object>(scalesKeys);
-
-                    String[] scalesPropertyNames = new String[]{"portMachinery", "nppMachinery"};
-                    LCP[] scalesProperties = scalesLM.findProperties("portMachinery", "nppMachinery");
-                    for (int i = 0; i < scalesProperties.length; i++) {
-                        scalesQuery.addProperty(scalesPropertyNames[i], scalesProperties[i].getExpr(scalesKey));
+                    
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        scalesQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(scalesKey));
                     }
                     scalesQuery.addProperty("inMachineryPriceTransactionMachinery", 
-                            scalesLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), scalesKey));
+                            scalesLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, scalesKey));
                     scalesQuery.and(isScales.property.getExpr(scalesKeys).getWhere());
                     scalesQuery.and(scalesLM.findProperty("groupScalesScales").getExpr(scalesKey).compare(groupMachineryObject, Compare.EQUALS));
 
@@ -438,25 +440,25 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     List<ScalesItemInfo> scalesItemInfoList = new ArrayList<ScalesItemInfo>();
                     
-                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                        String idItem = trim((String) row.get("idSkuBarcode").getValue());
-                        String barcode = trim((String) row.get("idBarcode").getValue());
-                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
-                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
-                        Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
-                        String description = (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
-                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
-                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String idItem = getRowValue(row, "idSkuBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
+                        Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode");
+                        String description = (String) row.get("descriptionMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
+                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
                         
-                        String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
+                        String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
                         
                         Integer cellScalesObject = description == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesDescription").read(session, groupMachineryObject, new DataObject(description, StringClass.text));
                         Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
@@ -472,40 +474,38 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 } else if (isPriceCheckerPriceTransaction) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<PriceCheckerInfo>();
-                    LCP<PropertyInterface> isCheck = (LCP<PropertyInterface>) priceCheckerLM.is(priceCheckerLM.findClass("Check"));
+                    LCP<PropertyInterface> isCheck = (LCP<PropertyInterface>) priceCheckerLM.is(priceCheckerLM.findClass("PriceChecker"));
 
                     ImRevMap<PropertyInterface, KeyExpr> checkKeys = isCheck.getMapKeys();
                     KeyExpr checkKey = checkKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> checkQuery = new QueryBuilder<PropertyInterface, Object>(checkKeys);
-
-                    String[] checkNames = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck"};
-                    LCP[] checkProperties = priceCheckerLM.findProperties("portMachinery", "nppMachinery", "nameCheckModelCheck");
-                    for (int i = 0; i < checkProperties.length; i++) {
-                        checkQuery.addProperty(checkNames[i], checkProperties[i].getExpr(checkKey));
+                    
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        checkQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(checkKey));
                     }
                     checkQuery.and(isCheck.property.getExpr(checkKeys).getWhere());
                     checkQuery.and(priceCheckerLM.findProperty("groupPriceCheckerPriceChecker").getExpr(checkKey).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session);
 
-                    for (ImMap<Object, Object> values : checkResult.valueIt()) {
-                        priceCheckerInfoList.add(new PriceCheckerInfo(true, nppGroupMachinery, (Integer) values.get("nppMachinery"), 
-                                (String) values.get("nameCheckModelCheck"), null, (String) values.get("portMachinery"), null));
+                    for (ImMap<Object, Object> row : checkResult.valueIt()) {
+                        priceCheckerInfoList.add(new PriceCheckerInfo(true, nppGroupMachinery, (Integer) row.get("nppMachinery"), 
+                                nameModelGroupMachinery, handlerModelGroupMachinery, (String) row.get("portMachinery"), null));
                     }
 
                     List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<PriceCheckerItemInfo>();
-                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                        String idItem = trim((String) row.get("idSkuBarcode").getValue());
-                        String barcode = trim((String) row.get("idBarcode").getValue());
-                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String idItem = getRowValue(row, "idSkuBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         
                         priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split, 
                                 daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags));
@@ -531,11 +531,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImRevMap<PropertyInterface, KeyExpr> terminalKeys = isTerminal.getMapKeys();
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
-
-                    String[] terminalNames = new String[]{"portMachinery", "nppMachinery"};
-                    LCP[] terminalProperties = terminalLM.findProperties("portMachinery", "nppMachinery");
-                    for (int i = 0; i < terminalProperties.length; i++) {
-                        terminalQuery.addProperty(terminalNames[i], terminalProperties[i].getExpr(terminalKey));
+                    
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        terminalQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(terminalKey));
                     }
                     terminalQuery.and(isTerminal.property.getExpr(terminalKeys).getWhere());
                     terminalQuery.and(terminalLM.findProperty("groupTerminalTerminal").getExpr(terminalKey).compare(groupMachineryObject, Compare.EQUALS));
@@ -549,18 +547,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     List<TerminalItemInfo> terminalItemInfoList = new ArrayList<TerminalItemInfo>();
-                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                        String idItem = trim((String) row.get("idSkuBarcode").getValue());
-                        String barcode = trim((String) row.get("idBarcode").getValue());
-                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode").getValue();
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode").getValue();
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String idItem = getRowValue(row, "idSkuBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         
                         terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry, 
                                 expiryDate, passScales, valueVAT, pluNumber, flags, null, null));
@@ -585,7 +583,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             throw Throwables.propagate(e);
         }
     }
-    
+
     private Map<String, List<ItemGroup>> readItemGroupMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, List<ItemGroup>> result = new HashMap<String, List<ItemGroup>>();
         Map<String, ItemGroup> itemGroupMap = new HashMap<String, ItemGroup>();
@@ -605,9 +603,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemGroupResult = itemGroupQuery.execute(session);
 
         for (ImMap<Object, Object> row : itemGroupResult.valueIt()) {
-            String idItemGroup = trim((String) row.get("idItemGroup"));
-            String nameItemGroup = trim((String) row.get("nameItemGroup"));
-            String idParentItemGroup = trim((String) row.get("idParentItemGroup"));
+            String idItemGroup = getRowValue(row, "idItemGroup");
+            String nameItemGroup = getRowValue(row, "nameItemGroup");
+            String idParentItemGroup = getRowValue(row, "idParentItemGroup");
             itemGroupMap.put(idItemGroup, new ItemGroup(idItemGroup, nameItemGroup, idParentItemGroup));
         }
         
@@ -648,8 +646,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 for (ImMap<Object, Object> row : discountCardResult.valueIt()) {
                     
-                    String numberDiscountCard = trim((String) row.get("numberDiscountCard"));
-                    String nameDiscountCard = trim((String) row.get("nameDiscountCard"));
+                    String numberDiscountCard = getRowValue(row, "numberDiscountCard");
+                    String nameDiscountCard = getRowValue(row, "nameDiscountCard");
                     BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
                     Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
                     Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
@@ -2216,6 +2214,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return result;
     }
 
+    private String getRowValue(ImMap<Object, Object> row, String key) {
+        return trim((String) row.get(key));
+    }
+    
     private String trim(String input) {
         return input == null ? null : input.trim();
     }
