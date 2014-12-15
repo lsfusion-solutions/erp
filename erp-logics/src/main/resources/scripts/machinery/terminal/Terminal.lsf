@@ -9,6 +9,10 @@ TABLE groupTerminal (GroupTerminal);
 stockGroupTerminal = DATA Stock (GroupTerminal);
 stockGroupMachinery (groupMachinery) += stockGroupTerminal(groupMachinery);
 
+inactiveGroupTerminal 'Неактивный' = DATA BOOLEAN (GroupTerminal);
+activeGroupTerminal 'Активный' (group) = group IS GroupTerminal AND NOT inactiveGroupTerminal(group);
+inactiveGroupMachinery(g) += inactiveGroupTerminal(g);
+
 // Модели
 CLASS TerminalModel 'Модель ТСД' : Model;
 TABLE terminalModel (TerminalModel);
@@ -162,7 +166,7 @@ FORM groupTerminal 'Группа ТСД'
     PROPERTIES(grt) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                     nameGroupTerminalDocumentTypeGroupTerminal, nameModelGroupMachinery,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
-                    namePriceListTypeGroupMachinery, directoryGroupTerminal
+                    namePriceListTypeGroupMachinery, directoryGroupTerminal, inactiveGroupTerminal
 
     OBJECTS t=Terminal
     PROPERTIES(t)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, ADDOBJ, DELETESESSION
@@ -184,6 +188,9 @@ FORM groupsTerminal 'Группы ТСД'
 
     PROPERTIES(t) READONLY nppMachinery, descriptionMachinery, portMachinery
     FILTERS groupTerminalTerminal(t) == grt
+    
+    FILTERGROUP active1
+        FILTER 'Активные' 'F5' activeGroupTerminal(grt) DEFAULT       
 ;
 
 DESIGN groupsTerminal FROM DEFAULT {

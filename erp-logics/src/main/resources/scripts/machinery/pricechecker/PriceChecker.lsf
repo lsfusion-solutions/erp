@@ -8,6 +8,10 @@ CLASS GroupPriceChecker 'Группы прайс чекеров' : GroupMachiner
 stockGroupPriceChecker = DATA Stock (GroupPriceChecker);
 stockGroupMachinery (groupMachinery) += stockGroupPriceChecker(groupMachinery);
 
+inactiveGroupPriceChecker 'Неактивный' = DATA BOOLEAN (GroupPriceChecker);
+activeGroupPriceChecker 'Активный' (group) = group IS GroupPriceChecker AND NOT inactiveGroupPriceChecker(group);
+inactiveGroupMachinery(g) += inactiveGroupPriceChecker(g);
+
 // Модели
 CLASS PriceCheckerModel 'Модель прайс чекеров' : Model;
 
@@ -49,7 +53,7 @@ FORM groupPriceChecker 'Группа прайс чекеров'
     OBJECTS grch=GroupPriceChecker FIXED PANEL
     PROPERTIES(grch) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                      filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grch),
-                     namePriceListTypeGroupMachinery
+                     namePriceListTypeGroupMachinery, inactiveGroupPriceChecker
 
     OBJECTS ch=PriceChecker
     PROPERTIES(ch)  nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, ADDOBJ, DELETESESSION
@@ -67,6 +71,9 @@ FORM groupsPriceChecker 'Группы прайс чекеров'
     OBJECTS ch=PriceChecker
     PROPERTIES(ch)   READONLY nppMachinery, descriptionMachinery, portMachinery
     FILTERS groupPriceCheckerPriceChecker(ch) == grch
+    
+    FILTERGROUP active1
+        FILTER 'Активные' 'F5' activeGroupPriceChecker(grch) DEFAULT    
 ;
 
 DESIGN groupsPriceChecker FROM DEFAULT {

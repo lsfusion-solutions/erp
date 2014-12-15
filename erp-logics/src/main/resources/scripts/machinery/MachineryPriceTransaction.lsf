@@ -165,8 +165,9 @@ FORM groupMachineryInput 'Выбор оборудования для перез�
     OBJECTS g = GroupMachinery
     PROPERTIES(g) selectedGroupMachinery
     PROPERTIES(g) READONLY nppGroupMachinery, nameGroupMachinery, nameStockGroupMachinery
-    FILTERS stockGroupMachinery(g) == s
-
+    FILTERS stockGroupMachinery(g) == s,
+            activeGroupMachinery(g)
+        
     OBJECTS m = Machinery
     PROPERTIES(m)          selectedMachinery
     PROPERTIES(m) READONLY nppMachinery, descriptionMachinery, portMachinery
@@ -412,7 +413,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
     LOCAL sentSomething = BOOLEAN();
     message() <- TEXT('Принято к загрузке в оборудование : \n');
 
-    FOR stockGroupMachinery(groupMachinery) == stock DO {
+    FOR stockGroupMachinery(groupMachinery) == stock AND activeGroupMachinery(groupMachinery) DO {
         LOCAL inBarcode = BOOLEAN (Barcode);
 
         inBarcode(barcode) <- createMachineryPriceTransactionSku(skuBarcode(barcode));

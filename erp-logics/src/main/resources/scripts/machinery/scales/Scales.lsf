@@ -13,6 +13,10 @@ directoryGroupMachinery (groupMachinery) += directoryGroupScales(groupMachinery)
 pieceCodeGroupScales 'Код для штучных товаров' = DATA STRING[2] (GroupScales) IN base;
 weightCodeGroupScales 'Код для весовых товаров' = DATA STRING[2] (GroupScales) IN base;
 
+inactiveGroupScales 'Неактивный' = DATA BOOLEAN (GroupScales);
+activeGroupScales 'Активный' (group) = group IS GroupScales AND NOT inactiveGroupScales(group);
+inactiveGroupMachinery(g) += inactiveGroupScales(g);
+
 // Модели
 CLASS ScalesModel 'Модель весов' : Model;
 
@@ -66,7 +70,7 @@ FORM groupScales 'Группа весов'
                     nameModelGroupMachinery, directoryGroupScales,
                     pieceCodeGroupScales, weightCodeGroupScales,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grs),
-                    namePriceListTypeGroupMachinery
+                    namePriceListTypeGroupMachinery, inactiveGroupScales
 
     OBJECTS s=Scales
     PROPERTIES(s)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales,
@@ -86,6 +90,9 @@ FORM groupsScales 'Группы весов'
     OBJECTS s=Scales
     PROPERTIES(s)   READONLY nppMachinery, descriptionMachinery, portMachinery, numberScales, dateScales
     FILTERS groupScalesScales(s) == grs
+    
+    FILTERGROUP active1
+        FILTER 'Активные' 'F5' activeGroupScales(grs) DEFAULT      
 ;
 
 DESIGN groupsScales FROM DEFAULT {

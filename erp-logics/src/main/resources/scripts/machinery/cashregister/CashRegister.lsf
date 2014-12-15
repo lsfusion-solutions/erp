@@ -13,6 +13,10 @@ groupCashRegisterDepartmentStore (departmentStore) = GROUP MAX groupCashRegister
 TABLE groupCashRegisterCustomUser(GroupCashRegister, CustomUser);
 operatorNumberGroupCashRegisterCustomUser 'Номер в группе касс' = DATA INTEGER (GroupCashRegister, CustomUser);
 
+inactiveGroupCashRegister 'Неактивный' = DATA BOOLEAN (GroupCashRegister);
+activeGroupCashRegister 'Активный' (group) = group IS GroupCashRegister AND NOT inactiveGroupCashRegister(group);
+inactiveGroupMachinery(g) += inactiveGroupCashRegister(g);
+
 // Модели
 CLASS CashRegisterModel 'Модель касс' : Model;
 
@@ -127,7 +131,7 @@ FORM groupCashRegister 'Группа касс'
     PROPERTIES(grc) nppGroupMachinery, departmentNumberGroupCashRegister, nameStockGroupMachinery, nameGroupMachinery,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grc),
                     namePriceListTypeGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
-                    startDateGroupCashRegister, notDetailedGroupCashRegister
+                    startDateGroupCashRegister, notDetailedGroupCashRegister, inactiveGroupCashRegister
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
@@ -156,6 +160,9 @@ FORM groupsCashRegister 'Группы касс'
     PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery, comPortCashRegister, baudRateCashRegister,
                            dataDirectoryCashRegister, dateCashRegister, nameLegalEntityCashRegister
     FILTERS groupCashRegisterCashRegister(c) == grc
+    
+    FILTERGROUP active1
+        FILTER 'Активные' 'F5' activeGroupCashRegister(grc) DEFAULT
 ;
 @extendFormFilterAccessStock(GroupMachinery, grc, groupsCashRegister, stock, company);
 
