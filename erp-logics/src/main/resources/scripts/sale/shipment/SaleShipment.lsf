@@ -197,3 +197,30 @@ sumWholesaleMarkupInvoiceDetailInvoice(invoice) = GROUP SUM sumWholesaleMarkupIn
 
 overShowEditShipment (i) += showEditDeleteUserShipment(i) AND isOpenedShipment(i);
 overShowDeleteShipment (i) += showEditDeleteUserShipment(i) AND isUserOpenedShipment(i); 
+
+fillShipmentPriceAll 'Переписать учетную цену в накладных (продажа)'  = ACTION () {
+    FOR detail IS UserInvoiceDetail AND NOT disableUpdateShipmentPriceUserInvoiceDetail(detail) 
+        AND isOpenedUserInvoice(userInvoiceUserInvoiceDetail(detail))  DO {
+        shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail)    
+                                                        THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                       batchUserInvoiceDetail(detail),
+                                                                                                       supplierStockUserInvoiceDetail(detail),
+                                                                                                       dateTimeUserInvoiceDetail(detail))
+                                                        ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                     skuUserInvoiceDetail(detail),
+                                                                                                     supplierStockUserInvoiceDetail(detail),
+                                                                                                     dateTimeUserInvoiceDetail(detail));    
+    }
+}
+
+EXTEND FORM options
+    PROPERTIES() SaleFillShipmentPriceAll = fillShipmentPriceAll
+;
+
+EXTEND DESIGN options {
+    invoices {
+        invoiceSale {
+            ADD PROPERTY(SaleFillShipmentPriceAll);
+        }            
+    }
+}
