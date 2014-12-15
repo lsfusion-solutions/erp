@@ -315,6 +315,14 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     WHEN SESSION FORMS userInvoice (CHANGED(manufactureDateInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d))) AND NOT batchUserInvoiceDetail(d) DO {
         expiryDateUserInvoiceDetail(d) <- calcExpiryDateInvoiceDetail(d);            
     } 
+    
+    calcManufactureDateInvoiceDetail (d) = IF expiryMonthSku(skuUserInvoiceDetail(d)) 
+        THEN sumDateMonth(expiryDateInvoiceDetail(d), -expiryMonthSku(skuInvoiceDetail(d)))
+        ELSE sumDate(expiryDateInvoiceDetail(d), -expiryDaysSku(skuInvoiceDetail(d)));     
+           
+    WHEN SESSION FORMS userInvoice (CHANGED(expiryDateInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d))) AND NOT batchUserInvoiceDetail(d) DO {
+        manufactureDateUserInvoiceDetail(d) <- calcManufactureDateInvoiceDetail(d);            
+    }            
 
     conformityShipmentDateInvoices 'Соответствие даты поставки с датой накладной '##sign = DATA BOOLEAN ();
     
