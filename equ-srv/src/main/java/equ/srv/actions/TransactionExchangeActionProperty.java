@@ -2,8 +2,7 @@ package equ.srv.actions;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
-import equ.api.cashregister.CashRegisterItemInfo;
-import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.cashregister.*;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.terminal.TransactionTerminalInfo;
@@ -41,6 +40,7 @@ import java.util.*;
 
 public class TransactionExchangeActionProperty extends DefaultIntegrationActionProperty {
     
+    ScriptingLogicsModule HTCPromotionLM;
     ScriptingLogicsModule itemFashionLM;
     ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     ScriptingLogicsModule zReportDiscountCardLM;
@@ -54,6 +54,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         try {
             
+            HTCPromotionLM = context.getBL().getModule("HTCPromotion");
             itemFashionLM = context.getBL().getModule("ItemFashion");
             machineryPriceTransactionStockTaxLM = context.getBL().getModule("MachineryPriceTransactionStockTax");
             zReportDiscountCardLM = context.getBL().getModule("ZReportDiscountCard");
@@ -67,6 +68,8 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             readTransactionInfo(context, remote, sidEquipmentServer);
 
             sendReceiptInfo(context, remote, sidEquipmentServer);
+            
+            readPromotionInfo(context, remote);
             
         } catch (RemoteException e) {
             throw Throwables.propagate(e);
@@ -105,6 +108,189 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             }
             if (!succeededReceiptList.isEmpty())
                 finishSendSalesInfo(context, succeededReceiptList);
+        }
+    }
+    
+    private void readPromotionInfo(ExecutionContext context, EquipmentServerInterface remote) 
+            throws RemoteException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        
+        if(HTCPromotionLM != null) {
+            PromotionInfo promotionInfo = remote.readPromotionInfo();
+            importPromotionQuantityList(context, promotionInfo.promotionQuantityList);
+            importPromotionSumList(context, promotionInfo.promotionSumList);
+            importPromotionTimeList(context, promotionInfo.promotionTimeList);
+        }
+        
+    }
+    
+    private void importPromotionQuantityList(ExecutionContext context, List<PromotionQuantity> promotionQuantityList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if (notNullNorEmpty(promotionQuantityList)) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(promotionQuantityList.size());
+            
+            ImportField idHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionQuantity"));
+            ImportKey<?> htcPromotionQuantityKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("HTCPromotionQuantity"),
+                    HTCPromotionLM.findProperty("HTCPromotionQuantityId").getMapping(idHTCPromotionQuantityField));
+            keys.add(htcPromotionQuantityKey);
+            props.add(new ImportProperty(idHTCPromotionQuantityField, HTCPromotionLM.findProperty("idHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            fields.add(idHTCPromotionQuantityField);
+            for (int i = 0; i < promotionQuantityList.size(); i++)
+                data.get(i).add(promotionQuantityList.get(i).idPromotionQuantity);
+
+            ImportField isStopHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("isStopHTCPromotionQuantity"));
+            props.add(new ImportProperty(isStopHTCPromotionQuantityField, HTCPromotionLM.findProperty("isStopHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            fields.add(isStopHTCPromotionQuantityField);
+            for (int i = 0; i < promotionQuantityList.size(); i++)
+                data.get(i).add(promotionQuantityList.get(i).isStop ? true : null);
+
+            ImportField quantityHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("quantityHTCPromotionQuantity"));
+            props.add(new ImportProperty(quantityHTCPromotionQuantityField, HTCPromotionLM.findProperty("quantityHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            fields.add(quantityHTCPromotionQuantityField);
+            for (int i = 0; i < promotionQuantityList.size(); i++)
+                data.get(i).add(promotionQuantityList.get(i).quantity);
+
+            ImportField percentHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("percentHTCPromotionQuantity"));
+            props.add(new ImportProperty(percentHTCPromotionQuantityField, HTCPromotionLM.findProperty("percentHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            fields.add(percentHTCPromotionQuantityField);
+            for (int i = 0; i < promotionQuantityList.size(); i++)
+                data.get(i).add(promotionQuantityList.get(i).percent);
+
+            ImportField idItemHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idItem"));
+            ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("Item"),
+                    HTCPromotionLM.findProperty("itemId").getMapping(idItemHTCPromotionQuantityField));
+            keys.add(itemKey);
+            props.add(new ImportProperty(idItemHTCPromotionQuantityField, HTCPromotionLM.findProperty("itemHTCPromotionQuantity").getMapping(htcPromotionQuantityKey),
+                    object(HTCPromotionLM.findClass("Item")).getMapping(itemKey)));
+            fields.add(idItemHTCPromotionQuantityField);
+            for (int i = 0; i < promotionQuantityList.size(); i++)
+                data.get(i).add(promotionQuantityList.get(i).idItem);
+            
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.pushVolatileStats("TE_PQ");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+            session.close();
+        }
+    }
+
+    private void importPromotionSumList(ExecutionContext context, List<PromotionSum> promotionSumList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if (notNullNorEmpty(promotionSumList)) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(promotionSumList.size());
+            
+            ImportField idHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionSum"));
+            ImportKey<?> htcPromotionSumKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("HTCPromotionSum"),
+                    HTCPromotionLM.findProperty("HTCPromotionSumId").getMapping(idHTCPromotionSumField));
+            keys.add(htcPromotionSumKey);
+            props.add(new ImportProperty(idHTCPromotionSumField, HTCPromotionLM.findProperty("idHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            fields.add(idHTCPromotionSumField);
+            for (int i = 0; i < promotionSumList.size(); i++)
+                data.get(i).add(promotionSumList.get(i).idPromotionSum);
+
+            ImportField isStopHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("isStopHTCPromotionSum"));
+            props.add(new ImportProperty(isStopHTCPromotionSumField, HTCPromotionLM.findProperty("isStopHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            fields.add(isStopHTCPromotionSumField);
+            for (int i = 0; i < promotionSumList.size(); i++)
+                data.get(i).add(promotionSumList.get(i).isStop ? true : null);
+
+            ImportField sumHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("sumHTCPromotionSum"));
+            props.add(new ImportProperty(sumHTCPromotionSumField, HTCPromotionLM.findProperty("sumHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            fields.add(sumHTCPromotionSumField);
+            for (int i = 0; i < promotionSumList.size(); i++)
+                data.get(i).add(promotionSumList.get(i).sum);
+
+            ImportField percentHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("percentHTCPromotionSum"));
+            props.add(new ImportProperty(percentHTCPromotionSumField, HTCPromotionLM.findProperty("percentHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            fields.add(percentHTCPromotionSumField);
+            for (int i = 0; i < promotionSumList.size(); i++)
+                data.get(i).add(promotionSumList.get(i).percent);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.pushVolatileStats("TE_PS");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+            session.close();
+        }
+    }
+
+    private void importPromotionTimeList(ExecutionContext context, List<PromotionTime> promotionTimeList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if (notNullNorEmpty(promotionTimeList)) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(promotionTimeList.size());
+            
+            ImportField idHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionTime"));
+            ImportKey<?> htcPromotionTimeKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("HTCPromotionTime"),
+                    HTCPromotionLM.findProperty("HTCPromotionTimeId").getMapping(idHTCPromotionTimeField));
+            keys.add(htcPromotionTimeKey);
+            props.add(new ImportProperty(idHTCPromotionTimeField, HTCPromotionLM.findProperty("idHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            fields.add(idHTCPromotionTimeField);
+            for (int i = 0; i < promotionTimeList.size(); i++)
+                data.get(i).add(promotionTimeList.get(i).idPromotionTime);
+
+            ImportField isStopHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("isStopHTCPromotionTime"));
+            props.add(new ImportProperty(isStopHTCPromotionTimeField, HTCPromotionLM.findProperty("isStopHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            fields.add(isStopHTCPromotionTimeField);
+            for (int i = 0; i < promotionTimeList.size(); i++)
+                data.get(i).add(promotionTimeList.get(i).isStop ? true : null);
+
+            ImportField beginTimeHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("beginTimeHTCPromotionTime"));
+            props.add(new ImportProperty(beginTimeHTCPromotionTimeField, HTCPromotionLM.findProperty("beginTimeHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            fields.add(beginTimeHTCPromotionTimeField);
+            for (int i = 0; i < promotionTimeList.size(); i++)
+                data.get(i).add(promotionTimeList.get(i).beginTime);
+
+            ImportField endTimeHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("endTimeHTCPromotionTime"));
+            props.add(new ImportProperty(endTimeHTCPromotionTimeField, HTCPromotionLM.findProperty("endTimeHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            fields.add(endTimeHTCPromotionTimeField);
+            for (int i = 0; i < promotionTimeList.size(); i++)
+                data.get(i).add(promotionTimeList.get(i).endTime);
+
+            ImportField percentHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("percentHTCPromotionTime"));
+            props.add(new ImportProperty(percentHTCPromotionTimeField, HTCPromotionLM.findProperty("percentHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            fields.add(percentHTCPromotionTimeField);
+            for (int i = 0; i < promotionTimeList.size(); i++)
+                data.get(i).add(promotionTimeList.get(i).percent);
+
+            ImportField numberDayHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("numberDOW"));
+            ImportKey<?> dowKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("DOW"),
+                    HTCPromotionLM.findProperty("DOWNumber").getMapping(numberDayHTCPromotionQuantityField));
+            keys.add(dowKey);
+            props.add(new ImportProperty(numberDayHTCPromotionQuantityField, HTCPromotionLM.findProperty("dayHTCPromotionTime").getMapping(htcPromotionTimeKey),
+                    object(HTCPromotionLM.findClass("DOW")).getMapping(dowKey)));
+            fields.add(numberDayHTCPromotionQuantityField);
+            for (int i = 0; i < promotionTimeList.size(); i++)
+                data.get(i).add(promotionTimeList.get(i).numberDay);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.pushVolatileStats("TE_PT");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+            session.close();
         }
     }
     
@@ -902,6 +1088,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         return value != null && value ? true : null;
     }
 
+    protected List<List<Object>> initData(int size) {
+        List<List<Object>> data = new ArrayList<List<Object>>();
+        for (int i = 0; i < size; i++) {
+            data.add(new ArrayList<Object>());
+        }
+        return data;
+    }
 
 
 }
