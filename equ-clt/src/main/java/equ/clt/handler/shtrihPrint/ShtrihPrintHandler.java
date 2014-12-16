@@ -33,10 +33,16 @@ public class ShtrihPrintHandler extends ScalesHandler {
         
         processTransactionLogger.info("Shtrih: Send Transaction # " + transaction.id);
         List<MachineryInfo> succeededScalesList = new ArrayList<MachineryInfo>();
-        
-        ActiveXComponent shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
-        Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
 
+        processTransactionLogger.info("Shtrih: Initializing COM-Object AddIn.DrvLP...");
+        ActiveXComponent shtrihActiveXComponent;
+        Dispatch shtrihDispatch;
+        
+        shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
+        processTransactionLogger.info("Shtrih: Initializing DrvLP (Get Object)...");
+        shtrihDispatch = shtrihActiveXComponent.getObject();
+
+        processTransactionLogger.info("Shtrih: Reading settings...");
         ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
         boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.usePLUNumberInMessage;
         boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.newLineNoSubstring;
@@ -50,6 +56,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 if (scales.enabled)
                     enabledScalesList.add(scales);
             }
+
+            processTransactionLogger.info("Shtrih: Starting sending to " + enabledScalesList.size() + " scales...");
             
             Set<String> ips = new HashSet<String>();
             for (ScalesInfo scales : enabledScalesList.isEmpty() ? scalesList : enabledScalesList) {
@@ -57,8 +65,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 String ip = scales.port;
                 if (ip != null) {
                     ips.add(scales.port);
-                    processTransactionLogger.info("Shtrih: Connecting ip: " + ip);
 
+                    processTransactionLogger.info("Shtrih: Processing ip: " + ip);
                     try {
 
                         shtrihActiveXComponent.setProperty("LDInterface", new Variant(1));
@@ -66,9 +74,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
                         Dispatch.call(shtrihDispatch, "AddLD");
                         Dispatch.call(shtrihDispatch, "SetActiveLD");
 
+                        processTransactionLogger.info("Shtrih: Connecting..." + ip);
                         Variant result = Dispatch.call(shtrihDispatch, "Connect");
                         if (!isError(result)) {
 
+                            processTransactionLogger.info("Shtrih: Setting password..." + ip);
                             shtrihActiveXComponent.setProperty("Password", pass);
                             if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
                                 Variant clear = Dispatch.call(shtrihDispatch, "ClearGoodsDB");
@@ -78,6 +88,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                 }    
                             }
 
+                            processTransactionLogger.info("Shtrih: Sending items..." + ip);
                             if (!error) {
                                 for (ScalesItemInfo item : transaction.itemsList) {
                                     Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
@@ -135,6 +146,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                     }
                                 }
                             }
+                            processTransactionLogger.info("Shtrih: Disconnecting..." + ip);
                             result = Dispatch.call(shtrihDispatch, "Disconnect");
                             if (isError(result)) {
                                 processTransactionLogger.error(String.format("ShtrihPrintHandler. Disconnection error # %s (%s)", result.getInt(), getErrorText(result)));
@@ -147,10 +159,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             error = true;
                             continue;
                         }
-                        processTransactionLogger.info("Shtrih: Disconnecting ip: " + ip);
                     } finally {
+                        processTransactionLogger.info("Shtrih: Finally disconnecting..." + ip);
                         Dispatch.call(shtrihDispatch, "Disconnect");
                     }
+                    processTransactionLogger.info("Shtrih: Completed ip: " + ip);
                 }
                 if (!error)
                     succeededScalesList.add(scales);
