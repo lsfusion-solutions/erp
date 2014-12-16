@@ -408,12 +408,14 @@ createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (M
 
 skipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
 
+excludeGroupMachinery = DATA SESSION BOOLEAN (GroupMachinery);
+
 createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
     message() <- TEXT('Принято к загрузке в оборудование : \n');
 
-    FOR stockGroupMachinery(groupMachinery) == stock AND activeGroupMachinery(groupMachinery) DO {
+    FOR stockGroupMachinery(groupMachinery) == stock AND activeGroupMachinery(groupMachinery) AND NOT excludeGroupMachinery(groupMachinery) DO {
         LOCAL inBarcode = BOOLEAN (Barcode);
 
         inBarcode(barcode) <- createMachineryPriceTransactionSku(skuBarcode(barcode));
@@ -483,6 +485,33 @@ createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) N
     createMachineryPriceTransaction(stock);
 } IN snapshotMachineryPrice;
 
+includeGroupMachinery 'Вкл.' = DATA SESSION BOOLEAN (GroupMachinery);
+
+FORM selectGroupMachinery 'Выбор групп оборудования'
+    OBJECTS st = Stock FIXED PANEL 
+    PROPERTIES(st) READONLY nameStock    
+    
+    OBJECTS gm = GroupMachinery 
+    PROPERTIES(gm) READONLY nppGroupMachinery, nameGroupMachinery, objectClassName
+    PROPERTIES(gm) includeGroupMachinery 
+    FILTERS stockGroupMachinery(gm) == st,
+            activeGroupMachinery(gm)
+;
+
+createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWSESSION AUTOAPPLY {
+    FORM selectGroupMachinery OBJECTS st = stock MODAL;
+    IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF includeGroupMachinery(gm) BY stockGroupMachinery(gm)](stock) THEN {
+        excludeGroupMachinery(gm) <- TRUE WHERE stockGroupMachinery(gm) == stock AND NOT includeGroupMachinery(gm);
+        
+        createMachineryPriceTransactionSku(sku) <- TRUE;
+        createMachineryPriceTransactionComment() <- 'Выборочная загрузка товаров по группе оборудования';
+        createMachineryPriceTransactionAll() <- TRUE;
+        createMachineryPriceTransaction(stock);
+    }
+} IN snapshotMachineryPrice;
+
+
+
 GROUP documentMachineryPrice 'Из документа' : public;
 createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION (stock) NEWSESSION AUTOAPPLY {
     FORM documents DIALOG;
@@ -495,7 +524,8 @@ createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION 
 } IN documentMachineryPrice;
 
 EXTEND FORM machineryPriceTransactions
-    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, createSnapshotMachineryPriceTransaction, 
+    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, 
+                  createSnapshotMachineryPriceTransaction, createSelectMachineryPriceTransaction, 
                   snapshotGroupMachineryDepartmentStore, createDocumentMachineryPriceTransactionStock
 ;
 
@@ -705,24 +735,6 @@ EXTEND DESIGN currentBalanceSkuStock {
 filterMachineryMachineryPriceTransaction (machinery, transaction)= IF nppsMachineryPriceTransaction(transaction) 
                                                                         THEN inMachineryPriceTransactionMachinery(transaction, machinery) AND groupMachineryMachinery(machinery) == groupMachineryMachineryPriceTransaction(transaction)
                                                                         ELSE groupMachineryMachinery(machinery) == groupMachineryMachineryPriceTransaction(transaction); 
-EXTEND FORM machineryPriceTransactions
-    OBJECTS m = Machinery FIXED GRID
-    PROPERTIES(m) READONLY  nppMachinery, descriptionMachinery, objectClassName//dataDirectoryCashRegister
-    PROPERTIES(t, m) READONLY inMachineryPriceTransactionMachinery
-    FILTERS filterMachineryMachineryPriceTransaction(m, t) 
-    PROPERTIES(m, t) READONLY  succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
-;
-
-EXTEND DESIGN machineryPriceTransactions {
-    specContainer {
-        NEW machinery {
-            fill = 1;
-            caption = 'Оборудование';
-            ADD m.box;
-        }     
-    }
-}
-
 EXTEND FORM machineryPriceTransaction
     OBJECTS m = Machinery FIXED GRID
     PROPERTIES(m) READONLY nppMachinery, descriptionMachinery, objectClassName//, dataDirectoryCashRegister
@@ -737,7 +749,17 @@ EXTEND DESIGN machineryPriceTransaction {
     }
 }
 
+
+filterInMachineryPriceTransactionBarcodeStock (bb,s)= GROUP SUM 1 IF inMachineryPriceTransactionBarcode(mt, bb) BY bb, stockMachineryPriceTransaction(mt);
 EXTEND FORM machineryPriceTransactions
+
+    OBJECTS m = Machinery FIXED GRID
+    PROPERTIES(m) READONLY  nppMachinery, descriptionMachinery, objectClassName//dataDirectoryCashRegister
+    PROPERTIES(t, m) READONLY inMachineryPriceTransactionMachinery
+    FILTERS filterMachineryMachineryPriceTransaction(m, t) 
+    PROPERTIES(m, t) READONLY  succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
+
+
     OBJECTS dt = DATE FIXED  PANEL
     PROPERTIES(dt) val = OBJVALUE 
 
@@ -753,17 +775,57 @@ EXTEND FORM machineryPriceTransactions
     FILTERGROUP stockFilter
         FILTER 'По складу' 'F11' stockMachineryPriceTransaction(tt) == s      
     FILTERGROUP dateFilter
-        FILTER 'На дату' 'F10' dateMachineryPriceTransaction(tt) == dt      
+        FILTER 'На дату' 'F10' dateMachineryPriceTransaction(tt) == dt    
+          
+//--
+    OBJECTS bb = Barcode
+    PROPERTIES(bb)    READONLY idBarcode, nameSkuBarcode
+    FILTERS filterInMachineryPriceTransactionBarcodeStock(bb,s)
+
+    OBJECTS mt = MachineryPriceTransaction
+    PROPERTIES(mt) READONLY snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
+                           timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, succeededMachineryPriceTransaction, 
+                           dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
+                           quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(mt),
+                           nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(mt)
+    PROPERTIES(mt) READONLY createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+    
+    PROPERTIES(mt, bb) READONLY nameMachineryPriceTransactionBarcode, priceMachineryPriceTransactionBarcode
+    FILTERS stockMachineryPriceTransaction(mt) == s
+
+    FILTERS inMachineryPriceTransactionBarcode(mt, bb)          
+          
+          
 ;
 
 EXTEND DESIGN machineryPriceTransactions{
-    specContainer {
+    pane {        
+        type = TABBED ;
+        NEW headerContainer{ 
+            fill = 1;
+            type = SPLITV;
+            caption = 'Загрузка';
+            ADD t.box;
+            ADD specContainer {
+                NEW machinery {
+                    fill = 1;
+                    caption = 'Оборудование';
+                    ADD m.box;
+                } 
+            }
+        }
         NEW notSucceeded {
             fill = 1;
             caption = 'Незагруженные';
             ADD dt.box;
             ADD tt.box;
-        }
+        } 
+        NEW barcodeContainer {
+            fill = 1;
+            caption = 'Загрузка по позиции';
+            ADD bb.box;
+            ADD mt.box;            
+        }               
     }
 }
             
