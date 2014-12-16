@@ -629,14 +629,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             try {
                 DataSession session = getDbManager().createSession();
 
-                KeyExpr discountCardExpr = new KeyExpr("DiscountCard");
+                KeyExpr discountCardExpr = new KeyExpr("discountCard");
                 ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
 
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<Object, Object>(discountCardKeys);
-                String[] discountCardNames = new String[]{"numberDiscountCard", "nameDiscountCard", "percentDiscountCard",
-                        "dateDiscountCard", "dateToDiscountCard"};
-                LCP[] discountCardProperties = retailCRMLM.findProperties("numberDiscountCard", "nameDiscountCard", "percentDiscountCard",
-                        "dateDiscountCard", "dateToDiscountCard");
+                String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
+                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard"};
+                LCP[] discountCardProperties = retailCRMLM.findProperties("idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
+                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
@@ -644,15 +644,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
 
-                for (ImMap<Object, Object> row : discountCardResult.valueIt()) {
+                for (int i = 0, size = discountCardResult.size(); i < size; i++) {
+                    ImMap<Object, Object> row = discountCardResult.getValue(i);
                     
+                    String idDiscountCard = getRowValue(row, "idDiscountCard");
+                    if(idDiscountCard == null)
+                        idDiscountCard = String.valueOf(discountCardResult.getKey(i).get("discountCard"));
                     String numberDiscountCard = getRowValue(row, "numberDiscountCard");
                     String nameDiscountCard = getRowValue(row, "nameDiscountCard");
                     BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
                     Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
                     Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
                     
-                    discountCardList.add(new DiscountCard(numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
+                    discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 throw Throwables.propagate(e);

@@ -14,7 +14,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.remote.RMIUtils;
-import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -40,6 +39,7 @@ import java.util.*;
 
 public class TransactionExchangeActionProperty extends DefaultIntegrationActionProperty {
     
+    ScriptingLogicsModule retailCRMLM;
     ScriptingLogicsModule HTCPromotionLM;
     ScriptingLogicsModule itemFashionLM;
     ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
@@ -53,7 +53,8 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            
+
+            retailCRMLM = context.getBL().getModule("RetailCRM");
             HTCPromotionLM = context.getBL().getModule("HTCPromotion");
             itemFashionLM = context.getBL().getModule("ItemFashion");
             machineryPriceTransactionStockTaxLM = context.getBL().getModule("MachineryPriceTransactionStockTax");
@@ -70,6 +71,8 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             sendReceiptInfo(context, remote, sidEquipmentServer);
             
             readPromotionInfo(context, remote);
+            
+            readDiscountCard(context, remote);
             
         } catch (RemoteException e) {
             throw Throwables.propagate(e);
@@ -123,6 +126,69 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         
     }
     
+    private void readDiscountCard(ExecutionContext context, EquipmentServerInterface remote) throws RemoteException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        
+        if(retailCRMLM != null) {
+
+            List<DiscountCard> discountCardList = remote.readDiscountCardList();
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(discountCardList.size());
+
+            ImportField idDiscountCardField = new ImportField(retailCRMLM.findProperty("idDiscountCard"));
+            ImportKey<?> discountCardKey = new ImportKey((CustomClass) retailCRMLM.findClass("DiscountCard"),
+                    retailCRMLM.findProperty("discountCardId").getMapping(idDiscountCardField));
+            props.add(new ImportProperty(idDiscountCardField, retailCRMLM.findProperty("idDiscountCard").getMapping(discountCardKey)));
+            keys.add(discountCardKey);
+            fields.add(idDiscountCardField);
+            for (int i = 0; i < discountCardList.size(); i++)
+                data.get(i).add(discountCardList.get(i).idDiscountCard);
+
+            ImportField numberDiscountCardField = new ImportField(retailCRMLM.findProperty("numberDiscountCard"));
+            props.add(new ImportProperty(numberDiscountCardField, retailCRMLM.findProperty("numberDiscountCard").getMapping(discountCardKey)));
+            fields.add(numberDiscountCardField);
+            for (int i = 0; i < discountCardList.size(); i++)
+                data.get(i).add(discountCardList.get(i).numberDiscountCard);
+
+            ImportField nameDiscountCardField = new ImportField(retailCRMLM.findProperty("nameDiscountCard"));
+            props.add(new ImportProperty(nameDiscountCardField, retailCRMLM.findProperty("nameDiscountCard").getMapping(discountCardKey)));
+            fields.add(nameDiscountCardField);
+            for (int i = 0; i < discountCardList.size(); i++)
+                data.get(i).add(discountCardList.get(i).nameDiscountCard);
+
+            ImportField percentDiscountCardField = new ImportField(retailCRMLM.findProperty("percentDiscountCard"));
+            props.add(new ImportProperty(percentDiscountCardField, retailCRMLM.findProperty("percentDiscountCard").getMapping(discountCardKey)));
+            fields.add(percentDiscountCardField);
+            for (int i = 0; i < discountCardList.size(); i++)
+                data.get(i).add(discountCardList.get(i).percentDiscountCard);
+
+            ImportField dateDiscountCardField = new ImportField(retailCRMLM.findProperty("dateDiscountCard"));
+            props.add(new ImportProperty(dateDiscountCardField, retailCRMLM.findProperty("dateDiscountCard").getMapping(discountCardKey)));
+            fields.add(dateDiscountCardField);
+            for (int i = 0; i < discountCardList.size(); i++)
+                data.get(i).add(discountCardList.get(i).dateFromDiscountCard);
+
+            ImportField dateToDiscountCardField = new ImportField(retailCRMLM.findProperty("dateToDiscountCard"));
+            props.add(new ImportProperty(dateToDiscountCardField, retailCRMLM.findProperty("dateToDiscountCard").getMapping(discountCardKey)));
+            fields.add(dateToDiscountCardField);
+            for (int i = 0; i < discountCardList.size(); i++)
+                data.get(i).add(discountCardList.get(i).dateToDiscountCard);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.pushVolatileStats("TE_DC");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+            session.close();
+        }
+    }
+    
     private void importPromotionQuantityList(ExecutionContext context, List<PromotionQuantity> promotionQuantityList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (notNullNorEmpty(promotionQuantityList)) {
 
@@ -133,7 +199,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<List<Object>> data = initData(promotionQuantityList.size());
             
             ImportField idHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionQuantity"));
-            ImportKey<?> htcPromotionQuantityKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("HTCPromotionQuantity"),
+            ImportKey<?> htcPromotionQuantityKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("HTCPromotionQuantity"),
                     HTCPromotionLM.findProperty("HTCPromotionQuantityId").getMapping(idHTCPromotionQuantityField));
             keys.add(htcPromotionQuantityKey);
             props.add(new ImportProperty(idHTCPromotionQuantityField, HTCPromotionLM.findProperty("idHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
@@ -160,7 +226,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
                 data.get(i).add(promotionQuantityList.get(i).percent);
 
             ImportField idItemHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idItem"));
-            ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("Item"),
+            ImportKey<?> itemKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("Item"),
                     HTCPromotionLM.findProperty("itemId").getMapping(idItemHTCPromotionQuantityField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemHTCPromotionQuantityField, HTCPromotionLM.findProperty("itemHTCPromotionQuantity").getMapping(htcPromotionQuantityKey),
@@ -169,7 +235,6 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             for (int i = 0; i < promotionQuantityList.size(); i++)
                 data.get(i).add(promotionQuantityList.get(i).idItem);
             
-
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
@@ -192,7 +257,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<List<Object>> data = initData(promotionSumList.size());
             
             ImportField idHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionSum"));
-            ImportKey<?> htcPromotionSumKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("HTCPromotionSum"),
+            ImportKey<?> htcPromotionSumKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("HTCPromotionSum"),
                     HTCPromotionLM.findProperty("HTCPromotionSumId").getMapping(idHTCPromotionSumField));
             keys.add(htcPromotionSumKey);
             props.add(new ImportProperty(idHTCPromotionSumField, HTCPromotionLM.findProperty("idHTCPromotionSum").getMapping(htcPromotionSumKey)));
@@ -240,7 +305,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<List<Object>> data = initData(promotionTimeList.size());
             
             ImportField idHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionTime"));
-            ImportKey<?> htcPromotionTimeKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("HTCPromotionTime"),
+            ImportKey<?> htcPromotionTimeKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("HTCPromotionTime"),
                     HTCPromotionLM.findProperty("HTCPromotionTimeId").getMapping(idHTCPromotionTimeField));
             keys.add(htcPromotionTimeKey);
             props.add(new ImportProperty(idHTCPromotionTimeField, HTCPromotionLM.findProperty("idHTCPromotionTime").getMapping(htcPromotionTimeKey)));
@@ -273,7 +338,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
                 data.get(i).add(promotionTimeList.get(i).percent);
 
             ImportField numberDayHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("numberDOW"));
-            ImportKey<?> dowKey = new ImportKey((ConcreteCustomClass) HTCPromotionLM.findClass("DOW"),
+            ImportKey<?> dowKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("DOW"),
                     HTCPromotionLM.findProperty("DOWNumber").getMapping(numberDayHTCPromotionQuantityField));
             keys.add(dowKey);
             props.add(new ImportProperty(numberDayHTCPromotionQuantityField, HTCPromotionLM.findProperty("dayHTCPromotionTime").getMapping(htcPromotionTimeKey),
@@ -498,7 +563,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
-            ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+            ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                     findProperty("itemGroupId").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey)));
@@ -528,13 +593,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
             
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
-            ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+            ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                     findProperty("itemGroupId").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             fields.add(idItemGroupField);
 
             ImportField idParentGroupField = new ImportField(findProperty("idItemGroup"));
-            ImportKey<?> parentGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+            ImportKey<?> parentGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                     findProperty("itemGroupId").getMapping(idParentGroupField));
             keys.add(parentGroupKey);
             props.add(new ImportProperty(idParentGroupField, findProperty("parentItemGroup").getMapping(itemGroupKey),
@@ -596,14 +661,14 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(commentMachineryPriceTransactionField);
 
             ImportField idItemField = new ImportField(findProperty("idItem"));
-            ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
+            ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     findProperty("itemId").getMapping(idItemField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
             fields.add(idItemField);
             
             ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
-            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
+            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
             props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
@@ -618,7 +683,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(captionItemField);
 
             ImportField idBrandField = new ImportField(findProperty("idBrand"));
-            ImportKey<?> brandKey = new ImportKey((ConcreteCustomClass) findClass("Brand"),
+            ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
                     findProperty("brandId").getMapping(idBrandField));
             keys.add(brandKey);
             props.add(new ImportProperty(idBrandField, findProperty("idBrand").getMapping(brandKey)));
@@ -632,7 +697,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             if(itemFashionLM != null) {
                 ImportField idSeasonField = new ImportField(itemFashionLM.findProperty("idSeason"));
-                ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClass("Season"),
+                ImportKey<?> seasonKey = new ImportKey((CustomClass) itemFashionLM.findClass("Season"),
                         itemFashionLM.findProperty("seasonId").getMapping(idSeasonField));
                 props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("idSeason").getMapping(seasonKey)));
                 keys.add(seasonKey);
@@ -674,7 +739,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(flagsMachineryPriceTransactionBarcodeField);
 
             ImportField idUOMField = new ImportField(findProperty("idUOM"));
-            ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
+            ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
                     findProperty("UOMId").getMapping(idUOMField));
             UOMKey.skipKey = true;
             keys.add(UOMKey);
@@ -693,7 +758,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry").readClasses(context);
             ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
-            ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+            ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"),
                     findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
             VATKey.skipKey = true;
             keys.add(VATKey);
@@ -708,7 +773,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(notPromotionItemField);
 
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
-            ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+            ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                     findProperty("itemGroupId").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             props.add(new ImportProperty(idItemGroupField, findProperty("skuGroupMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey),
@@ -775,14 +840,14 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(commentMachineryPriceTransactionField);
 
             ImportField idItemField = new ImportField(findProperty("idItem"));
-            ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
+            ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     findProperty("itemId").getMapping(idItemField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
             fields.add(idItemField);
 
             ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
-            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
+            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
             props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
@@ -834,7 +899,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry").readClasses(context);
             ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
-            ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+            ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"),
                     findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
             VATKey.skipKey = true;
             keys.add(VATKey);
@@ -845,7 +910,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(valueVATItemCountryDateField);
             
             ImportField idUOMField = new ImportField(findProperty("idUOM"));
-            ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
+            ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
                     findProperty("UOMId").getMapping(idUOMField));
             UOMKey.skipKey = true;
             keys.add(UOMKey);
@@ -863,7 +928,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(labelFormatMachineryPriceTransactionBarcodeField);
 
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
-            ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+            ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                     findProperty("itemGroupId").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             props.add(new ImportProperty(idItemGroupField, findProperty("skuGroupMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey),
@@ -929,14 +994,14 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(commentMachineryPriceTransactionField);
 
             ImportField idItemField = new ImportField(findProperty("idItem"));
-            ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
+            ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     findProperty("itemId").getMapping(idItemField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
             fields.add(idItemField);
             
             ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
-            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
+            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
             props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
@@ -1027,14 +1092,14 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             fields.add(commentMachineryPriceTransactionField);
 
             ImportField idItemField = new ImportField(findProperty("idItem"));
-            ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
+            ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     findProperty("itemId").getMapping(idItemField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
             fields.add(idItemField);
             
             ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
-            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
+            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
             props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
