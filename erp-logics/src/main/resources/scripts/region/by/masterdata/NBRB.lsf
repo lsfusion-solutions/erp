@@ -38,12 +38,6 @@ EXTEND FORM typeExchangeCurrencyDate
 
 EXTEND DESIGN typeExchangeCurrencyDate {
     importExchangeRates {
-//        NEW dateFromDateToContainer {
-//            type = CONTAINERH;
-//            ADD PROPERTY(importNBRBExchangeRateDateFrom());
-//            ADD PROPERTY(importNBRBExchangeRateDateTo());
-//            ADD PROPERTY(importNBRBExchangeRateDateFromDateTo());
-//        }
         ADD NOGROUP.nbrb;
         NEW lastDaysContainer {
             type = CONTAINERH;
@@ -57,4 +51,43 @@ EXTEND DESIGN typeExchangeCurrencyDate {
 loadDefaultScheduledTasks () += ACTION ()  { 
     loadDefaultScheduledTask ('Загрузка курсов НБРБ', 2014_07_01_15:00, 43200, SchedulerStartType.afterFinish);
     loadDefaultScheduledTaskDetail ('Загрузка курсов НБРБ', 1, 'NBRB.importNBRBExchangeRateLastDays[]');
+}
+
+fillCrossDateFromTo 'Пересчитать кросс-курс за период' = ACTION (dateFrom, dateTo) {
+    LOCAL dateCur = DATE();
+    
+    dateCur() <- dateFrom;
+    WHILE dateCur() <= dateTo DO { 
+        FOR parentTypeExchange(t) DO {
+            rateExchange(t, c, date) <- NUMERIC[15,8](rateOnTypeExchangeCurrencyDate(parentTypeExchange(t), currencyTypeExchange(t),dateCur())/(rateOnTypeExchangeCurrencyDate(parentTypeExchange(t), c, dateCur()) IF rateOnTypeExchangeCurrencyDate(parentTypeExchange(t), c, dateCur())!=0)) WHERE date == dateCur() AND c IS Currency;
+        
+        }
+        dateCur() <- sumDate(dateCur(), 1);
+    }
+}
+fillCrossPeriod 'Пересчитать кросс-курс за период' = ACTION () {
+    IF importNBRBExchangeRateDateFrom() AND importNBRBExchangeRateDateTo() THEN {
+        fillCrossDateFromTo(importNBRBExchangeRateDateFrom(), importNBRBExchangeRateDateTo());
+        apply();
+    } ELSE {
+        MESSAGE 'Не задан период';
+    }    
+} IN nbrb;
+
+fillCrossLastDays 'Пересчитать последние кросс-курсы' = ACTION () {    
+    IF importNBRBExchangeRateDaysCount() THEN {        
+        fillCrossDateFromTo(subtractDate(currentDate(), importNBRBExchangeRateDaysCount()), currentDate());
+        apply();
+    } ELSE {
+        MESSAGE 'Не указано количество дней для пересчета';
+    }    
+}
+
+EXTEND FORM typeExchangeCurrencyDate
+    PROPERTIES() fillCrossPeriod, fillCrossLastDays
+;
+EXTEND DESIGN typeExchangeCurrencyDate {
+    lastDaysContainer {
+        ADD PROPERTY(fillCrossLastDays());
+    }
 }

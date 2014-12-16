@@ -100,18 +100,45 @@ DESIGN dialogTypeExchangeCurrency FROM DEFAULT {
 dialogTypeExchangeCurrency 'Добавить' (typeExchange, currency) = ACTION FORM dialogTypeExchangeCurrency OBJECTS t = typeExchange, c = currency MODAL TOOLBAR;
 deleteTypeExchangeCurrencyDate 'Удалить' (typeExchange, currency, date) = ACTION ASSIGN rateExchange(typeExchange, currency, date) <- NULL IMAGE 'delete.png';
 
+
+parentTypeExchange = DATA TypeExchange (TypeExchange);
+nameParentTypeExchange 'Родительский '  = nameTypeExchange(parentTypeExchange(t));
+
+typeTypeExchangeCurrency = GROUP AGGR t BY parentTypeExchange(t), currencyTypeExchange(t);
+
+EXTEND FORM typeExchange    
+    PROPERTIES(t) nameParentTypeExchange
+;
+
+//createCrosTypeExchangeCurrency 'Создать кросс-курс' = ACTION (type, currency) {
+//    IF NOT typeTypeExchangeCurrency(type, currency) THEN {
+//        FOR ADDOBJ t = TypeExchange DO {
+//            currencyTypeExchange(t) <- currency;
+//            nameTypeExchange(t) <- VARISTRING[50](CONCAT '', 'Кросс '+nameTypeExchange(type), '-('+shortNameCurrency(currency)+')');   
+//            parentTypeExchange(t) <- type;
+//            
+//            FOR  curRateTypeExchangeCurrency(type, c) DO {
+//                rateExchange(t, c, date) <- NUMERIC[15,8](curRateTypeExchangeCurrency(type, currency)/(curRateTypeExchangeCurrency(type, c) IF curRateTypeExchangeCurrency(type, c)!=0)) WHERE date == currentDate();   
+//            }
+//        }    
+//    } ELSE {
+//        MESSAGE 'Кросс-курс уже существует для данной валюты и типа обмена';
+//    } 
+//};
+
+
 FORM typeExchangeCurrencyDate 'Курсы валют'
 
     OBJECTS t = TypeExchange
-    PROPERTIES(t) READONLY nameTypeExchange, nameCurrencyTypeExchange
+    PROPERTIES(t) READONLY nameTypeExchange, nameCurrencyTypeExchange, nameParentTypeExchange
     PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS c = Currency
     PROPERTIES(c) READONLY nameCurrency
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t, c) READONLY curRateTypeExchangeCurrency
+//    PROPERTIES(t, c)  createCrosTypeExchangeCurrency FORCE PANEL TOOLBAR 
 
-//    FILTERS curRateTypeExchangeCurrency(t, c)
     FILTERGROUP inactive FILTER 'Есть курс' 'F11' curRateTypeExchangeCurrency(t, c) DEFAULT    
 
     OBJECTS d = DATE
