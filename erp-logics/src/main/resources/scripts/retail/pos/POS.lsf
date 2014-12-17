@@ -377,7 +377,7 @@ FORM chooseBatchReceipt 'Выбор партии'
 
 changeBatchReceiptDetail 'Изменить партию строки чека' = ACTION (detail) {
     IF explicitBatchLedgerReceipt(receiptReceiptDetail(detail)) THEN {
-        FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(detail), d = detail MODAL;
+        FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(detail), d = detail DIALOG;
         IF formResult() == FormResult.ok THEN {
             batchReceiptDetail(detail) <- chosenObject('bt');
             priceReceiptSaleDetail(detail) <- currentPOSPriceBatchReceipt(chosenObject('bt'), receiptReceiptDetail(detail));
@@ -426,7 +426,7 @@ createReceiptSaleDetailSku 'Добавить строку продажи' = ACTI
                 batchReceiptSaleDetail(d) <- defaultBatchSkuStockReceipt(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)), receipt);
                 priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(batchReceiptSaleDetail(d), receiptReceiptDetail(d));
             } ELSE IF explicitBatchLedgerReceipt(receiptReceiptSaleDetail(d)) THEN {
-                FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(d), d = d MODAL;
+                FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(d), d = d DIALOG;
                 IF formResult() == FormResult.ok THEN {
                     batchReceiptSaleDetail(d) <- chosenObject('bt');
                     priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(chosenObject('bt'), receiptReceiptDetail(d));
@@ -506,7 +506,7 @@ DESIGN searchSkuSaleReceipt FROM DEFAULT {
 }
 
 searchSkuSaleReceipt 'Поиск' = ACTION (receipt) {
-    FORM searchSkuSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt MODAL;
+    FORM searchSkuSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailSku(receipt, chosenObject('s'), idBarcodeSku(chosenObject('s')));
     }
@@ -560,7 +560,7 @@ DESIGN searchBatchSaleReceipt FROM DEFAULT {
 }
 
 searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
-    FORM searchBatchSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt MODAL;
+    FORM searchBatchSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
         createReceiptSaleDetailBatch(receipt, chosenObject('b'), idBarcodeSkuBatch(chosenObject('b')));
     }
@@ -665,7 +665,7 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
 ;
 
 searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
-    FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt) MODAL;
+    FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt) DIALOG;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
     }

@@ -1,0 +1,182 @@
+MODULE OrderPOS;
+
+REQUIRE POS;
+NAMESPACE POS;
+
+META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
+
+    orderDetailReceiptDetail = ABSTRACT OrderDetail (ReceiptDetail) PERSISTENT INDEXED;
+    orderDetailReceiptSaleDetail = DATA OrderDetail (ReceiptSaleDetail);
+    orderDetailReceiptReturnDetail = DATA OrderDetail (ReceiptReturnDetail);
+    orderDetailReceiptDetail(receiptDetail) += orderDetailReceiptSaleDetail(receiptDetail);
+    orderDetailReceiptDetail(receiptDetail) += orderDetailReceiptReturnDetail(receiptDetail);
+
+    CONSTRAINT skuReceiptDetail(detail) != skuOrderDetail(orderDetailReceiptDetail(detail))
+        CHECKED BY orderDetailReceiptDetail
+            MESSAGE 'Товар в заказе и чеке должны соответствовать друг другу';
+
+    descriptionIndexOrderDetailReceiptDetail 'Строка заказа' (detail) = descriptionIndexOrderDetail(orderDetailReceiptDetail(detail));
+
+    quantityReceiptDetailOrderReceipt (order, receipt) = GROUP SUM quantityReceiptDetail(receiptDetail) BY orderOrderDetail(orderDetailReceiptDetail(receiptDetail)), receiptReceiptDetail(receiptDetail);
+    relationOrderReceipt 'Связь' (receipt) = GROUP SUM 1 IF quantityReceiptDetailOrderReceipt (order, receipt) BY receipt;
+
+    ordersReceipt 'Заказы' (receipt) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityReceiptDetailOrderReceipt(order, receipt) , ', '
+                                                    BY receipt
+                                                    ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+    receiptedOrderDetail 'Кол-во (по чеку)' (orderDetail) = GROUP SUM quantityReceiptDetail(receiptDetail) //IF isPostedReceiptDetail(receiptDetail)
+                                                                       BY orderDetailReceiptDetail(receiptDetail) PERSISTENT;
+                                                                       
+    receiptedOrder 'Кол-во (по чеку)' (order) = GROUP SUM receiptedOrderDetail(detail) IF isPostedOrderDetail(detail)
+                                                                       BY orderOrderDetail(detail) PERSISTENT;    
+                                                                                                                                          
+    receiptQuantityOrderDetailSkuOrder 'Кол-во товара в документе' (sku, order) = 
+        GROUP SUM receiptedOrderDetail(idetail)
+              BY  skuOrderDetail(idetail),
+                  orderOrderDetail(idetail);
+                                                                                                                                                              
+    notReceiptedOrder = NOT receiptedOrder(order);
+
+    toReceiptOrderDetail 'Не отпущено (по чеку)' (orderDetail) = quantityOrderDetail (orderDetail) (-) receiptedOrderDetail(orderDetail);
+
+    toReceiptOrderDetailOrder 'Не отпущено (по чеку))' (order) = GROUP SUM toReceiptOrderDetail(detail) IF isPostedOrderDetail(detail)
+                                                                       BY orderOrderDetail(detail) PERSISTENT; 
+    backgroundReceiptedOrder 'Цвет' (order) = RGB(255, 224, 255) IF order IS Order;
+    backgroundReceiptedOrderDetail (detail) = backgroundReceiptedOrder(orderOrderDetail(detail));
+
+    FORM receiptOrders 'Заказы'###sign
+        OBJECTS s = LegalEntity FIXED PANEL
+        PROPERTIES (s) READONLY nameLegalEntity
+        OBJECTS c = LegalEntity FIXED PANEL
+        PROPERTIES (c) READONLY nameLegalEntity
+
+        OBJECTS i = Order
+        PROPERTIES (i) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
+                                nameCurrencyOrder, seriesNumberContractSkuOrder, isCommissionOrder,
+                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
+                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, noteOrder
+        FILTERS supplierOrder(i) == s,
+                customerOrder(i) == c,
+                isPostedOrder(i),
+                toReceiptOrderDetailOrder(i)
+
+        OBJECTS d = OrderDetail
+        PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
+        PROPERTIES (d) READONLY quantityOrderDetail, receiptedOrderDetail, priceOrderDetail, sumOrderDetail,
+                       numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
+                       name###stockProp###OrderDetail
+        FILTERS orderOrderDetail(d) == i
+    ;
+
+    DESIGN receiptOrders FROM DEFAULT {
+        main {
+            preferredSize = (1024, 768);
+            NEW header {
+                type = CONTAINERH;
+                ADD s.box { caption = 'Поставщик';};
+                ADD c.box { caption = 'Покупатель';};
+            }
+            ADD i.box;
+            ADD d.box;
+            ADD functions.box;
+        }
+    }
+    
+    FORM receiptSupplierOrders 'Заказы'###sign
+        OBJECTS s = LegalEntity FIXED PANEL
+        PROPERTIES (s) READONLY nameLegalEntity
+
+        OBJECTS i = Order
+        PROPERTIES (i) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
+                                nameCurrencyOrder, seriesNumberContractSkuOrder, isCommissionOrder,
+                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
+                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder,
+                                noteOrder
+        FILTERS supplierOrder(i) == s,                
+                isPostedOrder(i),
+                toReceiptOrderDetailOrder(i)
+
+        OBJECTS d = OrderDetail
+        PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
+        PROPERTIES (d) READONLY quantityOrderDetail, receiptedOrderDetail, priceOrderDetail, sumOrderDetail,
+                       numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
+                       name###stockProp###OrderDetail
+        FILTERS orderOrderDetail(d) == i
+    ;
+
+    DESIGN receiptSupplierOrders FROM DEFAULT {
+        main {
+            preferredSize = (1024, 768);
+            NEW header {
+                type = CONTAINERH;
+                ADD s.box { caption = 'Поставщик';};               
+            }
+            ADD i.box;
+            ADD d.box;
+            ADD functions.box;
+        }
+    }    
+    
+    overFillOrderReceiptOrder = ABSTRACT ACTION LIST (Receipt, Order);                          // документ
+    overFillOrderReceiptDetailOrderDetail = ABSTRACT ACTION LIST (ReceiptDetail, OrderDetail);  // детайл
+
+    fillOrderReceipt 'По заказу' =  ACTION (receipt) {
+        IF supplierProp###receipt(receipt) AND customerProp###receipt(receipt) THEN {
+            FORM receiptOrders OBJECTS s = supplierProp###receipt(receipt), c = customerProp###receipt(receipt) DIALOG;
+        } ELSE {
+            IF NOT customerProp###receipt(receipt) THEN {
+                FORM receiptSupplierOrders OBJECTS s = supplierProp###receipt(receipt) DIALOG;
+            }
+        }
+
+        IF formResult() == FormResult.ok THEN {
+            LOCAL saleOrder = Order();
+            saleOrder() <- chosenObject('i');
+            overFillOrderReceiptOrder(receipt, saleOrder());
+
+            FOR orderOrderDetail(orderDetail) == saleOrder() AND
+                toReceiptOrderDetail(orderDetail) > 0
+                ADDOBJ d = Receipt###prop###detail DO {
+                    receiptReceipt###prop###detail(d) <- receipt;
+                    orderDetailReceipt###prop###detail(d) <- orderDetail;
+
+                    skuReceipt###prop###detail(d) <- skuOrderDetail(orderDetail);
+                    quantityReceipt###prop###detail (d) <- toReceiptOrderDetail(orderDetail);
+                    
+                    priceReceipt###prop###detail (d) <- priceOrderDetail(orderDetail);
+                    sumReceipt###prop###detail (d) <- sumOrderDetail(orderDetail);
+                    VATReceipt###prop###detail (d) <- VATOrderDetail(orderDetail);
+                    
+                    overFillOrderReceiptDetailOrderDetail(d, orderDetail);
+            }
+        }
+    } IN order;
+
+    EXTEND FORM POS
+        PROPERTIES(r) fillOrderReceipt
+//        PROPERTIES(d) READONLY descriptionIndexOrderDetailReceiptDetail
+    ;
+    EXTEND DESIGN POS {
+        misc {
+            NEW order {
+                alignment = STRETCH;
+                caption = 'Заказ';
+                ADD PROPERTY(fillOrderReceipt(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
+            }
+        }
+    }    
+    
+    EXTEND FORM zReports
+        PROPERTIES(b) READONLY ordersReceipt
+        PROPERTIES(d) READONLY descriptionIndexOrderDetailReceiptDetail
+    ;
+    EXTEND FORM zReport
+        PROPERTIES(b) READONLY ordersReceipt
+        PROPERTIES(d) descriptionIndexOrderDetailReceiptDetail
+    ;    
+
+END
+
+
