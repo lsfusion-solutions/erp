@@ -15,6 +15,10 @@ public class ImportDefaultPurchaseInvoiceActionProperty extends ImportDocumentAc
         super(LM, valueClass);
     }
 
+    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
+    }
+
     public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }

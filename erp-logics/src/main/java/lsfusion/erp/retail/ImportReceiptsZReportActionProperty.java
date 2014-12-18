@@ -8,6 +8,7 @@ import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -48,8 +49,8 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
     ScriptingLogicsModule zReportRetailCRMLM;
     ScriptingLogicsModule zReportDiscountCardLM;
 
-    public ImportReceiptsZReportActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("ZReport"));
+    public ImportReceiptsZReportActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         zReportInterface = i.next();

@@ -4,6 +4,7 @@ import jxl.write.WriteException;
 import jxl.write.biff.RowsExceededException;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -20,8 +21,8 @@ public class ExportExcelAllActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
 
-    public ExportExcelAllActionProperty(ScriptingLogicsModule LM) {
-        super(LM, DateClass.instance, DateClass.instance);
+    public ExportExcelAllActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         dateFromInterface = i.next();

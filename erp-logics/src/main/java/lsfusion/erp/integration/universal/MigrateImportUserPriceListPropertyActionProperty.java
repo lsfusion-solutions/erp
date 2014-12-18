@@ -2,6 +2,7 @@ package lsfusion.erp.integration.universal;
 
 import com.google.common.base.Throwables;
 import lsfusion.server.classes.StringClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
@@ -16,8 +17,8 @@ import java.sql.SQLException;
 
 public class MigrateImportUserPriceListPropertyActionProperty extends ScriptingActionProperty {
 
-    public MigrateImportUserPriceListPropertyActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, "Migrate", LM.findClass("ImportUserPriceListTypeDetail"));
+    public MigrateImportUserPriceListPropertyActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, "Migrate", classes);
     }
 
     protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {

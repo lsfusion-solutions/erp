@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -26,8 +27,8 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
 
-    public ExportExcelGeneralLedgerActionProperty(ScriptingLogicsModule LM) {
-        super(LM, DateClass.instance, DateClass.instance);
+    public ExportExcelGeneralLedgerActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         dateFromInterface = i.next();

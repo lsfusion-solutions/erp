@@ -1,5 +1,6 @@
 package lsfusion.erp.retail;
 
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -12,8 +13,8 @@ import java.sql.SQLException;
 
 public class ExportReceiptsZReportFolderActionProperty extends ExportReceiptsZReportActionProperty {
 
-    public ExportReceiptsZReportFolderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM);
+    public ExportReceiptsZReportFolderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {

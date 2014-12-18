@@ -32,6 +32,10 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
         super(LM, valueClass);
     }
 
+    public DefaultImportXLSXActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
+    }
+    
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }

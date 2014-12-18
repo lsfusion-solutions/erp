@@ -22,6 +22,10 @@ public class ParseCompositionActionProperty extends DefaultIntegrationActionProp
         super(LM, valueClass);
     }
 
+    public ParseCompositionActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
+    }
+
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {       
     }

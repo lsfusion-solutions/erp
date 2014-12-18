@@ -37,6 +37,10 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         super(LM, valueClass);
     }
 
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
+    }
+
     public ImportDocumentActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }

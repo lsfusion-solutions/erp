@@ -24,6 +24,10 @@ public class DefaultExportTXTActionProperty extends DefaultExportActionProperty 
         super(LM, valueClass);
     }
 
+    public DefaultExportTXTActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
+    }
+
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }

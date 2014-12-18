@@ -12,6 +12,7 @@ import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -38,8 +39,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private final String DOP_NOMER = "D4035121";
 
-    public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("Declaration"));
+    public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         declarationInterface = i.next();
@@ -586,41 +587,49 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         Map<Field, Object> fieldMap = new LinkedHashMap<Field, Object>();
 
-        File tempFile = File.createTempFile("tempTnved", ".dbf");
-        IOUtils.putFileBytes(tempFile, fileBytes);
+        File tempFile = null;
+        DBF dbfFile = null;
+        try {
+            tempFile = File.createTempFile("tempTnved", ".dbf");
+            IOUtils.putFileBytes(tempFile, fileBytes);
 
-        DBF dbfFile = new DBF(tempFile.getPath());
-        String charset = getDBFCharset(tempFile);
+            dbfFile = new DBF(tempFile.getPath());
+            String charset = getDBFCharset(tempFile);
 
-        if (dbfFile.getRecordCount() > 0)
-            dbfFile.read();
-        for (int i = 1; i <= dbfFile.getFieldCount(); i++) {
-            Field field = dbfFile.getField(i);
-            String stringValue = trim(dbfFile.getRecordCount() > 0 ? new String(field.getBytes(), charset) : null);
-            Object value = null;
-            if (stringValue != null && !stringValue.isEmpty()) {
-                switch (field.getType()) {
-                    case 'D':
-                        value = parseDate(stringValue);
-                        break;
-                    case 'N':
-                        value = Long.parseLong(stringValue.split("\\.|,")[0]);
-                        break;
-                    case 'F':
-                        value = new BigDecimal(stringValue);
-                        break;
-                    case 'L':
-                        value = stringValue.equals("T");
-                        break;
-                    case 'C':
-                    default:
-                        value = stringValue;
-                        break;
+            if (dbfFile.getRecordCount() > 0)
+                dbfFile.read();
+            for (int i = 1; i <= dbfFile.getFieldCount(); i++) {
+                Field field = dbfFile.getField(i);
+                String stringValue = trim(dbfFile.getRecordCount() > 0 ? new String(field.getBytes(), charset) : null);
+                Object value = null;
+                if (stringValue != null && !stringValue.isEmpty()) {
+                    switch (field.getType()) {
+                        case 'D':
+                            value = parseDate(stringValue);
+                            break;
+                        case 'N':
+                            value = Long.parseLong(stringValue.split("\\.|,")[0]);
+                            break;
+                        case 'F':
+                            value = new BigDecimal(stringValue);
+                            break;
+                        case 'L':
+                            value = stringValue.equals("T");
+                            break;
+                        case 'C':
+                        default:
+                            value = stringValue;
+                            break;
+                    }
                 }
+                fieldMap.put(dbfFile.getField(i), value);
             }
-            fieldMap.put(dbfFile.getField(i), value);
-        }
-        tempFile.delete();
+        } finally {
+            if(dbfFile != null)
+                dbfFile.close();
+            if(tempFile != null)
+                tempFile.delete();
+        }            
         return fieldMap;
     }
 

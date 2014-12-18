@@ -32,7 +32,11 @@ import java.util.List;
 public class ImportNBRBExchangeRateActionProperty extends ScriptingActionProperty {
 
     public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{valueClass});
+        super(LM, valueClass);
+    }
+
+    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
     }
 
     @Override

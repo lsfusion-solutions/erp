@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -33,8 +34,8 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
     private final ClassPropertyInterface declarationInterface;
     List<Object> row;
 
-    public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("Declaration"));
+    public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         declarationInterface = i.next();

@@ -16,8 +16,8 @@ import java.sql.SQLException;
 
 public class MigrateImportDocumentPropertyActionProperty extends ScriptingActionProperty {
 
-    public MigrateImportDocumentPropertyActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, "Migrate", LM.findClass("ImportTypeDetail"));
+    public MigrateImportDocumentPropertyActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, "Migrate", classes);
     }
 
     protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {

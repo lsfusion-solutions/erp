@@ -2,6 +2,7 @@ package lsfusion.erp.utils;
 
 import lsfusion.base.ExceptionUtils;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -20,8 +21,8 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
 
     private final ClassPropertyInterface countryInterface;
 
-    public FillDaysOffActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("Country"));
+    public FillDaysOffActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         countryInterface = i.next();

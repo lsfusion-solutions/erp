@@ -3,6 +3,7 @@ package lsfusion.erp.region.ru.masterdata;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
@@ -33,8 +34,8 @@ import java.util.List;
 public class ImportCBRFExchangeRateActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("Currency"));
+    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         currencyInterface = i.next();

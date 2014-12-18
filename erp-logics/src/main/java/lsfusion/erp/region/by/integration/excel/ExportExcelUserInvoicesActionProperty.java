@@ -9,6 +9,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -27,8 +28,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
 
-    public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM) {
-        super(LM, DateClass.instance, DateClass.instance);
+    public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         dateFromInterface = i.next();

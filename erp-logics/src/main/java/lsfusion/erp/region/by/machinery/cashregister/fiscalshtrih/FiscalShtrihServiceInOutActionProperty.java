@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -16,8 +17,8 @@ import java.util.Iterator;
 public class FiscalShtrihServiceInOutActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalShtrihServiceInOutActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("CashOperation"));
+    public FiscalShtrihServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         cashOperationInterface = i.next();

@@ -1,7 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import lsfusion.base.IOUtils;
-import lsfusion.server.classes.StringClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -18,8 +18,8 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
     private final ClassPropertyInterface articleInterface;
     private final ClassPropertyInterface urlInterface;
 
-    public LoadImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("Article"), StringClass.get(1000));
+    public LoadImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();

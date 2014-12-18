@@ -6,9 +6,11 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -17,7 +19,6 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -40,7 +41,7 @@ import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
 
-public abstract class ExportReceiptsZReportActionProperty extends ScriptingActionProperty {
+public abstract class ExportReceiptsZReportActionProperty extends DefaultExportActionProperty {
 
     // Опциональные модули
     ScriptingLogicsModule POSVostrovLM;
@@ -50,8 +51,8 @@ public abstract class ExportReceiptsZReportActionProperty extends ScriptingActio
 
     protected final ClassPropertyInterface zReportInterface;
 
-    public ExportReceiptsZReportActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("ZReport"));
+    public ExportReceiptsZReportActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         zReportInterface = i.next();

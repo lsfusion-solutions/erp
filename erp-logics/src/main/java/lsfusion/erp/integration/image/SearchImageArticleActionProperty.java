@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -14,8 +15,8 @@ import java.util.Iterator;
 public class SearchImageArticleActionProperty extends DefaultImageArticleActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public SearchImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClass("Article"));
+    public SearchImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();
