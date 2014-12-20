@@ -27,7 +27,7 @@ public class ImportColumnDetail {
         this.fullIndex = fullIndex;
         this.indexes = indexes;
         this.replaceOnlyNull = replaceOnlyNull;
-        this.propertyCanonicalName = this.propertyCanonicalName;
+        this.propertyCanonicalName = propertyCanonicalName;
         this.key = key;
     }
     
