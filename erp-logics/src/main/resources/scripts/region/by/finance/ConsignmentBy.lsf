@@ -233,103 +233,104 @@ namePayerConsignment 'Заказчик перевозки ' (consignment) =
     nameLegalEntity(payerConsignment(consignment)) + ' , ' + UNPLegalEntity(payerConsignment(consignment)) IN carConsignment;
 
 indexConsignmentDetail 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail); 
+skipConsignmentDetail = ABSTRACT BOOLEAN (ConsignmentDetail); 
 
 batchConsignmentDetail = ABSTRACT Batch (ConsignmentDetail);
-descriptionBatchConsignmentDetail 'Партия' (consignmentDetail) = descriptionBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-nameBatchConsignmentDetail 'Партия' (consignmentDetail) = nameBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+descriptionBatchConsignmentDetail 'Партия' (d) = descriptionBatch(batchConsignmentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameBatchConsignmentDetail 'Партия' (d) = nameBatch(batchConsignmentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-skuConsignmentDetail (consignmentDetail) = ABSTRACT Sku (ConsignmentDetail);
-nameSkuConsignmentDetail 'Наименование товара' (consignmentDetail) = IF batchConsignmentDetail(consignmentDetail) THEN documentNameSkuBatch(batchConsignmentDetail(consignmentDetail)) ELSE nameSku(skuConsignmentDetail(consignmentDetail));
-//nameSkuConsignmentDetail 'Наименование товара' (consignmentDetail) = nameSku(skuConsignmentDetail(consignmentDetail));
+skuConsignmentDetail (d) = ABSTRACT Sku (ConsignmentDetail);
+nameSkuConsignmentDetail 'Наименование товара' (d) = IF batchConsignmentDetail(d) THEN documentNameSkuBatch(batchConsignmentDetail(d)) ELSE nameSku(skuConsignmentDetail(d));
+//nameSkuConsignmentDetail 'Наименование товара' (d) = nameSku(skuConsignmentDetail(d));
 
-shortNameUOMConsignmentDetail 'Единица измерения' (consignmentDetail) = shortNameUOMSku(skuConsignmentDetail(consignmentDetail));
-//shortNameUOMConsignmentDetail 'Единица измерения' (consignmentDetail) = ABSTRACT STRING[15] (ConsignmentDetail);
+shortNameUOMConsignmentDetail 'Единица измерения' (d) = shortNameUOMSku(skuConsignmentDetail(d));
+//shortNameUOMConsignmentDetail 'Единица измерения' (d) = ABSTRACT STRING[15] (ConsignmentDetail);
 
-consignmentConsignmentDetail (consignmentDetail) = ABSTRACT Consignment (ConsignmentDetail);
+consignmentConsignmentDetail (d) = ABSTRACT Consignment (ConsignmentDetail);
 
 //useRetailPriceConsignment 'Использовать розничные цены' = ABSTRACT BOOLEAN (Consignment);
 
-quantityConsignmentDetail 'Количество' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+quantityConsignmentDetail 'Количество' (d) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
 
-dataPriceConsignmentDetail 'Цена' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-overPriceConsignmentDetail 'Цена' (consignmentDetail) = ABSTRACT CASE NUMERIC[14,2] (ConsignmentDetail);
-priceConsignmentDetail 'Цена' (consignmentDetail) = OVERRIDE dataPriceConsignmentDetail(consignmentDetail), 
-                                                             overPriceConsignmentDetail(consignmentDetail);
+dataPriceConsignmentDetail 'Цена' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+overPriceConsignmentDetail 'Цена' (d) = ABSTRACT CASE NUMERIC[14,2] (ConsignmentDetail);
+priceConsignmentDetail 'Цена' (d) = OVERRIDE dataPriceConsignmentDetail(d), 
+                                                             overPriceConsignmentDetail(d);
 
-shipmentPriceConsignmentDetail 'Цена поставщика' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-purchaseRetailPriceConsignmentDetail 'Цена розничная' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+shipmentPriceConsignmentDetail 'Цена поставщика' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+purchaseRetailPriceConsignmentDetail 'Цена розничная' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
 
-retailMarkupConsignmentDetail 'Надбавка розн.' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
-wholesaleMarkupConsignmentDetail 'Надбавка опт.' (consignmentDetail) = ABSTRACT NUMERIC[16,3] (ConsignmentDetail);
+retailMarkupConsignmentDetail 'Надбавка розн.' (d) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+wholesaleMarkupConsignmentDetail 'Надбавка опт.' (d) = ABSTRACT NUMERIC[16,3] (ConsignmentDetail);
 
-dataSumConsignmentDetail 'Стоимость' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
-overSumConsignmentDetail 'Стоимость' (consignmentDetail) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
-sumConsignmentDetail 'Стоимость' (consignmentDetail) = OVERRIDE dataSumConsignmentDetail(consignmentDetail),
-                                                                overSumConsignmentDetail(consignmentDetail);
+dataSumConsignmentDetail 'Стоимость' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+overSumConsignmentDetail 'Стоимость' (d) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
+sumConsignmentDetail 'Стоимость' (d) = OVERRIDE dataSumConsignmentDetail(d),
+                                                                overSumConsignmentDetail(d);
 
-notVatConsignmentDetail 'Не надо проставлять ставку' (consignmentDetail) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);                                                                
-dataVatConsignmentDetail 'НДС, %' (consignmentDetail) = ABSTRACT NUMERIC[10,5] (ConsignmentDetail);
-overVatConsignmentDetail 'НДС, %' (consignmentDetail) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
-vatConsignmentDetail 'НДС, %' (consignmentDetail) = (OVERRIDE dataVatConsignmentDetail(consignmentDetail),
-                                                             overVatConsignmentDetail(consignmentDetail)) IF NOT notVatConsignmentDetail(consignmentDetail);
+notVatConsignmentDetail 'Не надо проставлять ставку' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);                                                                
+dataVatConsignmentDetail 'НДС, %' (d) = ABSTRACT NUMERIC[10,5] (ConsignmentDetail);
+overVatConsignmentDetail 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
+vatConsignmentDetail 'НДС, %' (d) = (OVERRIDE dataVatConsignmentDetail(d),
+                                                             overVatConsignmentDetail(d)) IF NOT notVatConsignmentDetail(d);
 
-dataSumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
-overSumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
-sumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = OVERRIDE dataSumVATConsignmentDetail(consignmentDetail),
-                                                                   overSumVATConsignmentDetail(consignmentDetail);
+dataSumVATConsignmentDetail 'Сумма НДС' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+overSumVATConsignmentDetail 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
+sumVATConsignmentDetail 'Сумма НДС' (d) = OVERRIDE dataSumVATConsignmentDetail(d),
+                                                                   overSumVATConsignmentDetail(d);
 
-dataSumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
-overSumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
-sumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = OVERRIDE dataSumInvoiceConsignmentDetail(consignmentDetail),
-                                                                         overSumInvoiceConsignmentDetail(consignmentDetail);
+dataSumInvoiceConsignmentDetail 'Сумма с НДС' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+overSumInvoiceConsignmentDetail 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
+sumInvoiceConsignmentDetail 'Сумма с НДС' (d) = OVERRIDE dataSumInvoiceConsignmentDetail(d),
+                                                                         overSumInvoiceConsignmentDetail(d);
                                                                          
-sumShipmentConsignmentDetail 'Сумма учётная' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+sumShipmentConsignmentDetail 'Сумма учётная' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 
 sumShipmentContainerConsignment 'Сумма тары' (consignment) = ABSTRACT NUMERIC[16,2] (Consignment);
 sumShipmentItemConsignment 'Сумма товаров' (consignment) = ABSTRACT NUMERIC[16,2] (Consignment);
 
-sumRetailVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+sumRetailVATConsignmentDetail 'Сумма НДС' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 
 sumRetailContainerConsignment 'Сумма тары' (consignment) = ABSTRACT NUMERIC[16,2] (Consignment);
 sumRetailItemConsignment 'Сумма товаров' (consignment) = ABSTRACT NUMERIC[16,2] (Consignment);
 
 sumWholesaleMarkupConsignment 'Надбавка' (consignment) = ABSTRACT NUMERIC[16,2] (Consignment);
 
-sumRetailConsignmentDetail 'Сумма розничная' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+sumRetailConsignmentDetail 'Сумма розничная' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 
-dataPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
-overPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
-packQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = OVERRIDE dataPackQuantityConsignmentDetail(consignmentDetail), 
-                                                                                        overPackQuantityConsignmentDetail(consignmentDetail);
+dataPackQuantityConsignmentDetail 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
+overPackQuantityConsignmentDetail 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
+packQuantityConsignmentDetail 'Количество грузовых мест' (d) = OVERRIDE dataPackQuantityConsignmentDetail(d), 
+                                                                                        overPackQuantityConsignmentDetail(d);
 
-dataGrossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-overGrossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-grossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = OVERRIDE dataGrossWeightConsignmentDetail(consignmentDetail),
-                                                                               overGrossWeightConsignmentDetail(consignmentDetail);
+dataGrossWeightConsignmentDetail 'Масса груза, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overGrossWeightConsignmentDetail 'Масса груза, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+grossWeightConsignmentDetail 'Масса груза, кг.' (d) = OVERRIDE dataGrossWeightConsignmentDetail(d),
+                                                                               overGrossWeightConsignmentDetail(d);
 
-grossWeightTonConsignmentDetail 'Масса груза, т.' (consignmentDetail) = round6(NUMERIC[17,6](grossWeightConsignmentDetail(consignmentDetail)) / 1000);
+grossWeightTonConsignmentDetail 'Масса груза, т.' (d) = round6(NUMERIC[17,6](grossWeightConsignmentDetail(d)) / 1000);
 
-noteConsignmentDetail 'Примечание' (consignmentDetail) = ABSTRACT VARSTRING[150] (ConsignmentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
-extraDescriptionConsignmentDetail 'Доп. наименование' (consignmentDetail) = ABSTRACT VARSTRING[1500] (ConsignmentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+noteConsignmentDetail 'Примечание' (d) = ABSTRACT VARSTRING[150] (ConsignmentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+extraDescriptionConsignmentDetail 'Доп. наименование' (d) = ABSTRACT VARSTRING[1500] (ConsignmentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
-countConsignmentDetailConsignment 'Количество строк' (consignment) = GROUP SUM 1 IF consignmentDetail IS ConsignmentDetail
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+countConsignmentDetailConsignment 'Количество строк' (consignment) = GROUP SUM 1 IF d IS ConsignmentDetail AND NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 
-quantityConsignmentDetailConsignment 'Количество (всего)' (consignment) = GROUP SUM quantityConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+quantityConsignmentDetailConsignment 'Количество (всего)' (consignment) = GROUP SUM quantityConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 
-packQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = GROUP SUM packQuantityConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment PERSISTENT;
+packQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = GROUP SUM packQuantityConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment PERSISTENT;
 
 packQuantityConsignment 'Общее количество грузовых мест' = ABSTRACT CASE NUMERIC[8,2] (Consignment) PERSISTENT;
 overPackQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = OVERRIDE packQuantityConsignmentDetailConsignment(consignment),
                                                                                                        packQuantityConsignment(consignment);
 
-grossWeightTonConsignmentDetailConsignment 'Общая масса груза, т.' (consignment) = GROUP SUM grossWeightTonConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+grossWeightTonConsignmentDetailConsignment 'Общая масса груза, т.' (consignment) = GROUP SUM grossWeightTonConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 
-grossWeightConsignmentDetailConsignment 'Общая масса груза, кг.'(consignment) = GROUP SUM grossWeightConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment PERSISTENT;
+grossWeightConsignmentDetailConsignment 'Общая масса груза, кг.'(consignment) = GROUP SUM grossWeightConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment PERSISTENT;
 
 grossWeightConsignment 'Общая масса груза, кг' = ABSTRACT CASE NUMERIC[8,2] (Consignment) PERSISTENT;
 overGrossWeightConsignmentDetailConsignment 'Общая масса груза, кг' = OVERRIDE grossWeightConsignmentDetailConsignment(consignment),
@@ -349,44 +350,44 @@ isWareConsignment 'Возврат поставщику' (consignment) = ABSTRACT
 //wareSumConsignmentDetailConsignment 'Сумма посуды с НДС' (consignment) = ABSTRACT NUMERIC[14,2] (Consignment);
 supplierSumConsignmentDetailConsignment 'Сумма поставщика без НДС' (consignment) = ABSTRACT NUMERIC[14,2] (Consignment);
 //
-//wareConsignmentDetail (consignmentDetail) = ABSTRACT Ware (ConsignmentDetail);
-//nameWareConsignmentDetail 'Посуда' (consignmentDetail) = nameWare(wareConsignmentDetail(consignmentDetail));
-//warePriceConsignmentDetail 'Цена посуды с НДС' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-//wareSumConsignmentDetail 'Сумма посуды с НДС' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-//valueWareRangeConsignmentDetail 'НДС посуды, %' (consignmentDetail) = ABSTRACT NUMERIC[6,2] (ConsignmentDetail);
-//wareVATSumConsignmentDetail 'Сумма НДС по посуде' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-//wareSupplierPriceConsignmentDetail 'Цена посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-//wareSupplierSumConsignmentDetail 'Сумма посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareConsignmentDetail (d) = ABSTRACT Ware (ConsignmentDetail);
+//nameWareConsignmentDetail 'Посуда' (d) = nameWare(wareConsignmentDetail(d));
+//warePriceConsignmentDetail 'Цена посуды с НДС' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareSumConsignmentDetail 'Сумма посуды с НДС' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//valueWareRangeConsignmentDetail 'НДС посуды, %' (d) = ABSTRACT NUMERIC[6,2] (ConsignmentDetail);
+//wareVATSumConsignmentDetail 'Сумма НДС по посуде' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareSupplierPriceConsignmentDetail 'Цена посуды без НДС' (d) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareSupplierSumConsignmentDetail 'Сумма посуды без НДС' (d) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
 //
-//sumIaWConsignmentDetail 'Сумма с посудой без НДС' (consignmentDetail) = sumConsignmentDetail(consignmentDetail) (+) wareSupplierSumConsignmentDetail(consignmentDetail);
+//sumIaWConsignmentDetail 'Сумма с посудой без НДС' (d) = sumConsignmentDetail(d) (+) wareSupplierSumConsignmentDetail(d);
 overSumIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 sumIaWConsignmentDetail (detail) = OVERRIDE sumConsignmentDetail(detail), overSumIaWConsignmentDetail(detail);
 
-sumConsignmentDetailConsignment 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sumIaWConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+sumConsignmentDetailConsignment 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sumIaWConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 //
-//sumVATIaWConsignmentDetail 'Сумма НДС' (consignmentDetail) = sumVATConsignmentDetail(consignmentDetail) (+) wareVATSumConsignmentDetail(consignmentDetail);
+//sumVATIaWConsignmentDetail 'Сумма НДС' (d) = sumVATConsignmentDetail(d) (+) wareVATSumConsignmentDetail(d);
 overSumVATIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 sumVATIaWConsignmentDetail (detail) = OVERRIDE sumVATConsignmentDetail(detail), overSumVATIaWConsignmentDetail(detail);
 
-sumVATConsignmentDetailConsignment 'Сумма НДС (всего)' (consignment) = GROUP SUM sumVATIaWConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+sumVATConsignmentDetailConsignment 'Сумма НДС (всего)' (consignment) = GROUP SUM sumVATIaWConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 //
-//sumInvoiceIaWConsignmentDetail 'Сумма с НДС' (consignmentDetail) = sumInvoiceConsignmentDetail(consignmentDetail) (+) wareSumConsignmentDetail(consignmentDetail);
+//sumInvoiceIaWConsignmentDetail 'Сумма с НДС' (d) = sumInvoiceConsignmentDetail(d) (+) wareSumConsignmentDetail(d);
 overSumInvoiceIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 sumInvoiceIaWConsignmentDetail (detail) = OVERRIDE sumInvoiceConsignmentDetail(detail), overSumInvoiceIaWConsignmentDetail(detail);
 
-sumInvoiceConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumInvoiceIaWConsignmentDetail(consignmentDetail)
-                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+sumInvoiceConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumInvoiceIaWConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 
-sumShipmentConsignmentDetailConsignment 'Сумма учётная' (consignment) = GROUP SUM sumShipmentConsignmentDetail(consignmentDetail)
-                                                                               BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+sumShipmentConsignmentDetailConsignment 'Сумма учётная' (consignment) = GROUP SUM sumShipmentConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                                               BY consignmentConsignmentDetail(d) IN sumConsignment;
 
-sumRetailVATConsignmentDetailConsignment 'Сумма НДС' (consignment) = GROUP SUM sumRetailVATConsignmentDetail(consignmentDetail)
-                                                                            BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+sumRetailVATConsignmentDetailConsignment 'Сумма НДС' (consignment) = GROUP SUM sumRetailVATConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                                            BY consignmentConsignmentDetail(d) IN sumConsignment;
 
-sumRetailConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumRetailConsignmentDetail(consignmentDetail)
-                                                                                   BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
+sumRetailConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumRetailConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
+                                                                                   BY consignmentConsignmentDetail(d) IN sumConsignment;
 
 // ---------------------------- Формы для накладных --------------------------------- //
 
@@ -410,7 +411,8 @@ META defineConsignmentFormSimple(form, caption)
                       sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                       noteConsignmentDetail, extraDescriptionConsignmentDetail
         ORDER BY indexConsignmentDetail(d)
-        FILTERS consignmentConsignmentDetail(d) == c
+        FILTERS consignmentConsignmentDetail(d) == c,
+                NOT skipConsignmentDetail(d)
     ;
     print###consignmentSimple###form caption (consignment) = ACTION FORM consignmentSimple###form OBJECTS c = consignment PRINT IMAGE 'print.png' IN print;
 END
@@ -485,7 +487,8 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                       prefix##grossWeightConsignmentDetail=grossWeightConsignmentDetail,prefix##noteConsignmentDetail=noteConsignmentDetail, 
                       prefix##extraDescriptionConsignmentDetail=extraDescriptionConsignmentDetail
         ORDER BY prefix##indexConsignmentDetail
-        FILTERS consignmentConsignmentDetail(prefix##d) == prefix
+        FILTERS consignmentConsignmentDetail(prefix##d) == prefix,
+                NOT skipConsignmentDetail(prefix##d)
     ;        
           
 END 
@@ -576,7 +579,8 @@ FORM consignment 'Атрибуты накладной'
                   packQuantityConsignmentDetail, grossWeightConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY
     ORDER BY indexConsignmentDetail(d)  
 
-    FILTERS consignmentConsignmentDetail(d) == c
+    FILTERS consignmentConsignmentDetail(d) == c,
+            NOT skipConsignmentDetail(d)
 ;
 
 DESIGN consignment FROM DEFAULT {
@@ -1040,14 +1044,15 @@ END
 META implementConsignmentDetailInner (concrete, concreteClass, skuProp, batchProp)
     EXTEND CLASS concreteClass##Detail : ConsignmentDetail;
     
-    indexConsignmentDetail (consignmentDetail) += index###concrete##Detail (consignmentDetail);
-    consignmentConsignmentDetail (consignmentDetail) += concrete###concrete##Detail (consignmentDetail);
-    skuConsignmentDetail (consignmentDetail) += skuProp###concrete##Detail (consignmentDetail);
-    batchConsignmentDetail (consignmentDetail) += batchProp###concrete##Detail (consignmentDetail);    
-    quantityConsignmentDetail (consignmentDetail) += quantity###concrete##Detail (consignmentDetail);
+    indexConsignmentDetail (d) += index###concrete##Detail (d);
+    consignmentConsignmentDetail (d) += concrete###concrete##Detail (d);
+    skipConsignmentDetail (d) += skipConsignment###concrete##Detail (d);
+    skuConsignmentDetail (d) += skuProp###concrete##Detail (d);
+    batchConsignmentDetail (d) += batchProp###concrete##Detail (d);    
+    quantityConsignmentDetail (d) += quantity###concrete##Detail (d);
 
-    dataPackQuantityConsignmentDetail (consignmentDetail) += packQuantity###concrete##Detail (consignmentDetail);
-    dataGrossWeightConsignmentDetail (consignmentDetail) += sumGrossWeight###concrete##Detail (consignmentDetail);
+    dataPackQuantityConsignmentDetail (d) += packQuantity###concrete##Detail (d);
+    dataGrossWeightConsignmentDetail (d) += sumGrossWeight###concrete##Detail (d);
 END
 META implementConsignmentDetail (concrete)
     @implementConsignmentDetail (concrete, sku, batch);
