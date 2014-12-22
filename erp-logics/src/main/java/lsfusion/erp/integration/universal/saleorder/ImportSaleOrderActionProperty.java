@@ -45,6 +45,10 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     // Опциональные модули
     ScriptingLogicsModule saleManufacturingPriceLM;
 
+    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        this(LM, LM.findClass("Sale.UserOrder"));
+    }
+
     public ImportSaleOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
