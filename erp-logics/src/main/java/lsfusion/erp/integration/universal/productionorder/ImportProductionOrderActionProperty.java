@@ -40,6 +40,13 @@ import java.util.*;
 public class ImportProductionOrderActionProperty extends ImportDocumentActionProperty {
     private final ClassPropertyInterface orderInterface;
 
+    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, LM.findClass("Production.Order"));
+
+        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        orderInterface = i.next();
+    }
+    
     public ImportProductionOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 

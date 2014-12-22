@@ -58,6 +58,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private ScriptingLogicsModule purchasePackLM;
     private ScriptingLogicsModule salePackLM;
     private ScriptingLogicsModule stockAdjustmentLM;
+
+    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, LM.findClass("UserPriceList"));
+
+        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        userPriceListInterface = i.next();
+    }
     
     public ImportUserPriceListActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
