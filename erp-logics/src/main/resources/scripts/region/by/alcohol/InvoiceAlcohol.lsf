@@ -64,16 +64,16 @@ FORM alcoholStockReports 'Отчет по алкоголю'
     FILTERS volumeInvoiceDetailGroupStockTypesMonthDateFromTo(sk,s,type1,type2,type3,m,dFrom,dTo)
 ;
 
-volumeInvoiceDetailGroupStockSupplierDateFromTo 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP SUM signetVolumeInvoiceDetail(d) IF 
+volumeInvoiceDetailGroupStockSupplierTypeMonthDateFromTo 'Объем, тыс дал.' = NUMERIC[20,8]([ =GROUP SUM signetVolumeInvoiceDetail(d) IF 
     isParentGroupSku(group, skuInvoiceDetail(d)) AND isPostedInvoiceDetail(d) AND
-    dateInvoiceDetail(d) >= dateFrom AND dateInvoiceDetail(d) <= dateTo AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
-        BY group, customerStockInvoiceDetail(d), supplierInvoiceDetail(d), dateFrom, dateTo](group,stock,supplier,dateFrom,dateTo)) /
+    dateInvoiceDetail(d) >= dateFrom AND dateInvoiceDetail(d) <= dateTo //AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
+        BY group, customerStockInvoiceDetail(d), supplierInvoiceDetail(d), alcoholDirectionTypeInvoiceDetail(d), extractMonth(dateInvoiceDetail(d)), dateFrom, dateTo](group,stock,supplier,type,month,dateFrom,dateTo)) /
             (OVERRIDE 1.0 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));  
 
-volumeInvoiceDetailGroupTypeCustomerDateFromTo 'Объем, тыс дал. (итого)' = GROUP SUM 
+volumeInvoiceDetailGroupTypeCustomerTypeDateFromTo 'Объем, тыс дал. (итого)' = GROUP SUM 
     (NUMERIC[20,8](signetVolumeInvoiceDetail(d))/(OVERRIDE 1.0 IF groupGroupTypeSku(groupType, skuInvoiceDetail(d)) IS StatisticGroup, conversionFactorStatisticGroup(groupGroupTypeSku(groupType, skuInvoiceDetail(d))))) IF    
-    isPostedInvoiceDetail(d) AND dateInvoiceDetail(d) >= dateFrom AND dateInvoiceDetail(d) <= dateTo AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
-        BY groupType, customerInvoiceDetail(d), dateFrom, dateTo;
+    isPostedInvoiceDetail(d) AND dateInvoiceDetail(d) >= dateFrom AND dateInvoiceDetail(d) <= dateTo// AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
+        BY groupType, customerInvoiceDetail(d), alcoholDirectionTypeInvoiceDetail(d), dateFrom, dateTo;
             
 
 FORM alcoholStockSupplierReports 'Отчет по алкоголю (поставщики)'
@@ -87,20 +87,25 @@ FORM alcoholStockSupplierReports 'Отчет по алкоголю (постав
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
        
-    OBJECTS aaa = (sk = Group, s=Stock, l = LegalEntity)  
-    PROPERTIES nameStock(s), idStock(s), nameLegalEntity(l), year(dFrom) TODRAW aaa,idGroup(sk), nameGroup(sk) 
+    OBJECTS aaa = (sk = Group, s=Stock, l = LegalEntity, type = AlcoholDirectionType, m = Month)  
+    PROPERTIES nameStock(s), idStock(s), nameLegalEntity(l), numberAlcoholDirectionType(type), numberMonth(m), year(dFrom) TODRAW aaa,idGroup(sk), nameGroup(sk) 
 
-    PROPERTIES FORCE GRID volumeInvoiceDetailGroupStockSupplierDateFromTo(sk,s,l,dFrom,dTo), volumeInvoiceDetailGroupTypeCustomerDateFromTo(gt,c,dFrom,dTo)
+    PROPERTIES FORCE GRID volumeInvoiceDetailGroupStockSupplierTypeMonthDateFromTo(sk,s,l,type,m,dFrom,dTo)//, volumeInvoiceDetailGroupTypeCustomerDateFromTo(gt,c,dFrom,dTo)
                
 
-    ORDER BY nameLegalEntity(l), idGroup(sk)
+    ORDER BY numberMonth(m), nameLegalEntity(l), idGroup(sk)
     
-    FILTERS isCompanyStock(s),
+    FILTERS numberMonth(m) >= extractMonthNumber(dFrom), numberMonth(m) <= extractMonthNumber(dTo),
+            isCompanyStock(s),
             groupTypeGroup(sk) == gt,            
             activeGroup(sk),            
-            legalEntityStock(s) == c            
+            legalEntityStock(s) == c        
+                
+    OBJECTS t = AlcoholDirectionType FIXED GRID
+    PROPERTIES(t) READONLY staticCaption, numberAlcoholDirectionType                
+    PROPERTIES volumeInvoiceDetailGroupTypeCustomerTypeDateFromTo(gt,c,t,dFrom,dTo)
     
-    FILTERS volumeInvoiceDetailGroupStockSupplierDateFromTo(sk,s,l,dFrom,dTo)
+    FILTERS volumeInvoiceDetailGroupStockSupplierTypeMonthDateFromTo(sk,s,l,type,m,dFrom,dTo)
 ;
 
 NAVIGATOR {
