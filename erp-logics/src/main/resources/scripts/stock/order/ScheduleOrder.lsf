@@ -486,8 +486,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 inLegalEntityStock(customerScheduleOrder(s), ts),
                 is###customerFilter###stock(ts)
         FILTERGROUP filters2
-                FILTER 'Выбранные склады' 'F11' inScheduleOrderStock(s, ts) 
-        FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT        
+                FILTER 'Выбранные склады' inScheduleOrderStock(s, ts) 'F11' 
+        FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT        
 
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES (sd) isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
@@ -686,11 +686,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 customerStockScheduleOrderDetail(sd) == customerStock() OR (sd IS ScheduleOrderDetail AND NOT customerStock())
 
         FILTERGROUP dateFilter
-            FILTER 'Без заказов' 'F11' sd IS ScheduleOrderDetail  AND NOT quantityOrdersScheduleOrderDetail(sd) DEFAULT
+            FILTER 'Без заказов' sd IS ScheduleOrderDetail  AND NOT quantityOrdersScheduleOrderDetail(sd) 'F11' DEFAULT
         FILTERGROUP countFilter
-            FILTER 'Последний на дату' 'F10' isLastScheduleOrderDetailDate(sd,d) DEFAULT      
-            FILTER 'На дату' 'F9' dateOrderScheduleOrderDetail(sd) <= d                                                  
-            FILTER 'Последний' 'F8' isLastScheduleOrderDetail(sd)
+            FILTER 'Последний на дату' isLastScheduleOrderDetailDate(sd,d) 'F10' DEFAULT      
+            FILTER 'На дату' dateOrderScheduleOrderDetail(sd) <= d 'F9'                                                  
+            FILTER 'Последний' isLastScheduleOrderDetail(sd) 'F8'
              
         OBJECTS o = Order
         PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
@@ -708,7 +708,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 customerStockOrder(o) == customerStock() OR (o IS Order AND NOT customerStock())            
         
         FILTERGROUP object##dateFilter
-            FILTER 'На дату' 'F10' dateOrder(o) == d DEFAULT                       
+            FILTER 'На дату' dateOrder(o) == d 'F10' DEFAULT                       
     ;
 
     DESIGN scheduleOrderDetails FROM DEFAULT{
@@ -745,7 +745,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail
         PROPERTIES (sd) closeScheduleOrderDetail  SHOWIF isOpenedScheduleOrderDetail (sd), openScheduleOrderDetail  SHOWIF isClosedScheduleOrderDetail (sd)
         FILTERGROUP openFilter
-            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd) DEFAULT  
+            FILTER 'Не аннулированные' isOpenedScheduleOrderDetail(sd) 'F6' DEFAULT  
             
         ORDER BY dateSupplyScheduleOrderDetail(sd)
 
@@ -755,10 +755,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 customerStockScheduleOrderDetail(sd) == customerStock() OR (sd IS ScheduleOrderDetail AND NOT customerStock())
 
         FILTERGROUP dateFilter
-            FILTER 'На дату' 'F10' dateSupplyScheduleOrderDetail(sd) == d
+            FILTER 'На дату' dateSupplyScheduleOrderDetail(sd) == d 'F10'
 
         FILTERGROUP orderFilter
-            FILTER 'Текущего графика' 'F11' scheduleOrderScheduleOrderDetail(sd) == s DEFAULT
+            FILTER 'Текущего графика' scheduleOrderScheduleOrderDetail(sd) == s 'F11' DEFAULT
     ;
 
     DESIGN scheduleOrders FROM DEFAULT{
@@ -850,8 +850,8 @@ lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) =
                 customerScheduleOrder(s) == customer() OR (s IS ScheduleOrder AND NOT customer())
 
         FILTERGROUP countFilter1
-            FILTER 'Заканчивается в течение 3 дн.' 'F10' endDateScheduleOrder(s) <= sumDate(d,2) AND endDateScheduleOrder(s) >= d DEFAULT
-            FILTER 'Заканчивается в течение 5 дн.' 'F9' endDateScheduleOrder(s) <= sumDate(d,4) AND endDateScheduleOrder(s) >= d 
+            FILTER 'Заканчивается в течение 3 дн.' endDateScheduleOrder(s) <= sumDate(d,2) AND endDateScheduleOrder(s) >= d 'F10' DEFAULT
+            FILTER 'Заканчивается в течение 5 дн.' endDateScheduleOrder(s) <= sumDate(d,4) AND endDateScheduleOrder(s) >= d 'F9' 
                               
         OBJECTS ss=ScheduleOrder
         PROPERTIES(ss) BACKGROUND backgroundScheduleOrderDate(ss,d) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierScheduleOrder, nameSupplierStockScheduleOrder,
@@ -864,8 +864,8 @@ lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) =
                 customerScheduleOrder(ss) == customer() OR (ss IS ScheduleOrder AND NOT customer())
  
     FILTERGROUP inactiveScheduleOrder
-        FILTER 'Текущие' 'F11' isActiveScheduleOrder(ss,d)            
-        FILTER 'Активные' 'F10' isActiveScheduleOrder(ss,d) OR (startDateScheduleOrder(ss) > d) DEFAULT                                                        
+        FILTER 'Текущие' isActiveScheduleOrder(ss,d) 'F11'            
+        FILTER 'Активные' isActiveScheduleOrder(ss,d) OR (startDateScheduleOrder(ss) > d) 'F10' DEFAULT                                                        
                                          
     ;
 

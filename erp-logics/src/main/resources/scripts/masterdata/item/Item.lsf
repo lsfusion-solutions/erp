@@ -67,9 +67,9 @@ FORM dialogItemGroups 'Товарные группы'
     FILTERS isParentItemGroupItemGroup(g, tg)
 
     FILTERGROUP filters
-        FILTER 'Все листья' 'F10' isParentLeafItemGroupItemGroup(g, tg) DEFAULT
-        FILTER 'Всех потомков' 'F9' isParentItemGroupItemGroup(g, tg)
-        FILTER 'Только непосредственных потомков' 'F8' parentItemGroup(g) == tg
+        FILTER 'Все листья' isParentLeafItemGroupItemGroup(g, tg) 'F10' DEFAULT
+        FILTER 'Всех потомков' isParentItemGroupItemGroup(g, tg) 'F9'
+        FILTER 'Только непосредственных потомков' parentItemGroup(g) == tg 'F8'
 
     DIALOG ItemGroup OBJECT g
 ;
@@ -275,7 +275,7 @@ FORM items 'Товары' KEEPSESSIONPROPERTIES
     PROPERTIES READONLY orderGroup(g), idGroup(g), nameGroup(g)
     FILTERS groupTypeGroup(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
     ORDER BY orderGroup(g), nameGroup(g)
-    FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
     
     OBJECTS i=Item  
     PROPERTIES(i) READONLYIF isReadonly() idBarcodeSku ON CHANGE changeBarcodeSku(i), imageItem FORCE PANEL SHOWIF hasImageItem(i), idItem SHOWIF showIDs()
@@ -1051,11 +1051,11 @@ inactiveSkuGroup(group) += inactiveItemGroup(group);
 EXTEND FORM itemGroup PROPERTIES(g) inactiveItemGroup;
 EXTEND FORM itemGroups
     PROPERTIES(g) READONLYIF isReadonly() inactiveItemGroup BEFORE canonicalNameItemGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' 'F10' activeItemGroup(g) DEFAULT
+    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(g) 'F10' DEFAULT
 ;
 EXTEND FORM dialogItemGroups
-    FILTERGROUP inactive FILTER 'Активные' 'F10' activeItemGroup(tg) DEFAULT
-    FILTERGROUP inactive1 FILTER 'Активные' 'F10' activeItemGroup(g) DEFAULT;
+    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(tg) 'F10' DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' activeItemGroup(g) 'F10' DEFAULT;
 
 // Группа
 @implementItemAttribute(nameItemGroup, 'Группа товаров', String, itemItemGroup);
@@ -1254,7 +1254,7 @@ inactiveSku(sku) += inactiveItem(sku);
 EXTEND FORM item PROPERTIES(i) inactiveItem;
 EXTEND FORM items
     PROPERTIES(i) READONLYIF isReadonly() inactiveItem
-    FILTERGROUP inactive2 FILTER 'Активные' 'F10' prevActiveItem(i) DEFAULT
+    FILTERGROUP inactive2 FILTER 'Активные' prevActiveItem(i) 'F10' DEFAULT
 ;
 
 EXTEND DESIGN item {
@@ -1356,8 +1356,8 @@ EXTEND FORM items
     PROPERTIES READONLYIF isReadonly() AFTER nameAttributeItem(i) idItemGroupItem(i) , canonicalNameGroupGroupTypeSku(gt,i) 
 
     FILTERGROUP groupFilters
-        FILTER 'С группами' 'F9' isParentGroupSku(g, i) DEFAULT
-        FILTER 'Без групп' 'F8' nameAttributeItem(i) IF gt IS GroupType AND NOT groupGroupTypeSku(gt,i)
+        FILTER 'С группами' isParentGroupSku(g, i) 'F9' DEFAULT
+        FILTER 'Без групп' nameAttributeItem(i) IF gt IS GroupType AND NOT groupGroupTypeSku(gt,i) 'F8'
 
     ORDER BY nameAttributeItem(i)
 ;
