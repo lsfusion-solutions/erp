@@ -33,7 +33,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSaleslogger");
     
     String weightPrefix = "21";
-    String giftCardPrefix = "00000";
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -543,7 +542,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         
                                         //обнаруживаем продажу сертификатов
                                         boolean isGiftCard = false;
-                                        if(barcode != null && barcode.startsWith(giftCardPrefix)) {
+                                        if(barcode != null && barcode.length() == 3) {
                                             isGiftCard = true;
                                             barcode = dateTimeReceipt + "/" + count;
                                         }
