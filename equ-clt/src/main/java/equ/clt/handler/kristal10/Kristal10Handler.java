@@ -101,7 +101,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                 //parent: good
                 Element priceEntry = new Element("price-entry");
-                setAttribute(priceEntry, "price", item.price == null ? null : item.price.intValue());
+                Double price = item.price == null ? null : (item.price.intValue() == 0 ? 0.00 : item.price.intValue());
+                setAttribute(priceEntry, "price", price);
                 setAttribute(priceEntry, "deleted", "false");
                 addStringElement(priceEntry, "begin-date", "2001-01-01T00:00:00");
                 addStringElement(priceEntry, "number", "1");
