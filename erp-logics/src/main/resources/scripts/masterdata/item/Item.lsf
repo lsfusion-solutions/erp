@@ -1183,9 +1183,16 @@ TABLE manufacturer(Manufacturer);
 nameManufacturer 'Наименование' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 25;
 addressManufacturer 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
+originalNameManufacturer 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+originalAddressManufacturer 'Адрес производителя (ориг.)' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+
+countryManufacturer = DATA Country (Manufacturer);
+nameCountryManufacturer 'Страна' = nameCountry(countryManufacturer(m)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+
 FORM manufacturer 'Производитель товара'
     OBJECTS m=Manufacturer FIXED PANEL
-    PROPERTIES(m) nameManufacturer, addressManufacturer, idManufacturer SHOWIF showIDs()
+    PROPERTIES(m) nameManufacturer, addressManufacturer, idManufacturer SHOWIF showIDs(), originalNameManufacturer, originalAddressManufacturer,
+                  nameCountryManufacturer
     EDIT Manufacturer OBJECT m
 ;
 
@@ -1199,7 +1206,8 @@ DESIGN manufacturer FROM DEFAULT {
 
 FORM manufacturerDialog 'Производители товара'
     OBJECTS m=Manufacturer
-    PROPERTIES(m) nameManufacturer READONLY, idManufacturer READONLY SHOWIF showIDs(), DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(m) nameManufacturer READONLY, idManufacturer READONLY SHOWIF showIDs(), 
+                  originalNameManufacturer, originalAddressManufacturer, nameCountryManufacturer, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(m) ADDFORM, EDITFORM
     ORDER BY nameManufacturer(m)
     DIALOG Manufacturer OBJECT m
@@ -1209,7 +1217,9 @@ DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
 @defineUniteAttributeItem(manufacturer, nameManufacturer, 'производитель', 'производители', item);
 EXTEND FORM attributesItem
-    PROPERTIES READONLY AFTER nameManufacturer(manufacturer) idManufacturer(manufacturer) SHOWIF showIDs()
+    PROPERTIES READONLY AFTER nameManufacturer(manufacturer) idManufacturer(manufacturer) SHOWIF showIDs(),
+                        originalNameManufacturer(manufacturer), originalAddressManufacturer(manufacturer), nameCountryManufacturer(manufacturer)
+
 ;
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
 @implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
