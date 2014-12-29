@@ -114,6 +114,52 @@ FORM printCollationSheetBy 'Сличительная ведомость'
 
 printCollationSheetBy 'Сличительная ведомость' (collationSheet) =
     ACTION FORM printCollationSheetBy OBJECTS cs = collationSheet PRINT  IMAGE 'print.png' IN print;
+    
+countIndexCollationSheet 'Количество наименований товара'(cs) = GROUP SUM 1 IF includeCollationSheetSku(cs, i)
+        BY cs IN documentSum;    
+countIndexBatchCollationSheet 'Количество наименований партий'(cs) = GROUP SUM 1 IF includeCollationSheetBatch(cs,b) 
+    AND (quantityPageInventoryDetailCollationSheetBatch(cs,b) OR quantityBalanceCollationSheetBatch(cs,b))
+        BY cs IN documentSum;     
+        
+FORM printCollationSheet 'Опись'
+
+    OBJECTS          cs=CollationSheet FIXED PANEL
+    PROPERTIES (cs)  SELECTOR nameCollationSheet, fullNameLegalEntityStockCollationSheet, nameLegalEntityStockCollationSheet, committeeCollationSheet, nameCommitteeCollationSheet,
+                              nameChairmanCommitteeCollationSheet, namePositionChairmanCollationSheet, nameEmployeeCollationSheet,
+                              nameTypeOfAdditionCollationSheet, fullNameStockCollationSheet, dateCollationSheet,
+                              quantityPageInventoryDetailCollationSheet, quantityBalanceCollationSheet, quantityShortageCollationSheet,
+                              sumPageInventoryDetailCollationSheet, sumBalanceCollationSheet, sumShortageCollationSheet,
+                              countListInventoryCollationSheet, countPageInventoryCollationSheet, prevDateCollationSheet,
+                              sumItemPageInventoryDetailCollationSheet, sumContainerPageInventoryDetailCollationSheet,
+                              sumItemBalanceCollationSheet, sumContainerBalanceCollationSheet, timeFromCollationSheet, timeToCollationSheet,
+                              sumItemShortageCollationSheet, sumContainerShortageCollationSheet, isBatchCollationSheet, isSkuCollationSheet,
+                              countIndexCollationSheet, countIndexBatchCollationSheet 
+
+    OBJECTS          i=Sku
+    PROPERTIES(i)     SELECTOR nameSku, idBarcodeSku, idSku, shortNameUOMSku
+    PROPERTIES(cs, i) SELECTOR quantityPageInventoryDetailCollationSheetSku, quantityBalanceCollationSheetSku, quantityShortageCollationSheetSku
+    PROPERTIES(cs, i)          pricePageInventoryDetailCollationSheetSku, priceBalanceCollationSheetSku
+    PROPERTIES(cs, i) SELECTOR sumPageInventoryDetailCollationSheetSku, sumBalanceCollationSheetSku, sumShortageCollationSheetSku
+    FILTERS                    includeCollationSheetSku(cs, i)
+    ORDER BY nameSku(i)
+
+    OBJECTS         b=Batch
+    PROPERTIES(b)    SELECTOR nameSkuBatch, idBarcodeSkuBatch, descriptionBatch, nameBatch, idBatch, shortNameUOMBatch
+    PROPERTIES(cs,b) SELECTOR quantityPageInventoryDetailCollationSheetBatch, quantityBalanceCollationSheetBatch, quantityShortageCollationSheetBatch
+    PROPERTIES(cs,b) SELECTOR pricePageInventoryDetailCollationSheetBatch, priceBalanceCollationSheetBatch
+    PROPERTIES(cs,b) READONLY sumPageInventoryDetailCollationSheetBatch, sumBalanceCollationSheetBatch, sumShortageCollationSheetBatch
+    FILTERS                   includeCollationSheetBatch(cs,b),
+                              quantityPageInventoryDetailCollationSheetBatch(cs,b) OR quantityBalanceCollationSheetBatch(cs,b)
+    ORDER BY nameSkuBatch(b)
+    
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY   nameContact, namePositionEmployee
+    FILTERS        inCollationSheetEmployee(cs, e)    
+    
+;
+
+printCollationSheet 'Опись' (collationSheet) =
+    ACTION FORM printCollationSheet OBJECTS cs = collationSheet PRINT  IMAGE 'print.png' IN print;
 
 //------------------------------------ Сличительная ведомость (итоги) ------------------------------------------//
 
@@ -139,5 +185,5 @@ printTotalCollationSheetBy 'Сличительная ведомость (ито�
 EXTEND FORM inventories
 
     PROPERTIES(li) printListInventoryBy
-    PROPERTIES(cs) printTotalCollationSheetBy, printCollationSheetBy
+    PROPERTIES(cs) printTotalCollationSheetBy, printCollationSheetBy, printCollationSheet
 ;
