@@ -385,11 +385,10 @@ changeBatchReceiptDetail 'Изменить партию строки чека' =
     }
 }
 
-focusQuantityReceiptDetail = ABSTRACT ACTION LIST (); 
+focusQuantityReceiptDetail = ABSTRACT ACTION LIST (ReceiptDetail); 
 
 createReceiptSaleDetailBatch 'Добавить строку продажи' = ACTION (receipt, batch, barcode) {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
-        EXEC seek(d);
         receiptReceiptSaleDetail(d) <- receipt;
         idBarcodeReceiptDetail(d) <- barcode;
         skuReceiptSaleDetail(d) <- skuBatch(batch);
@@ -397,7 +396,7 @@ createReceiptSaleDetailBatch 'Добавить строку продажи' = AC
 //        VATReceiptSaleDetail(d) <- VATSkuStockDate(skuBatch(batch), departmentStoreReceipt(receipt), currentDate());
         batchReceiptSaleDetail(d) <- batch;
         priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(batch, receipt);
-        focusQuantityReceiptDetail();        
+        focusQuantityReceiptDetail(d);
     }
 }
 
@@ -414,13 +413,13 @@ defaultBatchSkuStockReceipt 'Партия по умолчанию' (sku, stock, 
 
 createReceiptSaleDetailSku 'Добавить строку продажи' = ACTION (receipt, sku, barcode) {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
-        seek(d);
         receiptReceiptSaleDetail(d) <- receipt;
         idBarcodeReceiptDetail(d) <- barcode;
         skuReceiptSaleDetail(d) <- sku;
         quantityReceiptSaleDetail(d) <- 1.0;
         priceReceiptSaleDetail(d) <- currentPOSPriceSkuReceipt(sku, receipt);
 //        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
+        focusQuantityReceiptDetail(d);
         IF explicitBatchLedgerReceipt(receiptReceiptSaleDetail(d)) AND
             countBatchSkuStockReceipt(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)), receipt) == 1 THEN {
                 batchReceiptSaleDetail(d) <- defaultBatchSkuStockReceipt(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)), receipt);
@@ -434,7 +433,6 @@ createReceiptSaleDetailSku 'Добавить строку продажи' = ACTI
                 } ELSE
                     DELETE d;
             }
-        focusQuantityReceiptDetail();
     }
 }
 
@@ -571,7 +569,6 @@ searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
 
 createReceiptReturnDetail 'Добавить строку возврата' = ACTION (receipt, receiptSaleDetail, barcode) {
     FOR ADDOBJ d = ReceiptReturnDetail DO {
-        seek(d);
         receiptReceiptReturnDetail(d) <- receipt;
         idBarcodeReceiptDetail(d) <- barcode;
         receiptSaleDetailReceiptReturnDetail(d) <- receiptSaleDetail;
@@ -580,7 +577,7 @@ createReceiptReturnDetail 'Добавить строку возврата' = ACT
         priceReceiptReturnDetail(d) <- priceReceiptSaleDetail(receiptSaleDetail);
         VATReceiptReturnDetail(d) <- VATReceiptSaleDetail(receiptSaleDetail);
         batchReceiptReturnDetail(d) <- batchReceiptSaleDetail(receiptSaleDetail);
-        focusQuantityReceiptDetail();
+        focusQuantityReceiptDetail(d);
     }
 }
 
@@ -623,13 +620,13 @@ scanBarcodeReturnReceipt 'Ввести штрихкод' = ACTION (receipt) {
                 createReceiptReturnDetail(receipt, chosenObject('r'), barcodeInput());
             } ELSE {
                 FOR ADDOBJ d = ReceiptReturnDetail DO {
-                    seek(d);
                     receiptReceiptReturnDetail(d) <- receipt;
                     idBarcodeReceiptDetail(d) <- barcodeInput();
                     skuReceiptReturnDetail(d) <- dialogBarcodeSku();
                     quantityReceiptReturnDetail(d) <- 1.0;
                     priceReceiptReturnDetail(d) <- currentPOSPriceSkuReceipt(dialogBarcodeSku(), receipt);
                     VATReceiptReturnDetail(d) <- VATSkuStock(dialogBarcodeSku(), departmentStoreReceipt(receipt));
+                    focusQuantityReceiptDetail(d);
                     IF explicitBatchLedgerReceipt(receipt) THEN {
                         FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(d), d = d MODAL;
                         IF formResult() == FormResult.ok THEN {
@@ -639,7 +636,6 @@ scanBarcodeReturnReceipt 'Ввести штрихкод' = ACTION (receipt) {
                             DELETE d;
                     }
                 }
-                focusQuantityReceiptDetail();
             }
         } ELSE
             MESSAGE CONCAT ' ', 'Не найден штрихкод', barcodeInput();
@@ -1017,7 +1013,10 @@ DESIGN POS FROM DEFAULT {
     REMOVE functions.box CASCADE;
 }
 
-focusQuantityReceiptDetail() += ACTION FOCUS POS.quantityGrid;
+focusQuantityReceiptDetail(d) += ACTION (d) {
+    FOCUS POS.quantityGrid;
+    SEEK POS.d d;
+};
 
 recalculatedPriceReceipt 'Пересчитать цены чека' = ACTION (receipt){
     FOR receiptReceiptSaleDetail(detail) == receipt DO {
