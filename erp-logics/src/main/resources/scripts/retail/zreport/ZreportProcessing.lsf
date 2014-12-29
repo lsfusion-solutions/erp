@@ -25,6 +25,22 @@ FORM ZReportProcessing 'Обработка Z-отчетов'
         FILTER  'Разные цены' retailPriceReceiptDetail(d) != priceReceiptDetail(d) 'F10'
 ;
 
+fillSkuReceiptDetails 'Привязать штрихкоды' = ACTION () { 
+    CONFIRM 'Вы хотите перепривязать товары в соответствии со штрихкодом?';
+    IF (confirmed()) THEN {
+        FOR [= FILTER ZReportProcessing.d](detail) AND idBarcodeReceiptDetail(detail) AND skuReceiptDetail(detail) 
+            AND NOT (skuBarcode(barcodeIdDate(idBarcodeReceiptDetail(detail), dateReceiptDetail(detail)))==skuReceiptDetail(detail))  DO {
+            
+            skuReceiptDetail(detail) <-  skuBarcode(barcodeIdDate(idBarcodeReceiptDetail(detail),dateReceiptDetail(detail)));               
+        }
+    } 
+    FOR [= FILTER ZReportProcessing.d](detail) AND idBarcodeReceiptDetail(detail) AND NOT skuReceiptDetail(detail)  DO {
+        skuReceiptDetail(detail) <-  skuBarcode(barcodeIdDate(idBarcodeReceiptDetail(detail),dateReceiptDetail(detail)));   
+    }
+    apply();
+}
+EXTEND FORM ZReportProcessing PROPERTIES fillSkuReceiptDetails() FORCE PANEL TOOLBAR TODRAW d;
+
 @extendFormFilterStockAccess(ds, ZReportProcessing);
 
 NAVIGATOR {
