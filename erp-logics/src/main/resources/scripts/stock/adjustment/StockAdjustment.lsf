@@ -278,7 +278,7 @@ NAVIGATOR {
     }
 }
 
-//---------------------------- Изменение остатка инвентаризации sku----------------------------//
+//---------------------------- Изменение остатка sku----------------------------//
 
 CLASS ABSTRACT AdjustmentSkuDetail 'Изменение остатка ' : DataSkuLedger;
 TABLE adjustmentSkuDetail (AdjustmentSkuDetail);
@@ -371,4 +371,51 @@ editUserAdjustmentDetail(d) = ACTION (d) NEWSESSION {
 editAdjustmentDetail(d) += ACTION editUserAdjustmentDetail(d);    
 editSkuLedger(d) += ACTION editAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(d));
 editSkuLedger(d) += ACTION editAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(d));
+
+quantityPositiveAdjustmentDetailAdjustment 'Кол-во (всего)' (adjustment) = GROUP SUM quantityAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) >=0
+    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
+quantityNegativeAdjustmentDetailAdjustment 'Кол-во (всего)' (adjustment) = GROUP SUM -quantityAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) <0
+    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
+
+sumPositiveAdjustmentDetailAdjustment 'Сумма (всего)' (adjustment) = GROUP SUM sumAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) >=0
+    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
+sumNegativeAdjustmentDetailAdjustment 'Сумма (всего)' (adjustment) = GROUP SUM -sumAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) <0
+    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
+    
+sumNegativeAdjustmentDetail = -sumAdjustmentDetail(idetail);
+quantityNegativeAdjustmentDetail = -quantityAdjustmentDetail(idetail);
+    
+FORM printAdjustment 'Изменения остатков'
+    OBJECTS i = Adjustment
+    PROPERTIES (i) READONLY isClosedAdjustment, isPostedAdjustment, seriesNumberAdjustment, numberAdjustment, seriesAdjustment, dateAdjustment, timeAdjustment,
+                            nameStockAdjustment, nameCurrencyAdjustment
+    PROPERTIES (i) READONLY countAdjustmentDetailAdjustment, quantityAdjustmentDetailAdjustment,
+                            sumAdjustmentDetailAdjustment, noteAdjustment,
+                            quantityPositiveAdjustmentDetailAdjustment, quantityNegativeAdjustmentDetailAdjustment, sumPositiveAdjustmentDetailAdjustment,
+                            sumNegativeAdjustmentDetailAdjustment 
+
+    OBJECTS d = AdjustmentDetail
+    PROPERTIES (d) READONLY indexAdjustmentDetail, idBarcodeSkuAdjustmentDetail, nameSkuAdjustmentDetail, shortNameUOMSkuAdjustmentDetail,
+                   nameBatchAdjustmentDetail, quantityAdjustmentDetail, priceAdjustmentDetail, sumAdjustmentDetail, nameStockAdjustmentDetail
+    FILTERS adjustmentAdjustmentDetail(d) == i,
+            quantityAdjustmentDetail(d)>=0
+    
+    OBJECTS dd = AdjustmentDetail
+    PROPERTIES (dd) READONLY indexAdjustmentDetail, idBarcodeSkuAdjustmentDetail, nameSkuAdjustmentDetail, shortNameUOMSkuAdjustmentDetail,
+                   nameBatchAdjustmentDetail, quantityNegativeAdjustmentDetail, priceAdjustmentDetail, sumNegativeAdjustmentDetail, nameStockAdjustmentDetail
+    FILTERS adjustmentAdjustmentDetail(dd) == i,
+            quantityAdjustmentDetail(dd)<0
+
+;
+printAdjustment 'Изменения остатков' (adjustment) =
+    ACTION FORM printAdjustment OBJECTS i = adjustment PRINT  IMAGE 'print.png' IN print;
+    
+EXTEND FORM adjustments
+    PROPERTIES (i) printAdjustment FORCE PANEL TOOLBAR
+;
+EXTEND DESIGN adjustments{
+    printContainer {
+        ADD PROPERTY (printAdjustment(i));
+    }
+}
 
