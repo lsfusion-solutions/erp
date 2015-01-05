@@ -210,8 +210,7 @@ public class ExportExcelPivotAction implements ClientAction {
                             if (numberFormat != null)
                                 Dispatch.put(field, "NumberFormat", new Variant(numberFormat));
                             if(columnWidth != null)
-                                Dispatch.put(Dispatch.invoke(destinationSheet, "Columns", Dispatch.Get, new Object[] {rowFieldsEntry.size() + fieldCount + 1}, new int[1]).toDispatch(),
-                                    "ColumnWidth", new Variant(columnWidth));
+                                Dispatch.put(getColumn(destinationSheet, rowFieldsEntry.size() + fieldCount + 1), "ColumnWidth", new Variant(columnWidth));
                         }
                     }                    
                 }
@@ -231,22 +230,38 @@ public class ExportExcelPivotAction implements ClientAction {
                 Dispatch.put(pageSetup, "FitToPagesTall", new Variant(false));
                 
                 //set WrapText
-                for(int k = fieldCount; k >= 1; k--) {
-                    int row = rowFieldsEntry.size() + k;
-                    int column = j + columnFieldsEntry.size() + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 2;
-                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{getCellIndex(row, column)}, new int[1]).toDispatch();
+                for(int c = 1; c <= columnsCount; c++) {
+                    int row = j + columnFieldsEntry.size() + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 2;
+                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{getCellIndex(c, row)}, new int[1]).toDispatch();
                     Dispatch.put(cell, "WrapText", new Variant(true));
                 }
 
                 count = 0;
                 for (List<Object> entry : cellFieldsEntry) {
                     String fieldValue = (String) entry.get(0);
-                    Integer columnWidth = (Integer) entry.get(4);
                     if (fieldValue != null) {
                         count++;
-                        if (columnWidth != null)
-                            Dispatch.put(Dispatch.invoke(destinationSheet, "Columns", Dispatch.Get, new Object[]{rowFieldsEntry.size() + count}, new int[1]).toDispatch(),
-                                    "ColumnWidth", new Variant(columnWidth));
+                    }
+                }
+
+                //set column width
+                for (List<Object> entry : cellFieldsEntry) {
+                    String fieldValue = (String) entry.get(0);
+                    Integer columnWidth = (Integer) entry.get(4);
+                    if (fieldValue != null) {
+                        if (columnWidth != null) {
+                            Dispatch field = cellDispatchFieldsMap.get(fieldValue);
+                            String captionField = Dispatch.get(field, "Caption").getString();
+                            int rowIndex = firstRowIndex + columnFieldsEntry.size() + 1;
+                            for(int c = 1; c <= columnsCount; c++) {
+                                Variant cell = getCell(destinationSheet, c, rowIndex);
+                                String cellCaption = cell.isNull() ? "" : cell.getString();
+                                if(captionField.equals(cellCaption)) {
+                                    Dispatch column = getColumn(destinationSheet, c);
+                                    Dispatch.put(column, "ColumnWidth", new Variant(columnWidth));
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -361,5 +376,13 @@ public class ExportExcelPivotAction implements ClientAction {
         } catch (Exception e) {
             throw new RuntimeException("Error Formula: " + formula, e);
         }
+    }
+    
+    private Dispatch getColumn(Dispatch destinationSheet, int index) {
+        return Dispatch.invoke(destinationSheet, "Columns", Dispatch.Get, new Object[]{index}, new int[1]).toDispatch();
+    }
+    
+    private Variant getCell(Dispatch sheet, int column, int row) {
+        return Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(column, row)}, new int[1]).toDispatch(), "Value");
     }
 }
