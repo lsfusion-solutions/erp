@@ -23,10 +23,10 @@ invoicesShipment 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](d
                                                 ORDER invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
-                                                                   BY invoiceDetailShipmentDetail(shipmentDetail);
+                                                                   BY invoiceDetailShipmentDetail(shipmentDetail) PERSISTENT;
                                                                    
-shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail)
-                                                                   BY invoiceInvoiceDetail(detail);   
+shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail)
+                                                                   BY invoiceInvoiceDetail(detail) PERSISTENT;   
 
 notShippedInvoice (invoice) = invoice IS Invoice AND NOT shippedInvoice(invoice);
                                                                                                                                        
@@ -56,7 +56,7 @@ deleteMultiShipment 'Удалить полностью' = ACTION (shipment) NEWS
 }
 
 
-isShippedInvoice = shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice));
+isShippedInvoice = shippedInvoice(invoice) OR NOT quantityNotChargeInvoiceDetailInvoice(invoice) > 0.0;
 
 statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipInvoiceDetailInvoice(invoice)  
                                                     THEN 'Расхождение'
