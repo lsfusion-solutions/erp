@@ -447,17 +447,19 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).date);
 
-        DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry").readClasses(context.getSession());
-        ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
-        ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
-                findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
-        VATKey.skipKey = true;
-        keys.add(VATKey);
-        props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VATItemCountry").getMapping(itemKey, defaultCountryObject),
-                LM.object(findClass("Range")).getMapping(VATKey)));
-        fields.add(valueVATItemCountryDateField);
-        for (int i = 0; i < itemsList.size(); i++)
-            data.get(i).add(itemsList.get(i).retailVAT);
+        ObjectValue defaultCountryObject = findProperty("defaultCountry").readClasses(context.getSession());
+        if(defaultCountryObject instanceof DataObject) {
+            ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
+            ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+                    findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
+            VATKey.skipKey = true;
+            keys.add(VATKey);
+            props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VATItemCountry").getMapping(itemKey, defaultCountryObject),
+                    LM.object(findClass("Range")).getMapping(VATKey)));
+            fields.add(valueVATItemCountryDateField);
+            for (int i = 0; i < itemsList.size(); i++)
+                data.get(i).add(itemsList.get(i).retailVAT);
+        }
 
         if (warePurchaseInvoiceLM != null && showItemField(itemsList, "idWare")) {
 
@@ -1525,6 +1527,18 @@ public class ImportActionProperty extends DefaultImportActionProperty {
             for (int i = 0; i < legalEntitiesList.size(); i++)
                 data.get(i).add("BLR");
 
+            ImportField idLegalEntityGroupField = new ImportField(findProperty("idLegalEntityGroup"));
+            ImportKey<?> legalEntityGroupKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntityGroup"),
+                    findProperty("legalEntityGroupId").getMapping(idLegalEntityGroupField));
+            keys.add(legalEntityGroupKey);
+            props.add(new ImportProperty(idLegalEntityGroupField, findProperty("idLegalEntityGroup").getMapping(legalEntityGroupKey)));
+            props.add(new ImportProperty(idLegalEntityGroupField, findProperty("nameLegalEntityGroup").getMapping(legalEntityGroupKey)));
+            props.add(new ImportProperty(idLegalEntityGroupField, findProperty("legalEntityGroupLegalEntity").getMapping(legalEntityKey),
+                    object(findClass("LegalEntityGroup")).getMapping(legalEntityGroupKey), true));
+            fields.add(idLegalEntityGroupField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).idLegalEntityGroup);
+            
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();

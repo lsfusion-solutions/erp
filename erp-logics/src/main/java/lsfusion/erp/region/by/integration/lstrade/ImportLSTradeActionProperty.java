@@ -492,7 +492,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
                             okpoLegalEntity, phoneLegalEntity, emailLegalEntity, ownership[1], ownership[0],
                             numberAccount, isCompany ? (idLegalEntity + "ТС") : null, isCompany ? ownership[2] : null,
                             idBank, nameCountry, isSupplier ? true : null, isCompany ? true : null,
-                            isCustomer ? true : null));
+                            isCustomer ? true : null, null));
             }
         }
         return data;

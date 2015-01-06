@@ -64,24 +64,25 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
         for (int i = 1; i < sheet.getRows(); i++) {
 
             String idLegalEntity = parseString(sheet.getCell(0, i).getContents());
-            String nameLegalEntity = parseString(sheet.getCell(1, i).getContents());
-            String addressLegalEntity = parseString(sheet.getCell(2, i).getContents());
-            String phoneLegalEntity = parseString(sheet.getCell(3, i).getContents());
-            String emailLegalEntity = parseString(sheet.getCell(4, i).getContents());
-            String numberAccount = parseString(sheet.getCell(5, i).getContents());
-            String idBank = parseString(sheet.getCell(6, i).getContents());
-            String nameCountry = parseString(sheet.getCell(7, i).getContents());
+            String idLegalEntityGroup = parseString(sheet.getCell(1, i).getContents());
+            String nameLegalEntity = parseString(sheet.getCell(2, i).getContents());
+            String addressLegalEntity = parseString(sheet.getCell(3, i).getContents());
+            String phoneLegalEntity = parseString(sheet.getCell(4, i).getContents());
+            String emailLegalEntity = parseString(sheet.getCell(5, i).getContents());
+            String numberAccount = parseString(sheet.getCell(6, i).getContents());
+            String idBank = parseString(sheet.getCell(7, i).getContents());
+            String nameCountry = parseString(sheet.getCell(8, i).getContents());
             nameCountry = nameCountry == null ? null : nameCountry.toUpperCase();
-            Boolean isSupplier = parseBoolean(sheet.getCell(8, i).getContents());
-            Boolean isCompany = parseBoolean(sheet.getCell(9, i).getContents());
-            Boolean isCustomer = parseBoolean(sheet.getCell(10, i).getContents());
-            String unpLegalEntity = parseString(sheet.getCell(11, i).getContents());
-            String okpoLegalEntity = parseString(sheet.getCell(12, i).getContents());
+            Boolean isSupplier = parseBoolean(sheet.getCell(9, i).getContents());
+            Boolean isCompany = parseBoolean(sheet.getCell(10, i).getContents());
+            Boolean isCustomer = parseBoolean(sheet.getCell(11, i).getContents());
+            String unpLegalEntity = parseString(sheet.getCell(12, i).getContents());
+            String okpoLegalEntity = parseString(sheet.getCell(13, i).getContents());
             String[] ownership = getAndTrimOwnershipFromName(nameLegalEntity);
 
             data.add(new LegalEntity(idLegalEntity, nameLegalEntity, addressLegalEntity, unpLegalEntity, okpoLegalEntity,
-                    phoneLegalEntity, emailLegalEntity, ownership[1], ownership[0],
-                    numberAccount, null, null, idBank, nameCountry, isSupplier, isCompany, isCustomer));
+                    phoneLegalEntity, emailLegalEntity, ownership[1], ownership[0], numberAccount, null, null, idBank, 
+                    nameCountry, isSupplier, isCompany, isCustomer, idLegalEntityGroup));
         }
 
         return data;
