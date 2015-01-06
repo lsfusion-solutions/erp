@@ -232,7 +232,7 @@ public class ExportExcelPivotAction implements ClientAction {
                 //set WrapText
                 for(int c = 1; c <= columnsCount; c++) {
                     int row = j + columnFieldsEntry.size() + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 2;
-                    Dispatch cell = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{getCellIndex(c, row)}, new int[1]).toDispatch();
+                    Dispatch cell = getCell(destinationSheet, c, row);
                     Dispatch.put(cell, "WrapText", new Variant(true));
                 }
 
@@ -248,17 +248,29 @@ public class ExportExcelPivotAction implements ClientAction {
                 for (List<Object> entry : cellFieldsEntry) {
                     String fieldValue = (String) entry.get(0);
                     Integer columnWidth = (Integer) entry.get(4);
+                    Integer columnTotalWidth = (Integer) entry.get(5);
                     if (fieldValue != null) {
-                        if (columnWidth != null) {
-                            Dispatch field = cellDispatchFieldsMap.get(fieldValue);
-                            String captionField = Dispatch.get(field, "Caption").getString();
-                            int rowIndex = firstRowIndex + columnFieldsEntry.size() + 1;
-                            for(int c = 1; c <= columnsCount; c++) {
-                                Variant cell = getCell(destinationSheet, c, rowIndex);
-                                String cellCaption = cell.isNull() ? "" : cell.getString();
-                                if(captionField.equals(cellCaption)) {
+                        Dispatch field = cellDispatchFieldsMap.get(fieldValue);
+                        String captionField = Dispatch.get(field, "Caption").getString();
+                        int rowIndex = firstRowIndex + columnFieldsEntry.size() + 1;
+                        int rowTotalIndex = firstRowIndex + columnFieldsEntry.size();
+                        for (int c = 1; c <= columnsCount; c++) {
+                            if (columnWidth != null) {
+                                Variant cell = getCellVariant(destinationSheet, c, rowIndex);
+                                String cellCaption = cell.isNull() || cell.getvt() != 8 ? "" : cell.getString();
+                                if (captionField.equals(cellCaption)) {
                                     Dispatch column = getColumn(destinationSheet, c);
                                     Dispatch.put(column, "ColumnWidth", new Variant(columnWidth));
+                                }
+                            }
+                            if (columnTotalWidth != null) {
+                                Dispatch cell = getCell(destinationSheet, c, rowTotalIndex);
+                                Variant cellVariant = getCellVariant(destinationSheet, c, rowTotalIndex);
+                                String cellCaption = cellVariant.isNull() ? "" : cellVariant.getString();
+                                if (cellCaption.equals("Итог " + captionField) || (cellFieldsEntry.size() == 1 && cellCaption.equals("Общий итог"))) {
+                                    Dispatch column = getColumn(destinationSheet, c);
+                                    Dispatch.put(column, "ColumnWidth", new Variant(columnTotalWidth));
+                                    Dispatch.put(cell, "WrapText", new Variant(true));
                                 }
                             }
                         }
@@ -302,7 +314,7 @@ public class ExportExcelPivotAction implements ClientAction {
     public LinkedHashMap<Integer, String> getFieldCaptionMap(Dispatch sheet, Integer columnsCount) {
         LinkedHashMap<Integer, String> fieldCaptionMap = new LinkedHashMap<Integer, String>();
         for (int i = 0; i <= columnsCount; i++) {
-            Variant cell = Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(i + 1, firstRow)}, new int[1]).toDispatch(), "Value");
+            Variant cell = getCellVariant(sheet, i + 1, firstRow);
             if (!cell.isNull()) {
                 String field = cell.getString();
                 fieldCaptionMap.put(i + 1, field);
@@ -315,7 +327,7 @@ public class ExportExcelPivotAction implements ClientAction {
 
         LinkedHashMap<String, List<Integer>> captionFieldsMap = new LinkedHashMap<String, List<Integer>>();
         for (int i = 0; i <= columnsCount; i++) {
-            Variant cell = Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(i + 1, firstRow)}, new int[1]).toDispatch(), "Value");
+            Variant cell = getCellVariant(sheet, i + 1, firstRow);
             if (!cell.isNull()) {
                 String field = cell.getString();
                 List<Integer> entry = captionFieldsMap.containsKey(field) ? captionFieldsMap.get(field) : new ArrayList<Integer>();
@@ -378,11 +390,15 @@ public class ExportExcelPivotAction implements ClientAction {
         }
     }
     
-    private Dispatch getColumn(Dispatch destinationSheet, int index) {
-        return Dispatch.invoke(destinationSheet, "Columns", Dispatch.Get, new Object[]{index}, new int[1]).toDispatch();
+    private Dispatch getColumn(Dispatch sheet, int index) {
+        return Dispatch.invoke(sheet, "Columns", Dispatch.Get, new Object[]{index}, new int[1]).toDispatch();
     }
     
-    private Variant getCell(Dispatch sheet, int column, int row) {
+    private Variant getCellVariant(Dispatch sheet, int column, int row) {
         return Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(column, row)}, new int[1]).toDispatch(), "Value");
+    }
+    
+    private Dispatch getCell(Dispatch sheet, int column, int row) {
+        return Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(column, row)}, new int[1]).toDispatch();
     }
 }

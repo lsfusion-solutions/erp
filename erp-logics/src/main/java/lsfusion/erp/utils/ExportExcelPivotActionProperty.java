@@ -26,11 +26,12 @@ import java.util.List;
 import java.util.Map;
 
 // Syntax:
-// xxx=yyy[zzz]~n
+// xxx=yyy[zzz]~n/m
 // xxx is formula 
 // yyy is caption (optional)
 // zzz is number format (optional)
 // n is column width (optional)
+// m is width for column total (optional)
 //IFERROR(xxx, a)
 // xxx is formula
 // a is default value
@@ -113,10 +114,16 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
 
                     //column width
                     Integer columnWidth = null;
+                    Integer columnTotalWidth = null;
                     if (field.matches("(.*)~(.*)")) {
                         String[] splittedEntry = field.split("~");
                         try {
-                            columnWidth = Integer.parseInt(splittedEntry[1]);
+                            if(splittedEntry[1].contains("/")) {
+                                columnWidth = Integer.parseInt(splittedEntry[1].split("/")[0]);
+                                columnTotalWidth = Integer.parseInt(splittedEntry[1].split("/")[1]);
+                            } else {
+                                columnWidth = Integer.parseInt(splittedEntry[1]);
+                            }
                         } catch (Exception e) {
                             throw new RuntimeException("Invalid Formula: " + field);
                         }
@@ -147,7 +154,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         }
                     }                    
                     String formula = fieldValue == null ? field : null;
-                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth));
+                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth));
                 }
                 result.add(resultEntry);
             }
