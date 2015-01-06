@@ -154,12 +154,6 @@ isClosedReceiptDetail(d) += isClosedReceiptSaleDetail(d);
 @defineDocumentDetailClosed(receipt, ReceiptReturnDetail);
 isClosedReceiptDetail(d) += isClosedReceiptReturnDetail(d);
 
-skipReceiptSaleDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptSaleDetail(receiptDetail)); 
-skipReceiptReturnDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptReturnDetail(receiptDetail)); 
-
-activeReceiptSaleDetail(d) = isPostedReceiptSaleDetail(d) AND NOT skipReceiptSaleDetail(d); 
-activeReceiptReturnDetail(d) = isPostedReceiptReturnDetail(d) AND NOT skipReceiptReturnDetail(d); 
-
 // --------------- Магазин --------------- //
 departmentStoreReceiptDetail (receiptDetail) = ABSTRACT DepartmentStore (ReceiptDetail) PERSISTENT;
 storeReceiptDetail (receiptDetail) = storeDepartmentStore(departmentStoreReceiptDetail(receiptDetail));
@@ -179,6 +173,13 @@ skuReceiptDetail (receiptDetail) = MULTI skuReceiptReturnDetail(receiptDetail), 
 idSkuReceiptDetail 'Код' (receiptDetail) = idSku(skuReceiptDetail(receiptDetail));
 idSkuGroupReceiptDetail 'Код' (receiptDetail) = idSkuGroup(skuGroupSku(skuReceiptDetail(receiptDetail)));
 shortNameUOMSkuReceiptDetail 'Ед. изм.' (receiptDetail) = shortNameUOMSku(skuReceiptDetail(receiptDetail));
+
+
+skipReceiptSaleDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptSaleDetail(receiptDetail)) OR skuTypeItem(skuReceiptSaleDetail(receiptDetail)) == SkuType.skuTypeCharge; 
+skipReceiptReturnDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptReturnDetail(receiptDetail)); 
+
+activeReceiptSaleDetail(d) = isPostedReceiptSaleDetail(d) AND NOT skipReceiptSaleDetail(d); 
+activeReceiptReturnDetail(d) = isPostedReceiptReturnDetail(d) AND NOT skipReceiptReturnDetail(d); 
 
 setAttributesReceiptDetail = ABSTRACT ACTION (ReceiptDetail);
 
