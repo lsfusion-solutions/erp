@@ -183,6 +183,21 @@ overImageItem (item) += imageArticleItem (item);
 countItemArticle 'Кол-во товаров' (a) = GROUP SUM 1 BY articleItem(i);
 prevCountItemArticle (a) = PREV(countItemArticle(a));
 
+
+equalBrandItemArticle 'Бренд артикула должен соответствовать бренду товара' = DATA BOOLEAN ();        
+        
+EXTEND FORM options
+    PROPERTIES () equalBrandItemArticle
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY (equalBrandItemArticle());
+    }
+}        
+CONSTRAINT brandArticle(articleItem(i)) AND brandItem(i) AND equalBrandItemArticle() AND NOT (brandArticle(articleItem(i)) == brandItem(i))
+    CHECKED BY brandArticle, brandItem  
+        MESSAGE 'Бренд артикула должен соответствовать бренду товара';  
+
 //nameCountryArticle 'Страна' (a) = GROUP MAX nameCountryItem(i) BY articleItem(i); 
 // Цвет
 CLASS Color 'Цвет товара';
