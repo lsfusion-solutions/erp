@@ -194,6 +194,7 @@ public class ExportExcelPivotAction implements ClientAction {
                             String resultFormula = getResultFormula(cellFieldsEntry, formula);
                             Dispatch calculatedFields = Dispatch.call(pivotTableWizard, "CalculatedFields").toDispatch();
                             field = Dispatch.call(calculatedFields, "Add", caption, resultFormula, true).toDispatch();
+                            cellDispatchFieldsMap.put(fieldValue, field);
                         } else {
                             field = cellDispatchFieldsMap.get(fieldValue);                                                
                         }
@@ -251,6 +252,8 @@ public class ExportExcelPivotAction implements ClientAction {
                     Integer columnTotalWidth = (Integer) entry.get(5);
                     if (fieldValue != null) {
                         Dispatch field = cellDispatchFieldsMap.get(fieldValue);
+                        if (field == null)
+                            throw new RuntimeException("Set column width failed (field not found)");
                         String captionField = Dispatch.get(field, "Caption").getString();
                         int rowIndex = firstRowIndex + columnFieldsEntry.size() + 1;
                         int rowTotalIndex = firstRowIndex + columnFieldsEntry.size();
