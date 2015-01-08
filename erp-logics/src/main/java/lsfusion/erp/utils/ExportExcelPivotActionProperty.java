@@ -50,6 +50,12 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                                           ValueClass... classes) {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, null, idGroupObject, classes);
     }
+
+    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, Integer titleRowHeight, String idGroupObject,
+                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                          ValueClass... classes) {
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, titleRowHeight, idGroupObject, classes);
+    }
     
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject,
                                           List<String> rows, List<String> columns, List<String> filters, List<String> cells,
