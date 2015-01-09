@@ -121,6 +121,25 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
     
     overFillOrderReceiptOrder = ABSTRACT ACTION LIST (Receipt, Order);                          // документ
     overFillOrderReceiptDetailOrderDetail = ABSTRACT ACTION LIST (ReceiptDetail, OrderDetail);  // детайл
+    
+    fillOrderReceiptOrder =  ACTION (receipt, order) {
+        overFillOrderReceiptOrder(receipt, order);
+        FOR orderOrderDetail(orderDetail) == order AND
+            toReceiptOrderDetail(orderDetail) > 0
+            ADDOBJ d = Receipt###prop###detail DO {
+                receiptReceipt###prop###detail(d) <- receipt;
+                orderDetailReceipt###prop###detail(d) <- orderDetail;
+
+                skuReceipt###prop###detail(d) <- skuOrderDetail(orderDetail);
+                idBarcodeReceipt###detail(d) <- idBarcodeSku(skuOrderDetail(orderDetail));
+                
+                quantityReceipt###prop###detail (d) <- toReceiptOrderDetail(orderDetail);                
+                priceReceipt###prop###detail (d) <- priceOrderDetail(orderDetail);
+                VATReceipt###prop###detail (d) <- VATOrderDetail(orderDetail);  
+                              
+                overFillOrderReceiptDetailOrderDetail(d, orderDetail);
+        }    
+    }
 
     fillOrderReceipt 'По заказу' =  ACTION (receipt) {
         IF supplierProp###receipt(receipt) AND customerProp###receipt(receipt) THEN {
@@ -134,23 +153,7 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
         IF formResult() == FormResult.ok THEN {
             LOCAL saleOrder = Order();
             saleOrder() <- chosenObject('i');
-            overFillOrderReceiptOrder(receipt, saleOrder());
-
-            FOR orderOrderDetail(orderDetail) == saleOrder() AND
-                toReceiptOrderDetail(orderDetail) > 0
-                ADDOBJ d = Receipt###prop###detail DO {
-                    receiptReceipt###prop###detail(d) <- receipt;
-                    orderDetailReceipt###prop###detail(d) <- orderDetail;
-
-                    skuReceipt###prop###detail(d) <- skuOrderDetail(orderDetail);
-                    quantityReceipt###prop###detail (d) <- toReceiptOrderDetail(orderDetail);
-                    
-                    priceReceipt###prop###detail (d) <- priceOrderDetail(orderDetail);
-                    sumReceipt###prop###detail (d) <- sumOrderDetail(orderDetail);
-                    VATReceipt###prop###detail (d) <- VATOrderDetail(orderDetail);
-                    
-                    overFillOrderReceiptDetailOrderDetail(d, orderDetail);
-            }
+            fillOrderReceiptOrder(receipt, saleOrder());
         }
     } IN order;
 
