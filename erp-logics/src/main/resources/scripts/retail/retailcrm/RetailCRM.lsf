@@ -67,6 +67,23 @@ userOrderPromotion 'Порядок' (promotion) = DATA INTEGER (Promotion);
 orderPromotion 'Порядок' (promotion) = OVERRIDE 1 IF promotion IS Promotion, userOrderPromotion(promotion) PERSISTENT;
 
 userSetPromotion 'Задается кассиром' (promotion) = DATA BOOLEAN (Promotion);
+
+CLASS OrderPromotionType 'Поряок применения акции' { 
+    ascending 'Начать с самой дешевой',
+    descending 'Начать с самой дорогой',
+    index 'В порядке позиций в чеке'    
+}
+TABLE orderPromotionType (OrderPromotionType);
+
+orderPromotionTypePromotion (promotion) = DATA OrderPromotionType(Promotion);
+nameOrderPromotionTypePromotion 'Поряок применения акции' = staticCaption(orderPromotionTypePromotion(promotion)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+
+FORM orderPromotionTypies 'Поряок применения акции'
+    OBJECTS d = OrderPromotionType
+    PROPERTIES(d) READONLY staticCaption
+    DIALOG OrderPromotionType OBJECT d
+;
+
 // ----------------------------- Условия акций ------------------------ //
 
 CLASS PromotionCondition 'Условие акции';
@@ -143,6 +160,9 @@ namePromotionPromotionCondition 'Акция' (promotionCondition) = namePromotio
 dateFromPromotionCondition 'Действует (от)' (promotionCondition) = dateFromPromotion(promotionPromotionCondition(promotionCondition));
 dateToPromotionCondition 'Действует (до)' (promotionCondition) = dateToPromotion(promotionPromotionCondition(promotionCondition));
 
+orderPromotionTypePromotionCondition = orderPromotionTypePromotion(promotionPromotionCondition(condition));
+nameOrderPromotionTypePromotionCondition 'Поряок применения акции' = staticCaption(orderPromotionTypePromotionCondition(condition));
+
 countPromotionConditionPromotion 'Кол-во условий' (promotion) = GROUP SUM 1 IF promotionPromotionCondition(promotionCondition) == promotion BY promotion PERSISTENT;
 
 minQuantityPromotionCondition 'Количество (от)' = DATA NUMERIC[14,3] (PromotionCondition);
@@ -193,7 +213,7 @@ FORM promotionConditions 'Условия Акций'
 
 FORM promotion 'Акция'
     OBJECTS sh=Promotion   FIXED PANEL
-    PROPERTIES(sh)     namePromotion, namePromotionGroupPromotion, idPromotion SHOWIF showIDs(), userSetPromotion,
+    PROPERTIES(sh)     namePromotion, namePromotionGroupPromotion, nameOrderPromotionTypePromotion, idPromotion SHOWIF showIDs(), userSetPromotion,
                        nameNumeratorPromotion, numberPromotion, seriesPromotion,
                        dateFromPromotion, dateToPromotion, timeOfFromPromotion, timeOfToPromotion,
                        minSumBillPromotion, maxSumBillPromotion
@@ -269,6 +289,7 @@ DESIGN promotion FROM DEFAULT {
 
                 }
                 ADD PROPERTY(namePromotionGroupPromotion(sh));
+                ADD PROPERTY(nameOrderPromotionTypePromotion(sh));
                 ADD PROPERTY(userSetPromotion(sh));
             }
             ADD sh.numbered {
@@ -356,6 +377,7 @@ copyPropertiesPromotionCondition = ABSTRACT ACTION (PromotionCondition, Promotio
 copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
     FOR ADDOBJ p = Promotion DO {
         promotionGroupPromotion(p) <- promotionGroupPromotion(promotion);
+        orderPromotionTypePromotion(p) <- orderPromotionTypePromotion(promotion);
         dateFromPromotion(p) <- dateFromPromotion(promotion);
         dateToPromotion(p) <- dateToPromotion(promotion);
         timeOfFromPromotion(p) <- timeOfFromPromotion(promotion);
@@ -396,7 +418,7 @@ backgroundPromotion 'Цвет' (promotion) = CASE WHEN dateFromPromotion(promoti
 FORM promotions 'Акции'
     OBJECTS sh=Promotion
     PROPERTIES(sh)  READONLY BACKGROUND backgroundPromotion(sh) 
-                    orderPromotion, namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
+                    orderPromotion, namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, nameOrderPromotionTypePromotion, storesPromotion,
                     timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
                     hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                     useCurrentReceiptPromotion, allDiscountCardPromotion
