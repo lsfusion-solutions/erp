@@ -141,6 +141,11 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
                                                                   min(countPromotion() * quantityDiscountPromotionCondition(promotionCondition), quantityPromotionCondition(promotionCondition))
                                                                ELSE
                                                                   quantityPromotionCondition(promotionCondition);
+                                                                  
+                LOCAL usePromotionCondition = NUMERIC[14,3] (PromotionCondition);
+                IF useAllQuantityPromotion(promotion) THEN {
+                    usePromotionCondition(promotionCondition) <- min(countPromotion() * minQuantityPromotionCondition(promotionCondition), quantityPromotionCondition(promotionCondition));
+                }
 
                 // Размазываем его по "Sku"
 //                LOCAL takenSkuPromotionCondition = NUMERIC[14,3] (Sku, PromotionCondition);
@@ -152,6 +157,7 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
 
                 // Размазываем его по строкам чека
                 LOCAL takenReceiptSaleDetailPromotionCondition = NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition);
+                LOCAL useReceiptSaleDetailPromotionCondition = NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition);
                 
                 CASE 
                     //-- начиная с самой дешевой и по умолчанию                                                                                  
@@ -163,7 +169,15 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
                                                                                                          AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
                                                                                                    BY promotionCondition
                                                                                                    ORDER  priceReceiptSaleDetail(detail), detail](detail, condition);
+                        IF useAllQuantityPromotion(promotion) THEN {
+                            useReceiptSaleDetailPromotionCondition (detail, condition) <- [= PARTITION UNGROUP usePromotionCondition
+                                                                                                       LIMIT leftQuantityReceiptSaleDetail(detail) 
+                                                                                                             IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))  
+                                                                                                             AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
+                                                                                                       BY promotionCondition
+                                                                                                       ORDER priceReceiptSaleDetail(detail), detail](detail, condition);
                         }
+                    }
                     //-- начиная с самой дорогой
                     WHEN orderPromotionTypePromotion(promotion) == OrderPromotionType.descending  THEN {                
                         takenReceiptSaleDetailPromotionCondition (detail, condition) <- [= PARTITION UNGROUP takenPromotionCondition
@@ -172,7 +186,15 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
                                                                                                          AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
                                                                                                    BY promotionCondition
                                                                                                    ORDER DESC priceReceiptSaleDetail(detail), detail](detail, condition);
-                        }                        
+                        IF useAllQuantityPromotion(promotion) THEN {
+                            useReceiptSaleDetailPromotionCondition (detail, condition) <- [= PARTITION UNGROUP usePromotionCondition
+                                                                                                       LIMIT leftQuantityReceiptSaleDetail(detail) 
+                                                                                                             IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))  
+                                                                                                             AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
+                                                                                                       BY promotionCondition
+                                                                                                       ORDER DESC priceReceiptSaleDetail(detail), detail](detail, condition);
+                        }
+                    }                        
                     //-- по позиции в чеке
                     WHEN orderPromotionTypePromotion(promotion) == OrderPromotionType.index THEN {   
                         takenReceiptSaleDetailPromotionCondition (detail, condition) <- [= PARTITION UNGROUP takenPromotionCondition
@@ -181,10 +203,22 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
                                                                                                          AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
                                                                                                    BY promotionCondition
                                                                                                    ORDER detail](detail, condition);   
+                        IF useAllQuantityPromotion(promotion) THEN {
+                            useReceiptSaleDetailPromotionCondition (detail, condition) <- [= PARTITION UNGROUP usePromotionCondition
+                                                                                                       LIMIT leftQuantityReceiptSaleDetail(detail) 
+                                                                                                             IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))  
+                                                                                                             AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
+                                                                                                       BY promotionCondition
+                                                                                                       ORDER detail](detail, condition);
+                        }
                     }                                                                                        
                 // Считаем сколько товара использовали из каждой строки чека
                 LOCAL takenReceiptSaleDetail = NUMERIC[14,3] (ReceiptSaleDetail);
-                takenReceiptSaleDetail(detail) <- [= GROUP SUM takenReceiptSaleDetailPromotionCondition(detail, condition) BY detail](detail);
+                IF useAllQuantityPromotion(promotion) THEN { 
+                    takenReceiptSaleDetail(detail) <- [= GROUP SUM useReceiptSaleDetailPromotionCondition(detail, condition) BY detail](detail);
+                } ELSE {
+                    takenReceiptSaleDetail(detail) <- [= GROUP SUM takenReceiptSaleDetailPromotionCondition(detail, condition) BY detail](detail);
+                }
 
                 // Считаем сколько использовали каждый товар
 //                LOCAL takenSku = NUMERIC[14,3] (Sku);
