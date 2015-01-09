@@ -229,9 +229,12 @@ public class ExportExcelPivotAction implements ClientAction {
                 Dispatch.put(pageSetup, "Zoom", new Variant(false));
                 Dispatch.put(pageSetup, "FitToPagesWide", new Variant(1));
                 Dispatch.put(pageSetup, "FitToPagesTall", new Variant(false));
+
+                Dispatch pivotUsedRange = Dispatch.get(destinationSheet, "UsedRange").toDispatch();
+                Integer pivotColumnsCount = Dispatch.get(Dispatch.get(pivotUsedRange, "Columns").toDispatch(), "Count").getInt();
                 
                 //set WrapText
-                for(int c = 1; c <= columnsCount; c++) {
+                for(int c = 1; c <= pivotColumnsCount; c++) {
                     int row = j + columnFieldsEntry.size() + (filterFieldsEntry == null ? 0 : filterFieldsEntry.size()) + 2;
                     Dispatch cell = getCell(destinationSheet, c, row);
                     Dispatch.put(cell, "WrapText", new Variant(true));
@@ -257,7 +260,7 @@ public class ExportExcelPivotAction implements ClientAction {
                         String captionField = Dispatch.get(field, "Caption").getString();
                         int rowIndex = firstRowIndex + columnFieldsEntry.size() + 1;
                         int rowTotalIndex = firstRowIndex + columnFieldsEntry.size();
-                        for (int c = 1; c <= columnsCount; c++) {
+                        for (int c = 1; c <= pivotColumnsCount; c++) {
                             if (columnWidth != null) {
                                 Variant cell = getCellVariant(destinationSheet, c, rowIndex);
                                 String cellCaption = cell.isNull() || cell.getvt() != 8 ? "" : cell.getString();
