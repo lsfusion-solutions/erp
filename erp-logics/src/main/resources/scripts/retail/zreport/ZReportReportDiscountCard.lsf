@@ -1,0 +1,19 @@
+MODULE ZReportReportDiscountCard;
+
+REQUIRE ZReportDiscountCard, ZReportReport;
+
+NAMESPACE ZReport;
+
+countReceiptsDiscountCardDepartmentStoreDate 'Кол-во чеков по дисконтным картам' (st,dt)= GROUP SUM countReceiptsDiscountCardZReport(zReport) 
+    IF isPostedZReport(zReport) AND inReportStock(departmentStoreZReport(zReport))
+        BY departmentStoreZReport(zReport), dateZReport(zReport);
+        
+nameDiscountCardStock (stock)= nameStock(stock) + ' (кол-во чеков по диск.картам)';    
+  
+        
+EXTEND FORM saleZreportStock 
+    PROPERTIES READONLY countReceiptsDiscountCardDepartmentStoreDate(st,dt)  COLUMNS (st) HEADER nameDiscountCardStock(st) AFTER averageCountReceiptDetailDepartmentStoreDate(st,dt)  
+;
+EXTEND DESIGN saleZreportStock {
+    PROPERTY(countReceiptsDiscountCardDepartmentStoreDate(st,dt)) { background = #A9DBDB; } 
+}
