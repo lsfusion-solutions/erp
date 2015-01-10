@@ -41,6 +41,15 @@ nameNegativeCardStock (stock)= nameStock(stock) + ' (сумма возврата
 nameVATSumReturnStock (stock)= nameStock(stock) + ' (сумма НДС по возвратам)';                                     
 countReceiptDepartmentStoreDate 'Кол-во чеков в магазине за день' (departmentStore, date) = 
     GROUP SUM countReceiptZReport(zReport) IF isPostedZReport(zReport) BY departmentStoreZReport(zReport), dateZReport(zReport);
+    
+countReturnReceiptZReport 'Кол-во возвратных чеков' (o) =
+    GROUP SUM 1 IF [ = GROUP SUM 1 BY receiptReceiptReturnDetail(d) ](d) BY zReportReceipt(d) PERSISTENT IN documentSum;
+    
+countReturnReceiptDepartmentStoreDate 'Кол-во возвратных чеков за день' (departmentStore, date) = 
+    GROUP SUM countReturnReceiptZReport(zReport) IF isPostedZReport(zReport) BY departmentStoreZReport(zReport), dateZReport(zReport);    
+
+countFiscalReceiptDepartmentStoreDate 'Кол-во фискальных чеков за день' = countReceiptDepartmentStoreDate(departmentStore, date) (-) countReturnReceiptDepartmentStoreDate(departmentStore, date);    
+    
 averageSumReceiptDepartmentStoreDate 'Средняя сумма чека в магазине за день' (departmentStore, date) = 
     sumReceiptDetailZReportStockDate(departmentStore, date) / countReceiptDepartmentStoreDate(departmentStore, date);
 
@@ -53,7 +62,8 @@ averageCountReceiptDetailDepartmentStoreDate 'Среднее кол-во поз�
 countReceiptStock (stock)= nameStock(stock) + ' (кол-во чеков)';        
 averageSumReceiptStock (stock)= nameStock(stock) + ' (cредняя сумма чека)';        
 countReceiptDetailStock (stock)= nameStock(stock) + ' (кол-во позиций чеков)';
-averageCountReceiptDetailStock (stock)= nameStock(stock) + ' (среднее кол-во позиций в чеке)';        
+averageCountReceiptDetailStock (stock)= nameStock(stock) + ' (среднее кол-во позиций в чеке)'; 
+countFiscalReceiptStock (stock)= nameStock(stock) + ' (фискальных чеков)';        
         
 FORM saleZreportStock 'Отчет по магазинам'
 
@@ -85,7 +95,8 @@ FORM saleZreportStock 'Отчет по магазинам'
     PROPERTIES READONLY sumNegativeCashPaymentZReportStockDate(st,dt)  COLUMNS (st) HEADER nameNegativeCashStock(st)                                 
     PROPERTIES READONLY sumNegativeCardPaymentZReportStockDate(st,dt)  COLUMNS (st) HEADER nameNegativeCardStock(st)                             
     
-    PROPERTIES READONLY countReceiptDepartmentStoreDate(st,dt) COLUMNS (st) HEADER countReceiptStock(st)                                 
+    PROPERTIES READONLY countReceiptDepartmentStoreDate(st,dt) COLUMNS (st) HEADER countReceiptStock(st)   
+    PROPERTIES READONLY countFiscalReceiptDepartmentStoreDate(st,dt) COLUMNS (st) HEADER countFiscalReceiptStock(st)                                 
     PROPERTIES READONLY averageSumReceiptDepartmentStoreDate(st,dt) COLUMNS (st) HEADER averageSumReceiptStock(st)                                 
     PROPERTIES READONLY countReceiptDetailDepartmentStoreDate(st,dt) COLUMNS (st) HEADER countReceiptDetailStock(st)                                 
     PROPERTIES READONLY averageCountReceiptDetailDepartmentStoreDate(st,dt) COLUMNS (st) HEADER averageCountReceiptDetailStock(st)                                 
