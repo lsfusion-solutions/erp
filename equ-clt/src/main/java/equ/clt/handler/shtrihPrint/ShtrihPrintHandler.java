@@ -2,7 +2,7 @@ package equ.clt.handler.shtrihPrint;
 
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
-import com.jacob.com.LibraryLoader;
+//import com.jacob.com.LibraryLoader;
 import com.jacob.com.Variant;
 import equ.api.MachineryInfo;
 import equ.api.SoftCheckInfo;
@@ -34,7 +34,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
     @Override
     public List<MachineryInfo> sendTransaction(TransactionScalesInfo transaction, List<ScalesInfo> scalesList) throws IOException {
 
-        System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
+        //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
         processTransactionLogger.info("Shtrih: Reading settings...");
         ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
