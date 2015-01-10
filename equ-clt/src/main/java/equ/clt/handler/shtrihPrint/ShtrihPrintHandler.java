@@ -53,16 +53,18 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         if (!scalesList.isEmpty()) {
 
+            Map<String, List<String>> errors = new HashMap<String, List<String>>();
+            Set<String> ips = new HashSet<String>();
+
+            processTransactionLogger.info("Shtrih: Starting sending to " + enabledScalesList.size() + " scales...");
+            
             if (useSockets) {
-
-                processTransactionLogger.info("Shtrih: Starting sending to " + enabledScalesList.size() + " scales...");
-
-                Set<String> ips = new HashSet<String>();
+                
                 for (ScalesInfo scales : enabledScalesList.isEmpty() ? scalesList : enabledScalesList) {
-
+                    List<String> localErrors = new ArrayList<String>();
+                    
                     UDPPort port = new UDPPort(scales.port, 1111, 1000);
-
-                    boolean error = false;
+                    
                     String ip = scales.port;
                     if (ip != null) {
                         ips.add(scales.port);
@@ -73,15 +75,13 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             processTransactionLogger.info("Shtrih: Connecting..." + ip);
                             port.open();
                             if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                int clear = clearGoodsDB(port);
-                                if (clear != 0) {
-                                    processTransactionLogger.error(String.format("ShtrihPrintHandler. ClearGoodsDb, Error # %s (%s)", clear, getErrorText(clear)));
-                                    error = true;
-                                }
+                                int clear = clearGoodsDB(localErrors, port);
+                                if (clear != 0)
+                                    logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear, getErrorText(clear)));
                             }
 
                             processTransactionLogger.info("Shtrih: Sending items..." + ip);
-                            if (!error) {
+                            if (localErrors.isEmpty()) {
                                 for (ScalesItemInfo item : transaction.itemsList) {
                                     Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                     Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
@@ -100,41 +100,37 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                     while (i < 8) {
                                         String message = getMessage(description, start, total, newLineNoSubstring);
                                         start += message.length() + 1;
-                                        int result = setMessageData(port, messageNumber, i + 1, message);
+                                        int result = setMessageData(localErrors, port, messageNumber, i + 1, message);
                                         if (result != 0) {
-                                            processTransactionLogger.error(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
-                                            error = true;
+                                            logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
                                         }
                                         i++;
                                     }
 
-                                    int result = setPLUDataEx(port, pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
-                                    if (result != 0) {
-                                        processTransactionLogger.error(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
-                                        error = true;
-                                    }
+                                    int result = setPLUDataEx(localErrors, port, pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
+                                    if (result != 0)
+                                        logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
                                 }
                             }
                             port.close();
 
                         } catch(Exception e) {
-                            processTransactionLogger.error("ShtrihPrintHandler error: ", e);
-                            error = true;
+                            logError(localErrors, "ShtrihPrintHandler error: ", e);
                         }finally {
                             processTransactionLogger.info("Shtrih: Finally disconnecting..." + ip);
                             try {
                                 port.close();
                             } catch (CommunicationException e) {
-                                processTransactionLogger.error(e);
+                                logError(localErrors, "ShtrihPrintHandler close port error: ", e);
                             }
                         }
                         processTransactionLogger.info("Shtrih: Completed ip: " + ip);
                     }
-                    if (!error)
+                    if (localErrors.isEmpty())
                         succeededScalesList.add(scales);
+                    else
+                        errors.put(ip, localErrors);
                 }
-                if (ips.isEmpty())
-                    throw new RuntimeException("ShtrihPrintHandler. No IP-addresses defined");
             } else {
 
                 processTransactionLogger.info("Shtrih: Initializing COM-Object AddIn.DrvLP...");
@@ -148,12 +144,9 @@ public class ShtrihPrintHandler extends ScalesHandler {
                     shtrihDispatch = shtrihActiveXComponent.getObject();
 
                     Variant pass = new Variant(30);
-
-                    processTransactionLogger.info("Shtrih: Starting sending to " + enabledScalesList.size() + " scales...");
-
-                    Set<String> ips = new HashSet<String>();
+                    
                     for (ScalesInfo scales : enabledScalesList.isEmpty() ? scalesList : enabledScalesList) {
-                        boolean error = false;
+                        List<String> localErrors = new ArrayList<String>();
                         String ip = scales.port;
                         if (ip != null) {
                             ips.add(scales.port);
@@ -174,14 +167,12 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                     shtrihActiveXComponent.setProperty("Password", pass);
                                     if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
                                         Variant clear = Dispatch.call(shtrihDispatch, "ClearGoodsDB");
-                                        if (isError(clear)) {
-                                            processTransactionLogger.error(String.format("ShtrihPrintHandler. ClearGoodsDb, Error # %s (%s)", clear.getInt(), getErrorText(clear.getInt())));
-                                            error = true;
-                                        }
+                                        if (isError(clear))
+                                            logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear.getInt(), getErrorText(clear.getInt())));
                                     }
 
                                     processTransactionLogger.info("Shtrih: Sending items..." + ip);
-                                    if (!error) {
+                                    if (localErrors.isEmpty()) {
                                         for (ScalesItemInfo item : transaction.itemsList) {
                                             Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                             Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
@@ -218,30 +209,24 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                 i++;
 
                                                 result = Dispatch.call(shtrihDispatch, "SetMessageData");
-                                                if (isError(result)) {
-                                                    processTransactionLogger.error(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
-                                                    error = true;
-                                                }
+                                                if (isError(result))
+                                                    logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
                                             }
 
                                             result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
-                                            if (isError(result)) {
-                                                processTransactionLogger.error(String.format("ShtrihPrintHandler. Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
-                                                error = true;
-                                            }
+                                            if (isError(result))
+                                                logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
                                         }
                                     }
                                     processTransactionLogger.info("Shtrih: Disconnecting..." + ip);
                                     result = Dispatch.call(shtrihDispatch, "Disconnect");
                                     if (isError(result)) {
-                                        processTransactionLogger.error(String.format("ShtrihPrintHandler. Disconnection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
-                                        error = true;
+                                        logError(localErrors, String.format("Shtrih: Disconnection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
                                         continue;
                                     }
                                 } else {
                                     Dispatch.call(shtrihDispatch, "Disconnect");
-                                    processTransactionLogger.error(String.format("ShtrihPrintHandler. Connection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
-                                    error = true;
+                                    logError(localErrors, String.format("Shtrih: Connection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
                                     continue;
                                 }
                             } finally {
@@ -250,11 +235,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             }
                             processTransactionLogger.info("Shtrih: Completed ip: " + ip);
                         }
-                        if (!error)
+                        if (localErrors.isEmpty())
                             succeededScalesList.add(scales);
+                        else
+                            errors.put(ip, localErrors);
                     }
-                    if (ips.isEmpty())
-                        throw new RuntimeException("ShtrihPrintHandler. No IP-addresses defined");
 
                 } finally {
                     if (shtrihDispatch != null)
@@ -263,6 +248,19 @@ public class ShtrihPrintHandler extends ScalesHandler {
                         shtrihActiveXComponent.safeRelease();
                 }
             }
+
+            if (!errors.isEmpty()) {
+                String message = "";
+                for(Map.Entry<String, List<String>> entry : errors.entrySet()) {
+                    message += entry.getKey() + ": \n";
+                    for(String error : entry.getValue()) {
+                        message += error + "\n";
+                    }
+                }
+                throw new RuntimeException(message);
+            } else if (ips.isEmpty())
+                throw new RuntimeException("Shtrih: No IP-addresses defined");
+            
         }
             
         return succeededScalesList;
@@ -573,11 +571,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
     }
 
-    private int clearGoodsDB(UDPPort port) throws IOException, CommunicationException, InterruptedException {
+    private int clearGoodsDB(List<String> errors, UDPPort port) throws IOException, CommunicationException, InterruptedException {
         ByteBuffer bytes = ByteBuffer.allocate(5);
         bytes.put((byte) 24); //18H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4);
-        int result = sendCommand(port, bytes.array());
+        int result = sendCommand(errors, port, bytes.array());
         if(result == 0) {
             boolean finished = false;
             while(!finished) {
@@ -592,17 +590,17 @@ public class ShtrihPrintHandler extends ScalesHandler {
         return result;
     }
     
-    private int setMessageData(UDPPort port, int messageNumber, int stringNumber, String messageString) throws IOException, CommunicationException {
+    private int setMessageData(List<String> errors, UDPPort port, int messageNumber, int stringNumber, String messageString) throws IOException, CommunicationException {
         ByteBuffer bytes = ByteBuffer.allocate(58);
         bytes.put((byte) 82); //52H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
         bytes.putShort(Short.reverseBytes((short) messageNumber)); //2 байта
         bytes.put((byte) stringNumber); //1 байт
         bytes.put(leftString(messageString, 50).getBytes("cp1251"), 0, 50); //50 байт
-        return sendCommand(port, bytes.array());
+        return sendCommand(errors, port, bytes.array());
     }
 
-    private int setPLUDataEx(UDPPort port, int pluNumber, int barcode, String firstName, String secondName, BigDecimal price,
+    private int setPLUDataEx(List<String> errors, UDPPort port, int pluNumber, int barcode, String firstName, String secondName, BigDecimal price,
                              int shelfLife, int groupCode, int messageNumber, Date expiryDate, int goodsType) throws IOException, CommunicationException {
         ByteBuffer bytes = ByteBuffer.allocate(87);
         bytes.put((byte) 87); //57H
@@ -623,10 +621,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
         int year = expiryDate.getYear();
         bytes.put((byte) (year > 100 ? (year - 100) : year)); //1 байт
         //bytes.put((byte) goodsType); //1 байт
-        return sendCommand(port, bytes.array());
+        return sendCommand(errors, port, bytes.array());
     }
 
-    private int sendCommand(UDPPort port, byte[] var1) {
+    private int sendCommand(List<String> errors, UDPPort port, byte[] var1) {
         int attempts = 0;
         while(attempts < 3) {
             try {
@@ -639,7 +637,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
             } catch(CommunicationException e) {
                 attempts++;
                 if(attempts == 3)
-                    processTransactionLogger.error(e);
+                    logError(errors, "SendCommand Errors: ", e);
             }
         }
         return -1;
@@ -672,12 +670,12 @@ public class ShtrihPrintHandler extends ScalesHandler {
         byte[] var2 = new byte[255];
         port.receiveCommand(var2);
         //byte state = var2[1];
-        boolean finished = (0 == ((var2[2] >> 1) & 1));
+        //boolean finished = (0 == ((var2[2] >> 1) & 1));
         //int error = (state >> 3) & 1;
         //if (error != 0) {
         //    throw new RuntimeException("Error clearGoodsDB");
         //}
-        return finished;
+        return (0 == ((var2[2] >> 1) & 1));
     }
 
     private String leftString(String var1, int var3) {
@@ -711,5 +709,14 @@ public class ShtrihPrintHandler extends ScalesHandler {
             }
             return var4;
         }
+    }
+
+    private void logError(List<String> errors, String errorText) {
+        logError(errors, errorText, null);
+    }
+
+    private void logError(List<String> errors, String errorText, Throwable t) {
+        errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
+        processTransactionLogger.error(errorText, t);
     }
 }
