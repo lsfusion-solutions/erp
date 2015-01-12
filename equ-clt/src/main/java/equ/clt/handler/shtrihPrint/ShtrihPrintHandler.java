@@ -28,7 +28,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "";
+        String groupId = "";
+        for(MachineryInfo scales : transactionInfo.machineryInfoList) {
+            groupId += scales.port + ";";
+        }
+        return groupId;
     }
     
     @Override
