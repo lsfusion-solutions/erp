@@ -168,6 +168,14 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
+    public static boolean total(BigDecimal sumPayment, Integer typePayment) {
+        logAction("vmk_oplat", typePayment, Math.abs(sumPayment.intValue()), 0);
+        if (!vmkDLL.vmk.vmk_oplat(typePayment, Math.abs(sumPayment.intValue()), 0/*"00000000"*/))
+            return false;
+
+        return true;
+    }
+
     public static void xReport() {
         logAction("vmk_xotch");
         if (!vmkDLL.vmk.vmk_xotch())
@@ -231,6 +239,15 @@ public class FiscalVMK {
         }
     }
 
+    public static boolean registerItemPayment(long sumPayment) {
+        try {
+            logAction("vmk_sale", "", "ОПЛАТА", (int) Math.abs(sumPayment), 1 /*отдел*/, 1, 0);
+            return vmkDLL.vmk.vmk_sale("", ("ОПЛАТА" + "\0").getBytes("cp1251"), (int) Math.abs(sumPayment), 1 /*отдел*/, 1.0, 0);
+        } catch (UnsupportedEncodingException e) {
+            return false;
+        }
+    }
+    
     public static boolean discountItem(ReceiptItem item) {
         if (item.articleDiscSum == 0)
             return true;
