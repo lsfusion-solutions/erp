@@ -1,43 +1,89 @@
 MODULE POSInvoice;
 
-REQUIRE POS, SaleInvoice;
+REQUIRE POS, SaleInvoiceContract, ContractPayment;
 
 NAMESPACE Sale;
 
+sumPrePayment 'Сумма предоплаты' = DATA SESSION NUMERIC[16,2] ();
 
-createInvoiceReceipt 'Создать' = ACTION (receipt) {       // todo: сделать необходимые округления
-    FOR ADDOBJ i = UserInvoice DO {
-        ASSIGN supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
-        ASSIGN supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
-        ASSIGN dateUserInvoice(i) <- dateReceipt(receipt);
-        ASSIGN timeUserInvoice(i) <- timeReceipt(receipt);
+FORM paymentInstallments 'Рассрочка'
+    OBJECTS l = LegalEntity FIXED PANEL
+    PROPERTIES(l) SELECTOR nameLegalEntity
+    OBJECTS n = NUMERIC[16,2] FIXED PANEL
+    PROPERTIES(n) sumPayment = OBJVALUE
+;
 
-        FOR  receiptReceiptDetail(detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
-            ASSIGN userInvoiceUserInvoiceDetail(d) <- i;
-            ASSIGN skuUserInvoiceDetail(d) <- skuReceiptDetail(detail);
-            ASSIGN quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
-            ASSIGN invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
-            ASSIGN invoicePriceUserInvoiceDetail(d) <- sumReceiptDetail(detail)/quantityReceiptDetail(detail);
-            ASSIGN priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + calcValueVATUserInvoiceDetail(d));
-
-            DELETE detail;
-        }
-        DELETE receipt;
-
-        FORM userInvoice OBJECTS i=i MANAGESESSION MODAL;
+DESIGN paymentInstallments FROM DEFAULT {
+    PROPERTY(sumPayment) {
+        caption = 'Сумма первоначального платежа';
     }
-    EXEC createCurrentReceipt();
+}
+
+printReceiptPaymentInvoice = ABSTRACT ACTION LIST (Payment.Payment, Invoice);
+
+createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       // todo: сделать необходимые округления
+    FOR ADDOBJ i = UserInvoice DO {
+        supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
+        supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
+        customerUserInvoice(i) <- customer;
+        customerStockUserInvoice(i) <- defaultStockLegalEntity(customer);
+        dateUserInvoice(i) <- dateReceipt(receipt);
+        timeUserInvoice(i) <- timeReceipt(receipt);
+        
+        FOR ADDOBJ c = UserContractSku DO {
+            supplierContractSku(c) <- legalEntityStock(departmentStoreReceipt(receipt));
+            customerContractSku(c) <- customer;
+            dateFromContract(c) <- dateReceipt(receipt);
+            currencyContract(c) <- defaultCurrency();
+            contractSkuUserInvoice(i) <- c;            
+        }
+        
+        FOR receiptReceiptDetail(detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
+            userInvoiceUserInvoiceDetail(d) <- i;
+            skuUserInvoiceDetail(d) <- skuReceiptDetail(detail);
+            quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
+            invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
+            invoicePriceUserInvoiceDetail(d) <- sumReceiptDetail(detail)/quantityReceiptDetail(detail);
+            priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + calcValueVATUserInvoiceDetail(d));
+        }
+        
+        FOR ADDOBJ p = Payment.Payment DO {
+            datePayment(p) <- dateReceipt(receipt);
+            timePayment(p) <- timeReceipt(receipt); 
+            payerPayment(p) <- customer;
+            beneficiaryPayment(p) <- legalEntityStock(departmentStoreReceipt(receipt));
+            sumPayment(p) <- sum;
+            contractPayment(p) <- contractSkuUserInvoice(i);
+            costOutContractLedgerInContractLedger(p, i) <- sum;
+            
+            DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
+            DELETE receipt;
+            
+            IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN
+                printReceiptPaymentInvoice(p, i)
+            ELSE {
+                apply();
+                createCurrentReceipt();
+            }
+        }
+    }
+}
+
+createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
+    FORM paymentInstallments MODAL;
+    IF formResult() == FormResult.ok THEN
+        createInvoiceReceipt(receipt, chosenObject('l'), chosenNumeric('n'));
 }
 
 EXTEND FORM POS
-    PROPERTIES(r) SHOWIF currentZReport() createInvoiceReceipt
+    PROPERTIES(r) SHOWIF currentZReport() createPaymentInstallments
 ;
 EXTEND DESIGN POS {
     misc {
         NEW invoice {
             alignment = STRETCH;
             caption = 'Накладная';
-            ADD PROPERTY(createInvoiceReceipt(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
+            ADD PROPERTY(createPaymentInstallments(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
         }
     }
 }
