@@ -1090,6 +1090,17 @@ calcDataVATSumUserInvoiceDetail (d) =
               ORDER d;
 calcDataVATPriceUserInvoiceDetail 'НДС (ед.)' (d) = round(calcDataVATSumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
                                                            roundDeclaration(declarationUserInvoiceDetail(d)));     
+    
+notPaintRounding 'Не расписывать округления сбора, НДС, пошлины' = DATA BOOLEAN ();     
+                                                                 
+EXTEND FORM options
+    PROPERTIES () notPaintRounding                                                                 
+;  
+EXTEND DESIGN options {
+    customs {
+        ADD PROPERTY(notPaintRounding()); 
+    }
+}
                                                                       
 recalculateVATPriceInvoiceDeclaration 'Рассчитать НДС (за ед.)' = ACTION (declaration) {
     IF NOT dataVATSumDeclaration(declaration) THEN {
@@ -1097,10 +1108,10 @@ recalculateVATPriceInvoiceDeclaration 'Рассчитать НДС (за ед.)'
     } ELSE {
         VATPriceUserInvoiceDetail(d) <- calcDataVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
     }
-    IF VATSumRoundDeclaration(declaration) THEN {
+    IF VATSumRoundDeclaration(declaration) AND NOT notPaintRounding() THEN {
         LOCAL int = INTEGER();
         int() <-0;
-        FOR d == [ = GROUP MAX d IF VATPriceUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d), quantityUserInvoiceDetail(d)](declaration, quantity) ORDER quantity DO {
+        FOR d == [ = GROUP MAX d IF VATPriceUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d), quantityUserInvoiceDetail(d), VATPriceUserInvoiceDetail(d)](declaration, quantity, price) ORDER quantity, - price DO {
             VATPriceUserInvoiceDetail(d)<- round(((VATSumRoundDeclaration(declaration) / quantityUserInvoiceDetail(d)) (+) VATPriceUserInvoiceDetail(d)), roundDeclaration(declaration));
             int()<- int() + 1;    
             IF int() > 20 OR NOT VATSumRoundDeclaration(declaration) THEN BREAK; // выход
@@ -1116,10 +1127,10 @@ recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (з�
     } ELSE {
         dutyPriceUserInvoiceDetail(d) <- calcDataDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;    
     }
-    IF dutySumRoundDeclaration(declaration) THEN {
+    IF dutySumRoundDeclaration(declaration) AND NOT notPaintRounding() THEN {
         LOCAL int = INTEGER();
         int() <-0;
-        FOR d == [ = GROUP MAX d IF dutyPriceUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d), quantityUserInvoiceDetail(d)](declaration, quantity) ORDER quantity DO {
+        FOR d == [ = GROUP MAX d IF dutyPriceUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d), quantityUserInvoiceDetail(d), dutyPriceUserInvoiceDetail(d)](declaration, quantity, price) ORDER quantity, -price DO {
             dutyPriceUserInvoiceDetail(d)<- round(((dutySumRoundDeclaration(declaration) / quantityUserInvoiceDetail(d)) (+) dutyPriceUserInvoiceDetail(d)), roundDeclaration(declaration));
             int()<- int() + 1;    
             IF int() > 20 OR NOT dutySumRoundDeclaration(declaration) THEN BREAK; // выход
@@ -1130,11 +1141,11 @@ recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (з�
 
 recalculateRegistrationPriceInvoiceDeclaration 'Рассчитать сбор (за ед.)' = ACTION (declaration) {
     registrationPriceUserInvoiceDetail(d) <- calcRegistrationPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
-    IF registrationSumRoundDeclaration(declaration) THEN {
+    IF registrationSumRoundDeclaration(declaration) AND NOT notPaintRounding() THEN {
         LOCAL int = INTEGER();
         int() <-0;
         
-        FOR d == [ = GROUP MAX d IF registrationPriceUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d), quantityUserInvoiceDetail(d)](declaration, quantity) ORDER quantity DO {
+        FOR d == [ = GROUP MAX d IF registrationPriceUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d), quantityUserInvoiceDetail(d), registrationPriceUserInvoiceDetail(d)](declaration, quantity, price) ORDER quantity, -price DO {
             registrationPriceUserInvoiceDetail(d)<- round(((registrationSumRoundDeclaration(declaration) / quantityUserInvoiceDetail(d)) (+) registrationPriceUserInvoiceDetail(d)), roundDeclaration(declaration));
             int()<- int() + 1;    
             IF int() > 20 OR NOT registrationSumRoundDeclaration(declaration) THEN BREAK; // выход
