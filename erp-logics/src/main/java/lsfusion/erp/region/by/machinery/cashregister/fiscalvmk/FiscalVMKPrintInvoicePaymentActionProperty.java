@@ -38,7 +38,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister").read(context);
 
             BigDecimal sumPayment = (BigDecimal) findProperty("costOutContractLedgerInContractLedger").read(context, paymentObject, invoiceObject);
-            Integer typePayment = (Integer) findProperty("typePayment").read(context, paymentObject);
+            Integer typePayment = (Integer) findProperty("fiscalTypePayment").read(context, paymentObject);
 
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
@@ -46,17 +46,9 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
                     return;
                 }
             }
-
-            if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(baudRate, comPort, placeNumber,
-                        null, sumPayment, typePayment));
-                //if (result instanceof Integer) {
-                //    findProperty("numberReceipt").change(result, context, receiptObject);
-                //    context.apply();
-                //    findAction("createCurrentReceipt").execute(context);
-                //} else
-                //    context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
-            }
+            
+            context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(baudRate, comPort, placeNumber, null, sumPayment, typePayment));
+            
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
