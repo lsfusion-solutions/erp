@@ -4,6 +4,7 @@ REQUIRE ZReport,SkuLedger;
    
 //---------------------- Продажа ----------------//
 CLASS ReceiptSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
+TABLE ReceiptSaleSkuLedger (ReceiptSaleSkuLedger);
 
 quantityReceiptSaleDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptSaleDetail(d) IF isPostedReceiptSaleDetail(d)
     BY departmentStoreReceiptSaleDetail(d), skuReceiptSaleDetail(d), dateReceiptSaleDetail(d), priceReceiptSaleDetail(d);
@@ -51,6 +52,8 @@ costSumSaleLedger (ledger) += costSumSkuLedger(ledger) IF ledger IS ReceiptSaleS
 //---------------------- Возврат ----------------//
 
 CLASS ReceiptReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
+TABLE ReceiptReturnSkuLedger (ReceiptReturnSkuLedger);
+
 quantityReceiptReturnDetailDepartmentSkuDatePrice 'Кол-во' (department, sku, date, price) = GROUP SUM quantityReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
     BY departmentStoreReceiptReturnDetail(d), skuReceiptReturnDetail(d), dateReceiptReturnDetail(d), priceReceiptReturnDetail(d);
 sumReceiptReturnDetailDepartmentSkuDatePrice 'Сумма' (department, sku, date, price) = GROUP SUM sumReceiptReturnDetail(d) IF isPostedReceiptReturnDetail(d)
