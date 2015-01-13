@@ -44,7 +44,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
             
             FiscalVMK.closePort();
 
-            return numberReceipt;
+            return null;
         } catch (RuntimeException e) {
             FiscalVMK.cancelReceipt();
             return FiscalVMK.getError(true);
