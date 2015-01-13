@@ -16,12 +16,15 @@ EXTEND CLASS ImportTypeDetail {
 
 importProductionOrderDataAction 'Импортировать заказ' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrderActionProperty' (Production.Order);
 importProductionOrdersDataAction 'Импортировать заказы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrdersActionProperty' ();
+importProductionOrdersFileDataAction 'Импортировать заказы из файла' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrdersFileActionProperty' ();
+importTypeOrders = DATA ImportType();
+nameImportTypeOrders 'Тип импорта' () = nameImportType(importTypeOrders());
 
 importTypeOrder = DATA ImportType(Production.Order);
 nameImportTypeOrder 'Тип импорта' (order) = nameImportType(importTypeOrder(order));
 
 EXTEND FORM Production.orders
-    PROPERTIES() TODRAW pd TOOLBAR importProductionOrdersDataAction
+    PROPERTIES() TODRAW pd TOOLBAR importProductionOrdersDataAction, importProductionOrdersFileDataAction, nameImportTypeOrders
 ;
 
 EXTEND DESIGN Production.orders{
@@ -29,18 +32,22 @@ EXTEND DESIGN Production.orders{
         NEW importUniversal {
             caption = 'Импорт';
             ADD PROPERTY(importProductionOrdersDataAction());
+            ADD PROPERTY(importProductionOrdersFileDataAction());
+            ADD PROPERTY(nameImportTypeOrders());                   
         }
     }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() TOOLBAR importProductionOrdersDataAction
+    PROPERTIES() importProductionOrdersDataAction, importProductionOrdersFileDataAction, nameImportTypeOrders;
 ;
 
 EXTEND DESIGN integrationData {
     pane {
         actionsContainer {
             ADD PROPERTY(importProductionOrdersDataAction());
+            ADD PROPERTY(importProductionOrdersFileDataAction());
+            ADD PROPERTY(nameImportTypeOrders());            
         }
     }
 }
