@@ -19,8 +19,8 @@ DESIGN paymentInstallments FROM DEFAULT {
     }
 }
 
-printReceiptInvoicePayment = ABSTRACT ACTION LIST (Invoice, Payment.Payment);
-printReceiptInvoicePaymentResult = DATA SESSION BOOLEAN (Invoice, Payment.Payment);
+printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
+printReceiptResult = DATA SESSION BOOLEAN ();
 
 createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       // todo: сделать необходимые округления
     FOR ADDOBJ i = UserInvoice DO {
@@ -60,11 +60,14 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
             DELETE receipt;
             
-            IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN
-                printReceiptInvoicePayment(i, p)
+            IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
+                printReceiptInvoicePayment(i, p); 
+                IF printReceiptResult() THEN 
+                    createCurrentReceipt();
+            }                 
             ELSE {
                 apply();
-                createCurrentReceipt();
+                createCurrentReceipt(); 
             }
         }
     }

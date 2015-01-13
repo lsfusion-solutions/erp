@@ -48,7 +48,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             }
             
             String result = (String) context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(baudRate, comPort, placeNumber, null, sumPayment, typePayment));
-            findProperty("printReceiptInvoicePaymentResult").change(result == null ? new DataObject(true) : null, context, invoiceObject, paymentObject);
+            findProperty("printReceiptResult").change(result == null ? new DataObject(true) : null, context);
             
         } catch (SQLException e) {
             throw new RuntimeException(e);
