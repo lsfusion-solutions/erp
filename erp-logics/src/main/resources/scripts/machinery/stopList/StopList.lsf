@@ -290,5 +290,57 @@ NAVIGATOR {
     }
 }
 
+//--
+statusStopListSkuStock 'Запрет продаж' (sku, stock)= IF lastStopListDetailSkuStockDateTime(sku, stock, currentDateTime())
+    THEN 'В стоп-листе'
+    ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
+backgroundStopListSkuStock 'Цвет' (sku, stock) = RGB (255,0,0) IF lastStopListDetailSkuStockDateTime(sku, stock, currentDateTime());
+
+
+notResetStopListSelectSku 'Не сбрасывать отмеченные товары при создании стоп-листа' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() notResetStopListSelectSku
+;
+EXTEND DESIGN options {
+    stock1 {
+        ADD PROPERTY(notResetStopListSelectSku());
+    }
+}
+
+createRequestStopList 'Создать стоп-лист'  = ACTION (){
+
+    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
+        NEWSESSION (selectSkuStock) {
+            FOR ADDOBJ sl = StopList DO {
+                inStockStopList(st, sl) <- TRUE WHERE [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](st);  
+                FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY sku](sku) ADDOBJ d = StopListDetail DO {
+                    stopListStopListDetail(d) <- sl;
+                    skuStopListDetail(d) <- sku;            
+                } 
+                 FORM stopList OBJECTS sl = sl MANAGESESSION DOCKEDMODAL;
+            }
+        }
+        IF NOT notResetStopListSelectSku() THEN {
+            selectSkuStock(sku, stock) <- NULL;
+        }
+    } ELSE {
+        MESSAGE 'Не отмечены товары, по которым надо создать Стоп-лист.';
+    }
+
+} TOOLBAR;
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES READONLY statusStopListSkuStock(s,st) BACKGROUND backgroundStopListSkuStock(s,st) BEFORE currentBalanceSkuStock(s,st)
+    PROPERTIES createRequestStopList() FORCE PANEL TODRAW sts
+;
+EXTEND DESIGN currentBalanceSkuStock {
+    actionContainer {
+        NEW stopListContainer {
+            caption = 'Запрет продаж по кассе';
+            type = CONTAINERV;
+            ADD PROPERTY (createRequestStopList());
+        } 
+    }
+}
 
 
