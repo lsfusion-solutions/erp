@@ -633,10 +633,10 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
             if (!idContracts.contains(idContract)) {
                 if (idLegalEntity1.startsWith("ПС"))
                     contractsList.add(new Contract(idContract, idLegalEntity1, idLegalEntity2, numberContract,
-                            dateFromContract, dateToContract, shortNameCurrency, null, null));
+                            dateFromContract, dateToContract, shortNameCurrency, null, null, null));
                 else
                     contractsList.add(new Contract(idContract, idLegalEntity2, idLegalEntity1, numberContract,
-                            dateFromContract, dateToContract, shortNameCurrency, null, null));
+                            dateFromContract, dateToContract, shortNameCurrency, null, null, null));
                 idContracts.add(idContract);
             }
         }

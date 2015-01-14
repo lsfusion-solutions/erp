@@ -72,7 +72,7 @@ public class ImportExcelContractsActionProperty extends ImportExcelActionPropert
             Date dateToContract = parseDate(sheet.getCell(4, i).getContents());
             String shortNameCurrency = parseString(sheet.getCell(5, i).getContents());
             data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, dateFromContract,
-                    dateToContract, shortNameCurrency, null, null));
+                    dateToContract, shortNameCurrency, null, null, null));
         }
 
         return data;
