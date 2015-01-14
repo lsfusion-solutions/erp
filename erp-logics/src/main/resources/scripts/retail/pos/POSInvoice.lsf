@@ -1,6 +1,6 @@
 MODULE POSInvoice;
 
-REQUIRE POS, SaleInvoiceContract, ContractPayment;
+REQUIRE POS, SaleInvoiceContract, ContractPayment, SaleShipment;
 
 NAMESPACE Sale;
 
@@ -30,12 +30,15 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       
         customerStockUserInvoice(i) <- defaultStockLegalEntity(customer);
         dateUserInvoice(i) <- dateReceipt(receipt);
         timeUserInvoice(i) <- timeReceipt(receipt);
+        createShipmentUserInvoice(i) <- TRUE;
+        isPostedUserInvoice(i) <- TRUE;
         
         FOR ADDOBJ c = UserContractSku DO {
             supplierContractSku(c) <- legalEntityStock(departmentStoreReceipt(receipt));
             customerContractSku(c) <- customer;
             dateFromContract(c) <- dateReceipt(receipt);
             currencyContract(c) <- defaultCurrency();
+            typeContractSku(c) <- ContractSkuType.sale;
             contractSkuUserInvoice(i) <- c;            
         }
         
@@ -54,8 +57,10 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       
             payerPayment(p) <- customer;
             beneficiaryPayment(p) <- legalEntityStock(departmentStoreReceipt(receipt));
             sumPayment(p) <- sum;
+            sumContractPayment(p) <- sum;
             contractPayment(p) <- contractSkuUserInvoice(i);
             costOutContractLedgerInContractLedger(p, i) <- sum;
+            isPostedPayment(p) <- TRUE;
             
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
             DELETE receipt;
