@@ -649,7 +649,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 var3[1] = (byte) var1.length;
                 System.arraycopy(var1, 0, var3, 2, var1.length);
                 port.sendCommand(var3);
-                return receiveReply(port);
+                return receiveReply(errors, port);
             } catch(CommunicationException e) {
                 attempts++;
                 if(attempts == 3)
@@ -659,7 +659,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         return -1;
     }
 
-    private boolean sendStateCommand(UDPPort port, byte[] var1) throws CommunicationException {
+    private boolean sendStateCommand(List<String> errors, UDPPort port, byte[] var1) throws CommunicationException {
 
         byte[] var3 = new byte[2 + var1.length];
         var3[0] = 2;
@@ -669,20 +669,26 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         port.sendCommand(var3);
 
-        return receiveStateReply(port);
+        return receiveStateReply(errors, port);
     }
 
-    private int receiveReply(UDPPort port) throws CommunicationException {
-        byte[] var2 = new byte[255];
-        port.receiveCommand(var2);
-        int var5 = var2[3];
-        if (var5 < 0) {
-            var5 += 256;
+    private int receiveReply(List<String> errors, UDPPort port) throws CommunicationException {
+        try {
+            byte[] var2 = new byte[255];
+            port.receiveCommand(var2);
+            int var5 = var2[3];
+            if (var5 < 0) {
+                var5 += 256;
+            }
+            return var5;
+        } catch(Exception e) {
+            logError(errors, "Receive reply error: ", e);
+            return -1;
         }
-        return var5;
     }
 
-    private boolean receiveStateReply(UDPPort port) throws CommunicationException {
+    private boolean receiveStateReply(List<String> errors, UDPPort port) throws CommunicationException {
+        try {
         byte[] var2 = new byte[255];
         port.receiveCommand(var2);
         //byte state = var2[1];
@@ -692,6 +698,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
         //    throw new RuntimeException("Error clearGoodsDB");
         //}
         return (0 == ((var2[2] >> 1) & 1));
+        } catch(Exception e) {
+            logError(errors, "Receive reply error: ", e);
+            return false;
+        }
     }
 
     private String leftString(String var1, int var3) {
