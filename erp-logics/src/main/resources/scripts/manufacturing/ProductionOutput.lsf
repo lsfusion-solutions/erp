@@ -45,7 +45,7 @@ CONSTRAINT skuUserOutputDetail(d) AND NOT isProductGroupSku(skuUserOutputDetail(
 // сроки годности
 expiryDateOutputDetail 'Годен до'= ABSTRACT DATE (OutputDetail);
 expiryDateUserOutputDetail 'Годен до'= DATA DATE (UserOutputDetail);
-expiryDateOutputDetail (outputDetail) += expiryDateUserOutputDetail (outputDetail);
+expiryDateOutputDetail(outputDetail) += expiryDateUserOutputDetail (outputDetail);
 
 // кол-во в шапке документа
 @defineDocumentInterfaceHeaderQuantity(output);
@@ -202,7 +202,8 @@ costPriceOutputDetail(d) = OVERRIDE priceOutputDetail(d), overCostPriceOutputDet
 
 @implementBatch(OutputDetail, sku, stock, costPrice);
 quantityBatch (ledger) += quantityOutputDetail(ledger);
-expiryDateBatch (ledger) += expiryDateOutputDetail(ledger);
+expiryDateBatch (ledger) += OVERRIDE expiryDateProductDetail(productDetailOutputDetail(ledger)), expiryDateOutputDetail(ledger);
+manufactureDateBatch (ledger) += manufactureDateProductDetail(productDetailOutputDetail(ledger));
 sumInSkuLedger (ledger) += sumOutputDetail(ledger);
 seriesBatch (ledger) += seriesOutput(outputOutputDetail(ledger));
 numberBatch (ledger) += numberOutput(outputOutputDetail(ledger));
