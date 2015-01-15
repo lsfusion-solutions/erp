@@ -51,12 +51,15 @@ inCustomerSku 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantit
     BY customerSaleLedger(ledger), skuSaleLedger(ledger) PERSISTENT;
 prevInCustomerSku 'Были продажи (пред.)' (legalEntity, sku) = PREV(inCustomerSku(legalEntity, sku));
 
-sumSoldTypeExchangeSaleLedger 'Сумма продажи валюта' (typeExchange, saleLedger)= roundPriceCurrency((sumSaleLedger (saleLedger)*
-    rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockSaleLedger(saleLedger)), dateSaleLedger(saleLedger))), currencyTypeExchange(typeExchange));
+sumSoldTypeExchangeSaleLedger 'Сумма продажи валюта' (typeExchange, saleLedger) = sumSaleLedger(saleLedger)*
+    rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockSaleLedger(saleLedger)), dateSaleLedger(saleLedger));
 
 CONSTRAINT quantitySaleLedger(l) == 0 AND activeSaleLedger(l) MESSAGE 'ошибка: Количество продажи не должно быть равно нулю';
 
 averagePriceSaleLedger 'Цена продажи (средняя)' (saleLedger) = sumSaleLedger(saleLedger)/quantitySaleLedger(saleLedger);
+
+averagePriceSoldTypeExchangeSaleLedger 'Цена продажи (валюта)' (typeExchange, saleLedger)= averagePriceSaleLedger (saleLedger)*
+    rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockSaleLedger(saleLedger)), dateSaleLedger(saleLedger));
 
 VATSaleLedger (ledger) = ABSTRACT Range (SaleLedger) PERSISTENT;
 valueVATSaleLedger 'НДС, %' (ledger) = valueRateRangeDate(VATSaleLedger(ledger), dateSaleLedger(ledger)) PERSISTENT;
