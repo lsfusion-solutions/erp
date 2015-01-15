@@ -73,62 +73,68 @@ public class ShtrihPrintHandler extends ScalesHandler {
                     if (ip != null) {
                         ips.add(scales.port);
 
-                        processTransactionLogger.info("Shtrih: Processing ip: " + ip);
-                        try {
-
-                            processTransactionLogger.info("Shtrih: Connecting..." + ip);
-                            port.open();
-                            if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                int clear = clearGoodsDB(localErrors, port);
-                                if (clear != 0)
-                                    logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear, getErrorText(clear)));
-                            }
-
-                            processTransactionLogger.info("Shtrih: Sending items..." + ip);
-                            if (localErrors.isEmpty()) {
-                                for (ScalesItemInfo item : transaction.itemsList) {
-                                    Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                    Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
-                                    Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
-
-                                    int len = item.name.length();
-                                    String firstName = item.name.substring(0, len < 28 ? len : 28);
-                                    String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
-                                    Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
-                                    Integer groupCode = item.idItemGroup == null ? null : Integer.parseInt(item.idItemGroup.replace("_", ""));
-                                    String description = item.description == null ? "" : item.description;
-                                    int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
-                                    int start = 0;
-                                    int total = description.length();
-                                    int i = 0;
-                                    while (i < 8) {
-                                        String message = getMessage(description, start, total, newLineNoSubstring);
-                                        start += message.length() + 1;
-                                        int result = setMessageData(localErrors, port, messageNumber, i + 1, message);
-                                        if (result != 0) {
-                                            logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
-                                        }
-                                        i++;
-                                    }
-
-                                    int result = setPLUDataEx(localErrors, port, pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
-                                    if (result != 0)
-                                        logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
-                                }
-                            }
-                            port.close();
-
-                        } catch(Exception e) {
-                            logError(localErrors, "ShtrihPrintHandler error: ", e);
-                        }finally {
-                            processTransactionLogger.info("Shtrih: Finally disconnecting..." + ip);
-                            try {
-                                port.close();
-                            } catch (CommunicationException e) {
-                                logError(localErrors, "ShtrihPrintHandler close port error: ", e);
+                        for (ScalesItemInfo item : transaction.itemsList) {
+                            if(item.pluNumber == null) {
+                                logError(localErrors, String.format("Обнаружен товар без номера PLU: id %s (%s)", item.idItem, item.name));
                             }
                         }
-                        processTransactionLogger.info("Shtrih: Completed ip: " + ip);
+                        if(localErrors.isEmpty()) {
+                            processTransactionLogger.info("Shtrih: Processing ip: " + ip);
+                            try {
+
+                                processTransactionLogger.info("Shtrih: Connecting..." + ip);
+                                port.open();
+                                if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
+                                    int clear = clearGoodsDB(localErrors, port);
+                                    if (clear != 0)
+                                        logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear, getErrorText(clear)));
+                                }
+
+                                processTransactionLogger.info("Shtrih: Sending items..." + ip);
+                                if (localErrors.isEmpty()) {
+                                    for (ScalesItemInfo item : transaction.itemsList) {
+                                        Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                        Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
+
+                                        int len = item.name.length();
+                                        String firstName = item.name.substring(0, len < 28 ? len : 28);
+                                        String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
+                                        Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
+                                        Integer groupCode = item.idItemGroup == null ? null : Integer.parseInt(item.idItemGroup.replace("_", ""));
+                                        String description = item.description == null ? "" : item.description;
+                                        int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
+                                        int start = 0;
+                                        int total = description.length();
+                                        int i = 0;
+                                        while (i < 8) {
+                                            String message = getMessage(description, start, total, newLineNoSubstring);
+                                            start += message.length() + 1;
+                                            int result = setMessageData(localErrors, port, messageNumber, i + 1, message);
+                                            if (result != 0) {
+                                                logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
+                                            }
+                                            i++;
+                                        }
+
+                                        int result = setPLUDataEx(localErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
+                                        if (result != 0)
+                                            logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result, getErrorText(result)));
+                                    }
+                                }
+                                port.close();
+
+                            } catch (Exception e) {
+                                logError(localErrors, "ShtrihPrintHandler error: ", e);
+                            } finally {
+                                processTransactionLogger.info("Shtrih: Finally disconnecting..." + ip);
+                                try {
+                                    port.close();
+                                } catch (CommunicationException e) {
+                                    logError(localErrors, "ShtrihPrintHandler close port error: ", e);
+                                }
+                            }
+                            processTransactionLogger.info("Shtrih: Completed ip: " + ip);
+                        }
                     }
                     if (localErrors.isEmpty())
                         succeededScalesList.add(scales);
@@ -155,89 +161,95 @@ public class ShtrihPrintHandler extends ScalesHandler {
                         if (ip != null) {
                             ips.add(scales.port);
 
-                            processTransactionLogger.info("Shtrih: Processing ip: " + ip);
-                            try {
+                            for (ScalesItemInfo item : transaction.itemsList) {
+                                if (item.pluNumber == null) {
+                                    logError(localErrors, String.format("Обнаружен товар без номера PLU: id %s (%s)", item.idItem, item.name));
+                                }
+                            }
+                            if (localErrors.isEmpty()) {
+                                processTransactionLogger.info("Shtrih: Processing ip: " + ip);
+                                try {
 
-                                shtrihActiveXComponent.setProperty("LDInterface", new Variant(1));
-                                shtrihActiveXComponent.setProperty("LDRemoteHost", new Variant(ip));
-                                Dispatch.call(shtrihDispatch, "AddLD");
-                                Dispatch.call(shtrihDispatch, "SetActiveLD");
+                                    shtrihActiveXComponent.setProperty("LDInterface", new Variant(1));
+                                    shtrihActiveXComponent.setProperty("LDRemoteHost", new Variant(ip));
+                                    Dispatch.call(shtrihDispatch, "AddLD");
+                                    Dispatch.call(shtrihDispatch, "SetActiveLD");
 
-                                processTransactionLogger.info("Shtrih: Connecting..." + ip);
-                                Variant result = Dispatch.call(shtrihDispatch, "Connect");
-                                if (!isError(result)) {
+                                    processTransactionLogger.info("Shtrih: Connecting..." + ip);
+                                    Variant result = Dispatch.call(shtrihDispatch, "Connect");
+                                    if (!isError(result)) {
 
-                                    processTransactionLogger.info("Shtrih: Setting password..." + ip);
-                                    shtrihActiveXComponent.setProperty("Password", pass);
-                                    if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                        Variant clear = Dispatch.call(shtrihDispatch, "ClearGoodsDB");
-                                        if (isError(clear))
-                                            logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear.getInt(), getErrorText(clear.getInt())));
-                                    }
+                                        processTransactionLogger.info("Shtrih: Setting password..." + ip);
+                                        shtrihActiveXComponent.setProperty("Password", pass);
+                                        if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
+                                            Variant clear = Dispatch.call(shtrihDispatch, "ClearGoodsDB");
+                                            if (isError(clear))
+                                                logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear.getInt(), getErrorText(clear.getInt())));
+                                        }
 
-                                    processTransactionLogger.info("Shtrih: Sending items..." + ip);
-                                    if (localErrors.isEmpty()) {
-                                        for (ScalesItemInfo item : transaction.itemsList) {
-                                            Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                            Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
-                                            Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
+                                        processTransactionLogger.info("Shtrih: Sending items..." + ip);
+                                        if (localErrors.isEmpty()) {
+                                            for (ScalesItemInfo item : transaction.itemsList) {
+                                                Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                                Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
-                                            int len = item.name.length();
-                                            String firstName = item.name.substring(0, len < 28 ? len : 28);
-                                            String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
+                                                int len = item.name.length();
+                                                String firstName = item.name.substring(0, len < 28 ? len : 28);
+                                                String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
 
-                                            shtrihActiveXComponent.setProperty("PLUNumber", new Variant(pluNumber));
-                                            shtrihActiveXComponent.setProperty("Price", new Variant(item.price));
-                                            shtrihActiveXComponent.setProperty("Tare", new Variant(0));
-                                            shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));
-                                            shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
-                                            shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
-                                            shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
-                                            String groupCode = item.idItemGroup == null ? null : item.idItemGroup.replace("_", "");
-                                            shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
-                                            shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
-                                            shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                                            shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate));
-                                            shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
+                                                shtrihActiveXComponent.setProperty("PLUNumber", new Variant(item.pluNumber));
+                                                shtrihActiveXComponent.setProperty("Price", new Variant(item.price));
+                                                shtrihActiveXComponent.setProperty("Tare", new Variant(0));
+                                                shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));
+                                                shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
+                                                shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
+                                                shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
+                                                String groupCode = item.idItemGroup == null ? null : item.idItemGroup.replace("_", "");
+                                                shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
+                                                shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
+                                                shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
+                                                shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate));
+                                                shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
-                                            String description = item.description == null ? "" : item.description;
-                                            int start = 0;
-                                            int total = description.length();
-                                            int i = 0;
-                                            while (i < 8) {
-                                                shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
-                                                shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
-                                                String message = getMessage(description, start, total, newLineNoSubstring);
-                                                shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
-                                                start += message.length() + 1;
-                                                i++;
+                                                String description = item.description == null ? "" : item.description;
+                                                int start = 0;
+                                                int total = description.length();
+                                                int i = 0;
+                                                while (i < 8) {
+                                                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
+                                                    shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
+                                                    String message = getMessage(description, start, total, newLineNoSubstring);
+                                                    shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
+                                                    start += message.length() + 1;
+                                                    i++;
 
-                                                result = Dispatch.call(shtrihDispatch, "SetMessageData");
+                                                    result = Dispatch.call(shtrihDispatch, "SetMessageData");
+                                                    if (isError(result))
+                                                        logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
+                                                }
+
+                                                result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
                                                 if (isError(result))
                                                     logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
                                             }
-
-                                            result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
-                                            if (isError(result))
-                                                logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
                                         }
-                                    }
-                                    processTransactionLogger.info("Shtrih: Disconnecting..." + ip);
-                                    result = Dispatch.call(shtrihDispatch, "Disconnect");
-                                    if (isError(result)) {
-                                        logError(localErrors, String.format("Shtrih: Disconnection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
+                                        processTransactionLogger.info("Shtrih: Disconnecting..." + ip);
+                                        result = Dispatch.call(shtrihDispatch, "Disconnect");
+                                        if (isError(result)) {
+                                            logError(localErrors, String.format("Shtrih: Disconnection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
+                                            continue;
+                                        }
+                                    } else {
+                                        Dispatch.call(shtrihDispatch, "Disconnect");
+                                        logError(localErrors, String.format("Shtrih: Connection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
                                         continue;
                                     }
-                                } else {
+                                } finally {
+                                    processTransactionLogger.info("Shtrih: Finally disconnecting..." + ip);
                                     Dispatch.call(shtrihDispatch, "Disconnect");
-                                    logError(localErrors, String.format("Shtrih: Connection error # %s (%s)", result.getInt(), getErrorText(result.getInt())));
-                                    continue;
                                 }
-                            } finally {
-                                processTransactionLogger.info("Shtrih: Finally disconnecting..." + ip);
-                                Dispatch.call(shtrihDispatch, "Disconnect");
+                                processTransactionLogger.info("Shtrih: Completed ip: " + ip);
                             }
-                            processTransactionLogger.info("Shtrih: Completed ip: " + ip);
                         }
                         if (localErrors.isEmpty())
                             succeededScalesList.add(scales);
