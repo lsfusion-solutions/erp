@@ -127,7 +127,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
     }
 
     protected void logError(List<String> errors, String errorText, Throwable t) {
-        errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
+        errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + t.toString())));
         processTransactionLogger.error(errorText, t);
     }
     

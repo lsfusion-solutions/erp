@@ -9,10 +9,15 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
-import java.sql.CallableStatement;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+//Таблица PLST – список все PLUшек
+//Таблица ATST – список всех доп.текстов
+//Таблица ETST – общие настройки этикеток.
+//Таблица FOST – этикетки BLD.
+
 
 public class BizerbaBCIIHandler extends BizerbaHandler {
     
@@ -60,9 +65,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                         processTransactionLogger.info("Bizerba: Connecting..." + ip);
                         port.open();
                         if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                            //String clear = clearGoodsDB(localErrors, port);
-                            //if (clear != null)
-                            //    logError(localErrors, String.format("Bizerba: ClearGoodsDb, Error %s", clear));
+                            String clear = clearAllPLU(localErrors, port, scales);
+                            if (!clear.equals("0"))
+                                logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
                         }
 
                         processTransactionLogger.info("Bizerba: Sending items..." + ip);
@@ -70,10 +75,10 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                             for (ScalesItemInfo item : transaction.itemsList) {
                                 item.description = item.description == null ? "" : item.description;
                                 item.descriptionNumber = item.descriptionNumber == null ? 0 : item.descriptionNumber;
-                                String resultPLU = loadMessage(localErrors, port, item);
+                                String resultPLU = loadMessage2(port, scales, new Message(item.descriptionNumber, item.description));
                                 if (!resultPLU.equals("0"))
                                     logError(localErrors, String.format("Bizerba: Item # %s, Error %s", item.idBarcode, resultPLU));
-                                loadPLU(port, scales, item);
+                                loadPLU(localErrors, port, scales, item);
                             }
                         }
                         port.close();
@@ -120,81 +125,43 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     }
 
 
-    public void loadPLU(TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
+    public void loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
         String var3 = "";
-        String var4 = "";
+        String command2;
         String captionItem = item.name.trim();
+        if (captionItem.isEmpty())
+            logError(errors, "PLU name is invalid. Name is empty");
         Integer var1Number = item.pluNumber;
 
         int department = 1;
 
         int var5;
         int var7;
-        boolean splitMessage = false;
-        if (splitMessage) {
-            TreeMap messageMap = new TreeMap();
-            getPLUMessage2(messageMap);
-            loadPLUMessages2(port, scales, messageMap);
-            var4 = "TFZU@00@04";
-            var7 = 0;
+        TreeMap messageMap = new TreeMap();
+        getPLUMessage(item, messageMap);
+        loadPLUMessages2(port, scales, messageMap);
+        command2 = "TFZU@00@04";
+        var7 = 0;
 
-            for (Iterator var8 = messageMap.keySet().iterator(); var8.hasNext(); ++var7) {
-                Integer var9 = (Integer) var8.next();
-                var5 = var7 + 1;
-                if (var7 < 4) {
-                    var3 = var3 + "ALT" + var5 + var9 + '\u001b';
-                }
-
-                if (var7 < 10) {
-                    var4 = var4 + "@" + makeString(var9.intValue());
-                }
+        for (Iterator messageMapIterator = messageMap.keySet().iterator(); messageMapIterator.hasNext(); ++var7) {
+            Integer var9 = (Integer) messageMapIterator.next();
+            var5 = var7 + 1;
+            if (var7 < 4) {
+                var3 = var3 + "ALT" + var5 + var9 + '\u001b';
             }
 
-            for (var5 = var7; var5 < 10; ++var5) {
-                var4 = var4 + "@00@00@00@00";
+            if (var7 < 10) {
+                command2 = command2 + "@" + makeString(var9.intValue());
             }
-        } else {
-            var3 = "ALT1" + item.descriptionNumber + '\u001b';
-            var4 = "TFZU@00@04@" + makeString(item.descriptionNumber);
-            boolean var12 = false;
-            String alternativeText1 = item.description;
-            if (!alternativeText1.equals("")) {
-                var5 = var1Number + 100000;
-                loadMessage2(port, scales, new Message(var5, alternativeText1));
-                var3 = var3 + "ALT2" + var5 + '\u001b';
-                var4 = var4 + "@" + makeString(var5);
-            } else {
-                var4 = var4 + "@00@00@00@00";
-            }
+        }
 
-            String alternativeText2 = item.description;
-            if (!alternativeText2.equals("")) {
-                var5 = var1Number + 200000;
-                loadMessage2(port, scales, new Message(var5, alternativeText2));
-                var3 = var3 + "ALT3" + var5 + '\u001b';
-                var4 = var4 + "@" + makeString(var5);
-            } else {
-                var4 = var4 + "@00@00@00@00";
-            }
-
-            String alternativeText3 = item.description;
-            if (!alternativeText3.equals("")) {
-                var5 = var1Number + 300000;
-                loadMessage2(port, scales, new Message(var5, alternativeText3));
-                var3 = var3 + "ALT4" + var5 + '\u001b';
-                var4 = var4 + "@" + makeString(var5);
-            } else {
-                var4 = var4 + "@00@00@00@00";
-            }
-
-            for (int var13 = 1; var13 <= 6; ++var13) {
-                var4 = var4 + "@00@00@00@00";
-            }
+        for (var5 = var7; var5 < 10; ++var5) {
+            command2 = command2 + "@00@00@00@00";
         }
 
         boolean BIZERBABS_AddInfoToTFZU = false;
         if (!BIZERBABS_AddInfoToTFZU) {
-            var4 = "";
+            command2 = "";
         }
 
         boolean BIZERBABCII_AddALTTexts = false;
@@ -202,18 +169,13 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             var3 = "ALT10\u001bALT20\u001bALT30\u001bALT40\u001b";
         }
 
-        if (captionItem.equals("")) {
-            captionItem = " ";
-        }
-
-        boolean var16 = false;
+        boolean nonWeight = false;
         //if(Configuration.isNonWeightPrefix(var1.barCodePrefix)) {
-        //    var16 = true;
+        //    nonWeight = true;
         //}
 
             /*if(Configuration.BIZERBABS_AddExpiredToName && var1.expired > 0) {
                 if(var1.expiredType == null) {
-                    lastTryErrorCode = "ExpError";
                     throw new ScalesException("PLU expired type is invalid. Expired type is null");
                 }
 
@@ -239,83 +201,68 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                     var1.exPrice /= 10;
             }*/
 
-        byte var18 = 0;
+        byte priceOverflow = 0;
         int price = item.price.intValue();
-            if(price > 999999) {
-                price = Math.round((float)(price / 10));
-                var18 = 1;
-            }
+        if (price > 999999) {
+            price = Math.round((float) (price / 10));
+            priceOverflow = 1;
+        }
 
-            if(var1Number == 0 || var1Number > 999999 || var1Number < 0) {
-                throw new RuntimeException("PLU number is invalid. Number is " + var1Number);
-            }
+        if (var1Number == 0 || var1Number > 999999 || var1Number < 0) {
+            throw new RuntimeException("PLU number is invalid. Number is " + var1Number);
+        }
 
-            /*if(var1.department == 0 || var1.department > 999 || var1.department < 0) {
-                lastTryErrorCode = "PLUDepError " + var1.department;
-                throw new ScalesException("PLU department is invalid. Department is " + var1.department);
-            }*/
+        //if(department == 0 || department > 999 || department < 0) {
+        //    logError(errors, "PLU department is invalid. Department is " + department);
+        //}
 
-            /*if(var1.price > 999999 || var1.price < 0) {
-                lastTryErrorCode = "PLUPriceError " + var1.price;
-                throw new ScalesException("PLU price is invalid. Price is " + var1.price);
-            }*/
+        if (price > 999999 || price < 0) {
+            logError(errors, "PLU price is invalid. Price is " + price);
+        }
 
-            /*if(var1.barCodePrefix == 0 || var1.barCodePrefix > 99 || var1.barCodePrefix < 0) {
-                lastTryErrorCode = "PLUPrefixError " + var1.barCodePrefix;
-                throw new ScalesException("PLU barcode prefix is invalid. Barcode prefix is " + var1.barCodePrefix);
-            }*/
+        if(item.daysExpiry == null)
+            item.daysExpiry = 0;
+        if (item.daysExpiry > 999 || item.daysExpiry < 0) {
+            logError(errors, "PLU expired is invalid. Expired is " + item.daysExpiry);
+        }
 
-            /*if(var1.expired > 999 || var1.expired < 0) {
-                lastTryErrorCode = "PLUExpError " + var1.expired;
-                throw new ScalesException("PLU expired is invalid. Expired is " + var1.expired);
-            }*/
-
-            /*if(var15.equals("")) {
-                lastTryErrorCode = "PLUNameError " + var15;
-                throw new ScalesException("PLU name is invalid. Name is empty");
-            }*/
-
-            /*if(Configuration.BIZERBABS_SetCodeToZero) {
-                var1.barCodeWithoutPrefix = 0;
-            }*/
-
-        String var10 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "PNUM" + item.pluNumber + '\u001b' + "ABNU" + department + '\u001b' + "ANKE0" + '\u001b';
+        String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "PNUM" + item.pluNumber + '\u001b' + "ABNU" + department + '\u001b' + "ANKE0" + '\u001b';
         boolean manualWeight = false;
         if (!manualWeight) {
-            if (var16) {
-                var10 = var10 + "KLAR1\u001b";
+            if (nonWeight) {
+                command1 = command1 + "KLAR1\u001b";
             } else {
-                var10 = var10 + "KLAR0\u001b";
+                command1 = command1 + "KLAR0\u001b";
             }
         } else {
-            var10 = var10 + "KLAR4\u001b";
+            command1 = command1 + "KLAR4\u001b";
         }
 
         captionItem = captionItem.replace('@', 'a');
-        var10 = var10 + "GPR1" + price + '\u001b';
+        command1 = command1 + "GPR1" + price + '\u001b';
         Integer exPrice = price;
         if (exPrice > 0) {
-            var10 = var10 + "EXPR" + exPrice + '\u001b';
+            command1 = command1 + "EXPR" + exPrice + '\u001b';
         }
 
         int BIZERBABS_Group = 1;
         Integer barCodePrefix = Integer.parseInt(item.idBarcode.substring(0, 2));
         Integer barCodeWithoutPrefix = Integer.parseInt(item.idBarcode.substring(2));
-        Integer var1Expired = 1;
-        Integer var1TareWeight = 1;
-        Integer var1TarePercent = 1;
-        var10 = var10 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + '\u001b' + "ECO1" + makeBarCode(barCodePrefix, barCodeWithoutPrefix) + '\u001b' + "HBA1" + var1Expired + '\u001b' + "HBA20" + '\u001b' + "TARA" + var1TareWeight + '\u001b' + "TAPR" + var1TarePercent + '\u001b' + "KLGE" + var18 + '\u001b' + var3 + "PLTE" + prepareRusText(captionItem) + '\u001b';
-        if (!var4.isEmpty()) {
-            var10 = var10 + var4 + '\u001b';
+        Integer tareWeight = 0;
+        Integer tarePercent = 0;
+        command1 = command1 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + '\u001b' + "ECO1" + makeBarCode(barCodePrefix, barCodeWithoutPrefix) 
+                + '\u001b' + "HBA1" + item.daysExpiry + '\u001b' + "HBA20" + '\u001b' + "TARA" + tareWeight + '\u001b' + "TAPR" + tarePercent 
+                + '\u001b' + "KLGE" + priceOverflow + '\u001b' + var3 + "PLTE" + prepareRusText(captionItem) + '\u001b';
+        if (!command2.isEmpty()) {
+            command1 = command1 + command2 + '\u001b';
         }
 
-        var10 = var10 + "BLK \u001b";
+        command1 = command1 + "BLK \u001b";
         clearReceiveBuffer(port);
-        sendCommand2(port, var10);
-        String var11 = receiveReply2(port);
-        if (!var11.equals("0")) {
-            throw new RuntimeException("Result is " + var11);
-        }
+        sendCommand2(port, command1);
+        String result = receiveReply2(port);
+        if (!result.equals("0"))
+            logError(errors, "Result is " + result);
     }
 
     public static byte[] barcodeRational = new byte[]{(byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6};
@@ -342,103 +289,28 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         return var4;
     }
 
-    private void getPLUMessage2(Map<Integer, String> messageMap) {
-        CallableStatement var3 = null;
-        Integer var4 = 1;//Integer.valueOf(var3.getInt(3));
-        String var5 = "message";//var3.getString(4);
-        if(var5 != null) {
-            int var6 = 0;
-            //boolean var7 = false;
-            var5 = var5.replace("\u0007\n", "\u0007");
-            String[] var8 = var5.split("\u0007");
-            int var9 = var8.length;
-
-            for(int var10 = 0; var10 < var9; ++var10) {
-                String var11 = var8[var10];
-                var11 = var11.replace('@', 'a');
-                if(var11.length() > 2000) {
-                    var11 = var11.substring(0, 1999);
+    private void getPLUMessage(ScalesItemInfo item, Map<Integer, String> messageMap) {
+        Integer pluNumber = item.pluNumber;//item.descriptionNumber;//Integer.valueOf(var3.getInt(3));
+        String pluMessage = item.description;
+        if(pluMessage != null) {
+            int count = 0;
+            //pluMessage = pluMessage.replace("\u0007\n", "\u0007");
+            String[] splittedMessage = pluMessage.split("\n");
+            
+            for (String line : splittedMessage) {
+                line = line.replace('@', 'a');
+                if (line.length() > 2000) {
+                    line = line.substring(0, 1999);
                 }
 
-                int var13 = var4.intValue() * 100 + var6;
-                messageMap.put(Integer.valueOf(var13), var11);
-                ++var6;
+                int messageNumber = pluNumber * 100 + count;
+                messageMap.put(messageNumber, line);
+                ++count;
             }
         }
     }
 
-    private void loadPLUMessages2(TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap) throws CommunicationException, IOException {
-        String var3 = "";
-        Iterator var4 = messageMap.keySet().iterator();
-
-        String var2;
-        Integer var5;
-        String var6;
-        do {
-            if(!var4.hasNext()) {
-                return;
-            }
-
-            var5 = (Integer)var4.next();
-            var2 = messageMap.get(var5);
-            var3 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var5 + '\u001b' + "ATTE" + prepareRusText(var2) + '\u001b' + "BLK " + '\u001b';
-            clearReceiveBuffer(port);
-            sendCommand2(port, var3);
-            var6 = receiveReply2(port);
-        } while(var6.equals("0"));
-
-        System.out.println("Error");
-        throw new RuntimeException("Result is " + var6 + " [msgNo=" + var5 + ";msg=" + var5 + "]");
-    }
-
-    private String prepareRusText(String var1) {
-        boolean convertRUS = true;
-        return var1 == null ? null : (!convertRUS ? var1 : var1.replace('е', 'e').replace('Е', 'E').replace('о', 'o').replace('О', 'O').replace('р', 'p').replace('Р', 'P').replace('а', 'a').replace('А', 'A').replace('д', 'g').replace('к', 'k').replace('К', 'K').replace('х', 'x').replace('Х', 'X').replace('с', 'c').replace('С', 'C').replace('т', 'm').replace('Т', 'T').replace('у', 'y').replace('и', 'u').replace('Ь', 'b').replace('З', '3').replace('В', 'B').replace('Н', 'H').replace('М', 'M').replace('г', 'r'));
-    }
-
-    protected String receiveReply2(TCPPort port) throws CommunicationException {
-        String var2 = "";
-        Pattern var3 = Pattern.compile("QUIT(\\d+)");
-        byte[] var4 = new byte[500];
-
-        try {
-            long var5 = (new Date()).getTime();
-
-            long var7;
-            do {
-                if(port.getBisStream().available() != 0) {
-                    port.getBisStream().read(var4);
-                    var2 = new String(var4, "utf-8");
-
-                    Matcher var10 = var3.matcher(var2);
-                    if(var10.find()) {
-                        var2 = var10.group(1);
-                    }
-
-                    return var2;
-                }
-
-                Thread.sleep(10L);
-                var7 = (new Date()).getTime();
-            } while(var7 - var5 <= 10000L);
-
-            throw new RuntimeException("Scales reply timeout");
-        } catch (Exception var9) {
-            throw new CommunicationException(var9.toString());
-        }
-    }
-    
-    
-
-    public String clearPLU(List<String> errors, TCPPort port, ScalesItemInfo item) throws CommunicationException {
-        int BIZERBABS_Group = 1;
-        String var2 = "PLST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO1" + '\u001b' + "PNUM" + item.pluNumber + '\u001b' + "ABNU1" + '\u001b' + "ANKE0" + '\u001b' + "KLAR1" + '\u001b' + "GPR10" + '\u001b' + "WGNU" + BIZERBABS_Group + '\u001b' + "ECO1" + item.idBarcode + '\u001b' + "HBA10" + '\u001b' + "HBA20" + '\u001b' + "KLGE0" + '\u001b' + "ALT10" + '\u001b' + "PLTEXXX" + '\u001b' + "BLK " + '\u001b';
-        clearReceiveBuffer(port);
-        sendCommand(errors, port, var2);
-        return receiveReply(errors, port);
-    }
-
-    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesItemInfo item, Map<Integer, String> var1) throws CommunicationException {
+    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> var1) throws CommunicationException {
         String var3 = "";
         Iterator var4 = var1.keySet().iterator();
 
@@ -452,16 +324,88 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
 
             var5 = (Integer)var4.next();
             var2 = var1.get(var5);
-            var3 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var5 + '\u001b' + "ATTE" + var2 + '\u001b' + "BLK " + '\u001b';
+            var3 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var5 + '\u001b' + "ATTE" + var2 + getEndCommand();
             clearReceiveBuffer(port);
             sendCommand(errors, port, var3);
             var6 = receiveReply(errors, port);
         } while(var6.equals("0"));
 
-        logError(errors, "Result is " + var6 + " [msgNo=" + var5 + ";msg=" + var5 + "]");
+        logError(errors, "Result is " + var6 + " [msgNo=" + var5 + "]");
+    }
+    
+    private void loadPLUMessages2(TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap) throws CommunicationException, IOException {
+        Iterator messageMapIterator = messageMap.keySet().iterator();
+        Integer messageNumber;
+        String result;
+        String message;
+        do {
+            if(!messageMapIterator.hasNext()) {
+                return;
+            }
+            messageNumber = (Integer)messageMapIterator.next();
+            message = messageMap.get(messageNumber);
+            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + messageNumber + '\u001b' + "ATTE" + prepareRusText(message) + getEndCommand();
+            clearReceiveBuffer(port);
+            sendCommand2(port, command);
+            result = receiveReply2(port);
+        } while(result.equals("0"));
+
+        System.out.println("Error");
+        throw new RuntimeException("Result is " + result + " [msgNo=" + messageNumber + "]");
     }
 
-    public String loadMessage(List<String> errors, TCPPort port, ScalesItemInfo item) throws CommunicationException {
+    private String prepareRusText(String var1) {
+        boolean convertRUS = true;
+        return var1 == null ? null : (!convertRUS ? var1 : var1.replace('е', 'e').replace('Е', 'E').replace('о', 'o').replace('О', 'O').replace('р', 'p').replace('Р', 'P').replace('а', 'a').replace('А', 'A').replace('д', 'g').replace('к', 'k').replace('К', 'K').replace('х', 'x').replace('Х', 'X').replace('с', 'c').replace('С', 'C').replace('т', 'm').replace('Т', 'T').replace('у', 'y').replace('и', 'u').replace('Ь', 'b').replace('З', '3').replace('В', 'B').replace('Н', 'H').replace('М', 'M').replace('г', 'r'));
+    }
+
+    protected String receiveReply2(TCPPort port) throws CommunicationException {
+        String reply = "";
+        Pattern var3 = Pattern.compile("QUIT(\\d+)");
+        byte[] var4 = new byte[500];
+
+        try {
+            long var5 = (new Date()).getTime();
+
+            long var7;
+            do {
+                if(port.getBisStream().available() != 0) {
+                    port.getBisStream().read(var4);
+                    reply = new String(var4, "utf-8");
+
+                    Matcher var10 = var3.matcher(reply);
+                    if(var10.find()) {
+                        reply = var10.group(1);
+                    }
+
+                    return reply;
+                }
+
+                Thread.sleep(10L);
+                var7 = (new Date()).getTime();
+            } while(var7 - var5 <= 10000L);
+
+            throw new RuntimeException("Scales reply timeout");
+        } catch (Exception e) {
+            throw new CommunicationException(e.toString());
+        }
+    }
+    
+    
+
+    public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException {
+        int BIZERBABS_Group = 1;
+        String var2 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO1" + '\u001b' 
+                + "PNUM" + item.pluNumber + '\u001b' + "ABNU1" + '\u001b' + "ANKE0" + '\u001b' + "KLAR1" + '\u001b'
+                + "GPR10" + '\u001b' + "WGNU" + BIZERBABS_Group + '\u001b' + "ECO1" + item.idBarcode + '\u001b'
+                + "HBA10" + '\u001b' + "HBA20" + '\u001b' + "KLGE0" + '\u001b' + "ALT10" + '\u001b' + "PLTEXXX"
+                + getEndCommand();
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, var2);
+        return receiveReply(errors, port);
+    }
+
+    public String loadMessage(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
         boolean splitMessage = false;
         Integer idMessage = item.descriptionNumber;
         String textMessage = item.description;
@@ -485,7 +429,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                 ++var3;
             }
 
-            loadPLUMessages(errors, port, item, var2);
+            //loadPLUMessages(errors, port, scales, var2);
+            loadPLUMessages2(port, scales, var2);
             return null;
         } else {
             if(textMessage == null) {
@@ -498,25 +443,70 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                 var11 = var11.substring(0, 1999);
             }
 
-            var10 = "ATST  \u001bS" + zeroedInt(idMessage, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + idMessage + '\u001b' + "ATTE" + replaceDelimiter(var11) + '\u001b' + "BLK " + '\u001b';
+            var10 = "ATST  \u001bS" + zeroedInt(idMessage, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + idMessage + '\u001b' + "ATTE" + replaceDelimiter(var11) + getEndCommand();
             clearReceiveBuffer(port);
             sendCommand(errors, port, var10);
             return receiveReply(errors, port);
         }
     }
 
-    private void sendCommand2(TCPPort port, String var1) throws CommunicationException, IOException {
-            byte[] var2 = var1.getBytes("utf-8");
-            
-            port.getOutputStream().write(var2);
+    public String loadMessage2(TCPPort port, ScalesInfo scales, Message var1) throws CommunicationException, IOException {
+        boolean splitMessage = false;
+        if(splitMessage) {
+            TreeMap var2 = new TreeMap();
+            int var3 = 0;
+            boolean var4 = false;
+            String var5 = var1.text.replace("\u0007\n", "\u0007");
+            String[] var6 = var5.split("\u0007");
+            int var7 = var6.length;
+
+            for(int var8 = 0; var8 < var7; ++var8) {
+                String var9 = var6[var8];
+                var9 = var9.replace('@', 'a');
+                if(var9.length() > 2000) {
+                    var9 = var9.substring(0, 1999);
+                }
+
+                int var12 = var1.id * 100 + var3;
+                var2.put(Integer.valueOf(var12), var9);
+                ++var3;
+            }
+
+            loadPLUMessages2(port, scales, var2);
+            return null;
+        } else {
+            if(var1.text == null) {
+                var1.text = "";
+            }
+
+            String var10 = "";
+            String var11 = var1.text.replace('@', 'a');
+            if(var11.length() > 2000) {
+                var11 = var11.substring(0, 1999);
+            }
+
+            var10 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var1.id + '\u001b' + "ATTE" + prepareRusText(replaceDelimiter(var11)) + getEndCommand();
+            clearReceiveBuffer(port);
+            sendCommand2(port, var10);
+            String var13 = receiveReply2(port);
+            if(!var13.equals("0")) {
+                throw new RuntimeException("Result is " + var13 + " [JobId=" + var1.jobId + ";JobKey=" + var1.jobKey + "]");
+            }
+            return var13;
+        }
+    }
+
+    private void sendCommand2(TCPPort port, String command) throws CommunicationException, IOException {
+            byte[] commandBytes = command.getBytes("utf-8");
+            port.getOutputStream().write(commandBytes);
             port.getOutputStream().flush();
     }
 
-    public String clearMessages(List<String> errors, TCPPort port, ScalesItemInfo item, List<Integer> var1) throws CommunicationException {
+    public String clearMessages(List<String> errors, TCPPort port, ScalesInfo scales, List<Integer> var1) throws CommunicationException {
         if(var1 != null) {
             for(int var2 = 0; var2 < var1.size(); ++var2) {
                 String var3 = "";
-                var3 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO1" + '\u001b' + "ATNU" + var1.get(var2) + '\u001b' + "BLK " + '\u001b';
+                var3 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO1" + '\u001b' + "ATNU" + var1.get(var2) + getEndCommand();
                 clearReceiveBuffer(port);
                 sendCommand(errors, port, var3);
                 return receiveReply(errors, port);
@@ -525,24 +515,25 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         return null;
     }
 
-    public String clearMessage(List<String> errors, TCPPort port, ScalesItemInfo item, int var1, boolean splitMessage) throws CommunicationException {
+    public String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int var1, boolean splitMessage) throws CommunicationException {
         if(splitMessage) {
             ArrayList var2 = new ArrayList();
-            return clearMessages(errors, port, item, var2);
+            return clearMessages(errors, port, scales, var2);
         } else {
             String var4 = "";
-            var4 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO1" + '\u001b' + "ATNU" + var1 + '\u001b' + "BLK " + '\u001b';
+            var4 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO1" + '\u001b' + "ATNU" + var1 + getEndCommand();
             clearReceiveBuffer(port);
             sendCommand(errors, port, var4);
             return receiveReply(errors, port);
         }
     }
 
-    public void clearAllPLU(List<String> errors, TCPPort port, ScalesItemInfo item) throws CommunicationException {
-        String var1 = "PLST  \u001bL" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "BLK " + '\u001b';
+    public String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales) throws CommunicationException, InterruptedException {
+        String var1 = "PLST  \u001bL" + zeroedInt(scales.number, 2) + getEndCommand();
         clearReceiveBuffer(port);
         sendCommand(errors, port, var1);
-        receiveReply(errors, port);
+        Thread.sleep(5000);
+        return receiveReply(errors, port);
     }
 
     protected void sendCommand(List<String> errors, TCPPort port, String command) throws CommunicationException {
@@ -587,50 +578,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             return reply;
         }
     }
-
-    public void loadMessage2(TCPPort port, ScalesInfo scales, Message var1) throws CommunicationException, IOException {
-        boolean splitMessage = false;
-        if(splitMessage) {
-            TreeMap var2 = new TreeMap();
-            int var3 = 0;
-            boolean var4 = false;
-            String var5 = var1.text.replace("\u0007\n", "\u0007");
-            String[] var6 = var5.split("\u0007");
-            int var7 = var6.length;
-
-            for(int var8 = 0; var8 < var7; ++var8) {
-                String var9 = var6[var8];
-                var9 = var9.replace('@', 'a');
-                if(var9.length() > 2000) {
-                    var9 = var9.substring(0, 1999);
-                }
-
-                int var12 = var1.id * 100 + var3;
-                var2.put(Integer.valueOf(var12), var9);
-                ++var3;
-            }
-
-            loadPLUMessages2(port, scales, var2);
-        } else {
-            if(var1.text == null) {
-                var1.text = "";
-            }
-
-            String var10 = "";
-            String var11 = var1.text.replace('@', 'a');
-            if(var11.length() > 2000) {
-                var11 = var11.substring(0, 1999);
-            }
-
-            var10 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var1.id + '\u001b' + "ATTE" + prepareRusText(replaceDelimiter(var11)) + '\u001b' + "BLK " + '\u001b';
-            clearReceiveBuffer(port);
-            sendCommand2(port, var10);
-            String var13 = receiveReply2(port);
-            if(!var13.equals("0")) {
-                throw new RuntimeException("Result is " + var13 + " [JobId=" + var1.jobId + ";JobKey=" + var1.jobKey + "]");
-            }
-        }
-
+    
+    private String getEndCommand() {
+        return '\u001b' + "BLK " + '\u001b';
     }
 
 
