@@ -4,7 +4,7 @@ REQUIRE Order, Invoice;
 
 NAMESPACE Invoice;
 
-createdUserInvoiceOrder = DATA SESSION BOOLEAN (Invoice, Order);
+createdUserInvoiceOrder = DATA LOCAL BOOLEAN (Invoice, Order);
 
 createUserInvoiceOrder 'Создать накладную' = ABSTRACT ACTION LIST (Order);
 createUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION LIST (Order);
@@ -39,7 +39,7 @@ quantityInvoiceDetailOrderInvoice (order, invoice) = GROUP SUM quantityInvoiceDe
 
 // -------------- Создание накладной на основе заказа (для абстрактного заказа) ------------------------ // 
 
-selectedOrder 'Отм.' = DATA SESSION BOOLEAN (Order); 
+selectedOrder 'Отм.' = DATA LOCAL BOOLEAN (Order); 
 minSelectedOrder = GROUP MIN o IF selectedOrder(o); 
 
 overCreateMultiUserInvoiceOrder = ABSTRACT ACTION LIST (Order);
@@ -258,7 +258,7 @@ META defineOrderInvoice(sign, stockProp)
         fillPriceUserInvoiceOrder(userInvoice, order);
     }
 
-    userInvoiceOrder = DATA SESSION UserInvoice (Order);
+    userInvoiceOrder = DATA LOCAL UserInvoice (Order);
     
     TABLE orderUserInvoice (Order, UserInvoice);
     includeOrderUserInvoice 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;  
@@ -307,23 +307,23 @@ META defineOrderInvoice(sign, stockProp)
 
     // ---------------------------- Заполнение на основе заказа --------------------------- //
 
-    supplierInvoiceOrder = DATA SESSION LegalEntity ();
+    supplierInvoiceOrder = DATA LOCAL LegalEntity ();
     nameSupplierInvoiceOrder 'Поставщик' = nameLegalEntity(supplierInvoiceOrder());
 
-    supplierStockInvoiceOrder = DATA SESSION Stock ();
+    supplierStockInvoiceOrder = DATA LOCAL Stock ();
     nameSupplierStockInvoiceOrder 'Склад поставщика' = nameStock(supplierStockInvoiceOrder());
 
     CONSTRAINT legalEntityStock(supplierStockInvoiceOrder())!= supplierInvoiceOrder() CHECKED BY supplierStockInvoiceOrder MESSAGE 'Выбран склад не текущего поставщика';
 
-    customerInvoiceOrder = DATA SESSION LegalEntity ();
+    customerInvoiceOrder = DATA LOCAL LegalEntity ();
     nameCustomerInvoiceOrder 'Покупатель' = nameLegalEntity(customerInvoiceOrder());
 
-    customerStockInvoiceOrder = DATA SESSION Stock ();
+    customerStockInvoiceOrder = DATA LOCAL Stock ();
     nameCustomerStockInvoiceOrder 'Склад покупателя' = nameStock(customerStockInvoiceOrder());
 
     CONSTRAINT legalEntityStock(customerStockInvoiceOrder())!= customerInvoiceOrder() CHECKED BY customerStockInvoiceOrder MESSAGE 'Выбран склад не текущего покупателя';
 
-    operationInvoiceOrder = DATA SESSION Operation ();
+    operationInvoiceOrder = DATA LOCAL Operation ();
     nameOperationInvoiceOrder 'Операция' = nameOperation(operationInvoiceOrder());
 
     FORM invoiceOrders 'Заказы'###sign

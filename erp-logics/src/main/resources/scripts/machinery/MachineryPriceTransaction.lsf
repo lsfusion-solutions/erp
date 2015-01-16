@@ -152,8 +152,8 @@ nppsMachineryPriceTransaction 'Номера устройств' (transaction) =
           ORDER machinery MINCHARWIDTH 10 PREFCHARWIDTH 20 PERSISTENT;
 
 // перезагрузка прайса целиком
-selectedGroupMachinery 'Вкл' = DATA SESSION BOOLEAN (GroupMachinery);
-selectedMachinery 'Вкл' = DATA SESSION BOOLEAN (Machinery);
+selectedGroupMachinery 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
+selectedMachinery 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
 
 GROUP snapshotMachineryPrice 'Перезагрузка прайса' : public;
 
@@ -394,13 +394,13 @@ priceBarcodeGroupMachinery 'Цена' (barcode, groupMachinery) = priceAPriceLis
                                                                                                   stockGroupMachinery(groupMachinery),
                                                                                                   currentDateTime());
 
-createMachineryPriceTransactionAll = DATA SESSION BOOLEAN(); // установка флага на полное удаление старых товаров из кассы
-createMachineryPriceTransactionSnapshot = DATA SESSION BOOLEAN (); // загрузка не только изменившихся цен
+createMachineryPriceTransactionAll = DATA LOCAL BOOLEAN(); // установка флага на полное удаление старых товаров из кассы
+createMachineryPriceTransactionSnapshot = DATA LOCAL BOOLEAN (); // загрузка не только изменившихся цен
 
-createMachineryPriceTransactionSku = DATA SESSION BOOLEAN (Sku);
+createMachineryPriceTransactionSku = DATA LOCAL BOOLEAN (Sku);
 
-createMachineryPriceTransactionDocument = DATA SESSION PriceTransactionDocument();
-createMachineryPriceTransactionComment = DATA SESSION VARSTRING[100] ();
+createMachineryPriceTransactionDocument = DATA LOCAL PriceTransactionDocument();
+createMachineryPriceTransactionComment = DATA LOCAL VARSTRING[100] ();
 
 createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceTransaction);
 createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
@@ -408,7 +408,7 @@ createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (M
 
 skipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
 
-excludeGroupMachinery = DATA SESSION BOOLEAN (GroupMachinery);
+excludeGroupMachinery = DATA LOCAL BOOLEAN (GroupMachinery);
 
 createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
     LOCAL message = TEXT();
@@ -485,7 +485,7 @@ createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) N
     createMachineryPriceTransaction(stock);
 } IN snapshotMachineryPrice;
 
-includeGroupMachinery 'Вкл.' = DATA SESSION BOOLEAN (GroupMachinery);
+includeGroupMachinery 'Вкл.' = DATA LOCAL BOOLEAN (GroupMachinery);
 
 FORM selectGroupMachinery 'Выбор групп оборудования'
     OBJECTS st = Stock FIXED PANEL 

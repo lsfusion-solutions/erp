@@ -261,7 +261,7 @@ currentPriceUserPriceListDetailPriceListTypeStock 'Действующая цен
         prevPriceAPriceListTypeSkuStockDateTime(priceListType, skuUserPriceListDetail(priceListDetail), stock, fromDateTimeUserPriceListDetail(priceListDetail));
 
 // Рассчитываем цены для строк
-viewPriceUserPriceListDetailPriceListType 'Цена' = DATA SESSION NUMERIC[14,2] (UserPriceListDetail, PriceListType);
+viewPriceUserPriceListDetailPriceListType 'Цена' = DATA LOCAL NUMERIC[14,2] (UserPriceListDetail, PriceListType);
 
 updateViewPriceDetailUserPriceListDetailPriceListTypeStock(d, t, s) = ACTION {
     viewPriceUserPriceListDetailPriceListType(d, t) <- currentPriceUserPriceListDetailPriceListTypeStock(d, t, s);
@@ -412,7 +412,7 @@ backgroundPriceListDetail 'Цвет' (priceListDetail) =  ABSTRACT CASE COLOR (P
 // --------------- Фильтры для подбора товаров ------------------ //
 
 // Вид цены
-filterPriceListTypeUserPriceList = DATA SESSION PriceListType (UserPriceList);
+filterPriceListTypeUserPriceList = DATA LOCAL PriceListType (UserPriceList);
 nameFilterPriceListTypeUserPriceList 'Вид цены' (userPriceList) = namePriceListType(filterPriceListTypeUserPriceList(userPriceList));
 
 //sku
@@ -604,9 +604,9 @@ WHEN SESSION FORMS userPriceList (CHANGED(showUserPriceListPriceListType(userPri
 
 // Оптимизация с преподсчетом видов цен в сессионное свойство
 
-//viewCurrentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' = DATA SESSION NUMERIC[14,2] (UserPriceListDetail, DataPriceListType, Stock);
+//viewCurrentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' = DATA LOCAL NUMERIC[14,2] (UserPriceListDetail, DataPriceListType, Stock);
 //
-//currentUserPriceList = DATA SESSION UserPriceList ();
+//currentUserPriceList = DATA LOCAL UserPriceList ();
 //setCurrentUserPriceList (u) = ACTION currentUserPriceList() <- u;
 //
 //EXTEND FORM userPriceList
@@ -841,7 +841,7 @@ DESIGN chooseMarkUpSkuUserPriceList FROM DEFAULT {
 }
 
 // ----------------------- Для отмеченных строк ------------------------ //
-isSelectedUserPriceListDetail 'Отм' = DATA SESSION BOOLEAN (UserPriceListDetail);
+isSelectedUserPriceListDetail 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSkuUserPriceList 'Изменить цену для отмеченных строк' = ACTION (userPriceList, stock) {
     FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
     IF formResult() == FormResult.ok THEN {
@@ -1052,13 +1052,13 @@ updatePriceList 'Обновить' = ACTION (priceList) NEWSESSION{
 
 printPriceList 'Распечатать' = ABSTRACT ACTION LIST (PriceList);
 
-filterPriceListDateFrom 'Дата с' = DATA SESSION DATE ();
+filterPriceListDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFromPriceList (p) = fromDatePriceList(p) >= filterPriceListDateFrom() OR (p IS PriceList AND NOT filterPriceListDateFrom());      
 
-filterPriceListDateTo 'Дата по' = DATA SESSION DATE ();
+filterPriceListDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateToPriceList (p) = toDatePriceList(p) <= filterPriceListDateTo() OR (p IS PriceList AND NOT filterPriceListDateTo());      
 
-filterPriceListCompany  = DATA SESSION LegalEntity ();
+filterPriceListCompany  = DATA LOCAL LegalEntity ();
 nameFilterPriceListCompany 'Организация' = nameLegalEntity(filterPriceListCompany()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
 filterCompanyPriceList (p) = companyPriceList(p) == filterPriceListCompany() OR (p IS PriceList AND NOT filterPriceListCompany());       
 
