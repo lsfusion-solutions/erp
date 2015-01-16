@@ -28,7 +28,7 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
         super(LM);
     }
 
-    public DefaultImportXLSActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+    public DefaultImportXLSActionProperty(ScriptingLogicsModule LM, ValueClass... valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }
 
