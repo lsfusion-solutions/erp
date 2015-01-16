@@ -205,10 +205,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
             var15 = " ";
         }
 
-        boolean var16 = false;
-        if (isNonWeightPrefix(item.idBarcode)) {
-            var16 = true;
-        }
+        boolean isWeightItem = item.splitItem;
 
         if (item.daysExpiry != null) {
             var15 = var15 + " Срок годн. " + item.daysExpiry + " сут.";
@@ -227,7 +224,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
         String var10 = "PLST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO0" + '\u001b' + "PNUM" + item.pluNumber + '\u001b' + "ABNU" + department + '\u001b' + "ANKE0" + '\u001b';
         boolean manualWeight = false;
         if (!manualWeight) {
-            if (var16) {
+            if (isWeightItem) {
                 var10 = var10 + "KLAR1\u001b";
             } else {
                 var10 = var10 + "KLAR0\u001b";

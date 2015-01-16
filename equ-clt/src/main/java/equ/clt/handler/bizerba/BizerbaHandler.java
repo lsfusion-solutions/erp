@@ -121,10 +121,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
         String var2 = var1.replace('\u0007', '\n');
         return var2;
     }
-    
-    protected boolean isNonWeightPrefix(String barcode) {
-        return barcode != null && !barcode.startsWith("22");
-    }
 
     protected void logError(List<String> errors, String errorText) {
         logError(errors, errorText, null);

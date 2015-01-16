@@ -328,7 +328,7 @@ public class EquipmentServer {
             String handlerModel = entry.getKey();
             Set<String> directorySet = entry.getValue();
 
-            if (handlerModel != null) {
+            if (handlerModel != null && !handlerModel.isEmpty()) {
 
                 try {
                     
