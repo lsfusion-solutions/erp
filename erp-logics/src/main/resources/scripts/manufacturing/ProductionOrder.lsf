@@ -39,6 +39,8 @@ VATProductOrder(order) <- includeVATPriceListType(calcPriceListTypeOrder(order))
 backgroundVATOrder 'Цвет' (order) = RGB(255, 255, 224) IF order IS Order;
 VATOrder (o) = VATProductOrder(o) OR VATComponentOrder(o);
 
+@defineDocumentHeaderLegalEntity(order, company, 'Компания');
+
 @defineDocumentHeaderStock (order, stock, 'Склад компонент', components);
 @defineDocumentHeaderStock (order, stock, 'Склад изделий', products);
 
@@ -46,6 +48,16 @@ VATOrder (o) = VATProductOrder(o) OR VATComponentOrder(o);
 @defineDocumentHeaderDatePrefix (Order, to, ' действия по');
 
 @defineDocumentHeaderDescription(Order, 'Производственный заказ');
+
+CONSTRAINT companyOrder(order) AND productsStockOrder(order) AND NOT
+inLegalEntityStock(companyOrder(order), productsStockOrder(order))
+    CHECKED BY productsStockOrder
+        MESSAGE 'Организация и склад изделий для производственного заказа не имеют связи';
+        
+CONSTRAINT companyOrder(order) AND componentsStockOrder(order) AND NOT
+inLegalEntityStock(companyOrder(order), componentsStockOrder(order))
+    CHECKED BY componentsStockOrder
+        MESSAGE 'Организация и склад компонент для производственного заказа не имеют связи';
 
 // ---------------- Изделия ------------------- //
 
@@ -922,9 +934,9 @@ bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом
 changeComponentsStockCompanyOrder = ACTION (o) {
     REQUEST OBJECT s
     IF componentsStockOrder(o) THEN {            
-        FORM supplierStocks OBJECTS l = componentsLegalEntityStockOrder(o), s = componentsStockOrder(o) CONTEXTFILTER s = componentsStockOrder(o) DIALOG SHOWDROP;        
+        FORM supplierStocks OBJECTS l = companyOrder(o), s = componentsStockOrder(o) CONTEXTFILTER s = componentsStockOrder(o) DIALOG SHOWDROP;        
     } ELSE {
-        FORM supplierStocks OBJECTS l = componentsLegalEntityStockOrder(o) CONTEXTFILTER s = componentsStockOrder(o) DIALOG SHOWDROP;        
+        FORM supplierStocks OBJECTS l = companyOrder(o) CONTEXTFILTER s = componentsStockOrder(o) DIALOG SHOWDROP;        
     }
     IF formResult() == FormResult.ok THEN {
         componentsStockOrder(o) <- requestedObject();
@@ -937,9 +949,9 @@ changeComponentsStockCompanyOrder = ACTION (o) {
 changeProductsStockCompanyOrder = ACTION (o) {
     REQUEST OBJECT s
     IF productsStockOrder(o) THEN {            
-        FORM companyStocks OBJECTS l = productsLegalEntityStockOrder(o), s = productsStockOrder(o) CONTEXTFILTER s = productsStockOrder(o) DIALOG SHOWDROP;        
+        FORM companyStocks OBJECTS l = companyOrder(o), s = productsStockOrder(o) CONTEXTFILTER s = productsStockOrder(o) DIALOG SHOWDROP;        
     } ELSE {
-        FORM companyStocks OBJECTS l = productsLegalEntityStockOrder(o) CONTEXTFILTER s = productsStockOrder(o) DIALOG SHOWDROP;        
+        FORM companyStocks OBJECTS l = companyOrder(o) CONTEXTFILTER s = productsStockOrder(o) DIALOG SHOWDROP;        
     }
     IF formResult() == FormResult.ok THEN {
         productsStockOrder(o) <- requestedObject();
@@ -952,7 +964,7 @@ changeProductsStockCompanyOrder = ACTION (o) {
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) isPostedOrder, nameComponentsStockOrder ON CHANGE changeComponentsStockCompanyOrder(o), 
+    PROPERTIES(o) isPostedOrder, nameCompanyOrder, nameComponentsStockOrder ON CHANGE changeComponentsStockCompanyOrder(o), 
                   nameProductsStockOrder ON CHANGE changeProductsStockCompanyOrder(o), nameNumeratorOrder, numberOrder, seriesOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, sumProductDetailOrder, 
                   quantityComponentDetailOrder, sumComponentDetailOrder, isPricePercentOrder, isPriceCoeffOrder 
@@ -1101,6 +1113,10 @@ DESIGN order FROM DEFAULT{
                 }
                 NEW headerRow11 {
                     type = CONTAINERH;
+                    NEW headerRowC {
+                        caption = 'Организация';
+                        ADD PROPERTY(nameCompanyOrder(o));
+                    }
                     NEW headerRow111 {
                         caption = 'Склады';
                         type = CONTAINERH;
@@ -1224,7 +1240,8 @@ WHEN SESSION FORMS order CHANGED(productProductDetail(d)) NOINLINE DO {
 FORM orders 'Производственные заказы'
 
     OBJECTS o = Order
-    PROPERTIES(o) READONLYIF isReadonly() isClosedOrder, isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder, nameComponentsStockOrder, nameProductsStockOrder,
+    PROPERTIES(o) READONLYIF isReadonly() isClosedOrder, isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder, nameCompanyOrder,
+                  nameComponentsStockOrder, nameProductsStockOrder,
                   fromDateOrder, toDateOrder
     PROPERTIES(o) READONLY quantityProductDetailOrder, sumProductDetailOrder, quantityComponentDetailOrder, sumComponentDetailOrder
     PROPERTIES(o) READONLYIF isReadonly() nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
@@ -1404,8 +1421,14 @@ nameOperationProductDetail 'Операция' (d)= nameOperation(operationProduc
 operationComponentDetail (d) = operationOrder(orderComponentDetail(d));
 nameOperationComponentDetail 'Операция' (d)= nameOperation(operationComponentDetail (d));
 
+@defineDocumentOperationLegalEntity(order, company, 'Организация');
+@deriveDocumentOperationLegalEntity(order, company, order);
+CONSTRAINT companyOrder(order) AND NOT isCompanyLegalEntity(companyOrder(order))
+    CHECKED BY companyOrder MESSAGE 'Для производственного заказа выбрана организация, не являющаяся компанией';
+
 copyOrder 'Копировать' = ACTION (order) NEWSESSION {
     FOR ADDOBJ o = Order DO {
+        companyOrder(o) <- companyOrder(order);
         componentsStockOrder(o) <- componentsStockOrder(order);
         productsStockOrder(o) <- productsStockOrder(order);
         fromDateOrder(o) <- fromDateOrder(order);

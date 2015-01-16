@@ -10,6 +10,12 @@ NAMESPACE Production;
 @extendFormFilterRole(o, dialogOperations);
 //@extendFormFilterRole(o, operations);     //-- пока не нужен
 
+TABLE legalEntityOperation(LegalEntity, Operation);
+TABLE legalEntityGroupOperation(LegalEntityGroup, Operation);
+
+@defineOperationLegalEntity(company, , c, 'Организация');
+@defineCountLegalEntityOperation(company, company);
+
 TABLE stockOperation(Stock, Operation);
 TABLE stockGroupOperation(StockGroup, Operation);
 
@@ -30,10 +36,12 @@ defaultProductsStockOperation (operation) = GROUP MIN stock IF inProductsStockOp
 EXTEND FORM operation
     FILTERS countCompanyStockStockGroup(stcg),
             isCompanyStock(stc),
-            countCompanyStockStockGroup(stpg),                          
-            isCompanyStock(stp)
+            countCompanyStockStockGroup(stpg),
+            inCompanyOperation(legalEntityStock(stp), o),
+            inCompanyOperation(legalEntityStock(stc), o),                                      
+            isCompanyStock(stp),
+            isCompanyLegalEntity(c)
 ;
-
 //countOperationSupplierCustomerSupplierStockCustomerStockUser 'Кол-во операций' (s, c, ss, cs, u) = 
 //    GROUP SUM 1 IF inSupplierOperation(s, o) AND inSupplierStockOperation(ss, o)
 //               AND inCustomerOperation(c, o) AND inCustomerStockOperation(cs, o) 
