@@ -918,11 +918,42 @@ bruttoBalanceSkuOrder 'Текущий остаток с учетом замен'
         BY fromSkuSubstitute(substitute), order](sku,order);  
  
 bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом замен' (su, order)= bruttoBalanceSkuOrder(toSkuSubstitute(su), order); 
+
+changeComponentsStockCompanyOrder = ACTION (o) {
+    REQUEST OBJECT s
+    IF componentsStockOrder(o) THEN {            
+        FORM supplierStocks OBJECTS l = componentsLegalEntityStockOrder(o), s = componentsStockOrder(o) CONTEXTFILTER s = componentsStockOrder(o) DIALOG SHOWDROP;        
+    } ELSE {
+        FORM supplierStocks OBJECTS l = componentsLegalEntityStockOrder(o) CONTEXTFILTER s = componentsStockOrder(o) DIALOG SHOWDROP;        
+    }
+    IF formResult() == FormResult.ok THEN {
+        componentsStockOrder(o) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        componentsStockOrder(o) <- NULL;
+    }
+}  
+  
+changeProductsStockCompanyOrder = ACTION (o) {
+    REQUEST OBJECT s
+    IF productsStockOrder(o) THEN {            
+        FORM companyStocks OBJECTS l = productsLegalEntityStockOrder(o), s = productsStockOrder(o) CONTEXTFILTER s = productsStockOrder(o) DIALOG SHOWDROP;        
+    } ELSE {
+        FORM companyStocks OBJECTS l = productsLegalEntityStockOrder(o) CONTEXTFILTER s = productsStockOrder(o) DIALOG SHOWDROP;        
+    }
+    IF formResult() == FormResult.ok THEN {
+        productsStockOrder(o) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        productsStockOrder(o) <- NULL;
+    }
+}
   
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) isPostedOrder, nameComponentsStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder,
+    PROPERTIES(o) isPostedOrder, nameComponentsStockOrder ON CHANGE changeComponentsStockCompanyOrder(o), 
+                  nameProductsStockOrder ON CHANGE changeProductsStockCompanyOrder(o), nameNumeratorOrder, numberOrder, seriesOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, sumProductDetailOrder, 
                   quantityComponentDetailOrder, sumComponentDetailOrder, isPricePercentOrder, isPriceCoeffOrder 
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder
@@ -1292,7 +1323,9 @@ DESIGN orders FROM DEFAULT {
 }
 @extendFormEditable(orders);
 @defineFilterIsOpened (order, orders, o);
-
+//@extendFormFilterAccessStock(Order, o, orders, productsStock, company){
+//    EXTEND FORM orders FILTERS accessCompanyEmployeeStock(currentUser(),productsStockOrder(o)) OR NOT productsStockOrder(o);
+//};
 NAVIGATOR {
     manufacturingDocuments {
         ADD orders;

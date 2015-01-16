@@ -117,7 +117,11 @@ isSkuBatch (batch, sku) = skuBatch(batch) == sku;
 isParentSkuGroupBatch (skuGroup, batch) = isParentSkuGroupSku(skuGroup, skuBatch(batch));
 isParentGroupBatch (group, batch) = isParentGroupSku(group, skuBatch(batch));
 
-isContainerBatch 'Тара' (batch) = isContainerSku(skuBatch(batch));
+isItemBatch 'Товар' = isItemSku(skuBatch(bt));
+isContainerBatch 'Тара' = isContainerSku(skuBatch(bt));
+
+isNotItemBatch 'Не товар' = isNotItemSku(skuBatch(bt));
+isNotContainerBatch 'Не тара' = isNotContainerSku(skuBatch(bt));
 
 batchSkuLedger = ABSTRACT Batch (SkuLedger) PERSISTENT;
 nameBatchSkuLedger 'Партия' (l) = nameBatch(batchSkuLedger(l));
@@ -158,6 +162,11 @@ idStockSkuLedger (ledger) = idStock(stockSkuLedger(ledger));
 
 descriptionSkuLedger 'Описание' (ledger) = MULTI descriptionDataSkuLedger (ledger), descriptionBatch (ledger) PERSISTENT IN recognize;
 
+isItemSkuLedger 'Товар' = isItemSku(skuSkuLedger(l));
+isContainerSkuLedger 'Тара' = isContainerSku(skuSkuLedger(l));
+
+isNotItemSkuLedger 'Не товар' = isNotItemSku(skuSkuLedger(l));
+isNotContainerSkuLedger 'Не тара' = isNotContainerSku(skuSkuLedger(l));
 
 // -------------------------------- Количества ---------------------------- //
 
@@ -861,7 +870,10 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     FILTERGROUP inactiveStock 
         FILTER 'Активный' activeStock(st) AND activeSku(s) 'ctrl F10' DEFAULT
         FILTER 'Неактивный' inactiveStock(st) OR inactiveSku(s) 'shift F10'
-
+    FILTERGROUP container 
+        FILTER 'Товар' isItemSku(s) 
+        FILTER 'Тара' isContainerSku(s)
+        
     PROPERTIES(s, st) READONLY currentBalanceSkuStock, averagePriceSkuStock, currentSumSkuStock, dateTimeLastMovedSkuStock
 
     FILTERGROUP filters
@@ -980,7 +992,11 @@ FORM balanceSkuStock 'Остатки на дату'
 
     PROPERTIES(s, st, t) READONLY balanceASkuStockDateTime, averagePriceASkuStockDateTime, sumASkuStockDateTime
     PROPERTIES(s, st) READONLY dateTimeLastMovedSkuStock
-
+    
+    FILTERGROUP container 
+        FILTER 'Товар' isItemSku(s) 
+        FILTER 'Тара' isContainerSku(s)
+        
     FILTERGROUP filters
         FILTER 'Товары с остатком' balanceASkuStockDateTime(s, st, t) OR sumASkuStockDateTime(s, st, t) 'F10' DEFAULT
         FILTER 'Товары с движением не позднее 1 дня' balanceSkuStockDateTimePeriod(s, st, t, 1) 'F9'
@@ -1088,7 +1104,10 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND (costSkuLedgerBatch(bil, bt) OR batchSkuLedger(bil)==bt) AND stockSkuLedger(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
     ORDER BY dateTimeSkuLedger(bil) DESC
-
+    FILTERGROUP container 
+        FILTER 'Товар' isItemBatch(bt) 
+        FILTER 'Тара' isContainerBatch(bt)
+        
     FILTERGROUP filterBalance
         FILTER 'Партии с остатком' currentBalanceBatchStock(bt, st) 'F11' DEFAULT
         FILTER 'Партии пришедшие за последний 1 день' dateBatch(bt) >= subtractDate(currentDate(), 1) 'F10'
@@ -1187,7 +1206,10 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st,
             dateTimeSkuLedger(bil) < t
     ORDER BY dateTimeSkuLedger(bil) DESC
-
+    FILTERGROUP container 
+        FILTER 'Товар' isItemBatch(bt) 
+        FILTER 'Тара' isContainerBatch(bt)
+        
     FILTERGROUP filterBalance
         FILTER 'Партии с остатком' balanceBBatchStockDateTime(bt, st, t) 'F11' DEFAULT
         FILTER 'Партии пришедшие за последний 1 день' dateTimeBatch(bt) >= subtractDateTimeSeconds(currentDateTime(), 1) 'F10'
@@ -1263,6 +1285,10 @@ FORM skuLedger 'Регистр движений'
     FILTERS isPostedSkuLedger(s)
 
     FILTERS dateSkuLedger(s) >= dFrom, dateSkuLedger(s) <= dTo
+    
+    FILTERGROUP container 
+        FILTER 'Товар' isItemSkuLedger(s) 
+        FILTER 'Тара' isContainerSkuLedger(s)    
 ;
 
 DESIGN skuLedger FROM DEFAULT {
