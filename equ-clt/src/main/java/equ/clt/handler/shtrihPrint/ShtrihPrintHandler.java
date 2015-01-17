@@ -28,11 +28,14 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        String groupId = "";
-        for(MachineryInfo scales : transactionInfo.machineryInfoList) {
-            groupId += scales.port + ";";
-        }
-        return groupId;
+        return "";
+        
+        // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error                
+//        String groupId = "";
+//        for(MachineryInfo scales : transactionInfo.machineryInfoList) {
+//            groupId += scales.port + ";";
+//        }
+//        return groupId;
     }
     
     @Override
