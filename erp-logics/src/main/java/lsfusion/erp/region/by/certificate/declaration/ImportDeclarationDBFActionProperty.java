@@ -165,7 +165,12 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                 if (g471 != null) {
                     if (g471.equals("2010")) {
                         homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
-                        dutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
+                        BigDecimal extraDutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
+                        if (dutySum == null)
+                            dutySum = extraDutySum;
+                        else
+                            if (extraDutySum != null)
+                                dutySum = dutySum.add(extraDutySum);
                     } else if (g471.equals("5010")) {
                         if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
                         VATSum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
