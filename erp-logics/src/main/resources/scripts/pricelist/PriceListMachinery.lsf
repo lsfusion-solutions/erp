@@ -6,7 +6,7 @@ NAMESPACE PriceList;
 
 @Machinery.implementPriceTransactionDocument(PriceList);
 createPriceListMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (priceList) NEWSESSION AUTOAPPLY {
-    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF quantityPriceListDetailSkuPriceList(sku, priceList);
+    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku, priceList);
     ASSIGN createMachineryPriceTransactionDocument() <- priceList;
     FOR inPriceListStock(priceList, stock) DO {
         EXEC createMachineryPriceTransaction(stock);   
@@ -16,7 +16,7 @@ createPriceListMachineryPriceTransaction 'Загрузить в оборудов
 
 createSnapshotPriceListMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (priceList) NEWSESSION AUTOAPPLY {
     createMachineryPriceTransactionSnapshot() <- TRUE;
-    createMachineryPriceTransactionSku(sku) <- TRUE IF quantityPriceListDetailSkuPriceList(sku, priceList);
+    createMachineryPriceTransactionSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku, priceList);
     createMachineryPriceTransactionDocument() <- priceList;
     FOR inPriceListStock(priceList, stock) DO {
         createMachineryPriceTransaction(stock);   
