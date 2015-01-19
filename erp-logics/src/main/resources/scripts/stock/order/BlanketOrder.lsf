@@ -294,6 +294,23 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 //-- SKU
     @defineDocumentSkuStockExtra(blanketOrder, sku, supplierStock, customerStock);
     @extendFormDocumentSkuStockExtraCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
+    
+    currentBlanketOrderBlanketOrder() = DATA LOCAL Object ();
+    setCurrentBlanketOrderBlanketOrder(o) = ACTION currentBlanketOrderBlanketOrder() <- o;
+    
+    EXTEND FORM blanketOrder
+        EVENTS ON CHANGE o setCurrentBlanketOrderBlanketOrder(o)
+    ;
+
+    WHEN SESSION FORMS blanketOrder ((CHANGED(inBlanketOrderStock(o, cs)) OR 
+                                CHANGED(priceListTypeBlanketOrderStock(o, cs)) OR 
+                                CHANGED(agreementBlanketOrderStock(o, cs))) AND [= VIEW blanketOrder.sts](stock, sku))
+                            OR (
+                            ((SET([= VIEW blanketOrder.sts](stock, sku)) AND currentBlanketOrderBlanketOrder() == o) OR 
+                            (CHANGED(dateTimeBlanketOrder(o)) AND [= VIEW blanketOrder.sts](stock, sku))) AND inBlanketOrderStock(o, cs)) DO 
+        updateViewPriceSkuStockBlanketOrderCustomerStock(sku, stock, o, cs);
+    ;    
+        
     @defineDocumentSkuStockSupplier (blanketOrder, blanketOrder, o);
     
     overCopyBlanketOrder = ABSTRACT ACTION LIST (BlanketOrder, BlanketOrder);

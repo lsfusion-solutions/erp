@@ -633,7 +633,14 @@ END
 
 META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
 
-    priceSkuStock###object###stockExtra 'Цена' (sku, stockProp, object, stockExtra) = prevPriceBPriceListTypeSkuStockDateTime(priceListType###object###stock###sku(object, stockExtra, sku), sku, stockProp, dateTime###object(object));
+    viewPriceSkuStock###object###stockExtra 'Цена' (sku, stockProp, object, stockExtra) = DATA LOCAL NUMERIC[14,2] (Sku, Stock, ###object, Stock);
+
+    priceSkuStock###object###stockExtra 'Цена' (sku, stockProp, object, stockExtra) = viewPriceSkuStock###object###stockExtra(sku, stockProp, object, stockExtra);
+
+    updateViewPriceSkuStock###object###stockExtra (sku, stockProp, object, stockExtra) = ACTION {
+        FOR pt == priceListType###object###stock###sku(object, stockExtra, sku) AND stockProp IS Stock NOINLINE (pt) DO
+            viewPriceSkuStock###object###stockExtra(sku, stockProp, object, stockExtra) <- prevPriceBPriceListTypeSkuStockDateTime(pt, sku, stockProp, dateTime###object(object));
+    }
 
     detail###Sku###object###stockProp###stockExtra (sku, object, stockProp, stockExtra) =  GROUP MAX (detail)
         BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
