@@ -704,7 +704,7 @@ EXTEND DESIGN options {
     }
 }
 
-createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION(selectSkuStock, createMachineryPriceTransactionSnapshot, createMachineryPriceTransactionSku) {
+createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION NESTED selectSkuStock, createMachineryPriceTransactionSnapshot, createMachineryPriceTransactionSku {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) DO {
             createMachineryPriceTransactionSnapshot() <- TRUE;
@@ -714,7 +714,7 @@ createSelectedSkuStockPriceTransactionDocument 'Загрузить в обору
         IF NOT notResetMachinerySelectSku() THEN {
             selectSkuStock(sku, stock) <- NULL;
         }
-        APPLY (*) {};
+        APPLY NESTED LOCAL {};
         IF canceled() THEN {
             cancel();
         }

@@ -831,7 +831,7 @@ EXTEND DESIGN options {
 }
 createSelectedSkuStockLabelTransaction 'Распечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        NEWSESSION (selectSkuStock) AUTOAPPLY {
+        NEWSESSION NESTED selectSkuStock AUTOAPPLY {
             FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
                 selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
                 createLabelTransactionDepartmentStore(stock);
@@ -845,7 +845,7 @@ createSelectedSkuStockLabelTransaction 'Распечатать ценники' =
 
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
-        NEWSESSION (selectSkuStock) AUTOAPPLY {
+        NEWSESSION NESTED selectSkuStock AUTOAPPLY {
             FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
                 selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
                                    

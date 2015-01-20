@@ -6,7 +6,7 @@ NAMESPACE Repricing;
 
 //------------------------ Управленческая переоценка ----------------------------//
 
-createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION(selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku) {
+createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
     IF [=GROUP SUM 1 IF inDashboardRepricingSku(sku)]() THEN {
         selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- inDashboardRepricingSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
         FOR [= GROUP SUM 1 IF selectSkuLabelTypeDepartmentStore(s,l,d) BY l, d](labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
@@ -36,7 +36,7 @@ createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распеча�
     }   
 } TOOLBAR;
 
-createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION(selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku) {
+createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
 
     FOR ADDOBJ t = LabelTransaction DO {
         departmentStoreLabelTransaction(t) <- departmentStore;
