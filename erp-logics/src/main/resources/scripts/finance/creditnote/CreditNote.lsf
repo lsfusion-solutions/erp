@@ -262,6 +262,13 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     }
     @extendFormEditable(creditNotes);
     @defineFilterIsOpened (creditNote, creditNotes, c); 
+    editCreditNoteDetail 'Редактировать' = ABSTRACT ACTION LIST  (CreditNoteDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    editUserCreditNoteDetail(d) = ACTION (d) NEWSESSION {
+        FORM userCreditNote OBJECTS c = userCreditNoteUserCreditNoteDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+    }
+    
+    editCreditNoteDetail(d) += ACTION editUserCreditNoteDetail(d);  
+    
 //--  Связь акта и накладной
     invoiceDetailCreditNoteDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) PERSISTENT;
     invoiceDetailUserCreditNoteDetail = DATA InvoiceDetail (UserCreditNoteDetail);
@@ -418,6 +425,9 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
 
     VATSumCreditNoteDetail (creditNoteDetail) += VATSumInvoiceCreditNoteDetail(creditNoteDetail);
     invoiceSumCreditNoteDetail (creditNoteDetail) += invoiceSumInvoiceCreditNoteDetail(creditNoteDetail);
+    
+    editCreditNote(c) += ACTION EXEC editInvoice(invoiceInvoiceCreditNote(c));
+    editCreditNoteDetail(d) += ACTION editInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d));
 END
 
 META defineCreditNoteBatch(legalEntityProp, stockProp)
