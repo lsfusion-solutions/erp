@@ -145,6 +145,10 @@ imageItem (item) = OVERRIDE dataImageItem (item), overImageItem (item);
 openImageItem 'Открыть изображение' (item) = ACTION OPENFILE imageItem(item);
 hasImageItem (item) = TRUE IF imageItem(item) PERSISTENT;
 
+nullImageItem 'Сбросить' = ACTION(item) {
+    imageItem(item) <- NULL;
+}
+
 imageBatch 'Изображение' (batch) = imageItem(skuBatch(batch)); 
 
 // -------------------------------- Надбавки для расчетных видов цен --------------------------------//
@@ -161,7 +165,7 @@ FORM item 'Товар'
     OBJECTS i=Item FIXED PANEL
 
     PROPERTIES(i) canonicalNameItemGroupItem, idBarcodeSku ON CHANGE changeBarcodeSku(i) EVENTID 'SCANNER',
-                  dataImageItem, loadImageItem, idItem SHOWIF showIDs()
+                  dataImageItem, loadImageItem, nullImageItem, idItem SHOWIF showIDs()
 
     OBJECTS b=Barcode
     PROPERTIES(b)       idBarcode, dateBarcode, shortNameUOMBarcode,
@@ -247,6 +251,7 @@ DESIGN item FROM DEFAULT {
                     fill = 1;
                 }
                 ADD PROPERTY(loadImageItem(i));
+                ADD PROPERTY(nullImageItem(i));
             }
         }
     }
