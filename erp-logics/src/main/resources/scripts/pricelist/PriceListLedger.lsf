@@ -178,6 +178,12 @@ activePriceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, da
           WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
                 fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
 
+activePriceListLedgerBLedgerPriceListTypeSkuStockDateTime  (type, sku, stock, dateTime) =
+    GROUP LAST ledger
+          BY type, skuPriceListLedger(ledger), stock, dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
 activePriceListLedgerALedgerPriceListTypeSkuStockDateTime  (type, sku, stock, dateTime) =
     GROUP LAST ledger
           BY type, skuPriceListLedger(ledger), stock, dateTimeIn
@@ -261,6 +267,21 @@ activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) =
     
 
 // По партиям
+
+activePriceListLedgerBLedgerPriceListTypeBatchStockDateTime (type, batch, stock, dateTime) =
+    GROUP LAST ledger
+        BY type, batch, stock, dateTimeIn
+        ORDER fromDateTimePriceListLedger(ledger), ledger
+        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch) AND
+              fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn;
+
+activePriceListLedgerALedgerPriceListTypeBatchStockDateTime  (type, batch, stock, dateTime) =
+    GROUP LAST ledger
+        BY type, batch, stock, dateTimeIn
+        ORDER fromDateTimePriceListLedger(ledger), ledger
+        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch) AND
+              fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn;
+
 priceBLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
     IF batchLedgerPriceListTypeStock(type, stock) THEN
         [= GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
