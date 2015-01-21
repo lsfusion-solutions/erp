@@ -130,41 +130,42 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             }
                             dbfFile.startTop();
 
+                            // Временно отключено, так как НТС позволяет продавать группы
                             // item groups
-                            putField(dbfFile, ISGROUP, "T", append);
-                            for (CashRegisterItemInfo item : transaction.itemsList) {
-                                if (item.idItemGroup != null) {
-                                    String parent = null;
-                                    for (ItemGroup itemGroup : Lists.reverse(transaction.itemGroupMap.get(item.idItemGroup))) {
-                                        String idItemGroup = (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "").replace(".", ""));
-                                        if (!usedBarcodes.contains(idItemGroup)) {
-                                            Integer recordNumber = null;
-                                            if (append) {
-                                                recordNumber = barcodeRecordMap.get(idItemGroup);
-                                                if (recordNumber != null)
-                                                    dbfFile.gotoRecord(recordNumber);
-                                            }
-                                            putField(dbfFile, CODE, trim(idItemGroup, 6), append);
-                                            putField(dbfFile, GROUP, parent, append);
-                                            putField(dbfFile, BAR_CODE, trim(idItemGroup, 13), append);
-                                            putField(dbfFile, PRODUCT_ID, trim(itemGroup.nameItemGroup, 64), append);
-                                            putField(dbfFile, TABLO_ID, trim(itemGroup.nameItemGroup, 20), append);
-                                            putField(dbfFile, PRICE, null, append);
-                                            putField(dbfFile, WEIGHT, "F", append);
-                                            putField(dbfFile, FLAGS, "0", append);
-                                            if (recordNumber != null)
-                                                dbfFile.update();
-                                            else {
-                                                dbfFile.write();
-                                                dbfFile.file.setLength(dbfFile.file.length() - 1);
-                                                barcodeRecordMap.put(itemGroup.idItemGroup, barcodeRecordMap.size() + 1);
-                                            }
-                                            usedBarcodes.add(idItemGroup);
-                                        }
-                                        parent = trim(idItemGroup, 6);
-                                    }
-                                }
-                            }
+//                            putField(dbfFile, ISGROUP, "T", append);
+//                            for (CashRegisterItemInfo item : transaction.itemsList) {
+//                                if (item.idItemGroup != null) {
+//                                    String parent = null;
+//                                    for (ItemGroup itemGroup : Lists.reverse(transaction.itemGroupMap.get(item.idItemGroup))) {
+//                                        String idItemGroup = (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "").replace(".", ""));
+//                                        if (!usedBarcodes.contains(idItemGroup)) {
+//                                            Integer recordNumber = null;
+//                                            if (append) {
+//                                                recordNumber = barcodeRecordMap.get(idItemGroup);
+//                                                if (recordNumber != null)
+//                                                    dbfFile.gotoRecord(recordNumber);
+//                                            }
+//                                            putField(dbfFile, CODE, trim(idItemGroup, 6), append);
+//                                            putField(dbfFile, GROUP, parent, append);
+//                                            putField(dbfFile, BAR_CODE, trim(idItemGroup, 13), append);
+//                                            putField(dbfFile, PRODUCT_ID, trim(itemGroup.nameItemGroup, 64), append);
+//                                            putField(dbfFile, TABLO_ID, trim(itemGroup.nameItemGroup, 20), append);
+//                                            putField(dbfFile, PRICE, null, append);
+//                                            putField(dbfFile, WEIGHT, "F", append);
+//                                            putField(dbfFile, FLAGS, "0", append);
+//                                            if (recordNumber != null)
+//                                                dbfFile.update();
+//                                            else {
+//                                                dbfFile.write();
+//                                                dbfFile.file.setLength(dbfFile.file.length() - 1);
+//                                                barcodeRecordMap.put(itemGroup.idItemGroup, barcodeRecordMap.size() + 1);
+//                                            }
+//                                            usedBarcodes.add(idItemGroup);
+//                                        }
+//                                        parent = trim(idItemGroup, 6);
+//                                    }
+//                                }
+//                            }
 
                             //items
 

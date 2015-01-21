@@ -269,7 +269,7 @@ nameUOMSku 'Ед. изм.' (sku) = nameUOM(UOMSku(sku)) IN base;
 shortNameUOMSku 'Ед. изм.' (sku) = shortNameUOM(UOMSku(sku)) IN base;
 
 countrySku = ABSTRACT Country (Sku) PERSISTENT;
-nameCountrySku 'Страна' (sku) = nameCountry(countrySku(sku)) IN base;
+nameCountrySku 'Страна' (sku) = nameCountry(countrySku(sku)) MINCHARWIDTH 15 PREFCHARWIDTH 15 IN base;
 sidOrigin2CountrySku 'Код 2 знака (ориг.)' (sku) = sidOrigin2Country(countrySku(sku));
 
 TABLE skuGroupSku(SkuGroup, Sku);
@@ -380,9 +380,11 @@ END
 
 META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
     prefix###skuClass###detail = DATA skuClassUpper (###detail);
+    prefix###idSku###detail 'Код'###caption (detail) = idSku(prefix###skuClass###detail(detail));
     prefix###nameSku###detail 'Наименование'###caption (detail) = nameSku(prefix###skuClass###detail(detail)) IN recognize  MINCHARWIDTH 40 PREFCHARWIDTH 80;
     prefix###shortNameUOMSku###detail 'Ед. изм.'###caption = shortNameUOMSku(prefix###skuClass###detail(detail)) IN recognize;
     prefix###idBarcodeSku###detail 'Штрихкод'###caption (detail) = idBarcodeSku(prefix###skuClass###detail(detail)) IN recognize;
+    prefix###nameCountrySku###detail 'Страна'###caption (detail) = nameCountrySku(prefix###skuClass###detail(detail));
     replaceSkuSku(s, d) += ACTION (s, d){ASSIGN prefix###skuClass###detail(detail) <- d WHERE prefix###skuClass###detail(detail) == s;}
 END
 
@@ -392,9 +394,11 @@ END
 
 META defineDocumentAbstractDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
     prefix###skuClass###detail = ABSTRACT skuClassUpper (###detail) PERSISTENT;
+    prefix###idSku###detail 'Код'###caption (detail) = idSku(prefix###skuClass###detail(detail));
     prefix###nameSku###detail 'Наименование'###caption (detail) = nameSku(prefix###skuClass###detail(detail)) IN base;
     prefix###shortNameUOMSku###detail 'Ед. изм.'###caption = shortNameUOMSku(prefix###skuClass###detail(detail)) IN base;
     prefix###idBarcodeSku###detail 'Штрихкод'###caption (detail) = idBarcodeSku(prefix###skuClass###detail(detail)) IN base;
+    prefix###nameCountrySku###detail 'Страна'###caption (detail) = nameCountrySku(prefix###skuClass###detail(detail));
 END
 META defineDocumentInterfaceDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
     @defineDocumentAbstractDetailSkuCustomPrefix(detail, skuClass, prefix, caption);
