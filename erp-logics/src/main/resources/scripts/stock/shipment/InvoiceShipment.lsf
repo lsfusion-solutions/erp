@@ -40,19 +40,21 @@ addUserShipmentInvoice  = ABSTRACT ACTION CASE OVERRIDE (Invoice);
 
 receiveShipmentInvoice 'Принять полностью' = ABSTRACT ACTION LIST (Invoice);
 
-createMultiShipmentInvoice 'Принять полностью' = ACTION (invoice) NEWSESSION AUTOAPPLY {
+createMultiShipmentInvoice 'Принять полностью' = ACTION (invoice) NEWSESSION {
     IF createShipmentInvoice(invoice) THEN {
         MESSAGE 'Для данного инвойса уже создана накладная'; 
     } ELSE {
         receiveShipmentInvoice(invoice);
     }
+    apply();
 }
 
 deleteCreateShipment  = ABSTRACT ACTION CASE OVERRIDE (Shipment);
-deleteMultiShipment 'Удалить полностью' = ACTION (shipment) NEWSESSION AUTOAPPLY {
+deleteMultiShipment 'Удалить полностью' = ACTION (shipment) NEWSESSION {
     IF shipment IS Shipment AND NOT isUserShipment(shipment) THEN {
         deleteCreateShipment(shipment); 
     }
+    apply();
 }
 
 

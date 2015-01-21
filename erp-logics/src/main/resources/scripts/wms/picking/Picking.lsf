@@ -411,18 +411,20 @@ backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
 statusPicking 'Статус' = statusPickingPickingOrder(pickingOrderPicking(picking));
 backgroundStatusPicking = backgroundStatusPickingPickingOrder(pickingOrderPicking(picking));
 
-acceptPickingOrder 'Принять' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY{
+acceptPickingOrder 'Принять' = ACTION (pickingOrder) NEWSESSION {
     acceptedPickingOrder(pickingOrder) <- TRUE;
     performerPickingOrder(pickingOrder) <- currentUser();
     startDatePickingOrder(pickingOrder) <- currentDate();
     startTimePickingOrder(pickingOrder) <- currentTime();
+    apply();
 
 } TOOLBAR EDITKEY 'ctrl ENTER';
-unacceptPickingOrder 'Отменить' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
+unacceptPickingOrder 'Отменить' = ACTION (pickingOrder) NEWSESSION {
     acceptedPickingOrder(pickingOrder) <- NULL;
     performerPickingOrder(pickingOrder) <- NULL;
     startDatePickingOrder(pickingOrder) <- NULL;
     startTimePickingOrder(pickingOrder) <- NULL;
+    apply();
 } TOOLBAR EDITKEY 'ctrl DELETE';
 
 FORM packQuantity 'Комплектация'
@@ -444,7 +446,7 @@ DESIGN packQuantity FROM DEFAULT {
     }
 }
 
-fullyAssembledPickingOrder 'Собран полностью' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
+fullyAssembledPickingOrder 'Собран полностью' = ACTION (pickingOrder) NEWSESSION {
     FORM packQuantity MODAL;
     IF formResult() == FormResult.ok THEN {
         finishDatePickingOrder(pickingOrder) <- currentDate();
@@ -463,6 +465,7 @@ fullyAssembledPickingOrder 'Собран полностью' = ACTION (pickingOr
             }
         }
     }
+    apply();
 } TOOLBAR EDITKEY 'F10';
 
 partiallyAssembledPickingOrder 'Собран частично' = ACTION (pickingOrder) NEWSESSION{

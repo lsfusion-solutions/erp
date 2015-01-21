@@ -292,7 +292,7 @@ FORM technologicalCardsProductBy 'Технологическая карта'
 
 ;
 
-printTechnologicalCardBOM 'Технологическая карта'  = ACTION (BOM) NEWSESSION AUTOAPPLY {
+printTechnologicalCardBOM 'Технологическая карта'  = ACTION (BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR BOMProduct(product) == BOM DO {
@@ -300,6 +300,7 @@ printTechnologicalCardBOM 'Технологическая карта'  = ACTION 
             }
             FORM technologicalCardsProductBy  OBJECTS dt = chosenDate('d') PRINT;
         }
+    apply();
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs
@@ -311,13 +312,14 @@ EXTEND DESIGN BOMs {
     }
 }
 
-printTechnologicalCardOrder 'Технологическая карта'  = ACTION (order) NEWSESSION AUTOAPPLY {
+printTechnologicalCardOrder 'Технологическая карта'  = ACTION (order) NEWSESSION {
 
     FOR quantityProductOrder(product,order) DO {
         ASSIGN selectDateProduct(date,product) <- product IS Product WHERE date == dateOrder(order);
     }
     FORM technologicalCardsProductBy  OBJECTS dt = dateOrder(order) PRINT;
 
+    apply();
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM orders
@@ -381,13 +383,14 @@ FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     FILTERS       inCommitteeBOMEmployee(b,e)
 
 ;
-printActStudyOfCulinaryBOM 'Акт контрольной проработки'  = ACTION (BOM) NEWSESSION AUTOAPPLY {
+printActStudyOfCulinaryBOM 'Акт контрольной проработки'  = ACTION (BOM) NEWSESSION {
 
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM actStudyOfCulinaryBOM  OBJECTS dt = chosenDate('d'), b = BOM PRINT;
         }
 
+    apply();
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs

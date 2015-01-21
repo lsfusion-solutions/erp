@@ -609,7 +609,7 @@ EXTEND FORM customLabelTransaction
 ;
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, prefix)
-    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {        
+    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION {        
         
         IF isDraft###document(document) THEN {
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
@@ -648,7 +648,9 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                     FORM printLabelTransaction OBJECTS l = t PRINT;
             }
             printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
-        }                
+        }
+
+        apply();
     } TOOLBAR CONFIRM;
 
     createSnapshot###document##LabelTransaction 'Перепечатать ценники' = ACTION (document) NEWSESSION {
@@ -831,11 +833,13 @@ EXTEND DESIGN options {
 }
 createSelectedSkuStockLabelTransaction 'Распечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        NEWSESSION NESTED selectSkuStock AUTOAPPLY {
+        NEWSESSION NESTED selectSkuStock {
             FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
                 selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
                 createLabelTransactionDepartmentStore(stock);
             }
+            
+            apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
             selectSkuStock(sku, stock) <- NULL;
@@ -845,12 +849,14 @@ createSelectedSkuStockLabelTransaction 'Распечатать ценники' =
 
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
-        NEWSESSION NESTED selectSkuStock AUTOAPPLY {
+        NEWSESSION NESTED selectSkuStock {
             FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
                 selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
                                    
                 createSnapshotLabelTransactionDepartmentStore(stock);
             }
+            
+            apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
             selectSkuStock(sku, stock) <- NULL;

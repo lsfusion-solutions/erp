@@ -5,16 +5,18 @@ REQUIRE PriceList, MachineryPriceTransaction;
 NAMESPACE PriceList;
 
 @Machinery.implementPriceTransactionDocument(PriceList);
-createPriceListMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (priceList) NEWSESSION AUTOAPPLY {
+createPriceListMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (priceList) NEWSESSION {
     ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku, priceList);
     ASSIGN createMachineryPriceTransactionDocument() <- priceList;
     FOR inPriceListStock(priceList, stock) DO {
         EXEC createMachineryPriceTransaction(stock);   
     }            
     ASSIGN sentPriceTransactionDocument(priceList) <- TRUE;
+    
+    apply();
 } TOOLBAR CONFIRM;
 
-createSnapshotPriceListMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (priceList) NEWSESSION AUTOAPPLY {
+createSnapshotPriceListMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (priceList) NEWSESSION {
     createMachineryPriceTransactionSnapshot() <- TRUE;
     createMachineryPriceTransactionSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku, priceList);
     createMachineryPriceTransactionDocument() <- priceList;
@@ -22,6 +24,7 @@ createSnapshotPriceListMachineryPriceTransaction 'Перегрузить все 
         createMachineryPriceTransaction(stock);   
     }  
     sentPriceTransactionDocument(priceList) <- TRUE;
+    apply();
 } CONFIRM;
 
 showCreateMachineryPriceTransactionPriceList 'Показывать' (priceList) = isPostedPriceList(priceList) AND NOT Machinery.skipPriceTransactionDocument(priceList)

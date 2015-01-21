@@ -211,9 +211,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     isClosedScheduleOrderDetail  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
     isOpenedScheduleOrderDetail  'Не аннулирован' (o) = o IS ScheduleOrderDetail  AND NOT isClosedScheduleOrderDetail (o) PERSISTENT;
 
-    closeScheduleOrderDetail  'Аннулировать' (o) = ACTION NEWSESSION AUTOAPPLY { isClosedScheduleOrderDetail (o) <- TRUE; } TOOLBAR CONFIRM;
+    closeScheduleOrderDetail  'Аннулировать' (o) = ACTION NEWSESSION { isClosedScheduleOrderDetail (o) <- TRUE; apply(); } TOOLBAR CONFIRM;
 
-    openScheduleOrderDetail  'Отменить аннулирование' (o) = ACTION NEWSESSION AUTOAPPLY { isClosedScheduleOrderDetail (o) <- NULL; } TOOLBAR CONFIRM;
+    openScheduleOrderDetail  'Отменить аннулирование' (o) = ACTION NEWSESSION { isClosedScheduleOrderDetail (o) <- NULL; apply(); } TOOLBAR CONFIRM;
     
 //    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
     
@@ -348,10 +348,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         //EXEC apply();
     } TOOLBAR;
     
-    addScheduleOrderDetail() = ACTION () NEWSESSION AUTOAPPLY {
+    addScheduleOrderDetail() = ACTION () NEWSESSION {
         FOR o IS ScheduleOrder AND NOT endDateScheduleOrder(o) DO {
             EXEC createScheduleOrder(o); 
         }              
+        apply();
     }  
     
     ScheduleOrder.addScheduleOrderDetail() += ACTION addScheduleOrderDetail();
