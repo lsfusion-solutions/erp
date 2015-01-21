@@ -113,6 +113,25 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
         ORDER BY inputName
     ;
 
+    seekSku###object###barcode = ACTION (object, barcode) { 
+        IF skuBarcodeIdDate(barcode, date###object(object)) THEN {
+            SEEK form.ks skuBarcodeIdDate(barcode, date###object(object));     
+        } ELSE {
+            MESSAGE 'Штрихкод не найден.';
+        }
+    }
+    
+    seekOverSku###object = ACTION (object) {
+        REQUEST STRING[15] INPUT;
+        IF requestedString() THEN {
+            seekSku###object###barcode(object, requestedString());
+        }        
+    };
+    seekSku###object 'Поиск по штрихкоду:' (object) = DATA LOCAL STRING[15] (###object) TOOLBAR EDITKEY 'F12' EVENTID 'SCANNER'
+                                                                            ON CHANGE seekOverSku###object(object);       
+    EXTEND FORM form
+        PROPERTIES(concrete) TODRAW ks seekSku###object    
+    ;
     EXTEND DESIGN form {
         specification.box {
             type = TABBED;
@@ -127,8 +146,14 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
                     NEW skuSelectPane {
                         fill = 1;
                         type = CONTAINERV;
-                        ADD ks.box {
+                        NEW skuPane {
+                            type = CONTAINERV;
                             caption = 'Товары';
+                            NEW skuTopPane {
+                                caption = 'Поиск товара';
+                                ADD PROPERTY(seekSku###object(concrete));
+                            }
+                            ADD ks.box;               
                         }
                     }
                 }
