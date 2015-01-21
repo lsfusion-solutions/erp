@@ -466,23 +466,26 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         MESSAGE NO WAIT 'Загрузка прайса в оборудование не требуется.';
 };
 
-createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION AUTOAPPLY {
+createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION {
     createMachineryPriceTransactionSku(sku) <- TRUE IF currentBalanceSkuStock(sku, stock);
     createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
     createMachineryPriceTransaction(stock);
+    apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION AUTOAPPLY {
+createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION {
     createMachineryPriceTransactionSku(sku) <- TRUE;
     createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
     createMachineryPriceTransaction(stock);
+    apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION AUTOAPPLY {
+createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION {
     createMachineryPriceTransactionSku(sku) <- TRUE;
     createMachineryPriceTransactionComment() <- 'Полная загрузка товаров';
     createMachineryPriceTransactionAll() <- TRUE;
     createMachineryPriceTransaction(stock);
+    apply();
 } IN snapshotMachineryPrice;
 
 includeGroupMachinery 'Вкл.' = DATA LOCAL BOOLEAN (GroupMachinery);
@@ -498,7 +501,7 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
             activeGroupMachinery(gm)
 ;
 
-createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWSESSION AUTOAPPLY {
+createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWSESSION {
     FORM selectGroupMachinery OBJECTS st = stock MODAL;
     IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF includeGroupMachinery(gm) BY stockGroupMachinery(gm)](stock) THEN {
         excludeGroupMachinery(gm) <- TRUE WHERE stockGroupMachinery(gm) == stock AND NOT includeGroupMachinery(gm);
@@ -508,12 +511,13 @@ createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWS
         createMachineryPriceTransactionAll() <- TRUE;
         createMachineryPriceTransaction(stock);
     }
+    apply();
 } IN snapshotMachineryPrice;
 
 
 
 GROUP documentMachineryPrice 'Из документа' : public;
-createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION (stock) NEWSESSION AUTOAPPLY {
+createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION (stock) NEWSESSION {
     FORM documents DIALOG;
     IF formResult() == FormResult.ok THEN {
         createMachineryPriceTransactionSku(sku) <- TRUE WHERE countDocumentDetailSkuDocument(sku, chosenObject('d'));        
@@ -521,6 +525,7 @@ createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION 
         createMachineryPriceTransactionSnapshot() <- TRUE ;
         createMachineryPriceTransaction(stock);
     }
+    apply();
 } IN documentMachineryPrice;
 
 EXTEND FORM machineryPriceTransactions
@@ -611,7 +616,7 @@ EXTEND DESIGN options {
 
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
-    createMachineryPriceTransaction###document 'Загрузить в оборудование' = ACTION (document) NEWSESSION AUTOAPPLY {
+    createMachineryPriceTransaction###document 'Загрузить в оборудование' = ACTION (document) NEWSESSION {
     
         IF isDraft###document(document) THEN {
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
@@ -623,10 +628,11 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
             createMachineryPriceTransactionDocument() <- document;
             createMachineryPriceTransaction(stockProp###document(document));
             sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
-        } 
+        }
+        apply();
     } TOOLBAR CONFIRM;
 
-    createSnapshotMachineryPriceTransaction###document 'Перегрузить все позиции' = ACTION (document) NEWSESSION AUTOAPPLY {
+    createSnapshotMachineryPriceTransaction###document 'Перегрузить все позиции' = ACTION (document) NEWSESSION {
         IF isDraft###document(document) THEN {
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
@@ -637,6 +643,7 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
             createMachineryPriceTransaction(stockProp###document(document));
             sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
         }
+        apply();
     } CONFIRM;
 
     showCreateMachineryPriceTransaction###document 'Показывать' (document) = isPosted###document(document) AND isOpened###document(document) AND NOT Machinery.skipPriceTransactionDocument(document)
