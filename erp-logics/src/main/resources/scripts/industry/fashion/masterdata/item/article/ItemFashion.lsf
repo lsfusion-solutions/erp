@@ -85,6 +85,7 @@ TABLE seasonYear (SeasonYear);
 @defineExternalizable(seasonYear, VARSTRING[100]);
 
 nameSeasonYear 'Год' = DATA VARISTRING[50](SeasonYear);
+seasonYearName = GROUP AGGR season BY nameSeasonYear(season);
 
 FORM seasonYear 'Год'
     OBJECTS t=SeasonYear FIXED PANEL
@@ -109,13 +110,14 @@ nameSeasonYearItem 'Год' (i) = nameSeasonYear(seasonYearItem(i)) IN itemArtic
 nameSeasonYearBatch 'Год' (b) =  nameSeasonYearItem(skuBatch(b));
 
 @defineItemAttribute(seasonYear, name, 'Год', itemFashion);
+
+EXTEND FORM article PROPERTIES(a)  nameSeasonYearArticle;
+EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle;
+
 @defineUniteAttributeItem(seasonYear, nameSeasonYear, 'год', 'годы', article);
 EXTEND FORM attributesItem
     PROPERTIES READONLY AFTER nameSeasonYear(seasonYear) idSeasonYear(seasonYear) SHOWIF showIDs()
 ;
-
-EXTEND FORM article PROPERTIES(a)  nameSeasonYearArticle;
-EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle;
 
 // Сезон
 CLASS Season 'Сезон';
@@ -123,6 +125,7 @@ TABLE season (Season);
 @defineExternalizable(season, VARSTRING[100]);
 
 nameSeason 'Сезон' = DATA VARISTRING[50](Season);
+seasonName = GROUP AGGR season BY nameSeason(season);
 
 FORM season 'Сезон'
     OBJECTS t=Season FIXED PANEL
@@ -151,13 +154,14 @@ idSeasonBarcode(barcode) = idSeason(seasonItem(skuBarcode(barcode)));
 nameSeasonBarcode(barcode) = nameSeason(seasonItem(skuBarcode(barcode))); 
  
 @defineItemAttribute(season, name, 'Сезон', itemFashion);
+
+EXTEND FORM article PROPERTIES(a)  nameSeasonArticle;
+EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameSeasonArticle;
+
 @defineUniteAttributeItem(season, nameSeason, 'сезон', 'сезоны', article);
 EXTEND FORM attributesItem
     PROPERTIES READONLY AFTER nameSeason(season) idSeason(season) SHOWIF showIDs()
 ;
-
-EXTEND FORM article PROPERTIES(a)  nameSeasonArticle;
-EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameSeasonArticle;
 
 // Коллекция
 CLASS Collection 'Коллекция';
@@ -165,6 +169,7 @@ TABLE collection (Collection);
 
 @defineExternalizable(collection, VARSTRING[100]);
 nameCollection 'Наименование' = DATA VARISTRING[100](Collection);
+collectionName = GROUP AGGR collection BY nameCollection(collection);
 
 FORM collection 'Коллекция'
     OBJECTS t=Collection FIXED PANEL
@@ -189,6 +194,7 @@ nameCollectionItem 'Коллекция' (i) = nameCollection(collectionItem(i)) 
 nameCollectionBatch 'Коллекция' (b) =  nameCollectionItem(skuBatch(b));
 
 @defineItemAttribute(collection, name, 'Коллекция', itemFashion);
+
 @defineUniteAttributeItem(collection, nameCollection, 'коллекция', 'коллекции', article);
 EXTEND FORM attributesItem
     PROPERTIES READONLY AFTER nameCollection(collection) idCollection(collection) SHOWIF showIDs()

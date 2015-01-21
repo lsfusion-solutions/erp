@@ -509,6 +509,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         ADD functions.box;
     }
     
+    overReplace###object###object(oTo, oFrom) = ABSTRACT ACTION LIST (###object, ###object);
     replace###object 'Объединить' = ACTION (object) {
         FORM confirmReplace###object OBJECTS o=object MODAL;
         IF formResult() == FormResult.ok THEN {
@@ -516,6 +517,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
             FOR in###object(o) AND allowReplace###object() DO{
                 IF o != object THEN {
                     object###object2(object2) <- object WHERE object###object2(object2) == o;
+                    overReplace###object###object(object, o);
                     in###object(o) <- NULL;
                     DELETE o;            
                 } ELSE {
@@ -547,7 +549,14 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
 
 END
 
-META defineUniteAttributeItemWittoutExtendForm(object, nameProp, caption1, caption2, object2)
+META defineUniteFilterAttributeItem(object, nameProp, caption1, caption2, object2)
+    @defineUniteAttributeItem(object, nameProp, caption1, caption2, object2);
+    overReplace###object###object(oTo, oFrom) += ACTION { 
+        dataIn###object##ItemGroup (oTo, g) <- dataIn###object##ItemGroup (oFrom, g) WHERE dataIn###object##ItemGroup(oFrom, g);
+    }
+END
+
+META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, caption2, object2)
     in###object 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
     allowReplace###object = DATA LOCAL BOOLEAN ();
     
@@ -760,7 +769,7 @@ META defineObjectItemAttributeForm(attribute, attributeClass, identity, caption,
     @defineItemAttributeForm(attribute, identity, caption, group);
 END
 
-META defineItemFilterValue(object, captionProp)
+META defineItemFilterValue(object, captionProp, o)
     TABLE object##ItemGroup (###object, ItemGroup);
       
     dataIn###object##ItemGroup 'Вкл' = DATA BOOLEAN (###object, ItemGroup);
@@ -801,7 +810,7 @@ META defineItemFilterValue(object, captionProp)
     EXTEND FORM object
         TREE groupTree g=ItemGroup PARENT parentItemGroup
         PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g)
-        PROPERTIES in###object##ItemGroup(t,g) BACKGROUND backgroundWith###object##ItemGroup(t,g)
+        PROPERTIES in###object##ItemGroup(o,g) BACKGROUND backgroundWith###object##ItemGroup(o,g)
         
         ORDER BY orderItemGroup(g), nameItemGroup(g)
         FILTERS activeItemGroup(g)
@@ -1107,11 +1116,6 @@ extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
 
 // Единица измерения
 @defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
-@defineUniteAttributeItem(UOM, nameUOM, 'единица измерения', 'единицы измерения', item);
-EXTEND FORM attributesItem
-    PROPERTIES(UOM) READONLY AFTER nameUOM(UOM) grossWeightUOM, netWeightUOM, splitUOM, factorUOM, genitiveNameUOM, 
-                                                shortNameBaseUOM, shortNameUOM, idUOM SHOWIF showIDs()   
-;
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
 shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
@@ -1120,9 +1124,16 @@ UOMSku(item) += UOMItem(item);
 @defineItemDefaultValue(UOM, 'Ед. изм.', UOM, nameUOM); 
 WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT UOMItem(i) DO
     UOMItem(i) <- UOMItemGroup(itemGroupItem(i));
+@defineItemFilterValue(UOM, 'Ед. изм.', u);
 
 //@implementObjectShortItemAttribute(UOM, 'Единица измерения (сокр.)');
 @implementItemAttribute(shortNameUOM, 'Единица измерения (сокр.)', String, itemShortUOM);
+
+@defineUniteFilterAttributeItem(UOM, nameUOM, 'единица измерения', 'единицы измерения', item);
+EXTEND FORM attributesItem
+    PROPERTIES(UOM) READONLY AFTER nameUOM(UOM) grossWeightUOM, netWeightUOM, splitUOM, factorUOM, genitiveNameUOM, 
+                                                shortNameBaseUOM, shortNameUOM, idUOM SHOWIF showIDs()   
+;
 
 // Брэнд
 CLASS Brand 'Бренд';
@@ -1155,26 +1166,29 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 idBrandBarcode(barcode) = idBrand(brandItem(skuBarcode(barcode)));
 nameBrandBarcode(barcode) = nameBrand(brandItem(skuBarcode(barcode)));
 
-@defineUniteAttributeItem(brand, nameBrand, 'бренд', 'бренды', item);
+@defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
+@implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
+
+@defineItemFilterValue(brand, 'Бренд', t);
+@defineItemExtractObjectAttribute(brand, nameBrand, brandName);
+
+@defineUniteFilterAttributeItem(brand, nameBrand, 'бренд', 'бренды', item);
 EXTEND FORM attributesItem
     PROPERTIES(brand) AFTER nameBrand(brand) READONLY siteBrand, idBrand SHOWIF showIDs()
 ;
 
-@defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
-@implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
-
-@defineItemFilterValue(brand, 'Бренд');
-@defineItemExtractObjectAttribute(brand, nameBrand, brandName);
-
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
-@defineUniteAttributeItem(country, nameCountry, 'страна', 'страны', item);
+@defineObjectItemAttributeBatch (country, nameCountry, 'Страна', sku);
+@implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
+
+@defineItemFilterValue(country, 'Страна', c);
+
+@defineUniteFilterAttributeItem(country, nameCountry, 'страна', 'страны', item);
 EXTEND FORM attributesItem
     PROPERTIES(country) READONLY AFTER nameCountry(country) nameLanguageCountry, nameCurrencyCountry, residentCountry, 
                                                             sidOrigin3Country, sidOrigin2Country, sidCountry, nameOriginCountry
 ;
-@defineObjectItemAttributeBatch (country, nameCountry, 'Страна', sku);
-@implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
 
 residentItem 'Отечественное производство' (item) = residentCountry(countryItem(item)) IN itemBase;
 countrySku(sku) += countryItem(sku);
@@ -1186,6 +1200,7 @@ TABLE manufacturer(Manufacturer);
 @defineExternalizable(manufacturer, VARSTRING[100]);
 
 nameManufacturer 'Наименование' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 25;
+manufacturerName = GROUP AGGR m BY nameManufacturer(m); 
 addressManufacturer 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 originalNameManufacturer 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 15;
@@ -1220,14 +1235,17 @@ FORM manufacturerDialog 'Производители товара'
 DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
-@defineUniteAttributeItem(manufacturer, nameManufacturer, 'производитель', 'производители', item);
+@defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
+@implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
+
+@defineItemFilterValue(manufacturer, 'Производитель', m);
+
+@defineUniteFilterAttributeItem(manufacturer, nameManufacturer, 'производитель', 'производители', item);
 EXTEND FORM attributesItem
     PROPERTIES READONLY AFTER nameManufacturer(manufacturer) idManufacturer(manufacturer) SHOWIF showIDs(),
                         originalNameManufacturer(manufacturer), originalAddressManufacturer(manufacturer), nameCountryManufacturer(manufacturer)
 
 ;
-@defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
-@implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 
 addressManufacturerItem 'Адрес производителя' (item) = addressManufacturer(manufacturerItem(item)); 
 

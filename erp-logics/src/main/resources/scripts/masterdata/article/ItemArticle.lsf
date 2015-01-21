@@ -205,6 +205,7 @@ TABLE color (Color);
 
 @defineExternalizable(color, VARSTRING[100]);
 nameColor 'Наименование' = DATA VARISTRING[50](Color);
+colorName 'Цвет' = GROUP AGGR color BY nameColor(color);
 
 FORM color 'Цвет товара'
     OBJECTS t=Color FIXED PANEL
@@ -223,12 +224,16 @@ DESIGN colors FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @extendFormEditable(colors);
 @defineObjectItemAttribute(color, Color, name, 'Цвет', itemArticle);
-@defineUniteAttributeItem(color, nameColor, 'цвет товара', 'цвета товара', item);
+@defineObjectItemAttributeBatch (color, nameColor, 'Цвет');
+@implementItemAttribute(nameColor, 'Цвет', String, itemColor);
+
+@defineItemFilterValue(color, 'Цвет', t);
+
+@defineUniteFilterAttributeItem(color, nameColor, 'цвет товара', 'цвета товара', item);
 EXTEND FORM attributesItem
     PROPERTIES READONLY AFTER nameColor(color) idColor(color) SHOWIF showIDs()
 ;
-@defineObjectItemAttributeBatch (color, nameColor, 'Цвет');
-@implementItemAttribute(nameColor, 'Цвет', String, itemColor);
+
 idColorItem (item) = idColor(colorItem(item));
 
 TABLE colorArticle(Color, Article);
@@ -326,8 +331,6 @@ shortNameGenderBatch 'Пол' (batch) = shortNameGender(genderBatch(batch));
 EXTEND FORM article PROPERTIES(a) nameGenderArticle;
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGenderArticle;
 
-@defineUniteAttributeItem(gender, nameGender, 'пол', 'пол', article);
-
 // Размер
 CLASS Size 'Размер товара';
 TABLE size(Size);
@@ -335,6 +338,7 @@ TABLE size(Size);
 @defineExternalizable(size, VARSTRING[100]);
 
 nameSize 'Наименование' = DATA VARISTRING[50](Size);
+sizeName = GROUP MAX size BY nameSize(size);
 shortNameSize 'Краткое наименование' = DATA ISTRING[10](Size);
 
 nameOriginalSize 'Наименование (оригинальное)' = DATA VARISTRING[50](Size);
@@ -356,10 +360,6 @@ FORM sizes 'Размеры товара'
 DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(size, Size, name, 'Размер', itemArticle);
-@defineUniteAttributeItem(size, nameSize, 'размер товара', 'размеры товара', item);
-EXTEND FORM attributesItem
-    PROPERTIES(size) AFTER nameSize(size) READONLY nameOriginalSize, shortNameSize, idSize SHOWIF showIDs() 
-;
 
 nameOriginalSizeItem 'Размер (оригинальный)' (item) = nameOriginalSize(sizeItem(item)) IN itemArticle;
 dataOriginalSizeItem 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
@@ -368,6 +368,13 @@ originalSizeItem 'Размер (оригинальный)' (i) = OVERRIDE nameOr
 
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
 @implementItemAttribute(nameSize, 'Размер', String, itemSize);
+
+@defineItemFilterValue(size, 'Размер', t);
+
+@defineUniteFilterAttributeItem(size, nameSize, 'размер товара', 'размеры товара', item);
+EXTEND FORM attributesItem
+    PROPERTIES(size) AFTER nameSize(size) READONLY nameOriginalSize, shortNameSize, idSize SHOWIF showIDs() 
+;
 
 TABLE sizeArticle(Size, Article);
 EXTEND CLASS Size  {
@@ -483,7 +490,7 @@ EXTEND FORM articles
     PROPERTIES(a) READONLYIF isReadonly() nameSizeGroupArticle 
 ;
 
-@defineUniteAttributeItemWittoutExtendForm(sizeGroup, nameSizeGroup, 'размерная сетка', 'размерные сетки', article);
+@defineUniteAttributeItemWithoutExtendForm(sizeGroup, nameSizeGroup, 'размерная сетка', 'размерные сетки', article);
 
 EXTEND FORM attributesItem
     OBJECTS sizeGroup=SizeGroup 
