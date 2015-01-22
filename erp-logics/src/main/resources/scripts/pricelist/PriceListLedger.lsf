@@ -647,6 +647,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
 ;
 DESIGN movementPriceSkuStock FROM DEFAULT {
     main {
+        preferredSize = (800, 600);
         NEW topContainer{
             type = CONTAINERH;
             ADD s.box;
@@ -657,9 +658,35 @@ DESIGN movementPriceSkuStock FROM DEFAULT {
             ADD PROPERTY(nameDialogPriceListTypeSkuStock(s,st));
         }
         ADD pp.box;
-
         PROPERTY(nameSku(s)) { focusable = FALSE;}
-        PROPERTY(nameStock(st)) { focusable = FALSE;}
+        PROPERTY(namePriceListType(t)) { caption = 'Вид цен';}
+    }
+    ADD functions.box;
+}
+
+//--
+FORM movementPriceSkuStocks 'Изменение цены товара'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS pp = (t = PriceListType, pl = PriceListLedger, st = Stock)
+    PROPERTIES READONLY namePriceListType(t), nameStock(st), descriptionPriceListLedger(pl),  fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
+                        pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
+    PROPERTIES(pl) editPriceListLedger                     
+    ORDER BY nameStock(st), namePriceListType(t), fromDateTimePriceListLedger(pl)
+
+    FILTERS skuPriceListLedger(pl) == s,
+            activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
+            pricePriceListLedgerLedgerPriceListType(pl,t),
+            isCompanyStock(st)
+;
+DESIGN movementPriceSkuStocks FROM DEFAULT {
+    main {
+        preferredSize = (800, 600);
+        ADD s.box;
+        ADD pp.box;
+        PROPERTY(nameSku(s)) { focusable = FALSE;}
+        PROPERTY(nameStock(st)) { caption = 'Склад';}
         PROPERTY(namePriceListType(t)) { caption = 'Вид цен';}
     }
     ADD functions.box;
@@ -667,11 +694,16 @@ DESIGN movementPriceSkuStock FROM DEFAULT {
 
 META defineMovementPriceSku(detail, stockProp)
     showMovementPriceSkuStock###detail 'Показать изменение цены товара по складу' (detail) = ACTION FORM movementPriceSkuStock OBJECTS s = sku###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameSku###detail;
+    showMovementPriceSkuStocks###detail 'Показать изменение цены товара' (detail) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
 END
 
 showMovementPriceSkuSkuStock 'Показать изменение цены товара по складу' (sku, stock) = ACTION FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
+showMovementPriceSkuSkuStocks 'Показать изменение цены товара по складу' (sku) = ACTION FORM movementPriceSkuStock OBJECTS s = sku MODAL SHORTCUT nameSku;
+showMovementPriceSkuStocks 'Показать изменение цены товара' (sku) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku MODAL SHORTCUT nameSku;
 
 showMovementPriceSkuBatchStock 'Показать изменение цены товара по складу' (batch, stock) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch), st = stock MODAL;
+showMovementPriceSkuBatchStocks 'Показать изменение цены товара по складу' (batch) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch) MODAL SHORTCUT nameSkuBatch;
+showMovementPriceBatchStocks 'Показать изменение цены товара' (batch) = ACTION FORM movementPriceSkuStocks OBJECTS s = skuBatch(batch) MODAL SHORTCUT nameSkuBatch;
 
 showMovementPriceSkuStockBatch 'Показать изменение цены товара по складу возникновения партии' (batch) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MODAL SHORTCUT nameSkuBatch;
 
@@ -680,6 +712,7 @@ showMovementPriceSkuStockBatch 'Показать изменение цены т�
 //}; //-- показываем по нажатию правой клавиши  изменение цены товара
 
 @extendFormFilterStockAccess(st, movementPriceSkuStock);
+@extendFormFilterStockAccess(st, movementPriceSkuStocks);
 
 
 filterReportStock  = DATA LOCAL Stock ();
