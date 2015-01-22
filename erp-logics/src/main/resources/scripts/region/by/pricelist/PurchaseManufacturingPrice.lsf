@@ -77,9 +77,12 @@ costManufacturingPriceUserInvoiceDetail(detail) = NUMERIC[14,2] (incomeManufactu
                                                                 customCostPriceUserInvoiceDetail(detail) (+) certificateCostPriceUserInvoiceDetail(detail));
 
 @defineDocumentInterfaceProperty (invoice, showManufacturingPrice, 'Цена изготовителя');
+@defineDocumentInterfaceProperty (invoice, reverseManufacturingPrice, 'Обратный расчет цены изг.');
+@defineOperationProperty(reverseManufacturingPrice, 'Обратный расчет цены изг.', priceContainer);
 
 // -- Операция
 @deriveDocumentOperationProperty(UserInvoice, showManufacturingPrice);
+@deriveDocumentOperationProperty(UserInvoice, reverseManufacturingPrice);
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, manufacturing, ' изготовителя');
 @defineDocumentInterfaceDetailInclVATCustomPrefix (invoiceDetail);
@@ -126,6 +129,7 @@ EXTEND DESIGN Purchase.operation{
             ADD PROPERTY(showManufacturingPriceOperation(o));
             ADD PROPERTY(addCostPriceToManufacturingPriceOperation(o));
             ADD PROPERTY(nameManufacturingCalcPriceListTypeOperation(o));
+            ADD PROPERTY(reverseManufacturingPriceOperation(o));
         }
     }
 }
@@ -138,36 +142,59 @@ calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufact
                                         ELSE incomeManufacturingPriceUserInvoiceDetail(detail);
 
 baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
+baseReverseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) / (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))*100;
 
 skipChangeManufacturingPriceUserInvoiceDetail 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
+calcReversePriceUserInvoiceDetail(d) =     
+    NUMERIC[14,2](manufacturingPriceUserInvoiceDetail (d) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(d))/100);  
+
+calcReverseManufacturingPriceUserInvoiceDetail(d) =     
+    NUMERIC[14,2](manufacturingPriceUserInvoiceDetail (d) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(d))/100);  
+
 updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
-    manufacturingPriceUserInvoiceDetail(d) <- 
-        IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
-            round(baseManufacturingPriceUserInvoiceDetail(d), priceRoundRoundCondition(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))))
-        ELSE
-            baseManufacturingPriceUserInvoiceDetail(d);
+    IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
+        priceUserInvoiceDetail(d) <- calcReversePriceUserInvoiceDetail(d);
+    } ELSE {
+        manufacturingPriceUserInvoiceDetail(d) <- 
+            IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
+                round(baseManufacturingPriceUserInvoiceDetail(d), priceRoundRoundCondition(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))))
+            ELSE
+                baseManufacturingPriceUserInvoiceDetail(d);    
+    }
+}
+overChangePriceUserInvoiceDetail (d) += ACTION (d) {
+    IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
+        manufacturingPriceUserInvoiceDetail(d)<- baseReverseManufacturingPriceUserInvoiceDetail(d);    
+    }
 }
 
 WHEN SESSION FORMS userInvoice
-    (CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) 
+    ((CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) AND NOT reverseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) 
         AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) AND NOT skipChangeManufacturingPriceUserInvoiceDetail(d) DO {
         
         updateManufacturingPriceUserInvoiceDetail(d);
-    }    
-
+    }   
+ 
 calcManufacturingMarkupUserInvoiceDetail(d) =     
     NUMERIC[8,3]((manufacturingPriceUserInvoiceDetail(d) * 100.0 / calcBaseManufacturingPriceUserInvoiceDetail(d)) - 100.0);
-
 
 changeManufacturingPriceUserInvoiceDetail = ACTION (d) {
     REQUEST NUMERIC[14,2] INPUT;
 
     IF requestedNumeric() THEN {
-        manufacturingPriceUserInvoiceDetail(d) <- requestedNumeric();       
-        manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);
+        manufacturingPriceUserInvoiceDetail(d) <- requestedNumeric();      
+        IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
+            priceUserInvoiceDetail(d) <- calcReversePriceUserInvoiceDetail(d);  // пока не учитываем доп. расходы
+        } ELSE {
+            manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);        
+        } 
     } ELSE {
         manufacturingPriceUserInvoiceDetail(d) <- NULL;
-        manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);     
+        IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
+            priceUserInvoiceDetail(d) <- calcReversePriceUserInvoiceDetail(d); // пока не учитываем доп. расходы
+        } ELSE {
+            manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);     
+        }
     }
 }
 
@@ -217,7 +244,6 @@ discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (deta
 
 showManufacturingPriceHomeCurrencyUserInvoice(invoice) = showManufacturingPriceUserInvoice(invoice) AND isHomeCurrencyUserInvoice(invoice);
 
-
 backgroundManufacturingInvoice 'Цвет' (invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
 overBackgroundManufacturingInvoiceDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
 backgroundManufacturingInvoiceDetail (d) = OVERRIDE backgroundManufacturingInvoice(invoiceInvoiceDetail(d)), overBackgroundManufacturingInvoiceDetail(d);
@@ -225,7 +251,7 @@ backgroundManufacturingInvoiceDetail (d) = OVERRIDE backgroundManufacturingInvoi
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPriceUserInvoice BACKGROUND backgroundManufacturingInvoice(i)
     PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) addCostPriceToManufacturingPriceUserInvoice,
-                  nameManufacturingCalcPriceListTypeUserInvoice
+                  nameManufacturingCalcPriceListTypeUserInvoice, reverseManufacturingPriceUserInvoice
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoiceDetail(d) AFTER invoiceSumUserInvoiceDetail(d) 
                   manufacturingMarkupUserInvoiceDetail,
@@ -247,6 +273,7 @@ EXTEND DESIGN userInvoice {
             ADD PROPERTY(showManufacturingPriceUserInvoice(i));
             ADD PROPERTY(addCostPriceToManufacturingPriceUserInvoice(i));
             ADD PROPERTY(nameManufacturingCalcPriceListTypeUserInvoice(i));
+            ADD PROPERTY(reverseManufacturingPriceUserInvoice(i));
             ADD PROPERTY(dateManufacturingRateExchangeUserInvoice(i));
             ADD PROPERTY(rateManufacturingExchangeUserInvoice(i));
         }
