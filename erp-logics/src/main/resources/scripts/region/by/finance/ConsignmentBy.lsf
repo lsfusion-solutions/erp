@@ -8,6 +8,7 @@ REQUIRE System,
         Utils,
         Transport,
         Numerator,
+        StockContract,
         SkuLedger; // вот эту зависимость нужно будет убрать
 
 NAMESPACE Consignment;
@@ -156,9 +157,15 @@ readdressingConsignment 'Переадресовка' (consignment) = ABSTRACT VA
 
 GROUP issuanceConsignment 'Отпуск' : base;
 
+contractConsignment = ABSTRACT Contract (Consignment);
+overDescriptionContract 'Описание' (contract) = 'дог. '+ descriptionContract(contract);
+
+descriptionContractConsignment = overDescriptionContract(contractConsignment(consignment));
+
 dataShipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment);
 overShipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment);
-shipmentBaseConsignment 'Основание отпуска' (consignment) = OVERRIDE  dataShipmentBaseConsignment(consignment),
+shipmentBaseConsignment 'Основание отпуска' (consignment) = OVERRIDE  VARSTRING[100](descriptionContractConsignment(consignment)),
+                                                                      dataShipmentBaseConsignment(consignment),
                                                                       overShipmentBaseConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
 issuanceAllowedConsignment (consignment) = ABSTRACT Employee (Consignment);
@@ -866,7 +873,8 @@ META implementConsignmentHeader (concrete)
     readdressingConsignment (consignment) += readdressing###concrete (consignment);
     
     countPagesConsignment (consignment) += countPages###concrete (consignment);
-
+    
+    contractConsignment(consignment) += contractSku###concrete (consignment);
     overShipmentBaseConsignment (consignment) += overShipmentBase###concrete (consignment);
 
     issuanceAllowedConsignment (consignment) += issuanceAllowed###concrete (consignment);
