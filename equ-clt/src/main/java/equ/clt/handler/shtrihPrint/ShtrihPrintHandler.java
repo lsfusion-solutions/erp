@@ -70,7 +70,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 for (ScalesInfo scales : enabledScalesList.isEmpty() ? scalesList : enabledScalesList) {
                     List<String> localErrors = new ArrayList<String>();
                     
-                    UDPPort port = new UDPPort(scales.port, 1111, 1000);
+                    UDPPort port = new UDPPort(scales.port, 1111, 5000);
                     
                     String ip = scales.port;
                     if (ip != null) {
