@@ -850,23 +850,95 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
     invoiceDetailUserInvoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail);
     invoiceDetailInvoiceDetail(detail) += invoiceDetailUserInvoiceDetail(detail);
 
-    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM nsret.quantityInvoiceDetail(invoiceDetail) BY invoiceDetailInvoiceDetail(invoiceDetail) PERSISTENT;
+    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM nsret.quantityInvoiceDetail(invoiceDetail) IF nsret.isPostedInvoiceDetail(invoiceDetail) 
+        BY invoiceDetailInvoiceDetail(invoiceDetail) PERSISTENT;
     returnQuantityInvoiceDetailInvoice 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantityInvoiceDetail(invoiceDetail) BY nsdir.invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
+    toReturnQuantityInvoiceDetail 'Кол-во доступно к возврату' (invoiceDetail)= nsdir.quantityInvoiceDetail(invoiceDetail) (-) returnQuantityInvoiceDetail(invoiceDetail);    
 
-    CONSTRAINT returnQuantityInvoiceDetail(detail) > nsdir.quantityInvoiceDetail(detail)
+    CONSTRAINT returnQuantityInvoiceDetail(d) > nsdir.quantityInvoiceDetail(d)
         MESSAGE 'Количество строки возврата больше чем количество строки основания';
 
-    CONSTRAINT nsdir.skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != nsret.skuUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
+    CONSTRAINT nsdir.skuInvoiceDetail(invoiceDetailUserInvoiceDetail(d)) != nsret.skuUserInvoiceDetail(d) CHECKED BY invoiceDetailUserInvoiceDetail
         MESSAGE 'SKU строки основания должен соответствовать SKU строки возврата';
 
-    CONSTRAINT nsdir.supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != nsret.supplierUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
+    CONSTRAINT nsdir.supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(d)) != nsret.supplierUserInvoiceDetail(d) CHECKED BY invoiceDetailUserInvoiceDetail
         MESSAGE 'Поставщик строки основания должен соответствовать Поставщик строки возврата';
 
-    CONSTRAINT nsdir.customerInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != nsret.customerUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
+    CONSTRAINT nsdir.customerInvoiceDetail(invoiceDetailUserInvoiceDetail(d)) != nsret.customerUserInvoiceDetail(d) CHECKED BY invoiceDetailUserInvoiceDetail
         MESSAGE 'Покупатель строки основания должен соответствовать Покупатель строки возврата';
+        
+        
+    isBaseInvoiceDetail 'Должно быть задано основание' = DATA BOOLEAN ();    
+    
+    EXTEND FORM options
+        PROPERTIES() nsret###isBaseInvoiceDetail = isBaseInvoiceDetail
+    ;
+    
+    EXTEND DESIGN options {
+        invoice##nsret {
+            ADD PROPERTY(nsret###isBaseInvoiceDetail);    
+        }
+    }
+
+    CONSTRAINT isPostedUserInvoiceDetail(d) AND isBaseInvoiceDetail() AND NOT invoiceDetailUserInvoiceDetail(d)
+        MESSAGE 'Не задано основание';  
 
     descriptionInvoiceDetailInvoiceDetail 'Основание' (invoiceDetail) = nsdir.descriptionInvoiceDetail(invoiceDetailInvoiceDetail(invoiceDetail));
     descriptionInvoiceDetailUserInvoiceDetail 'Основание' (userInvoiceDetail) = nsdir.descriptionInvoiceDetail(invoiceDetailUserInvoiceDetail(userInvoiceDetail));
+    balanceBMaxBatchInvoiceDetail 'Остаток партии (max)' (d,st,dt) = balanceBBatchStockDateTime(nsdir.maxBatchInvoiceDetail(d),st,dt);
+    
+    FORM baseInvoiceDetail 'Строка накладной'        
+        OBJECTS sk = Sku FIXED PANEL
+        PROPERTIES(sk) READONLY nameSku, idBarcodeSku, shortNameUOMSku
+        
+        OBJECTS st = Stock FIXED PANEL    
+        OBJECTS dt = DATETIME FIXED PANEL       
+        OBJECTS d = nsdir.InvoiceDetail LAST
+        PROPERTIES(d) READONLY nsdir.dateInvoiceDetail, nsdir.indexInvoiceDetail, nsdir.descriptionInvoiceDetail,
+                               nsdir.quantityInvoiceDetail, toReturnQuantityInvoiceDetail
+        PROPERTIES   READONLY balanceBMaxBatchInvoiceDetail(d,st,dt)                       
+        PROPERTIES(d) READONLY nsdir.priceInvoiceDetail, nsdir.sumInvoiceDetail,
+                               nsdir.numberVATInvoiceDetail, nsdir.valueVATInvoiceDetail, nsdir.VATSumInvoiceDetail, nsdir.invoiceSumInvoiceDetail,
+                               nsdir.name###stockProp###invoiceDetail         
+                
+        FILTERGROUP filter11
+                    FILTER  'По складу' nsdir.stockProp###invoiceDetail(d) == st DEFAULT     
+        FILTERGROUP filter12
+                    FILTER  'Доступно' toReturnQuantityInvoiceDetail(d) > 0 DEFAULT                            
+                
+    ;
+    DESIGN baseInvoiceDetail FROM DEFAULT {
+        main {
+            ADD sk.box {
+                type = CONTAINERH;
+                PROPERTY(nameSku(sk)) {focusable = FALSE;}
+                PROPERTY(idBarcodeSku(sk)) {focusable = FALSE;}
+                PROPERTY(shortNameUOMSku(sk)) {focusable = FALSE;}
+            }
+            ADD d.box;
+            ADD functions.box;
+        }
+    } 
+    
+    change###nsdir###invoiceDetailInvoiceDetail = ACTION (detail) {
+        REQUEST OBJECT d
+        IF stockProp###invoiceDetail(detail)  THEN {
+            IF invoiceDetailUserInvoiceDetail(detail) THEN {            
+                FORM baseInvoiceDetail OBJECTS sk = skuInvoiceDetail(detail), st = stockProp###invoiceDetail(detail), dt = dateTimeInvoiceDetail(detail), d = invoiceDetailUserInvoiceDetail(detail)  CONTEXTFILTER d = invoiceDetailUserInvoiceDetail(detail) DIALOG SHOWDROP;        
+            } 
+            ELSE {
+                FORM baseInvoiceDetail OBJECTS sk = skuInvoiceDetail(detail), st = stockProp###invoiceDetail(detail), dt = dateTimeInvoiceDetail(detail) CONTEXTFILTER d = invoiceDetailUserInvoiceDetail(detail) DIALOG SHOWDROP; 
+            }
+        }
+        
+        IF formResult() == FormResult.ok THEN {
+            invoiceDetailUserInvoiceDetail(detail) <- requestedObject();
+
+        } ELSE IF formResult() == FormResult.drop THEN {
+            invoiceDetailUserInvoiceDetail(detail) <- NULL;
+        }
+    }    
+    
 
 //    nsret.priceUserInvoiceDetail(detail) <- IF invoiceDetailUserInvoiceDetail(detail) THEN
 //                                                    nsdir.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
@@ -907,7 +979,8 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
                 DO EXEC recalculatedPriceUserInvoiceDetail(detail);
 
 
-    EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetailUserInvoiceDetail AFTER shortNameUOMSkuUserInvoiceDetail(d);
+    EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetailUserInvoiceDetail ON CHANGE change###nsdir###invoiceDetailInvoiceDetail(d) 
+                AFTER shortNameUOMSkuUserInvoiceDetail(d);
     EXTEND FORM nsdir.userInvoice PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeUserInvoiceDetail(d);
 
     EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetailInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d);
