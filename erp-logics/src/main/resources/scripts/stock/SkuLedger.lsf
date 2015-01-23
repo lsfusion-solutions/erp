@@ -434,15 +434,52 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     countLedger##postfix##BatchStockDateDate 'Кол-во движений за период'###caption (batch, stock, dateFrom, dateTo) =
         GROUP SUM 1 IF signedQuantityActive##postfix##SkuLedgerBatch(ledger, batch) AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger) <= dateTo
         BY batch, stockSkuLedger(ledger), dateFrom, dateTo;
+        
+    lastOrderBatch##postfix##SkuStock(sku, stock)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock
+              ORDER orderBatch(batch)
+              WHERE countLedger##postfix##BatchStock(batch, stock) COMPLEX PERSISTENT;
 
-    orderBatch##postfix##SkuStock (sku, stock) = GROUP MAX orderBatch(batch) IF countLedger##postfix##BatchStock(batch, stock)
-                                                       BY skuBatch(batch), stock PERSISTENT;
-    lastOrderBatch##postfix##SkuStock(sku, stock) = orderBatch##postfix##SkuStock(sku, stock)[2] PERSISTENT;
+//    orderBatch##postfix##SkuStock (sku, stock) = GROUP MAX orderBatch(batch) IF countLedger##postfix##BatchStock(batch, stock)
+//                                                       BY skuBatch(batch), stock PERSISTENT;
+//    lastOrderBatch##postfix##SkuStock(sku, stock) = orderBatch##postfix##SkuStock(sku, stock)[2] PERSISTENT;
     prevLastOrderBatch##postfix##SkuStock(sku, stock) = PREV(lastOrderBatch##postfix##SkuStock(sku, stock));
     dateTimeLastOrderBatch##postfix##SkuStock 'Время последней партии' (sku, stock) = dateTimeBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
     
     lastBatchManufactureDate##postfix##SkuStock 'Дата изготовления последней партии' (sku, stock) = manufactureDateBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
     lastBatchExpiryDate##postfix##SkuStock 'Срок годности последней партии' (sku, stock) = expiryDateBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
+
+    batchLastManufactureDate##postfix##SkuStock (sku, stock)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock
+              ORDER orderBatch(batch)
+              WHERE countLedgerBatchStock(batch, stock) AND manufactureDateBatch(batch) COMPLEX;
+              
+    batchLastExpiryDate##postfix##SkuStock (sku, stock)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock
+              ORDER orderBatch(batch)
+              WHERE countLedgerBatchStock(batch, stock) AND expiryDateBatch(batch) COMPLEX;    
+              
+    overLastManufactureDate##postfix##SkuStock 'Последняя дата изготовления' (sku, stock) = manufactureDateBatch(batchLastManufactureDate##postfix##SkuStock(sku, stock));
+    overLastExpiryDate##postfix##SkuStock 'Последний срок годности' (sku, stock) = expiryDateBatch(batchLastExpiryDate##postfix##SkuStock(sku, stock));
+    
+    useFillBatchProperty 'Использовать последние: срок годности, дату и время изготовления' = DATA BOOLEAN ();
+    EXTEND FORM options
+        PROPERTIES() useFillBatchProperty
+    ;
+    EXTEND DESIGN options {
+        commons {
+            ADD PROPERTY(useFillBatchProperty());
+        }
+    }
+    lastManufactureDate##postfix##SkuStock 'Дата изготовления' (sku, stock) = IF useFillBatchProperty() 
+        THEN manufactureDateBatch(batchLastManufactureDate##postfix##SkuStock(sku, stock))
+        ELSE manufactureDateBatch(lastOrderBatch##postfix##SkuStock(sku, stock));
+    lastExpiryDate##postfix##SkuStock 'Срок годности' (sku, stock) = IF useFillBatchProperty()
+        THEN expiryDateBatch(batchLastExpiryDate##postfix##SkuStock(sku, stock))
+        ELSE expiryDateBatch(lastOrderBatch##postfix##SkuStock(sku, stock));    
     
     lastOrderBatch##postfix##Sku (sku) = GROUP MIN lastOrderBatch##postfix##SkuStock(sku, stock) BY sku;
 
