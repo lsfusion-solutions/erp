@@ -4,25 +4,94 @@ REQUIRE POS, SaleInvoiceContract, ContractPayment, SaleShipment;
 
 NAMESPACE Sale;
 
-sumPrePayment 'Сумма предоплаты' = DATA LOCAL NUMERIC[16,2] ();
+fiscalTypePayment 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment); 
+dataFiscalTypePayment 'Тип платежа' = DATA INTEGER (Payment.Payment);
+fiscalTypePayment(p) += dataFiscalTypePayment(p); 
+
+EXTEND FORM payment 
+    PROPERTIES(p) fiscalTypePayment
+;
+
+EXTEND DESIGN payment {
+    paramContainer {
+        ADD PROPERTY(fiscalTypePayment(p));
+    }
+} 
+  
+setPassportPhoneLegalEntity = ABSTRACT ACTION (STRING[10]); 
 
 FORM paymentInstallments 'Рассрочка'
-    OBJECTS l = LegalEntity FIXED PANEL
-    PROPERTIES(l) SELECTOR nameLegalEntity
+    OBJECTS str1 = STRING[150] FIXED PANEL
+    
+    OBJECTS str2 = STRING[10] FIXED PANEL 
+    PROPERTIES(str2) passportNumberLegalEntity = OBJVALUE
+    PROPERTIES(str1) nameLegalEntity = OBJVALUE ON CHANGE setPassportPhoneLegalEntity(str2)         
+    
+    OBJECTS str3 = STRING[30] FIXED PANEL 
+    PROPERTIES(str3) phoneContact = OBJVALUE
+    
     OBJECTS n = NUMERIC[16,2] FIXED PANEL
     PROPERTIES(n) sumPayment = OBJVALUE
+    
+    OBJECTS pt = PaymentType FIXED PANEL 
+    PROPERTIES(pt) SELECTOR namePaymentType
 ;
 
 DESIGN paymentInstallments FROM DEFAULT {
-    PROPERTY(sumPayment) {
-        caption = 'Сумма первоначального платежа';
+    NEW topContainer{
+        type = CONTAINERH;
+        NEW customerContainer {
+            caption = 'Покупатель';
+            ADD PROPERTY(passportNumberLegalEntity) {
+                caption = 'Паспорт';
+                fontSize = 24;
+                panelLabelAbove = TRUE;   
+                alignment = STRETCH;                             
+            }
+            ADD PROPERTY(nameLegalEntity) {
+                caption = 'ФИО';
+                fontSize = 24;
+                panelLabelAbove = TRUE; 
+                preferredCharWidth = 30;                               
+            }
+            ADD PROPERTY(phoneContact) {
+                caption = 'Телефон';
+                fontSize = 24;
+                panelLabelAbove = TRUE;      
+                alignment = STRETCH;
+            }                          
+        }
+        NEW sumContainer {
+            caption = 'Платеж';
+            ADD PROPERTY(namePaymentType(pt)) {
+                caption = 'Тип платежа';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                preferredCharWidth = 12;
+            }                
+            ADD PROPERTY(sumPayment) {
+                caption = 'Сумма первоначального платежа';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                alignment = STRETCH;
+            }         
+        }
     }
+    ADD functions.box;
 }
+
+setPassportPhoneLegalEntity (passport) += ACTION (passport) {
+    FOR passportNumberLegalEntity(l) == passport DO {
+        SEEK paymentInstallments.str1 nameLegalEntity(l);
+        SEEK paymentInstallments.str3 phoneContact(l);
+        formRefresh();         
+    }
+} 
 
 printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
-createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       // todo: сделать необходимые округления
+createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentType) {       // todo: сделать необходимые округления
     FOR ADDOBJ i = UserInvoice DO {
         supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
         supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
@@ -61,6 +130,7 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       
             contractPayment(p) <- contractSkuUserInvoice(i);
             costOutContractLedgerInContractLedger(p, i) <- sum;
             isPostedPayment(p) <- TRUE;
+            dataFiscalTypePayment(p) <- IF sidPaymentType(paymentType) == 'card' THEN 1 ELSE 0;
             
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
             DELETE receipt;
@@ -80,9 +150,25 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum) {       
 }
 
 createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
-    FORM paymentInstallments MODAL;
-    IF formResult() == FormResult.ok THEN
-        createInvoiceReceipt(receipt, chosenObject('l'), chosenNumeric('n'));
+    FOR receiptReceiptDetail(detail) == receipt DO {
+        FORM paymentInstallments MODAL;
+        IF formResult() == FormResult.ok THEN {
+            ADDOBJ LegalEntity;
+            FOR l == addedObject() DO {
+                nameLegalEntity(l) <- chosenString('str1');
+                passportNumberLegalEntity(l) <- chosenString('str2');
+                phoneContact(l) <- chosenString('str3');
+                isCustomerLegalEntity(l) <- TRUE;
+                FOR shortNameOwnership(ownership) == 'Ф.Л.' DO {
+                    ownershipLegalEntity(l) <- ownership;
+                }
+                FOR nameLegalEntityGroup(group) == 'Покупатели' DO {
+                    legalEntityGroupLegalEntity(l) <- group;
+                }
+                createInvoiceReceipt(receipt, l, chosenNumeric('n'), chosenNumeric('pt'));
+            }
+        }    
+    }         
 }
 
 EXTEND FORM POS
