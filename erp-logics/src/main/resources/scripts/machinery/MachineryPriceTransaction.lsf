@@ -104,16 +104,14 @@ inMachineryPriceTransactionBarcode 'Вкл' = DATA BOOLEAN (MachineryPriceTransa
 nameMachineryPriceTransactionBarcode 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
 priceMachineryPriceTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode);
 
-orderMachineryPriceTransactionBarcode(transaction, barcode) = orderMachineryPriceTransaction(transaction)
-                                                              IF inMachineryPriceTransactionBarcode(transaction, barcode)
-                                                              AND NOT canceledMachineryPriceTransaction(transaction) PERSISTENT INDEXED;
-
 // Текущие загруженные штрихкоды
 TABLE barcodeGroupMachinery (Barcode, GroupMachinery);
 
-lastOrderTransactionBarcodeGroupMachinery (barcode, groupMachinery) = GROUP MAX orderMachineryPriceTransactionBarcode(transaction, barcode)
-                                                                            BY barcode, groupMachineryMachineryPriceTransaction(transaction);
-lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = lastOrderTransactionBarcodeGroupMachinery(barcode, groupMachinery) [2] PERSISTENT;
+lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
+    GROUP LAST transaction 
+          BY barcode, groupMachineryMachineryPriceTransaction(transaction)
+          ORDER orderMachineryPriceTransaction(transaction)
+          WHERE inMachineryPriceTransactionBarcode(transaction, barcode) AND NOT canceledMachineryPriceTransaction(transaction) PERSISTENT;
 prevLastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = PREV(lastTransactionBarcodeGroupMachinery (barcode, groupMachinery));
 
 transactionNameBarcodeGroupMachinery 'Текущее наименование в оборудовании' (barcode, groupMachinery)  =
@@ -125,7 +123,10 @@ transactionPriceBarcodeGroupMachinery 'Текущая цена в оборудо
 prevTransactionPriceBarcodeGroupMachinery (barcode, groupMachinery) = PREV(transactionPriceBarcodeGroupMachinery(barcode, groupMachinery));
 
 transactionPriceBarcodeStock 'Текущая цена в оборудовании' (barcode, stock) =
-    GROUP MAX transactionPriceBarcodeGroupMachinery(b, g) BY b, stockGroupMachinery(g); 
+    GROUP LAST transactionPriceBarcodeGroupMachinery(b, g) 
+          BY b, stockGroupMachinery(g)
+          ORDER orderMachineryPriceTransaction(lastTransactionBarcodeGroupMachinery(b, g))
+          WHERE lastTransactionBarcodeGroupMachinery(b, g);
 
 transactionPriceSkuStock 'Текущая цена в оборудовании' (sku, stock) =
     transactionPriceBarcodeStock(barcodeSku(sku), stock);
