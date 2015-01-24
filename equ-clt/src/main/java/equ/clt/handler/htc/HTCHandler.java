@@ -313,6 +313,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             
             for(String directory : directorySet) {
 
+                machineryExchangeLogger.info("HTCHandler: sending " + discountCardList.size() + " discount cards to : " + directory + (startDate != null ? (" starting from " + startDate) : "") );
+
                 File discountCardFile = new File(directory + (startDate == null ? "/Discnew.dbf" : "/Discupd.dbf"));
                 if (cachedDiscFile != null) {
                     FileCopyUtils.copy(cachedDiscFile, discountCardFile);
@@ -358,6 +360,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 }
                 File discountFlag = new File(directory + startDate == null ? "/TMC.dcn" : "/TMC.dcu");
                 discountFlag.createNewFile();
+
+                machineryExchangeLogger.info("HTCHandler: finish sending to " + directory);
             }
             if(cachedDiscFile != null) {
                 new File(cachedDiscFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
