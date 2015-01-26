@@ -427,13 +427,17 @@ EXTEND DESIGN options {
     pane {
         NEW items {
             caption = 'Товары';
-            type = SPLITV;
-            ADD ia.box;
-            NEW items1 {
+            
+            NEW itemSplit {
                 fill = 1;
-                type = SPLITH;
-                ADD treeGroups.tree.box;
-                ADD ia1.box;
+                type = SPLITV;
+                ADD ia.box;
+                NEW items1 {
+                    fill = 1;
+                    type = SPLITH;
+                    ADD treeGroups.tree.box;
+                    ADD ia1.box;
+                }
             }
         }
     }
@@ -677,8 +681,13 @@ META defineDoubleItemAttribute(attribute, type, caption, group)
     @definePrimitiveItemAttribute(attribute, type, caption, group);
 END
 
+deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ABSTRACT ACTION LIST();
+EXTEND FORM options PROPERTIES() deleteUnusedAttributes;
+EXTEND DESIGN options { items { ADD PROPERTY(deleteUnusedAttributes()); } };
+
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
+    deleteUnusedAttributes() += ACTION { DELETE o WHERE o IS attributeClass AND NOT [= GROUP SUM 1 BY attribute##Item(item)](o);}
     identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
     @defineItemAttribute(attribute, identity, caption, group);
 END
