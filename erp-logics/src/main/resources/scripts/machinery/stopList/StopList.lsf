@@ -306,7 +306,7 @@ EXTEND DESIGN options {
     }
 }
 
-createRequestStopList 'Создать стоп-лист'  = ACTION (){
+createRequestStopList 'Включить в стоп-лист'  = ACTION (){
 
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         NEWSESSION NESTED selectSkuStock {
@@ -327,10 +327,31 @@ createRequestStopList 'Создать стоп-лист'  = ACTION (){
     }
 
 } TOOLBAR;
+excludeRequestStopList 'Исключить из стоп-листа'  = ACTION (){
+
+    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
+        NEWSESSION NESTED selectSkuStock {
+            FOR ADDOBJ sl = StopList DO {
+                excludeStopList(sl) <- TRUE;
+                inStockStopList(st, sl) <- TRUE WHERE [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](st);  
+                FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY sku](sku) ADDOBJ d = StopListDetail DO {
+                    stopListStopListDetail(d) <- sl;
+                    skuStopListDetail(d) <- sku;            
+                } 
+                 FORM stopList OBJECTS sl = sl MANAGESESSION DOCKEDMODAL;
+            }
+        }
+        IF NOT notResetStopListSelectSku() THEN {
+            selectSkuStock(sku, stock) <- NULL;
+        }
+    } ELSE {
+        MESSAGE 'Не отмечены товары, которые надо исключить из Стоп-листа.';
+    }
+} TOOLBAR;
 
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES READONLY statusStopListSkuStock(s,st) BACKGROUND backgroundStopListSkuStock(s,st) BEFORE currentBalanceSkuStock(s,st)
-    PROPERTIES createRequestStopList() FORCE PANEL TODRAW sts
+    PROPERTIES  FORCE PANEL TODRAW sts createRequestStopList(), excludeRequestStopList()
 ;
 EXTEND DESIGN currentBalanceSkuStock {
     actionContainer {
@@ -338,6 +359,7 @@ EXTEND DESIGN currentBalanceSkuStock {
             caption = 'Запрет продаж по кассе';
             type = CONTAINERV;
             ADD PROPERTY (createRequestStopList());
+            ADD PROPERTY (excludeRequestStopList());
         } 
     }
 }
