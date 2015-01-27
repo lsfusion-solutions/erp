@@ -74,7 +74,6 @@ volumeInvoiceDetailGroupTypeCustomerTypeDateFromTo 'Объем, тыс дал. (
     (NUMERIC[20,8](signetVolumeInvoiceDetail(d))/(OVERRIDE 1.0 IF groupGroupTypeSku(groupType, skuInvoiceDetail(d)) IS StatisticGroup, conversionFactorStatisticGroup(groupGroupTypeSku(groupType, skuInvoiceDetail(d))))) IF    
     isPostedInvoiceDetail(d) AND dateInvoiceDetail(d) >= dateFrom AND dateInvoiceDetail(d) <= dateTo// AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
         BY groupType, customerInvoiceDetail(d), alcoholDirectionTypeInvoiceDetail(d), dateFrom, dateTo;
-            
 
 FORM alcoholStockSupplierReports 'Отчет по алкоголю (поставщики)'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
@@ -124,6 +123,44 @@ META defineInvoiceAlcohol(dumb)
     Invoice.alcoholSupplierTypeInvoiceDetail(d) += alcoholSupplierTypeInvoiceDetail(d);  
     
     alcoholSupplierTypeUserInvoiceDetail (d) <- alcoholSupplierTypeLegalEntityItem(supplierInvoiceDetail(d),skuInvoiceDetail(d))
-        WHEN CHANGED(skuInvoiceDetail(d)) OR CHANGED(supplierInvoiceDetail(d));
+        WHEN CHANGED(skuInvoiceDetail(d)) OR CHANGED(supplierInvoiceDetail(d));        
+        
+    alcoholSupplierTypeUserInvoice = DATA AlcoholSupplierType(UserInvoice);
+    nameAlcoholSupplierTypeUserInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeUserInvoice(i));
+    
+    EXTEND FORM userInvoice 
+        
+    ;
+    overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
+        alcoholSupplierTypeUserInvoiceDetail(d) <- alcoholSupplierTypeUserInvoiceDetail(detail);
+    } 
+
+    EXTEND FORM userInvoice
+        PROPERTIES (i) nameAlcoholSupplierTypeUserInvoice
+        PROPERTIES(d) nameAlcoholSupplierTypeUserInvoiceDetail
+        
+        OBJECTS da = UserInvoiceDetail
+        PROPERTIES (da) indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail,
+                        nameAlcoholSupplierTypeUserInvoiceDetail, DELETESESSION
+        FILTERS userInvoiceUserInvoiceDetail(da) == i        
+
+    ;
+
+    EXTEND DESIGN userInvoice{
+        specification.box{
+            NEW alcoholContainer {
+                caption = 'Алкоголь';
+                NEW headerAlcoholContainer { type = CONTAINERH; ADD PROPERTY (nameAlcoholSupplierTypeUserInvoice(i));}
+                ADD da.box;
+            }
+        }
+    } 
+    EXTEND FORM invoices
+        PROPERTIES(d) READONLY nameAlcoholSupplierTypeInvoiceDetail
+    ;    
+    
+    WHEN SESSION FORMS userInvoice CHANGED (alcoholSupplierTypeUserInvoice(userInvoiceUserInvoiceDetail(d))) DO {
+        alcoholSupplierTypeUserInvoiceDetail (d) <- alcoholSupplierTypeUserInvoice(userInvoiceUserInvoiceDetail(d));  
+    }
   
 END
