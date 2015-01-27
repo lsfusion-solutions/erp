@@ -98,9 +98,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                     for (ScalesItemInfo item : transaction.itemsList) {
                                         int error;
                                         int attempt = 0;
+                                        List<String> itemErrors = null;
                                         do {
                                             error = 0;
                                             attempt++;
+                                            itemErrors = new ArrayList<String>();
                                             Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                             Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
@@ -117,7 +119,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                             while (i < 8) {
                                                 String message = getMessage(description, start, total, newLineNoSubstring);
                                                 start += message.length() + 1;
-                                                int result = setMessageData(localErrors, port, messageNumber, i + 1, message);
+                                                int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
                                                 if (result != 0) {
                                                     error = result;
                                                 }
@@ -125,13 +127,15 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                             }
                                             
                                             if (error != 0) {
-                                                int result = setPLUDataEx(localErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
+                                                int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
                                                 if (result != 0)
                                                     error = result;
                                             }
                                         } while (attempt < 10 && error != 0);
 
                                         if (error != 0) {
+                                            if (itemErrors != null)
+                                                localErrors.addAll(itemErrors);
                                             logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
                                         }
                                     }
