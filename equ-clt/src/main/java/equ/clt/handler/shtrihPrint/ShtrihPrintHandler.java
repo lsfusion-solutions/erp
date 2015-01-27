@@ -126,7 +126,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                 i++;
                                             }
                                             
-                                            if (error != 0) {
+                                            if (error == 0) {
                                                 int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
                                                 if (result != 0)
                                                     error = result;
@@ -134,7 +134,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                         } while (attempt < 10 && error != 0);
 
                                         if (error != 0) {
-                                            if (itemErrors != null)
+                                            if (itemErrors != null && !itemErrors.isEmpty())
                                                 localErrors.addAll(itemErrors);
                                             logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
                                         }
