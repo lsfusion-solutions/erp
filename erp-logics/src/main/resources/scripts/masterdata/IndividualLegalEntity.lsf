@@ -14,6 +14,11 @@ isIndividualLegalEntity 'Физ.лицо' (legalEntity) =  ownershipLegalEntity(
 
 passportNumberLegalEntity 'Номер паспорта' = DATA STRING[10] (LegalEntity);
 
+// Уникальность
+legalEntityPassportNumber =
+    GROUP AGGR legalEntity
+        BY passportNumberLegalEntity(legalEntity) WHERE legalEntity IS LegalEntity;
+
 WHEN SESSION CHANGED(nameContact(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
     ASSIGN nameLegalEntity(legalEntity) <- nameContact(legalEntity);
 }
@@ -38,9 +43,31 @@ WHEN SESSION CHANGED(emailContact(legalEntity)) AND isIndividualLegalEntity(lega
 WHEN SESSION CHANGED(emailLegalEntity(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
     ASSIGN emailContact(legalEntity) <- emailLegalEntity(legalEntity);
 }
-
 toShowIndividualLegalEntity(legalEntity) += isIndividualLegalEntity(legalEntity);
 
+requireFillingAttributesContact 'Требовать заполнения контактной информации для физическиз лиц' = DATA BOOLEAN ();
+
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT passportNumberLegalEntity(l)
+    MESSAGE 'Не заполнен номер паспорта';
+    
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT phoneContact(l)
+    MESSAGE 'Не заполнен номер телефона';
+        
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT nameLegalEntity(l)
+    MESSAGE 'Не заполнены ФИО';
+            
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT postAddressContact(l)
+    MESSAGE 'Не заполнен почтовый адрес';   
+             
+EXTEND FORM options
+    PROPERTIES requireFillingAttributesContact()              
+;           
+
+EXTEND DESIGN options {
+    commons{
+        ADD PROPERTY(requireFillingAttributesContact());
+    }
+}
 
 EXTEND FORM legalEntity
 

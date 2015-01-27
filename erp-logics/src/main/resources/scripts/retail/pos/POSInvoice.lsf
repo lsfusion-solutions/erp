@@ -18,31 +18,35 @@ EXTEND DESIGN payment {
     }
 } 
   
-setPassportPhoneLegalEntity = ABSTRACT ACTION (STRING[10]); 
+setPassportPhoneLegalEntity = ABSTRACT ACTION (); 
 
 isReadonly() = DATA LOCAL BOOLEAN ();
 
+nameLegalEntity = DATA LOCAL STRING[150] ();     
+passportNumberLegalEntity = DATA LOCAL STRING[10] ();
+phoneContact = DATA LOCAL STRING[30] ();
+postAddressContact = DATA LOCAL STRING[100] ();  
+noteInvoice = DATA LOCAL STRING[255] ();  
+
 FORM paymentInstallments 'Рассрочка'
-    OBJECTS str1 = STRING[150] FIXED PANEL
-    PROPERTIES(str1) READONLYIF isReadonly() nameLegalEntity = OBJVALUE     
+    PROPERTIES READONLYIF isReadonly() nameLegalEntity()     
         
-    OBJECTS str2 = STRING[10] FIXED PANEL 
-    PROPERTIES(str2) READONLYIF isReadonly() passportNumberLegalEntity = OBJVALUE ON CHANGE setPassportPhoneLegalEntity(str2)
+    PROPERTIES READONLYIF isReadonly() passportNumberLegalEntity() ON CHANGE setPassportPhoneLegalEntity()
      
-    OBJECTS str3 = STRING[30] FIXED PANEL 
-    PROPERTIES(str3) READONLYIF isReadonly() phoneContact = OBJVALUE
+    PROPERTIES READONLYIF isReadonly() phoneContact()
     
-    OBJECTS str4 = STRING[100] FIXED PANEL 
-    PROPERTIES(str4) READONLYIF isReadonly() postAddressContact = OBJVALUE    
+    PROPERTIES READONLYIF isReadonly() postAddressContact()    
     
-    OBJECTS str5 = STRING[255] FIXED PANEL 
-    PROPERTIES(str5) noteInvoice = OBJVALUE        
+    PROPERTIES noteInvoice()        
     
     OBJECTS n = NUMERIC[16,2] FIXED PANEL
     PROPERTIES(n) sumPayment = OBJVALUE
     
     OBJECTS pt = PaymentType FIXED PANEL 
     PROPERTIES(pt) SELECTOR namePaymentType
+    
+    OBJECTS pc = PaymentCondition FIXED PANEL
+    PROPERTIES(pc) SELECTOR descriptionPaymentCondition    
 ;
 
 DESIGN paymentInstallments FROM DEFAULT {
@@ -50,27 +54,27 @@ DESIGN paymentInstallments FROM DEFAULT {
         type = CONTAINERH;
         NEW customerContainer {
             caption = 'Покупатель';
-            ADD PROPERTY(passportNumberLegalEntity) {
+            ADD PROPERTY(passportNumberLegalEntity()) {
                 caption = 'Паспорт';
                 fontSize = 24;
                 panelLabelAbove = TRUE;   
                 alignment = STRETCH;   
                 notNull = TRUE;
             }
-            ADD PROPERTY(nameLegalEntity) {
+            ADD PROPERTY(nameLegalEntity()) {
                 caption = 'ФИО';
                 fontSize = 24;
                 panelLabelAbove = TRUE;
                 notNull = TRUE;
             }
-            ADD PROPERTY(postAddressContact) {
+            ADD PROPERTY(postAddressContact()) {
                 caption = 'Адрес';
                 fontSize = 24;
                 panelLabelAbove = TRUE;      
                 alignment = STRETCH;
                 notNull = TRUE;
             }   
-            ADD PROPERTY(phoneContact) {
+            ADD PROPERTY(phoneContact()) {
                 caption = 'Телефон';
                 fontSize = 24;
                 panelLabelAbove = TRUE;      
@@ -80,11 +84,17 @@ DESIGN paymentInstallments FROM DEFAULT {
         }
         NEW sumContainer {
             caption = 'Платеж';
+            ADD PROPERTY(descriptionPaymentCondition(pc)) {
+                caption = 'Условия рассрочки';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                preferredCharWidth = 15;
+            }              
             ADD PROPERTY(namePaymentType(pt)) {
                 caption = 'Тип платежа';
                 fontSize = 32;   
                 panelLabelAbove = TRUE;
-                preferredCharWidth = 12;
+                preferredCharWidth = 15;
             }                
             ADD PROPERTY(sumPayment) {
                 caption = 'Сумма первоначального платежа';
@@ -96,32 +106,31 @@ DESIGN paymentInstallments FROM DEFAULT {
     }
     NEW bottomContainer {
         caption = 'Примечание';
-        ADD PROPERTY(noteInvoice) {
+        ADD PROPERTY(noteInvoice()) {
             caption = '';
             fontSize = 24;
-            panelLabelAbove = TRUE;      
-            alignment = STRETCH;
-            preferredCharWidth = 72;
+            panelLabelAbove = TRUE;
+            preferredCharWidth = 76;
         }        
     }
     ADD functions.box;
 }
 
-setPassportPhoneLegalEntity (passport) += ACTION (passport) {
+setPassportPhoneLegalEntity () += ACTION () {
     REQUEST STRING[150] INPUT;
-    SEEK paymentInstallments.str2 requestedString(); 
-    FOR passportNumberLegalEntity(l) == passport DO {
-        SEEK paymentInstallments.str1 nameLegalEntity(l);
-        SEEK paymentInstallments.str3 phoneContact(l);
+    passportNumberLegalEntity() <- requestedString(); 
+    FOR NOT requestCanceled() AND passportNumberLegalEntity(l) == requestedString() DO {
+        nameLegalEntity() <- nameLegalEntity(l);
+        phoneContact() <- phoneContact(l);
+        postAddressContact() <- postAddressContact(l);
         isReadonly() <- TRUE;
-        formRefresh();         
     }
 } 
 
 printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
-createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentType, note) {       // todo: сделать необходимые округления
+createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentType, paymentCondition, note) {       // todo: сделать необходимые округления
     FOR ADDOBJ i = UserInvoice DO {
         supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
         supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
@@ -129,6 +138,7 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentT
         customerStockUserInvoice(i) <- defaultStockLegalEntity(customer);
         dateUserInvoice(i) <- dateReceipt(receipt);
         timeUserInvoice(i) <- timeReceipt(receipt);
+        paymentConditionUserInvoice(i) <- paymentCondition;
         noteUserInvoice(i) <- note;
         createShipmentUserInvoice(i) <- TRUE;
         isPostedUserInvoice(i) <- TRUE;
@@ -139,6 +149,7 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentT
             dateFromContract(c) <- dateReceipt(receipt);
             currencyContract(c) <- defaultCurrency();
             typeContractSku(c) <- ContractSkuType.sale;
+            paymentConditionContract(c) <- paymentCondition;
             contractSkuUserInvoice(i) <- c;            
         }
         
@@ -182,23 +193,31 @@ createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentT
 
 createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
     IF quantityReceiptDetailReceipt(receipt) THEN {
+        passportNumberLegalEntity() <- NULL;
+        nameLegalEntity() <- NULL;
+        phoneContact() <- NULL;
+        postAddressContact() <- NULL;
         FORM paymentInstallments MODAL;
         IF formResult() == FormResult.ok THEN {
-            ADDOBJ LegalEntity;
-            FOR l == addedObject() DO {
-                nameLegalEntity(l) <- chosenString('str1');
-                passportNumberLegalEntity(l) <- chosenString('str2');
-                phoneContact(l) <- chosenString('str3');
-                postAddressContact(l) <- chosenString('str4');
-                isCustomerLegalEntity(l) <- TRUE;
-                FOR shortNameOwnership(ownership) == 'Ф.Л.' DO {
-                    ownershipLegalEntity(l) <- ownership;
+            FOR passportNumberLegalEntity(l) == passportNumberLegalEntity() DO { 
+                createInvoiceReceipt(receipt, l, chosenNumeric('n'), chosenNumeric('pt'), chosenObject('pc'), noteInvoice());
+            } ELSE {
+                ADDOBJ LegalEntity;
+                FOR l == addedObject() DO {
+                    nameLegalEntity(l) <- nameLegalEntity();
+                    passportNumberLegalEntity(l) <- passportNumberLegalEntity();
+                    phoneContact(l) <- phoneContact();
+                    postAddressContact(l) <- postAddressContact();
+                    isCustomerLegalEntity(l) <- TRUE;
+                    FOR shortNameOwnership(ownership) == 'Ф.Л.' DO {
+                        ownershipLegalEntity(l) <- ownership;
+                    }
+                    FOR nameLegalEntityGroup(group) == 'Покупатели' DO {
+                        legalEntityGroupLegalEntity(l) <- group;
+                    }
+                    createInvoiceReceipt(receipt, l, chosenNumeric('n'), chosenNumeric('pt'), chosenObject('pc'), noteInvoice());
                 }
-                FOR nameLegalEntityGroup(group) == 'Покупатели' DO {
-                    legalEntityGroupLegalEntity(l) <- group;
-                }
-                createInvoiceReceipt(receipt, l, chosenNumeric('n'), chosenNumeric('pt'), chosenNumeric('str5'));
-            }
+            }    
         } ELSE {
             isReadonly() <- NULL;
         }   
