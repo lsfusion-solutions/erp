@@ -871,7 +871,14 @@ DESIGN costSkuBatchLedger FROM DEFAULT {
 // ------------------------------------------------ Остатки по товарам ---------------------------------------- //
 
 selectSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+resetAllSelectedSku 'Сбросить для всех' = ACTION () {
+    selectSku(sku) <- NULL WHERE selectSku(sku);
+} SHORTCUT selectSku;
+
 selectSkuStock 'Отм.' = DATA LOCAL BOOLEAN (Sku, Stock);
+resetAllSelectedSkuStock 'Сбросить для всех' = ACTION () {
+    selectSkuStock(sku, stock) <- NULL WHERE selectSkuStock(sku, stock);
+} SHORTCUT selectSkuStock;
 
 multipleStores 'Несколько складов' = DATA LOCAL BOOLEAN ();
 singleStore = NOT multipleStores();
@@ -986,15 +993,11 @@ DESIGN currentBalanceSkuStock FROM DEFAULT {
 
 @extendFormFilterStockAccess(ts, currentBalanceSkuStock);
 
-resetAllSelectedSkuStock 'Сбросить для всех' = ACTION () {
-    selectSkuStock(sku, stock) <- NULL WHERE selectSkuStock(sku, stock);
-} SHORTCUT selectSkuStock;
-
-resetSelectedSkuStock 'Сбросить для текущих' = ACTION () {
-    FOR [= FILTER currentBalanceSkuStock.sts](st,s) DO {
-        selectSkuStock(s, st) <- NULL WHERE selectSkuStock(s, st);
-    }
-} SHORTCUT selectSkuStock;
+//resetSelectedSkuStock 'Сбросить для текущих' = ACTION () {
+//    FOR [= FILTER currentBalanceSkuStock.sts](st,s) DO {
+//        selectSkuStock(s, st) <- NULL WHERE selectSkuStock(s, st);
+//    }
+//} SHORTCUT selectSkuStock;
 
 FORM balanceSkuStock 'Остатки на дату'
 

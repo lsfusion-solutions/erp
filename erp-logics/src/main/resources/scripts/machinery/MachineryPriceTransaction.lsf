@@ -688,20 +688,6 @@ NAVIGATOR {
 
 //--
 
-createSelectedSkuPriceTransactionDocumentStock 'Загрузить в оборудование' = ACTION (stock)  {
-    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
-        createMachineryPriceTransactionSnapshot() <- TRUE;
-        createMachineryPriceTransactionSku(sku) <- TRUE IF selectSku(sku);
-        createMachineryPriceTransaction(stock);
-        apply();
-        IF canceled() THEN {
-            cancel();
-        }
-    } ELSE {
-        MESSAGE 'Не отмечены товары, необходимые к загрузке';
-    }
-} TOOLBAR ;
-
 notResetMachinerySelectSku 'Не сбрасывать отмеченные товары при загрузке в оборудование' = DATA BOOLEAN ();
 EXTEND FORM options
     PROPERTIES() notResetMachinerySelectSku
@@ -711,6 +697,24 @@ EXTEND DESIGN options {
         ADD PROPERTY(notResetMachinerySelectSku());
     }
 }
+
+createSelectedSkuPriceTransactionDocumentStock 'Загрузить в оборудование' = ACTION (stock) NEWSESSION NESTED selectSku {
+    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
+        createMachineryPriceTransactionSnapshot() <- TRUE;
+        createMachineryPriceTransactionSku(sku) <- TRUE IF selectSku(sku);
+        createMachineryPriceTransaction(stock);
+        
+        IF NOT notResetMachinerySelectSku() THEN {
+            selectSku(sku) <- NULL;
+        }
+        APPLY NESTED LOCAL {};
+        IF canceled() THEN {
+            cancel();
+        }
+    } ELSE {
+        MESSAGE 'Не отмечены товары, необходимые к загрузке';
+    }
+} TOOLBAR ;
 
 createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION NESTED selectSkuStock, createMachineryPriceTransactionSnapshot, createMachineryPriceTransactionSku {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
@@ -840,6 +844,7 @@ EXTEND DESIGN machineryPriceTransactions{
 }
 // --------------- Атрибуты по умолчанию ------------------ //
 @defineMachineryPriceTransactionAttribute(skuGroup, 'Группа товара', SkuGroup, canonicalName);
+
 @defineMachineryPriceTransactionAttribute(split, 'Дробный товар', BOOLEAN);
 @defineMachineryPriceTransactionAttribute(passScales, 'Передавать на весы', BOOLEAN);
 @defineMachineryPriceTransactionAttribute(shortNameUOM, 'Единица измерения', VARSTRING[10]);
