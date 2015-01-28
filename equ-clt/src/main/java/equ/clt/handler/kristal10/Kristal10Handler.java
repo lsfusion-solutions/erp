@@ -543,7 +543,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         
                                         //обнаруживаем продажу сертификатов
                                         boolean isGiftCard = false;
-                                        if(barcode != null && barcode.length() == 3) {
+                                        if(barcode != null && barcode.length() == 3 && !barcode.equals("666")) {
                                             isGiftCard = true;
                                             barcode = dateTimeReceipt + "/" + count;
                                         }
