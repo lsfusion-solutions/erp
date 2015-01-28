@@ -79,7 +79,7 @@ idSkuBarcodeId (id) = idSku(skuBarcodeId(id));
 dataBarcodeSku = DATA Barcode (Sku);
 CONSTRAINT skuBarcode(dataBarcodeSku(item)) != item CHECKED BY dataBarcodeSku MESSAGE 'Выбран неверный sku для штрихкода';
 
-replaceSkuSku(s, d) += ACTION (s, d){ASSIGN skuBarcode(barcode) <- d WHERE skuBarcode(barcode) == s;}
+replaceSkuSku(s, d) += ACTION (s, d){skuBarcode(barcode) <- d WHERE skuBarcode(barcode) == s;}
 
 barcodeSku(sku) = OVERRIDE [= GROUP MIN barcode IF idBarcode(barcode) AND amountBarcode(barcode) == 1.0 AND activeBarcode(barcode)
                         BY skuBarcode(barcode)](sku), dataBarcodeSku(sku) IF activeBarcode(dataBarcodeSku(sku)) PERSISTENT;
@@ -189,7 +189,7 @@ createSkuBarcodeDate = ABSTRACT ACTION LIST (STRING[15], DATE);
 
 skuAddedUser = DATA Sku(User);
 setSkuAddedUser = ACTION (sku) NEWSESSION {
-    ASSIGN skuAddedUser(u) <- sku WHERE u == currentUser();
+    skuAddedUser(u) <- sku WHERE u == currentUser();
     apply();
 }
 
@@ -197,52 +197,73 @@ META defineAddDetailDialogBarcodeCustom(object, idetail, skuProp)
     @defineAddDetailDialogBarcodeCustomInner(object, idetail, ###idetail, skuProp);
 END
 
+notFormSku'Не открывать форму SKU  при поиске штрихкода' = DATA BOOLEAN ();
+notCreateItem'Не создавать товар на основе при поиске штрихкода' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () notFormSku, notCreateItem
+;
+EXTEND DESIGN options {
+    pane {
+        NEW barcodeBox {
+            caption = 'Штрихкод';
+            ADD PROPERTY(notFormSku());
+            ADD PROPERTY(notCreateItem());
+        }
+    }    
+}
+
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
     idetail###object##Sku(object, sku) = GROUP MAX (detail) BY object###idetail(detail), skuProp###idetail(detail);
 
     addDetailBarcode###idetail###object = ACTION (object, barcode) {
         LOCAL dialogBarcodeSku = Sku ();
-        ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(barcode, date###object(object));
+        dialogBarcodeSku() <- skuBarcodeIdDate(barcode, date###object(object));
 
         IF dialogBarcodeSku() IS Sku THEN {
             LOCAL dialogBarcodeDetail = idetailClass();
-            ASSIGN dialogBarcodeDetail() <- idetail###object##Sku(object, dialogBarcodeSku());
+            dialogBarcodeDetail() <- idetail###object##Sku(object, dialogBarcodeSku());
             IF dialogBarcodeDetail() IS idetailClass THEN {
-                ASSIGN quantity###idetail(detail) <-
+                quantity###idetail(detail) <-
                     quantity###idetail(detail) (+) (amountBarcode(barcodeIdDate(barcode, date###object(object))) IF detail IS idetailClass)
                     WHERE detail == dialogBarcodeDetail();
-                EXEC seek(dialogBarcodeDetail());
+                seek(dialogBarcodeDetail());
             } ELSE {
                 FOR ADDOBJ w = idetailClass DO {
-                    ASSIGN object###idetail(w) <- object;
-                    ASSIGN skuProp###idetail(w) <- dialogBarcodeSku();
-                    ASSIGN quantity###idetail(w) <- amountBarcode(barcodeIdDate(barcode, date###object(object)));
-                    EXEC seek(w);
+                    object###idetail(w) <- object;
+                    skuProp###idetail(w) <- dialogBarcodeSku();
+                    quantity###idetail(w) <- amountBarcode(barcodeIdDate(barcode, date###object(object)));
+                    seek(w);
                 }
             }
-            EXEC setSkuAddedUser(dialogBarcodeSku());
+            setSkuAddedUser(dialogBarcodeSku());
         } ELSE {
-            FORM emptyBarcodeSkus MODAL;
-            IF formResult() == FormResult.ok THEN {
-                FOR s == chosenObject('s') DO {
-                    ASSIGN dialogBarcodeSku() <- s;
-                    FOR ADDOBJ br = Barcode DO {
-                        ASSIGN idBarcode(br) <- barcode;
-                        ASSIGN dataDateBarcode(br) <- currentDate();
-                        ASSIGN skuBarcode(br) <- s;
-                        FOR ADDOBJ w = idetailClass DO {
-                            ASSIGN object###idetail(w) <- object;
-                            ASSIGN skuProp###idetail(w) <- s;
-                            ASSIGN quantity###idetail(w) <- amountBarcode(br);
-                            EXEC seek(w);
+            IF NOT notFormSku() THEN {
+                FORM emptyBarcodeSkus MODAL;
+                IF formResult() == FormResult.ok THEN {
+                    FOR s == chosenObject('s') DO {
+                        dialogBarcodeSku() <- s;
+                        FOR ADDOBJ br = Barcode DO {
+                            idBarcode(br) <- barcode;
+                            dataDateBarcode(br) <- currentDate();
+                            skuBarcode(br) <- s;
+                            FOR ADDOBJ w = idetailClass DO {
+                                object###idetail(w) <- object;
+                                skuProp###idetail(w) <- s;
+                                quantity###idetail(w) <- amountBarcode(br);
+                                seek(w);
+                            }
                         }
                     }
-                }
-            } ELSE {
-                EXEC createSkuBarcodeDate(barcode, date###object(object));
-                ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(barcode, date###object(object));
+                } 
             }
-            EXEC setSkuAddedUser(dialogBarcodeSku());
+            IF NOT notCreateItem() THEN {
+                createSkuBarcodeDate(barcode, date###object(object));
+                dialogBarcodeSku() <- skuBarcodeIdDate(barcode, date###object(object));
+            }
+            IF dialogBarcodeSku() THEN {
+                setSkuAddedUser(dialogBarcodeSku());
+            }
         }
     }
 
@@ -250,12 +271,12 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
         FORM barcodeInput MODAL;
 
         IF formResult() == FormResult.ok THEN
-            EXEC addDetailBarcode###idetail###object(object, barcodeInput());
+            addDetailBarcode###idetail###object(object, barcodeInput());
     } TOOLBAR EDITKEY 'F4';
 
     changeAddDetailInputBarcode###idetail###object = ACTION (object) {
         REQUEST STRING[15] INPUT;
-        EXEC addDetailBarcode###idetail###object(object, processedBarcode(requestedString()));
+        addDetailBarcode###idetail###object(object, processedBarcode(requestedString()));
     };
     addDetailInputBarcode###idetail###object 'Ввод штрихкода:' (object) = DATA LOCAL STRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE changeAddDetailInputBarcode###idetail###object(object);
@@ -270,12 +291,12 @@ END
 seekBarcode 'Штрихкод' = DATA LOCAL STRING[15] ();
 seekSkuBarcode = ACTION (){
     REQUEST STRING[15] INPUT;
-    ASSIGN seekBarcode() <- NULL;
-    ASSIGN seekBarcode() <- requestedString();
-    EXEC seek(skuBarcodeIdDate(seekBarcode(), currentDate()));
+    seekBarcode() <- NULL;
+    seekBarcode() <- requestedString();
+    seek(skuBarcodeIdDate(seekBarcode(), currentDate()));
     IF NOT skuBarcodeIdDate(seekBarcode(), currentDate()) THEN
         MESSAGE 'Штрихкод не найден';
-    ASSIGN seekBarcode() <- NULL;
+    seekBarcode() <- NULL;
 }
 
 META defineDialogSkuBarcode (form)
