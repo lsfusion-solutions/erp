@@ -880,6 +880,9 @@ resetAllSelectedSkuStock 'Сбросить для всех' = ACTION () {
     selectSkuStock(sku, stock) <- NULL WHERE selectSkuStock(sku, stock);
 } SHORTCUT selectSkuStock;
 
+countSelectSkus 'Отм.' = GROUP SUM 1 IF selectSku(sku) MINCHARWIDTH 3 PREFCHARWIDTH 3 TOOLBAR ;
+countSelectSkuStocks 'Отм.' = GROUP SUM 1 IF selectSkuStock(sku, stock) MINCHARWIDTH 3 PREFCHARWIDTH 3 TOOLBAR;
+
 multipleStores 'Несколько складов' = DATA LOCAL BOOLEAN ();
 singleStore = NOT multipleStores();
 
@@ -921,7 +924,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
         FILTER 'Тара' isContainerSku(s)
         
     PROPERTIES(s, st) READONLY currentBalanceSkuStock, averagePriceSkuStock, currentSumSkuStock, dateTimeLastMovedSkuStock
-
+    PROPERTIES() READONLY countSelectSkuStocks SHOWIF countSelectSkuStocks() TODRAW sts 
     FILTERGROUP filters
         FILTER 'Товары с остатком' currentBalanceSkuStock(s, st) OR currentSumSkuStock(s, st) 'F10' DEFAULT
         FILTER 'Товары с движением не позднее 1 дня' balanceSkuStockDatePeriod(s, st, currentDate(), 1) 'F9'
