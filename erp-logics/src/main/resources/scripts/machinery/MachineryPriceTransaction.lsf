@@ -49,6 +49,13 @@ orderMachineryPriceTransaction (transaction) = STRUCT(dateTimeMachineryPriceTran
 
 // Статус
 snapshotMachineryPriceTransaction 'Целиком' = DATA BOOLEAN (MachineryPriceTransaction);
+skipSnapshotMachineryPriceTransaction = ABSTRACT BOOLEAN (MachineryPriceTransaction);
+
+skipSnapshotMachineryRole 'Запрещено загружать в оборудование целиком' = DATA BOOLEAN (UserRole); 
+
+EXTEND FORM userRole
+    PROPERTIES(ur) skipSnapshotMachineryRole
+;
 
 succeededMachineryPriceTransaction 'Загружена' = DATA BOOLEAN (MachineryPriceTransaction);
 dateTimeSucceededMachineryPriceTransaction 'Время загрузки' = DATA DATETIME (MachineryPriceTransaction);
@@ -366,20 +373,22 @@ snapshotAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST 
 snapshotGroupMachineryDepartmentStore 'Ранее загруженные' = ACTION (stock) NEWSESSION {
     FORM groupMachineryInput OBJECTS s = stock MODAL;
     IF formResult() == FormResult.ok THEN {
-        LOCAL groupMachinery = GroupMachinery ();
-        groupMachinery() <- chosenObject('g');
-        createMachineryPriceTransactionGroupMachinery(groupMachinery());
-        FOR t == addedObject() DO {
-            groupMachineryMachineryPriceTransaction(t) <- groupMachinery();
-            commentMachineryPriceTransaction(t) <- 'Перезагрузка прайса целиком';
-            snapshotMachineryPriceTransaction(t) <- TRUE;
-            inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery);
-            inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND activeSku(skuBarcode(barcode)) AND
-                                                                  prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery()) AND
-                                                                  inGroupMachinerySku(groupMachinery(), skuBarcode(barcode)); // важно, что товар должен быть активным на текущий момент
-            nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery());
-            snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery());
-            priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery());
+        FOR selectedGroupMachinery(groupMachinery) DO {
+            createMachineryPriceTransactionGroupMachinery(groupMachinery);
+            FOR t == addedObject() DO {
+                groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
+                commentMachineryPriceTransaction(t) <- 'Перезагрузка прайса целиком';
+                IF NOT skipSnapshotMachineryPriceTransaction(t) THEN {
+                    snapshotMachineryPriceTransaction(t) <- TRUE;
+                }
+                inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery) WHERE groupMachineryMachinery(machinery) == groupMachinery;
+                inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND activeSku(skuBarcode(barcode)) AND
+                                                                      prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery) AND
+                                                                      inGroupMachinerySku(groupMachinery, skuBarcode(barcode)); // важно, что товар должен быть активным на текущий момент
+                nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery);
+                snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery);
+                priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery);
+            }
         }
         apply();
     }
@@ -452,8 +461,9 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
                 createAttributeMachineryPriceTransactionGroupMachinery(t, groupMachineryMachineryPriceTransaction(t));
                 priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
                 
-                IF createMachineryPriceTransactionAll() THEN
+                IF createMachineryPriceTransactionAll() AND NOT skipSnapshotMachineryPriceTransaction(t) THEN {
                     snapshotMachineryPriceTransaction(t) <- TRUE;
+                }                    
             }
 
             message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих кодов).\n' ;
