@@ -12,23 +12,28 @@ showAlcoholSupplierTypeUserPriceListDetail = showAlcoholSupplierTypeUserPriceLis
 
 changeAlcoholSupplierTypePriceListDetail = ACTION (detail) {
     REQUEST OBJECT d
-    FORM alcoholSupplierTypies DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        FOR l==companyPriceListDetail(detail) AND i==skuPriceListDetail(detail) DO {
+        FORM alcoholSupplierTypies DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN
+        FOR l == companyPriceListDetail(detail) AND i == skuPriceListDetail(detail) DO {
             alcoholSupplierTypeLegalEntityItem(l, i) <- requestedObject();
-            }
-        } ELSE {
-            IF formResult() == FormResult.drop THEN {
-                FOR l==companyPriceListDetail(detail) AND i==skuPriceListDetail(detail) DO {
-                            alcoholSupplierTypeLegalEntityItem(l, i) <- NULL;   
+        }
+    ELSE
+        IF formResult() == FormResult.drop THEN
+            FOR l == companyPriceListDetail(detail) AND i == skuPriceListDetail(detail) DO {
+                alcoholSupplierTypeLegalEntityItem(l, i) <- NULL;   
             }             
-        } 
-    }    
+}   
+
+changeWYSAlcoholSupplierTypePriceListDetail = ACTION (detail) {
+    REQUEST ISTRING[100] INPUT;
+    FOR l == companyPriceListDetail(detail) AND i == skuPriceListDetail(detail) DO {
+        alcoholSupplierTypeLegalEntityItem(l, i) <- alcoholSupplierTypeCaption(requestedString());
+    }
 }   
 
 EXTEND FORM userPriceList
     PROPERTIES (p) showAlcoholSupplierTypeUserPriceList
-    PROPERTIES (d) nameAlcoholSupplierTypeUserPriceListDetail ON CHANGE changeAlcoholSupplierTypePriceListDetail(d) 
+    PROPERTIES (d) nameAlcoholSupplierTypeUserPriceListDetail ON CHANGE changeAlcoholSupplierTypePriceListDetail(d) ON CHANGEWYS changeWYSAlcoholSupplierTypePriceListDetail(d)  
                                 SHOWIF showAlcoholSupplierTypeUserPriceListDetail(d) AFTER nameSkuUserPriceListDetail(d)
 ;
 
