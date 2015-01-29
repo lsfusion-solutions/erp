@@ -596,14 +596,17 @@ WHEN SESSION FORMS userPriceList CHANGED(companyUserPriceList(o)) DO {
         companyStockUserPriceList(o) <- NULL;
 }
 
-WHEN SESSION FORMS userPriceList (SET([= VIEW userPriceList.d](d)) OR 
-                                  ((CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d))) AND [= VIEW userPriceList.d](d)))
+WHEN SESSION FORMS userPriceList (SET([= VIEW userPriceList.d](d)) OR // изменились строки
+                                  CHANGED(skuUserPriceListDetail(d)) OR // или изменился sku
+                                  CHANGED(fromDateTimeUserPriceListDetail(d)) OR // или изменился дата с
+                                  CHANGED([= VIEW userPriceList.tt](s))) // или изменился склад
+                                 AND [= VIEW userPriceList.d](d)
                                  AND [= VIEW userPriceList.tt](s) DO
     updateViewPriceDetailUserPriceListDetailStock(d, s);
 
-WHEN SESSION FORMS userPriceList ((CHANGED(showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), t)) OR
-                                   CHANGED([= VIEW userPriceList.tt](s))) AND [= VIEW userPriceList.d](d)) 
-                                AND [= VIEW userPriceList.tt](s) DO
+WHEN SESSION FORMS userPriceList CHANGED(showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), t))
+                                 AND [= VIEW userPriceList.d](d)
+                                 AND [= VIEW userPriceList.tt](s) NOINLINE (t) DO
     updateViewPriceDetailUserPriceListDetailPriceListTypeStock(d, t, s);
 
 // Оптимизация с преподсчетом видов цен в сессионное свойство
