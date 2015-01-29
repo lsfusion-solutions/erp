@@ -7,6 +7,17 @@ REQUIRE Repricing, PriceListLedger, PurchaseManufacturingPrice;
 @defineDocumentInterfaceDetailPriceCustomPrefix(repricingDetail, curManufacturing, ' изготовителя до');
 //@deriveDocumentDetailPriceSystemLedgerPriceListType(userRepricing, manufacturingPriceStockPriceListType, curManufacturing, sku, departmentStore);
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userRepricing, manufacturingPriceStockPriceListType, curManufacturing, sku, departmentStore);
+overRecalculatePriceUserRepricingDetail(d) +=  ACTION (d) {
+    curManufacturingPriceUserRepricingDetail (d)  <- IF batchUserRepricingDetail(d)
+        THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                    batchUserRepricingDetail(d),
+                    departmentStoreUserRepricingDetail(d),
+                    dateTimeUserRepricingDetail(d))
+        ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                    skuUserRepricingDetail(d),
+                    departmentStoreUserRepricingDetail(d),
+                    dateTimeUserRepricingDetail(d));
+}                                                         
 
 manufacturingPriceUserRepricingDetail(d) <- curManufacturingPriceUserRepricingDetail(d) WHEN 
     CHANGED(skuUserRepricingDetail(d)) OR

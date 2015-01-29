@@ -307,7 +307,38 @@ changePriceUserRepricing 'Изменить цену' (repricing) = ACTION (repri
         }
 } TOOLBAR;
 
+overRecalculatePriceUserRepricingDetail = ABSTRACT ACTION LIST (UserRepricingDetail);
+recalculatePriceUserRepricing 'Пересчитать цены (до)' (repricing) = ACTION (repricing) {
 
+    FOR userRepricingUserRepricingDetail(d) == repricing DO {
+        curPriceUserRepricingDetail(d) <- IF batchUserRepricingDetail(d)                                          
+                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
+                            batchUserRepricingDetail(d),
+                            departmentStoreUserRepricingDetail(d),
+                            dateTimeUserRepricingDetail(d))
+                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
+                            skuUserRepricingDetail(d),
+                            departmentStoreUserRepricingDetail(d),
+                            dateTimeUserRepricingDetail(d));
+                                                           
+//        curVATUserRepricingDetail(d) <- curVATUserRepricingDetail(d);
+//        valueCurVATUserRepricingDetail(d) <- valueCurVATUserRepricingDetail(d);
+        
+        curRetailPriceUserRepricingDetail(d) <- IF batchUserRepricingDetail(d)                
+                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                            batchUserRepricingDetail(d),
+                            departmentStoreUserRepricingDetail(d),
+                            dateTimeUserRepricingDetail(d))
+                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                            skuUserRepricingDetail(d),
+                            departmentStoreUserRepricingDetail(d),
+                            dateTimeUserRepricingDetail(d));
+                            
+                            
+        overRecalculatePriceUserRepricingDetail(d);
+    }
+        
+} TOOLBAR;
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 nameStoreRepricing 'Магазин' (repricing) = nameStoreDepartmentStore(departmentStoreRepricing(repricing));
 
@@ -380,7 +411,7 @@ FORM userRepricing 'Акт переоценки'
                    numberVATUserRepricingDetail, valueVATUserRepricingDetail, VATSumUserRepricingDetail,
                    retailPriceUserRepricingDetail ON CHANGE changeRetailPriceUserRepricingDetail(d), retailSumUserRepricingDetail, ADDOBJ, DELETESESSION
 
-    PROPERTIES changePriceUserRepricing(p) TODRAW d
+    PROPERTIES TODRAW d changePriceUserRepricing(p), recalculatePriceUserRepricing(p) 
 
     PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRepricingDetailUserRepricing,
                            addDetailInputBarcodeUserRepricingDetailUserRepricing, deleteUserRepricingDetailUserRepricing
