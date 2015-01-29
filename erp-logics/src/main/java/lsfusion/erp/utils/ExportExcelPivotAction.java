@@ -70,7 +70,7 @@ public class ExportExcelPivotAction implements ClientAction {
 
         ActiveXComponent excelComponent = new ActiveXComponent("Excel.Application");
 
-        File reportFile = ReportGenerator.exportToExcel(reportData);
+        File reportFile = ReportGenerator.exportToXlsx(reportData);
         Dispatch workbooks = excelComponent.getProperty("Workbooks").toDispatch();
         Dispatch workbook = Dispatch.call(workbooks, "Open", reportFile.getAbsolutePath()).toDispatch();
 
