@@ -15,19 +15,21 @@ managementPriceListPriceSku = DATA LOCAL NUMERIC[14,2] (Sku);
 inDashboardRepricingSku 'Вкл' = DATA LOCAL BOOLEAN (Sku); 
 assignAttributeSku = ABSTRACT ACTION (Stock, Operation, DATETIME);
 
+skipManagementPriceListPriceSku = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
+
 calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o, dt) {
     
     IF onStockPriceListRepricing() THEN {
         managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
                                                                                   sku, d, dt);
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
-                                                                                     sku, d, dt);
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
+            IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
         managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     } ELSE {
         managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
                                                                                   sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
-                                                                                     sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
+            IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
         managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     }
     
@@ -40,14 +42,12 @@ calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o
 calculateDashboardManagementRepricing 'Рассчитать позиции (упр.)' = ACTION (d, o, dt) {
     
     IF onStockPriceListRepricing() THEN {
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
-                                                                                     sku, d, dt);
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
+            IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
         managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     } ELSE {
-        managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
-                                                                                  sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
-                                                                                     sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) 
+            IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
         managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     }
     
