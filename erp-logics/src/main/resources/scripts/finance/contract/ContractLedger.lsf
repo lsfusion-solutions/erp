@@ -76,14 +76,19 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
         isPosted###object(object);
 
     @defineAggregation(object, paymentPeriod, object##ContractLedger, needToCreate);
+    
+    bankingPaymentDateContractLedger (l) = jumpWorkdays(countryLegalEntity(customer###object(object###object##ContractLedger(l))),
+                                                                           date###object(object###object##ContractLedger(l)),
+                                                                           countDaysPaymentPeriod(paymentPeriod###object##ContractLedger(l)));
+                                                                           
+    overCalendarPaymentDateTimeContractLedger = ABSTRACT DATETIME (classPrefix##ContractLedger);
+    calendarPaymentDateTimeContractLedger (l) = sumDateTimeDay(dateTime###object(object###object##ContractLedger(l)),
+                                                               countDaysPaymentPeriod(paymentPeriod###object##ContractLedger(l)));
 
-    isPostedContractLedger(object##ContractLedger) += isPosted###object(object###object##ContractLedger(object##ContractLedger));
-    dateTimeContractLedger(object##ContractLedger) += IF bankingDaysPaymentCondition(paymentConditionPaymentPeriod(paymentPeriod###object##ContractLedger(object##ContractLedger))) THEN
-                                                      toDateTime(jumpWorkdays(countryLegalEntity(customer###object(object###object##ContractLedger(object##ContractLedger))),
-                                                                              date###object(object###object##ContractLedger(object##ContractLedger)),
-                                                                              countDaysPaymentPeriod(paymentPeriod###object##ContractLedger(object##ContractLedger)))) ELSE
-                                                      sumDateTimeDay(dateTime###object(object###object##ContractLedger(object##ContractLedger)),
-                                                                     countDaysPaymentPeriod(paymentPeriod###object##ContractLedger(object##ContractLedger)));
+    isPostedContractLedger(l) += isPosted###object(object###object##ContractLedger(l));
+    dateTimeContractLedger(l) += IF bankingDaysPaymentCondition(paymentConditionPaymentPeriod(paymentPeriod###object##ContractLedger(l))) THEN
+                                                      toDateTime(bankingPaymentDateContractLedger(l)) ELSE
+                                                      OVERRIDE calendarPaymentDateTimeContractLedger(l), overCalendarPaymentDateTimeContractLedger(l);
     contractContractLedger(object##ContractLedger) += contractProp###object(object###object##ContractLedger(object##ContractLedger));
     descriptionContractLedger(object##ContractLedger) += description###object(object###object##ContractLedger(object##ContractLedger));
     sumContractLedger(object##ContractLedger) +=
