@@ -1,0 +1,224 @@
+MODULE ContractLedgerIndividualLegalEntity;
+
+REQUIRE ContractLedger, IndividualLegalEntity, ContractPayment, POSInvoice;
+
+balanceALegalEntityDate 'Задолженность' = 
+    GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity
+    BY legalEntity, date;
+    
+backgroundDebtIn 'Цвет' () = RGB(213,249,185);
+
+fiscalSkip 'Отключить ФР'  = DATA LOCAL BOOLEAN (); 
+
+FORM inContractledgerPayment 'Погашение задолженности'
+    OBJECTS n = NUMERIC[16,2] FIXED PANEL
+    PROPERTIES(n) sumPayment = OBJVALUE
+          
+    OBJECTS pt = PaymentType FIXED PANEL 
+    PROPERTIES(pt) SELECTOR namePaymentType    
+    
+    OBJECTS dt = DATE FIXED PANEL 
+    PROPERTIES date = OBJVALUE(dt)
+          
+    PROPERTIES fiscalSkip()         
+;
+
+DESIGN inContractledgerPayment FROM DEFAULT {
+    NEW topContainer{
+        NEW paymentContainer{
+            type = CONTAINERH;
+            ADD PROPERTY(namePaymentType(pt)) {
+                caption = 'Тип платежа';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                preferredCharWidth = 15;
+            }                
+            ADD PROPERTY(sumPayment) {
+                caption = 'Сумма погашения';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                preferredCharWidth = 15;                
+            } 
+        }   
+        NEW bottomContainer {
+            type = CONTAINERH;
+            ADD PROPERTY(date) {
+                fontSize = 16;   
+                alignment = STRETCH;
+            }         
+            ADD PROPERTY(fiscalSkip()) {
+                fontSize = 16;   
+                alignment = STRETCH;
+            }             
+        }
+    }
+    ADD functions.box;
+    REMOVE leftControls;
+    REMOVE PROPERTY(formRefresh());
+}
+
+addPaymentInContractLedger 'Погасить задолженность' = ACTION (ledger) {
+    FORM inContractledgerPayment MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR ADDOBJ p = Payment.Payment DO{
+            datePayment(p) <- chosenDate('dt');
+            contractPayment(p) <- contractInContractLedger(ledger);    
+            payerPayment(p) <- partyBContractInContractLedger(ledger);
+            beneficiaryPayment(p) <- partyAContractInContractLedger(ledger);
+            sumPayment(p) <- chosenNumeric('n');;
+            sumContractPayment(p) <- chosenNumeric('n');;
+            costOutContractLedgerInContractLedger(p, ledger) <- chosenNumeric('n');;
+            isPostedPayment(p) <- TRUE;
+            dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
+            IF fiscalSkip() THEN {
+                apply();            
+            }
+            ELSE {
+                IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
+                    printReceiptInvoicePayment(ledger, p); 
+                    IF printReceiptResult() THEN 
+                        apply();
+                }        
+            }                                      
+        }
+    }    
+}
+
+FORM legalEntityPayment 'Внесение предоплаты'
+    OBJECTS l = LegalEntity FIXED PANEL
+    PROPERTIES(l) SELECTOR nameLegalEntity
+    FILTERS isCompanyLegalEntity(l)
+
+    OBJECTS n = NUMERIC[16,2] FIXED PANEL
+    PROPERTIES(n) sumPayment = OBJVALUE
+
+    OBJECTS dt = DATE FIXED PANEL 
+    PROPERTIES date = OBJVALUE(dt) 
+    
+    OBJECTS pc = PaymentCondition FIXED PANEL
+    PROPERTIES(pc) SELECTOR descriptionPaymentCondition        
+;
+
+DESIGN legalEntityPayment FROM DEFAULT {
+    NEW topContainer{
+        NEW paymentContainer{
+            type = CONTAINERH;
+            ADD PROPERTY(nameLegalEntity(l)) {
+                caption = 'Компания';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                preferredCharWidth = 15;
+            }                
+            ADD PROPERTY(sumPayment) {
+                caption = 'Сумма предоплаты';
+                fontSize = 32;   
+                panelLabelAbove = TRUE;
+                preferredCharWidth = 15;                
+            } 
+        }   
+        NEW bottomContainer {
+            type = CONTAINERH;
+            ADD PROPERTY(date) {
+                fontSize = 16;
+            }
+            type = CONTAINERH;
+            ADD PROPERTY(descriptionPaymentCondition(pc)) {
+                caption = 'Условия рассрочки';
+                fontSize = 16;   
+                preferredCharWidth = 20;
+            }            
+        }
+    }
+    ADD functions.box;
+    REMOVE leftControls;
+    REMOVE PROPERTY(formRefresh());
+}
+
+addPaymentLegalEntity 'Внести предоплату' = ACTION (legalEntity) {
+    FORM legalEntityPayment MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR ADDOBJ p = Payment.Payment DO{
+            datePayment(p) <- chosenDate('dt');
+            payerPayment(p) <- legalEntity;
+            beneficiaryPayment(p) <- chosenObject('l');
+            sumPayment(p) <- chosenNumeric('n');
+            sumContractPayment(p) <- chosenNumeric('n');
+            FOR ADDOBJ c = UserContractSku DO {
+                supplierContractSku(c) <- chosenObject('l');
+                customerContractSku(c) <- legalEntity;
+                dateFromContract(c) <- chosenDate('dt');
+                currencyContract(c) <- defaultCurrency();
+                typeContractSku(c) <- ContractSkuType.sale;
+                paymentConditionContract(c) <- chosenObject('pc');
+                contractPayment(p) <- c;            
+            }
+            isPostedPayment(p) <- TRUE;
+            apply();
+        }
+    }
+}
+
+FORM contractLedgerLegalEnbtity 'Управление задолженностями покупателей'
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) date = OBJVALUE
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY nameLegalEntity, passportNumberLegalEntity, phoneContact, postAddressContact, emailContact
+    PROPERTIES(l, d) READONLY balanceALegalEntityDate BACKGROUND backgroundDebtIn()   
+    PROPERTIES addPaymentLegalEntity(l) TODRAW l FORCE PANEL TOOLBAR 
+    FILTERGROUP filters1 
+        FILTER 'С долгами' balanceALegalEntityDate(l, d) 'F7' DEFAULT         
+    FILTERGROUP filters2 
+        FILTER 'Только ф.л.' shortNameOwnershipLegalEntity(l) == 'Ф.Л.' 'F7' DEFAULT 
+        FILTER 'Только покупатели' isCustomerLegalEntity(l) 'F8'
+    
+    OBJECTS ic = InContractLedger
+    PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger
+    PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundDebtIn()
+    PROPERTIES(ic) addPaymentInContractLedger TODRAW ic FORCE PANEL TOOLBAR 
+    ORDER BY dateInContractLedger(ic)
+    FILTERS activeInContractLedger(ic),
+            partyBContractInContractLedger(ic) == l
+    FILTERGROUP filters3 
+        FILTER 'Неоплаченные' debtInContractLedgerDate(ic, d) 'F6' DEFAULT
+    FILTERGROUP filters4 
+        FILTER 'На дату' dateInContractLedger(ic) <= d 'F5' DEFAULT        
+
+    OBJECTS oc = OutContractLedger
+    PROPERTIES(oc) READONLY dateOutContractLedger, descriptionOutContractLedger, sumOutContractLedger
+    PROPERTIES(oc, d) READONLY costedInContractLedgerOutContractLedgerDate
+    PROPERTIES READONLY costOutContractLedgerInContractLedger(oc, ic)
+    ORDER BY dateOutContractLedger(oc)
+    FILTERS activeOutContractLedger(oc),
+            partyBContractOutContractLedger(oc) == l
+    FILTERGROUP filters5 
+        FILTER 'Нерасписанные' NOT costedInContractLedgerOutContractLedgerDate(oc, d) == sumOutContractLedger(oc) 'F9' DEFAULT
+    FILTERGROUP filters6 
+        FILTER 'На дату' dateOutContractLedger(oc) <= d 'F10' DEFAULT
+;
+
+DESIGN contractLedgerLegalEnbtity FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+        ADD d.box;
+        NEW topContainer{
+            type = SPLITV;
+            fill = 1;
+            ADD l.box;
+            NEW contractLedgerContainer {
+                fill = 2;
+                type = SPLITH;
+                caption = 'Взаиморасчеты';
+                ADD ic.box;
+                ADD oc.box;
+            }
+        }
+    }    
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    contractDashboardNavigator{
+        ADD contractLedgerLegalEnbtity;
+    }
+}

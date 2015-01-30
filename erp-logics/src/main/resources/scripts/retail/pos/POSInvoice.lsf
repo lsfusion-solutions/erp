@@ -4,6 +4,11 @@ REQUIRE POS, SaleInvoiceContract, ContractPayment, SaleShipment;
 
 NAMESPACE Sale;
 
+passportPartyBContract 'Паспорт' = passportNumberLegalEntity(partyBContract(contract));
+shortNameOwnershipPartyBContract 'Форма собственности (сокр.)' = shortNameOwnershipLegalEntity(partyBContract(contract));
+balanceAContractCurrentDate 'Задолженность' = balanceAContractDate(contract, currentDate());
+lastPaymentContract 'Платеж' = GROUP LAST payment BY contractPayment(payment);
+
 fiscalTypePayment 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment); 
 dataFiscalTypePayment 'Тип платежа' = DATA INTEGER (Payment.Payment);
 fiscalTypePayment(p) += dataFiscalTypePayment(p); 
@@ -114,6 +119,8 @@ DESIGN paymentInstallments FROM DEFAULT {
         }        
     }
     ADD functions.box;
+    REMOVE leftControls;
+    REMOVE PROPERTY(formRefresh());
 }
 
 setPassportPhoneLegalEntity () += ACTION () {
@@ -130,7 +137,7 @@ setPassportPhoneLegalEntity () += ACTION () {
 printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
-createInvoiceReceipt 'Создать' = ACTION (receipt, customer, sum, paymentType, paymentCondition, note) {       // todo: сделать необходимые округления
+createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCondition, note) {       
     FOR ADDOBJ i = UserInvoice DO {
         supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
         supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
@@ -197,6 +204,7 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
         nameLegalEntity() <- NULL;
         phoneContact() <- NULL;
         postAddressContact() <- NULL;
+        noteInvoice() <- NULL;
         FORM paymentInstallments MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR passportNumberLegalEntity(l) == passportNumberLegalEntity() DO { 
@@ -224,8 +232,76 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
     }         
 }
 
+FORM prePayment 'Предоплата'
+    OBJECTS c = Contract
+    PROPERTIES(c) READONLY namePartyBContract, passportPartyBContract, balanceAContractCurrentDate
+    FILTERS balanceAContractCurrentDate(c) < 0,
+            shortNameOwnershipPartyBContract(c) == 'Ф.Л.'
+    
+    PROPERTIES noteInvoice()
+;
+
+DESIGN prePayment FROM DEFAULT {
+    ADD c.box {
+        PROPERTY(namePartyBContract(c)){
+            caption = 'ФИО';    
+        }   
+    }
+    NEW bottomContainer {
+        caption = 'Примечание';
+        ADD PROPERTY(noteInvoice()) {
+            caption = '';
+            fontSize = 24;
+            panelLabelAbove = TRUE;
+            preferredCharWidth = 76;
+        }        
+    }
+    ADD functions.box;
+}
+
+createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
+    IF quantityReceiptDetailReceipt(receipt) THEN {
+        noteInvoice() <- NULL;
+        FORM prePayment MODAL;
+        IF formResult() == FormResult.ok THEN {
+            FOR ADDOBJ i = UserInvoice DO {
+                supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
+                supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
+                customerUserInvoice(i) <- partyBContract(chosenObject('c'));
+                customerStockUserInvoice(i) <- defaultStockLegalEntity(partyBContract(chosenObject('c')));
+                dateUserInvoice(i) <- dateReceipt(receipt);
+                timeUserInvoice(i) <- timeReceipt(receipt);
+                paymentConditionUserInvoice(i) <- paymentConditionContract(chosenObject('c'));
+                noteUserInvoice(i) <- noteInvoice();
+                createShipmentUserInvoice(i) <- TRUE;
+                isPostedUserInvoice(i) <- TRUE;
+                FOR p == lastPaymentContract(chosenObject('c')) DO {
+                    IF Payment.sumPayment(p) < sumReceiptDetailReceipt(receipt) THEN {
+                        costOutContractLedgerInContractLedger(p, i) <- Payment.sumPayment(p);    
+                    } ELSE {
+                        costOutContractLedgerInContractLedger(p, i) <- sumReceiptDetailReceipt(receipt);                     
+                    }
+                }
+                FOR receiptReceiptDetail(detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- i;
+                    skuUserInvoiceDetail(d) <- skuReceiptDetail(detail);
+                    quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
+                    invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
+                    invoicePriceUserInvoiceDetail(d) <- sumReceiptDetail(detail)/quantityReceiptDetail(detail);
+                    priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + calcValueVATUserInvoiceDetail(d));
+                }
+            }
+            DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
+            DELETE receipt;            
+            apply();
+            createCurrentReceipt();             
+        }
+    }   
+}
+
+
 EXTEND FORM POS
-    PROPERTIES(r) SHOWIF currentZReport() createPaymentInstallments
+    PROPERTIES(r) SHOWIF currentZReport() createPaymentInstallments, createInvoicePrePayment
 ;
 EXTEND DESIGN POS {
     misc {
@@ -233,6 +309,7 @@ EXTEND DESIGN POS {
             alignment = STRETCH;
             caption = 'Накладная';
             ADD PROPERTY(createPaymentInstallments(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
+            ADD PROPERTY(createInvoicePrePayment(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
         }
     }
 }
