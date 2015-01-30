@@ -362,7 +362,7 @@ META defineDocumentAggregationStock (primObject, aggrObject, stockProp, stockCap
     @defineDocumentAggregationStockPrefix(primObject, aggrObject, stockProp, stockCaption, , );
 END
 
-// ---------------------------------- Диалоги по выбору складов поставщиков/компаний/покупателей --------------------------- //
+// ---------------------------------- Диалоги по выбору складов поставщиков/компаний/покупателей когда есть организация --------------------------- //
 
 FORM companyStocks 'Склады'
     OBJECTS l = LegalEntity FIXED PANEL
@@ -507,6 +507,23 @@ META defineDocumentDialogStock(objectClass, filter, prefix, dataProp)
         }
     }
 END
+META defineDocumentDialogStock(objectClass, filter, prefixA, prefixB, dataProp)
+    change###dataProp###prefixA###stock###filter###objectClass = ACTION (o) {
+        REQUEST OBJECT s
+        IF dataProp###prefixA###stock###objectClass(o) THEN {            
+            FORM filter###stocks OBJECTS l = prefixB###objectClass(o), s = dataProp###prefixA###stock###objectClass(o) CONTEXTFILTER s = dataProp###prefixA###stock###objectClass(o) DIALOG SHOWDROP;        
+        } ELSE {
+            FORM filter###stocks OBJECTS l = prefixB###objectClass(o) CONTEXTFILTER s = dataProp###prefixA###stock###objectClass(o) DIALOG SHOWDROP;        
+        }
+        IF formResult() == FormResult.ok THEN {
+            dataProp###prefixA###stock###objectClass(o) <- requestedObject();
+
+        } ELSE IF formResult() == FormResult.drop THEN {
+            dataProp###prefixA###stock###objectClass(o) <- NULL;
+        }
+    }
+END
+
 META defineDocumentDialogSupplierCustomerStock(objectClass, supplierFilter, customerFilter)
     @defineDocumentDialogStock(objectClass, supplierFilter, supplier, );
     @defineDocumentDialogStock(objectClass, customerFilter, customer, );
@@ -514,6 +531,149 @@ END
 META defineDocumentDialogSupplierCustomerStockDetail(objectClass, supplierFilter, customerFilter)
     @defineDocumentDialogStock(objectClass, supplierFilter, supplier, data);
     @defineDocumentDialogStock(objectClass, customerFilter, customer, data);
+END
+
+// -------- Диалоги по выбору складов поставщиков/компаний/покупателей когда нет организация ----------- //
+
+FORM companysStock 'Склады'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s)          editStock
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+;
+
+DESIGN companysStock FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+
+FORM suppliersStock 'Склады'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s)          editStock
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+            
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+;
+
+DESIGN suppliersStock FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+
+FORM customersStock 'Склады'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s)          editStock
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+      
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+;
+
+DESIGN customersStock FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(stockName){
+                    minimumCharWidth = 40;
+                    preferredCharWidth = 40;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+
+META defineDocumentDialogStocks(objectClass, stockClass, filter, prefix, dataProp)
+    change###dataProp###prefix###stockClass###filter###objectClass = ACTION (o) {
+        REQUEST OBJECT s
+        IF dataProp###prefix###stockClass###objectClass(o) THEN {            
+            FORM filter##s###stock OBJECTS s = dataProp###prefix###stockClass###objectClass(o) CONTEXTFILTER s = dataProp###prefix###stockClass###objectClass(o) DIALOG SHOWDROP;        
+        } ELSE {
+            FORM filter##s###stock CONTEXTFILTER s = dataProp###prefix###stockClass###objectClass(o) DIALOG SHOWDROP;        
+        }
+        IF formResult() == FormResult.ok THEN {
+            dataProp###prefix###stockClass###objectClass(o) <- requestedObject();
+
+        } ELSE IF formResult() == FormResult.drop THEN {
+            dataProp###prefix###stockClass###objectClass(o) <- NULL;
+        }
+    }
 END
 
 // ------------------------------------------ Расширение формы организаций ---------------------------- //
