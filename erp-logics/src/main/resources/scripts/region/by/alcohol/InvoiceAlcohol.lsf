@@ -15,6 +15,9 @@ alcoholIncomeTypeInvoiceDetail (d) = alcoholIncomeTypeInvoice(invoiceInvoiceDeta
 alcoholSupplierTypeInvoiceDetail = ABSTRACT AlcoholSupplierType(InvoiceDetail) PERSISTENT;
 nameAlcoholSupplierTypeInvoiceDetail 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeInvoiceDetail(i));
 
+alcoholSupplierTypeInvoice = ABSTRACT AlcoholSupplierType(Invoice) PERSISTENT;
+nameAlcoholSupplierTypeInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeInvoice(i));
+
 volumeInvoiceDetail 'Объем' = ABSTRACT NUMERIC[14,3] (InvoiceDetail) PERSISTENT;
 signetVolumeInvoiceDetail 'Объем' = ABSTRACT NUMERIC[14,3] (InvoiceDetail) PERSISTENT; 
 
@@ -123,10 +126,14 @@ META defineInvoiceAlcohol(dumb)
     Invoice.alcoholSupplierTypeInvoiceDetail(d) += alcoholSupplierTypeInvoiceDetail(d);  
     
     alcoholSupplierTypeUserInvoiceDetail (d) <- alcoholSupplierTypeLegalEntityItem(supplierInvoiceDetail(d),skuInvoiceDetail(d))
-        WHEN CHANGED(skuInvoiceDetail(d)) OR CHANGED(supplierInvoiceDetail(d));        
+        WHEN CHANGED(skuInvoiceDetail(d)) OR CHANGED(supplierInvoiceDetail(d));
         
+    alcoholSupplierTypeInvoice = ABSTRACT AlcoholSupplierType(Invoice);
+    nameAlcoholSupplierTypeInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeInvoice(i));    
     alcoholSupplierTypeUserInvoice = DATA AlcoholSupplierType(UserInvoice);
     nameAlcoholSupplierTypeUserInvoice 'Тип поставщика алкоголя' (i) = staticCaption(alcoholSupplierTypeUserInvoice(i));
+    alcoholSupplierTypeInvoice(i) += alcoholSupplierTypeUserInvoice(i);  
+    Invoice.alcoholSupplierTypeInvoice(i) += alcoholSupplierTypeInvoice(i);  
     
     EXTEND FORM userInvoice 
         
