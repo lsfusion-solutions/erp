@@ -1,0 +1,310 @@
+MODULE ReceiptReports;
+
+REQUIRE ZReport, PurchaseLedger;
+
+NAMESPACE ZReport;
+
+
+CLASS ReceiptReport 'Отчет по чекам';
+CLASS ReceiptReportDetail 'Строка отчета по чекам';
+
+@defineDocument(receiptReport);
+@deriveDocumentHeaderTimePrefix(ReceiptReport, );
+
+@defineDocumentHeaderNumber(ReceiptReport);
+@defineNumeratedDefault(ReceiptReport, 'Отчет по чекам', 'ОЧ');
+
+
+@defineDocumentDescription (receiptReport, 'Отчет комиссионера');
+
+
+fromDateReceiptReport 'Дата с' = DATA DATE (ReceiptReport) IN documentPrm;
+fromDateReceiptReportDetail 'Дата с' (d)= fromDateReceiptReport(receiptReportReceiptReportDetail(d));
+
+toDateReceiptReport 'Дата по' = DATA DATE (ReceiptReport) IN documentPrm;
+toDateReceiptReportDetail 'Дата по' (d)= toDateReceiptReport(receiptReportReceiptReportDetail(d));
+
+fromTimeReceiptReport 'Время с' = DATA TIME (ReceiptReport) IN documentPrm;
+fromTimeReceiptReportDetail 'Время с' (d)= fromDateReceiptReport(receiptReportReceiptReportDetail(d));
+
+toTimeReceiptReport 'Время по' = DATA TIME (ReceiptReport) IN documentPrm;
+toTimeReceiptReportDetail 'Время по' (d)= toDateReceiptReport(receiptReportReceiptReportDetail(d));
+
+fromDateReceiptReport (o) <- currentDate() WHEN SET(o IS ReceiptReport);
+toDateReceiptReport (o) <- currentDate() WHEN SET(o IS ReceiptReport);
+fromTimeReceiptReport (o) <- 00:00 WHEN SET(o IS ReceiptReport);
+toTimeReceiptReport (o) <- 23:59 WHEN SET(o IS ReceiptReport);
+
+
+TABLE storeReceiptReport (Store, ReceiptReport);
+inStoreReceiptReport 'Вкл.' = DATA BOOLEAN (Store, ReceiptReport);
+
+TABLE groupReceiptReport (Group, ReceiptReport);
+inDataGroupReceiptReport 'Вкл.' = DATA BOOLEAN (Group, ReceiptReport);
+
+countInDataGroupReceiptReport (report)= GROUP SUM 1 IF inDataGroupReceiptReport(group, report) BY report;
+
+levelParentGroupReceiptReport (group, report) = GROUP MIN levelGroupGroup(group, parent) IF inDataGroupReceiptReport(parent, report)
+    BY group, report;
+
+inParentGroupReceiptReport (group, report) = TRUE IF levelParentGroupReceiptReport(group, report);
+
+inGroupReceiptReport 'Вкл.' (group, report) = OVERRIDE
+    inParentGroupReceiptReport(group, report),
+    inDataGroupReceiptReport(group, report);
+    
+TABLE legalEntityGroupReceiptReport (LegalEntityGroup, ReceiptReport);
+inDataLegalEntityGroupReceiptReport 'Вкл.' = DATA BOOLEAN (LegalEntityGroup, ReceiptReport);
+
+TABLE legalEntityReceiptReport (LegalEntity, ReceiptReport);
+inDataLegalEntityReceiptReport 'Вкл.' = DATA BOOLEAN (LegalEntity, ReceiptReport);
+
+levelParentLegalEntityGroupReceiptReport (group, report) = GROUP MIN levelLegalEntityGroupLegalEntityGroup(group, parent) IF inDataLegalEntityGroupReceiptReport(parent, report)
+    BY group, report;
+inParentLegalEntityGroupReceiptReport (group, report) = TRUE IF levelParentLegalEntityGroupReceiptReport(group, report);
+
+inLegalEntityGroupReceiptReport 'Вкл.' (legalEntityGroup, report) = OVERRIDE
+    inParentLegalEntityGroupReceiptReport(legalEntityGroup, report),
+    inDataLegalEntityGroupReceiptReport(legalEntityGroup, report);
+
+inLegalEntityReceiptReport 'Вкл.' (company, report) = OVERRIDE
+    inLegalEntityGroupReceiptReport(legalEntityGroupLegalEntity(company), report),    
+    inDataLegalEntityReceiptReport(company, report);
+
+countInLegalEntityReceiptReport (report)= GROUP SUM 1 IF inLegalEntityReceiptReport(company, report) BY report;
+
+groupTypeReceiptReport = DATA GroupType (ReceiptReport);
+nameGroupTypeReceiptReport 'Классификатор' (g) =  nameGroupType(groupTypeReceiptReport(g));
+
+groupTypeReceiptReport (o) <- SystemGroupType.skuGroupType WHEN SET(o IS ReceiptReport);
+
+countBonReceiptReport 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
+countBonDetailReceiptReport 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
+countSelectedBonDetailReceiptReport 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
+sumBonReceiptReport 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum;
+sumSelectedBonDetailReceiptReport 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum;
+
+storeReceiptReportDetail = DATA Store (ReceiptReportDetail);
+nameStoreReceiptReportDetail 'Магазин' (d) = nameStore(storeReceiptReportDetail(d));
+
+countBonReceiptReportDetail 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReportDetail);
+countBonDetailReceiptReportDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
+countSelectedBonDetailReceiptReportDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
+sumBonReceiptReportDetail 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReportDetail);
+sumSelectedBonDetailReceiptReportDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReportDetail);
+  
+            
+            
+inReceiptReportReceiptDetail (r, d) = 
+    dateReceiptDetail(d) >= fromDateReceiptReport(r) AND dateReceiptDetail(d) <= toDateReceiptReport(r)
+    AND toTime(dateTimeReceiptDetail(d)) >= fromTimeReceiptReport(r) AND toTime(dateTimeReceiptDetail(d)) <= toTimeReceiptReport(r)  
+    AND inStoreReceiptReport(storeReceiptDetail(d), r) AND skuReceiptDetail(d) AND isPostedReceiptDetail(d)
+    AND (inGroupReceiptReport(groupGroupTypeSku(groupTypeReceiptReport(r), skuReceiptDetail(d)), r) OR (skuReceiptDetail(d) AND NOT countInDataGroupReceiptReport(r)))
+    AND (inLegalEntityReceiptReport(lastSupplierStockSku(departmentStoreReceiptDetail(d),skuReceiptDetail(d)),r) OR (skuReceiptDetail(d) AND NOT countInLegalEntityReceiptReport(r)));
+
+inReceiptReportReceipt (report, receipt) = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY report, receiptReceiptDetail(d);
+
+countBonStoreReceiptReport 'Кол-во чеков' = GROUP SUM 1 IF inReceiptReportReceipt(report, receipt) BY storeReceipt(receipt), report;
+countBonDetailStoreReceiptReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY storeReceipt(receipt), report;
+inReceiptReportStore 'Кол-во выбранных позиций' = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY report, storeReceiptDetail(d);
+sumBonDetailStoreReceiptReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY storeReceipt(receipt), report;
+sumSelectedBonDetailStoreReceiptReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF inReceiptReportReceiptDetail (report, d) BY storeReceiptDetail(d), report;
+//--
+calcCountBonReceiptReport 'Кол-во чеков' = GROUP SUM 1 IF inReceiptReportReceipt(report, receipt) BY report;
+calcCountBonDetailReceiptReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY report;
+calcInReceiptReport 'Кол-во выбранных позиций' = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY  report;
+calcSumBonDetailReceiptReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY report;
+calcSumSelectedBonDetailReceiptReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF inReceiptReportReceiptDetail (report, d) BY report;
+
+
+fillDataReceiptReport 'Заполнить данные' = ACTION (report) {
+    DELETE d WHERE d IS ReceiptReportDetail AND receiptReportReceiptReportDetail(d)== report;
+    
+    countBonReceiptReport(report) <- NUMERIC[14,3](calcCountBonReceiptReport(report));
+    countBonDetailReceiptReport(report) <- NUMERIC[14,3](calcCountBonDetailReceiptReport(report) /(countBonReceiptReport(report)));        
+    countSelectedBonDetailReceiptReport(report) <- NUMERIC[14,3](calcInReceiptReport(report) /(countBonReceiptReport(report)));        
+    sumBonReceiptReport(report) <- NUMERIC[16,2](calcSumBonDetailReceiptReport(report)/(countBonReceiptReport(report)));        
+    sumSelectedBonDetailReceiptReport(report) <- NUMERIC[16,2](calcSumSelectedBonDetailReceiptReport(report)/(calcInReceiptReport(report)));    
+    
+    
+    FOR inStoreReceiptReport(store,report) ADDOBJ d = ReceiptReportDetail DO {
+        receiptReportReceiptReportDetail(d) <- report;
+        storeReceiptReportDetail(d) <- store;
+        
+        countBonReceiptReportDetail(d) <- NUMERIC[14,3](countBonStoreReceiptReport(store, report));
+        countBonDetailReceiptReportDetail(d) <- NUMERIC[14,3](countBonDetailStoreReceiptReport(store, report) /(countBonReceiptReportDetail(d)));
+        countSelectedBonDetailReceiptReportDetail(d) <- NUMERIC[14,3](inReceiptReportStore(report, store) /(countBonReceiptReportDetail(d)));        
+        sumBonReceiptReportDetail(d) <- NUMERIC[16,2](sumBonDetailStoreReceiptReport(store, report)/(countBonReceiptReportDetail(d)));
+        sumSelectedBonDetailReceiptReportDetail(d) <- NUMERIC[16,2](sumSelectedBonDetailStoreReceiptReport(store, report)/(inReceiptReportStore(report, store)));
+    }        
+}
+
+FORM receiptReport 'Отчет по чекам'
+
+    OBJECTS r = ReceiptReport FIXED PANEL
+    PROPERTIES (r) nameNumeratorReceiptReport, numberReceiptReport, seriesReceiptReport, dateReceiptReport, timeReceiptReport,
+                   fromDateReceiptReport, toDateReceiptReport, 
+                   fromTimeReceiptReport, toTimeReceiptReport, nameGroupTypeReceiptReport
+    PROPERTIES (r) READONLY countBonReceiptReport, countBonDetailReceiptReport, countSelectedBonDetailReceiptReport, 
+                   sumBonReceiptReport, sumSelectedBonDetailReceiptReport
+                   
+    OBJECTS s = Store             
+    PROPERTIES  nameStore(s)READONLY, inStoreReceiptReport(s,r)  
+                 
+    TREE groupTree g=Group PARENT parentGroup
+    PROPERTIES READONLY orderGroup(g), idGroup(g), nameGroup(g), inGroupReceiptReport(g,r) EDITABLE 
+    FILTERS groupTypeGroup(g) == groupTypeReceiptReport(r)
+    ORDER BY orderGroup(g), nameGroup(g)
+    FILTERGROUP inactive1 FILTER 'Активные' activeGroup(g) 'F5' DEFAULT      
+               
+    TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY  nameLegalEntityGroup(lg)
+    ORDER BY nameLegalEntityGroup(lg)
+    PROPERTIES(lg,r) inLegalEntityGroupReceiptReport
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY idLegalEntity SHOWIF showIDs(), legalEntityName = nameLegalEntity
+    ORDER BY legalEntityName
+    FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
+    PROPERTIES(l,r) inLegalEntityReceiptReport
+
+    OBJECTS d = ReceiptReportDetail
+    PROPERTIES (d) indexReceiptReportDetail, nameStoreReceiptReportDetail, countBonReceiptReportDetail, countBonDetailReceiptReportDetail, countSelectedBonDetailReceiptReportDetail,
+                   sumBonReceiptReportDetail, sumSelectedBonDetailReceiptReportDetail
+                  
+    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
+    
+    PROPERTIES(r)  fillDataReceiptReport FORCE PANEL TOOLBAR TODRAW d  
+    
+    ORDER BY indexReceiptReportDetail(d)
+
+    PROPERTIES(r) TODRAW d deleteReceiptReportDetailReceiptReport
+    
+    FILTERS receiptReportReceiptReportDetail(d) == r
+
+    EDIT ReceiptReport OBJECT r
+;
+
+DESIGN receiptReport FROM DEFAULT{
+    main {
+        preferredSize = (1024, 768);
+        ADD r.box {
+            type = CONTAINERH;
+            NEW r1 {
+                type = CONTAINERV;
+                ADD r.numbered;
+                ADD r.documentHeader;
+                ADD r.documentPrm;
+            }
+            ADD r.documentSum {type = CONTAINERV;}
+            
+        }        
+        NEW header.box {
+            type = TABBED;
+            fill = 1;
+            NEW headerParams {
+                fill = 1;
+                caption = 'Параметры отчета';
+                type = TABBED;
+                NEW store {
+                    fill = 1;
+                    caption ='Выбор магазинов';
+                    ADD s.box;
+                }
+                NEW company {
+                    fill = 1;
+                    caption ='Выбор поставщиков';
+                    type = SPLITH;
+                    ADD legalEntityTree.tree.box {caption = 'Группы организаций';}
+                    ADD l.box;
+                }
+                NEW group {
+                    fill = 1;
+                    caption ='Выбор товарных групп';
+                    type = CONTAINERV;
+                    NEW group1 {
+                        caption = 'Классификатор';
+                        ADD PROPERTY(nameGroupTypeReceiptReport(r));
+                    }                    
+                    ADD groupTree.tree.box {fill = 1; caption = 'Группы товаров';}
+                }                
+            }
+
+            ADD d.box {
+                fill = 1;
+                caption = 'Спецификация';
+            }            
+        }        
+
+        ADD functions.box;
+
+    }
+}
+
+FORM receiptReports 'Отчеты по чекам'
+
+    OBJECTS r = ReceiptReport 
+    PROPERTIES (r) READONLY numberReceiptReport, seriesReceiptReport, dateReceiptReport, timeReceiptReport, fromDateReceiptReport, toDateReceiptReport, 
+                   fromTimeReceiptReport, toTimeReceiptReport, nameGroupTypeReceiptReport
+    PROPERTIES (r) READONLY countBonReceiptReport, countBonDetailReceiptReport, countSelectedBonDetailReceiptReport, 
+                   sumBonReceiptReport, sumSelectedBonDetailReceiptReport, countReceiptReportDetailReceiptReport
+
+    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUserReceiptReport, createdTimeReceiptReport, createdHostnameComputerReceiptReport 
+        
+    OBJECTS d = ReceiptReportDetail
+    PROPERTIES (d) READONLY indexReceiptReportDetail, nameStoreReceiptReportDetail, countBonReceiptReportDetail, 
+                   countBonDetailReceiptReportDetail, countSelectedBonDetailReceiptReportDetail,
+                   sumBonReceiptReportDetail, sumSelectedBonDetailReceiptReportDetail
+    
+    ORDER BY indexReceiptReportDetail(d)
+
+    FILTERS receiptReportReceiptReportDetail(d) == r
+                
+    DIALOG ReceiptReport OBJECT r
+;
+DESIGN receiptReports FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        PROPERTY (deleter) {
+            askConfirm = TRUE;
+        }
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+            type = SPLITV;
+            ADD r.box;   
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                ADD d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    ADD r.created;                       
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+NAVIGATOR {
+    retailReports {
+        ADD receiptReports;
+    }
+}
