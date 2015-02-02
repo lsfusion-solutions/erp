@@ -81,35 +81,35 @@ countAccessCustomerEmployeeLegalEntityGroup 'Кол-во доступных по
 legalEntityEmployee = DATA LegalEntity (Employee);
 nameLegalEntityEmployee 'Организация' (e) = nameLegalEntity(legalEntityEmployee(e));
 
-EXTEND FORM employee
-    PROPERTIES(e) nameLegalEntityEmployee
-    TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY  lgTreeName = nameLegalEntityGroup(lg)
-    ORDER BY lgTreeName
-    PROPERTIES(e,lg) accessSupplierEmployeeLegalEntityGroup, accessCompanyEmployeeLegalEntityGroup, accessCustomerEmployeeLegalEntityGroup
-
-    OBJECTS l = LegalEntity
-    PROPERTIES(l) READONLY idLegalEntity SHOWIF showIDs(), legalEntityName = nameLegalEntity
-    ORDER BY legalEntityName
-    FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    PROPERTIES(e,l) accessSupplierEmployeeLegalEntity, accessCompanyEmployeeLegalEntity, accessCustomerEmployeeLegalEntity
-;
-
 //EXTEND FORM employee
 //    PROPERTIES(e) nameLegalEntityEmployee
 //    TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-//    PROPERTIES READONLY  SHOWIF limitAccessEmployee(e) lgTreeName = nameLegalEntityGroup(lg)
+//    PROPERTIES READONLY  lgTreeName = nameLegalEntityGroup(lg)
 //    ORDER BY lgTreeName
-//    PROPERTIES(e,lg) SHOWIF limitAccessEmployee(e) accessSupplierEmployeeLegalEntityGroup, accessCompanyEmployeeLegalEntityGroup, accessCustomerEmployeeLegalEntityGroup
+//    PROPERTIES(e,lg) accessSupplierEmployeeLegalEntityGroup, accessCompanyEmployeeLegalEntityGroup, accessCustomerEmployeeLegalEntityGroup
 //
-//    OBJECTS l = LegalEntity FIXED GRID
-//    PROPERTIES(l) READONLY idLegalEntity SHOWIF showLimitAccessEmployee(e), legalEntityName = nameLegalEntity SHOWIF limitAccessEmployee(e)
+//    OBJECTS l = LegalEntity
+//    PROPERTIES(l) READONLY idLegalEntity SHOWIF showIDs(), legalEntityName = nameLegalEntity
 //    ORDER BY legalEntityName
 //    FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
 //    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-//    PROPERTIES(e,l) SHOWIF limitAccessEmployee(e) accessSupplierEmployeeLegalEntity, accessCompanyEmployeeLegalEntity, accessCustomerEmployeeLegalEntity
+//    PROPERTIES(e,l) accessSupplierEmployeeLegalEntity, accessCompanyEmployeeLegalEntity, accessCustomerEmployeeLegalEntity
 //;
+
+EXTEND FORM employee
+    PROPERTIES(e) nameLegalEntityEmployee
+    TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY  SHOWIF limitAccessEmployee(e) lgTreeName = nameLegalEntityGroup(lg)
+    ORDER BY lgTreeName
+    PROPERTIES(e,lg) SHOWIF limitAccessEmployee(e) accessSupplierEmployeeLegalEntityGroup, accessCompanyEmployeeLegalEntityGroup, accessCustomerEmployeeLegalEntityGroup
+
+    OBJECTS l = LegalEntity FIXED GRID
+    PROPERTIES(l) READONLY idLegalEntity SHOWIF showLimitAccessEmployee(e), legalEntityName = nameLegalEntity SHOWIF limitAccessEmployee(e)
+    ORDER BY legalEntityName
+    FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
+    PROPERTIES(e,l) SHOWIF limitAccessEmployee(e) accessSupplierEmployeeLegalEntity, accessCompanyEmployeeLegalEntity, accessCustomerEmployeeLegalEntity
+;
 EXTEND DESIGN employee {
     personal {
         ADD PROPERTY(nameLegalEntityEmployee(e)) AFTER PROPERTY(firstNameContact(e));

@@ -268,7 +268,17 @@ seekSkuBarcode = ACTION (){
     ASSIGN seekBarcode() <- NULL;
 }
 
-editSku(sku) += ACTION [= ACTION EDITFORM Item](sku);
+disallowEditingItem 'Запретить редактирование' = ABSTRACT BOOLEAN (Item);
+enableEditingItem = s IS Item AND NOT disallowEditingItem(s);
+disallowEditingSku(sku) += disallowEditingItem(sku);
+
+editSku(sku) += ACTION (sku) {
+    IF NOT disallowEditingItem(sku) THEN {
+        [= ACTION EDITFORM Item](sku);
+    } ELSE {
+        MESSAGE 'Запрещено редактировать товар после обработки.';
+    } 
+};
 addSku () += ACTION [= ACTION ADDFORM Item]();
 
 FORM items 'Товары'
@@ -284,7 +294,7 @@ FORM items 'Товары'
     
     OBJECTS i=Item  
     PROPERTIES(i) READONLYIF isReadonly() idBarcodeSku ON CHANGE changeBarcodeSku(i), imageItem FORCE PANEL SHOWIF hasImageItem(i), idItem SHOWIF showIDs()
-    PROPERTIES(i) ADDFORM, EDITFORM, deletei=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(i) ADDFORM, EDITFORM SHOWIF enableEditingItem(i), deletei=DELETE FORCE PANEL TOOLBAR
     PROPERTIES seekBarcode()
     ON CHANGE seekSkuBarcode() 
     
