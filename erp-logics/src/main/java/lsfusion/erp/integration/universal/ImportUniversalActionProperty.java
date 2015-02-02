@@ -781,7 +781,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private String getRoundedValue(String value, String scale) throws UniversalImportException {
-        return value == null ? null : decimalFormat.format(new BigDecimal(value).setScale(Integer.parseInt(scale), RoundingMode.HALF_UP));
+        return value == null ? null : decimalFormat.format(new BigDecimal(trim(value).replace(",", ".")).setScale(Integer.parseInt(scale), RoundingMode.HALF_UP));
     }
 
     private Object parseSubstring(String[] splittedValue, int index) {
