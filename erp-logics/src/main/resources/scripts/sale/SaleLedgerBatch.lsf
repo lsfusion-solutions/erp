@@ -49,8 +49,10 @@ overFillPropertyDateFromTo = ABSTRACT ACTION LIST (DATE, DATE);
 fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dFrom,dTo) {
     dbalanceBBatchStockDate(bb,sts,dFrom) <- balanceBBatchStockDate(bb,sts,dFrom) 
         WHERE inBatchReportStock(sts);
-    dcostBBatchStockDate(bb,sts,dFrom) <- dbalanceBBatchStockDate(bb,sts,dFrom) * costBatch(bb); 
-    daccountSumBBatchStockDate(bb,sts,dFrom) <- dbalanceBBatchStockDate(bb,sts,dFrom) * accountPriceBBatchStockDate(bb,sts,dFrom); 
+    dcostBBatchStockDate(bb,sts,dFrom) <- dbalanceBBatchStockDate(bb,sts,dFrom) * costBatch(bb) 
+        WHERE inBatchReportStock(sts); 
+    daccountSumBBatchStockDate(bb,sts,dFrom) <- dbalanceBBatchStockDate(bb,sts,dFrom) * accountPriceBBatchStockDate(bb,sts,dFrom) 
+        WHERE inBatchReportStock(sts); 
 //--            
     dquantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
@@ -62,13 +64,17 @@ fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dF
         WHERE inBatchReportStock(sts);
     dsumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- sumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
-    daveragePriceSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- dsumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) / dquantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo); 
-    daverageMarkupSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- dmarkupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo)/dcostSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo);
+    daveragePriceSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- dsumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) / dquantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo)
+        WHERE inBatchReportStock(sts); 
+    daverageMarkupSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- dmarkupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo)/dcostSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo)
+        WHERE inBatchReportStock(sts);
     //--
     dbalanceABatchStockDate(bb,sts,dTo) <- balanceABatchStockDate(bb,sts,dTo) 
         WHERE inBatchReportStock(sts);
-    dcostABatchStockDate(bb,sts,dTo) <- dbalanceABatchStockDate(bb,sts,dTo) * costBatch(bb); 
-    daccountSumABatchStockDate(bb,sts,dTo) <- dbalanceABatchStockDate(bb,sts,dTo) * accountPriceABatchStockDate(bb,sts,dTo); 
+    dcostABatchStockDate(bb,sts,dTo) <- dbalanceABatchStockDate(bb,sts,dTo) * costBatch(bb)
+        WHERE inBatchReportStock(sts); 
+    daccountSumABatchStockDate(bb,sts,dTo) <- dbalanceABatchStockDate(bb,sts,dTo) * accountPriceABatchStockDate(bb,sts,dTo)
+        WHERE inBatchReportStock(sts); 
     
     overFillPropertyDateFromTo(dFrom,dTo);
 }                      
@@ -166,7 +172,9 @@ FORM saleBatch 'Продажи по партиям'
 ;
 
 EXTEND FORM saleBatch FILTERS (ts IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),ts);
-
+EXTEND FORM saleBatch FILTERS (st IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),st);
+EXTEND FORM saleBatch FILTERS (sts IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),sts);
+EXTEND FORM saleBatch FILTERS (stst IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),stst);
 DESIGN saleBatch FROM DEFAULT {
     NEW top {
         type = CONTAINERH;
