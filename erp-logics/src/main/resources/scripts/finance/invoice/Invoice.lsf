@@ -57,6 +57,7 @@ sumGrossWeightTonInvoiceDetail 'Вес брутто, т' (d) = round6(sumGrossWe
 @defineDocumentHeaderSkuQuantity(invoice, sku);
 
 @defineDocumentAbstractHeaderCurrency (invoice);
+@defineDocumentDetailCurrency (invoice, invoiceDetail);
 
 @defineDocumentAbstractDetailPrice(invoice);
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, , );
@@ -85,6 +86,8 @@ shortDescriptionInvoice (invoice) = seriesNumberInvoice(invoice) + ' от ' + da
 extraDescriptionInvoiceDetail 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
 editInvoice 'Редактировать' = ABSTRACT ACTION LIST (Invoice) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+@defineDocumentAbstractHeaderAgreement(invoice);
 
 inInvoice 'Приходная' = ABSTRACT BOOLEAN (Invoice);
 inInvoiceDetail 'Приходная' (d) = inInvoice(invoiceInvoiceDetail(d)); 
@@ -203,12 +206,24 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     Invoice.isCommissionInvoice(invoice) += isCommissionInvoice(invoice);
      
     @defineDocumentInterfaceAgreement(invoice);
+    Invoice.agreementInvoice(invoice) += agreementInvoice(invoice);
     @deriveDocumentHeaderAgreement (userInvoice, supplier, customer);
     noAgreementUserInvoice (invoice) = invoice IS UserInvoice AND NOT agreementUserInvoice(invoice);
 
     @defineDocumentInterfaceDetailSku(invoice, sku);
     Invoice.skuInvoiceDetail(detail) += skuInvoiceDetail(detail);
-
+    
+    countInSkuUserInvoice (invoice) = GROUP SUM 1 IF inAgreementSku(agreement,skuUserInvoiceDetail(d)) 
+        AND fromDateTimeAgreement(agreement) <= dateTimeUserInvoiceDetail(d) AND NOT (toDateTimeAgreement(agreement) < dateTimeUserInvoiceDetail(d))
+        AND inAgreementSupplier(agreement, supplierUserInvoiceDetail(d)) AND inAgreementCustomer(agreement, customerUserInvoiceDetail(d))
+        AND currencyUserInvoiceDetail(d) == currencyAgreement(agreement)
+            BY userInvoiceUserInvoiceDetail(d);
+            
+    minAgreementInSkuUserInvoice (invoice) = GROUP MAX agreement IF inAgreementSku(agreement,skuUserInvoiceDetail(d)) 
+        AND fromDateTimeAgreement(agreement) <= dateTimeUserInvoiceDetail(d) AND NOT (toDateTimeAgreement(agreement) < dateTimeUserInvoiceDetail(d))
+        AND inAgreementSupplier(agreement, supplierUserInvoiceDetail(d)) AND inAgreementCustomer(agreement, customerUserInvoiceDetail(d))
+            BY userInvoiceUserInvoiceDetail(d);
+                        
     isStockSkuInvoiceDetail (invoiceDetail) = isStockSku(skuInvoiceDetail(invoiceDetail));
     isStockSkuUserInvoiceDetail (userInvoiceDetail) = isStockSku(skuUserInvoiceDetail(userInvoiceDetail));
 
