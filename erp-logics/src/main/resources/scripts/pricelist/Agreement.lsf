@@ -49,13 +49,24 @@ nearestInAgreementSupplierGroup (agreement, legalEntityGroup) =
 
 inAgreementSupplierGroup 'Отм' (agreement, legalEntityGroup) = OVERRIDE nearestInAgreementSupplierGroup(agreement, legalEntityGroup),
                                                                         dataInAgreementSupplierGroup(agreement, legalEntityGroup);
-
+                                                                        
+quantityChildWithSupplierGroupAgreement (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInAgreementSupplierGroup(agreement, childLegalEntityGroup) AND isParentLegalEntityGroupLegalEntityGroup(childLegalEntityGroup, legalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;
+quantityParentWithSupplierGroupAgreement (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInAgreementSupplierGroup(agreement, parentLegalEntityGroup) AND isParentLegalEntityGroupLegalEntityGroup(legalEntityGroup, parentLegalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;                                                                        
+                                                                           
+backgroundInAgreementSupplierGroup 'Цвет' (agreement, legalEntityGroup) = CASE 
+    WHEN dataInAgreementSupplierGroup(agreement, legalEntityGroup) THEN RGB(0,0,0)
+    WHEN nearestInAgreementSupplierGroup(agreement, legalEntityGroup) THEN RGB(230,248,250) 
+    WHEN quantityChildWithSupplierGroupAgreement (legalEntityGroup, agreement) != descendantNumberLegalEntityGroup(legalEntityGroup) AND NOT quantityParentWithSupplierGroupAgreement (legalEntityGroup, agreement) THEN RGB(203,203,203);
+        
 // Поставщики
 TABLE agreementLegalEntity(Agreement, LegalEntity);
 dataInAgreementSupplier 'Отм.' (agreement, legalEntity) = DATA BOOLEAN (Agreement, LegalEntity);
 
 inAgreementSupplier 'Отм' (agreement, legalEntity) = OVERRIDE nearestInAgreementSupplierGroup(agreement, legalEntityGroupLegalEntity(legalEntity)),
                                                            dataInAgreementSupplier(agreement, legalEntity);
+                                                           
+backgroundInAgreementSupplier'Цвет' (agreement, legalEntity) = IF dataInAgreementSupplier(agreement, legalEntity) THEN RGB(0,0,0)
+    ELSE RGB(230,248,250) IF nearestInAgreementSupplierGroup(agreement, legalEntityGroupLegalEntity(legalEntity));                                                            
 
 supplierAgreement 'Поставщики' (agreement) = GROUP CONCAT nameLegalEntity(supplier) IF inAgreementSupplier(agreement, supplier) , ', '
                                                  BY agreement
@@ -81,14 +92,27 @@ nearestInAgreementCustomerGroup (agreement, legalEntityGroup) =
 
 inAgreementCustomerGroup 'Отм' (agreement, legalEntityGroup) = OVERRIDE nearestInAgreementCustomerGroup(agreement, legalEntityGroup),
                                                                         dataInAgreementCustomerGroup(agreement, legalEntityGroup);
-
+                                                                        
+quantityChildWithCustomerGroupAgreement (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInAgreementCustomerGroup(agreement, childLegalEntityGroup) AND isParentLegalEntityGroupLegalEntityGroup(childLegalEntityGroup, legalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;
+quantityParentWithCustomerGroupAgreement (legalEntityGroup, agreement) = GROUP SUM 1 IF dataInAgreementCustomerGroup(agreement, parentLegalEntityGroup) AND isParentLegalEntityGroupLegalEntityGroup(legalEntityGroup, parentLegalEntityGroup) BY legalEntityGroup, agreement PERSISTENT;     
+                                                                        
+//backgroundInAgreementCustomerGroup 'Цвет' (agreement, legalEntityGroup) = IF dataInAgreementCustomerGroup(agreement, legalEntityGroup) THEN RGB(0,0,0)
+//    ELSE RGB(230,248,250) IF nearestInAgreementCustomerGroup(agreement, legalEntityGroup);
+    
+backgroundInAgreementCustomerGroup 'Цвет' (agreement, legalEntityGroup) = CASE 
+    WHEN dataInAgreementCustomerGroup(agreement, legalEntityGroup) THEN RGB(0,0,0)
+    WHEN nearestInAgreementCustomerGroup(agreement, legalEntityGroup) THEN RGB(230,248,250) 
+    WHEN quantityChildWithCustomerGroupAgreement (legalEntityGroup, agreement) != descendantNumberLegalEntityGroup(legalEntityGroup) AND NOT quantityParentWithCustomerGroupAgreement (legalEntityGroup, agreement) THEN RGB(203,203,203);    
+    
 // Покупатели
 dataInAgreementCustomer 'Отм.' (agreement, legalEntity) = DATA BOOLEAN (Agreement, LegalEntity);
 
 inAgreementCustomer 'Отм' (agreement, legalEntity) = OVERRIDE nearestInAgreementCustomerGroup(agreement, legalEntityGroupLegalEntity(legalEntity)),
                                                            dataInAgreementCustomer(agreement, legalEntity)
                                                   PERSISTENT;
-
+backgroundInAgreementCustomer'Цвет' (agreement, legalEntity) = IF dataInAgreementCustomer(agreement, legalEntity) THEN RGB(0,0,0)
+    ELSE RGB(230,248,250) IF nearestInAgreementCustomerGroup(agreement, legalEntityGroupLegalEntity(legalEntity)); 
+    
 customerAgreement 'Покупатели' (agreement) = GROUP CONCAT nameLegalEntity(customer) IF inAgreementCustomer(agreement, customer) , ', '
                                                  BY agreement
                                                  ORDER customer MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
@@ -98,8 +122,10 @@ CONSTRAINT inAgreementCustomer(agreement, customer) AND NOT isBuyerLegalEntity(c
 
 // ----------------------------------------------- Соглашение по умолчанию --------------------------- //
 
-countAgreementSupplierCustomer 'Кол-во соглашений' (supplier, customer)= GROUP SUM 1 IF inAgreementCustomer(agreement, customer) AND inAgreementSupplier(agreement, supplier)
-    BY supplier, customer;
+countDefaultAgreementSupplierCustomerDateTime 'Кол-во соглашений' (supplier, customer, dateTime)= GROUP SUM 1 
+    IF inAgreementCustomer(agreement, customer) AND inAgreementSupplier(agreement, supplier)
+    AND fromDateTimeAgreement(agreement) <= dateTime AND NOT (toDateTimeAgreement(agreement) < dateTime)    
+        BY supplier, customer, dateTime;
 
 userDefaultAgreementSupplierCustomer = DATA Agreement (LegalEntity, LegalEntity);
 userDefaultAgreementSupplierCustomer(supplier, customer) => inAgreementCustomer(userDefaultAgreementSupplierCustomer(supplier, customer), customer) RESOLVE RIGHT;
@@ -109,8 +135,9 @@ calcDefaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime) = GRO
     AND fromDateTimeAgreement(agreement) <= dateTime AND NOT (toDateTimeAgreement(agreement) < dateTime)    
         BY supplier, customer, dateTime;
 
-defaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime) =  OVERRIDE calcDefaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime),
-                                                                 userDefaultAgreementSupplierCustomer(supplier, customer) IF dateTime IS DATETIME;
+defaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime) =  OVERRIDE 
+    calcDefaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime) IF countDefaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime) == 1,
+    userDefaultAgreementSupplierCustomer(supplier, customer) IF dateTime IS DATETIME;
 nameDefaultAgreementSupplierCustomerDateTime 'Соглашение по умолчанию' (supplier, customer, dateTime) = nameAgreement(defaultAgreementSupplierCustomerDateTime(supplier, customer, dateTime));
 
 isDefaultAgreementSupplierCustomer 'Соглашение по умолчанию' (agreement, supplier, customer) = defaultAgreementSupplierCustomerDateTime(supplier, customer, currentDateTime()) == agreement;
@@ -172,6 +199,14 @@ inAgreementGroup 'Вкл.' (agreement, group) =  OVERRIDE nearestDataInAgreement
     
 inAgreementSku 'Вкл.' (agreement, sku) = inAgreementGroup (agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku));
 
+quantityChildWithGroupAgreement (group, agreement) = GROUP SUM 1 IF dataInAgreementGroup(agreement, childGroup) AND isParentGroupGroup(childGroup, group) BY group, agreement PERSISTENT;
+quantityParentWithGroupAgreement (group, agreement) = GROUP SUM 1 IF dataInAgreementGroup(agreement, parentGroup) AND isParentGroupGroup(group, parentGroup) BY group, agreement PERSISTENT;                                                                        
+                                                                           
+backgroundInAgreementGroup 'Цвет' (agreement, group) = CASE 
+    WHEN dataInAgreementGroup(agreement, group) THEN RGB(0,0,0)
+    WHEN nearestDataInAgreementGroup(agreement, group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithGroupAgreement (group, agreement) != descendantNumberGroup(group) AND NOT quantityParentWithGroupAgreement (group, agreement) THEN RGB(203,203,203);
+
 // Уточнение по sku
 TABLE agreementSku(Agreement, Sku);
 dataPriceListTypeAgreementSku (agreement, sku) = DATA PriceListType (Agreement, Sku);
@@ -204,11 +239,11 @@ FORM agreement 'Соглашение'
 
     TREE supplierGroupTree f = LegalEntityGroup PARENT parentLegalEntityGroup
     PROPERTIES READONLY fTreeName = nameLegalEntityGroup(f)
-    PROPERTIES(a, f) inAgreementSupplierGroup
+    PROPERTIES(a, f) inAgreementSupplierGroup BACKGROUND backgroundInAgreementSupplierGroup(a, f)
 
     OBJECTS cc = LegalEntity
     PROPERTIES(cc) READONLY nameLegalEntity
-    PROPERTIES(a, cc) inAgreementSupplier
+    PROPERTIES(a, cc) inAgreementSupplier BACKGROUND backgroundInAgreementSupplier(a, cc)
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(cc), f)
     FILTERGROUP ccinactiveLegalEntity FILTER 'Активная' activeLegalEntity(cc) 'shift F10' DEFAULT
     FILTERGROUP ccfilters
@@ -216,11 +251,11 @@ FORM agreement 'Соглашение'
 
     TREE customerGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
     PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
-    PROPERTIES(a, lg) inAgreementCustomerGroup
+    PROPERTIES(a, lg) inAgreementCustomerGroup BACKGROUND backgroundInAgreementCustomerGroup(a, lg)
 
     OBJECTS c = LegalEntity
     PROPERTIES(c) READONLY nameLegalEntity
-    PROPERTIES(a, c) inAgreementCustomer
+    PROPERTIES(a, c) inAgreementCustomer BACKGROUND backgroundInAgreementCustomer(a, c)
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(c), lg)
     FILTERGROUP cinactiveLegalEntity FILTER 'Активная' activeLegalEntity(c) 'shift F10' DEFAULT
     FILTERGROUP cfilters
@@ -230,7 +265,7 @@ FORM agreement 'Соглашение'
     FILTERS groupTypeGroup(g) == groupTypeAgreement(a)
     ORDER BY orderGroup(g), nameGroup(g)
     FILTERGROUP ginactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
-    PROPERTIES(a, g) nameDataPriceListTypeAgreementGroup, namePriceListTypeAgreementGroup, inAgreementGroup
+    PROPERTIES(a, g) nameDataPriceListTypeAgreementGroup, namePriceListTypeAgreementGroup, inAgreementGroup BACKGROUND backgroundInAgreementGroup(a, g)
 
     TREE skuGroupTree sg=SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(sg), nameSkuGroup(sg)
