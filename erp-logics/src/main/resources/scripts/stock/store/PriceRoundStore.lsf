@@ -4,6 +4,9 @@ REQUIRE PriceRound, Store, Country;
 
 //------------------------- Расширяем форму Отдела -------------------------//
 
+dataDiscountRoundConditionDepartmentStore = DATA RoundCondition (DepartmentStore);
+nameDiscountDataRoundConditionDepartmentStore 'Условие округления скидки' (departmentStore)= nameRoundCondition(dataDiscountRoundConditionDepartmentStore(departmentStore)) IN bookkeeping;
+
 dataRoundConditionDepartmentStore = DATA RoundCondition (DepartmentStore);
 nameDataRoundConditionDepartmentStore 'Условие округления розничной цены' (departmentStore)= nameRoundCondition(dataRoundConditionDepartmentStore(departmentStore)) IN bookkeeping;
 
@@ -13,9 +16,14 @@ nameRoundConditionCountry 'Условие округления рознично�
 roundConditionCountryDepartmentStore (departmentStore) = roundConditionCountry(countryLegalEntity(legalEntityDepartmentStore(departmentStore))) PERSISTENT;
 
 roundConditionDepartmentStore (departmentStore) = OVERRIDE roundConditionCountryDepartmentStore(departmentStore), dataRoundConditionDepartmentStore(departmentStore) PERSISTENT;
+roundDiscountConditionDepartmentStore (departmentStore) = OVERRIDE roundConditionCountryDepartmentStore(departmentStore), dataDiscountRoundConditionDepartmentStore(departmentStore) PERSISTENT;
 
 CONSTRAINT currencyStock(departmentStore) != currencyRoundCondition(dataRoundConditionDepartmentStore(departmentStore))
            CHECKED BY dataRoundConditionDepartmentStore
+           MESSAGE 'Валюта округления должна совпадать с валютой склада';
+
+CONSTRAINT currencyStock(departmentStore) != currencyRoundCondition(dataDiscountRoundConditionDepartmentStore(departmentStore))
+           CHECKED BY dataDiscountRoundConditionDepartmentStore
            MESSAGE 'Валюта округления должна совпадать с валютой склада';
 
 CONSTRAINT currencyCountry(country) != currencyRoundCondition(roundConditionCountry(country))
@@ -23,12 +31,13 @@ CONSTRAINT currencyCountry(country) != currencyRoundCondition(roundConditionCoun
            MESSAGE 'Валюта округления должна совпадать с валютой страны';
 
 EXTEND FORM departmentStore
-    PROPERTIES(d) nameDataRoundConditionDepartmentStore
+    PROPERTIES(d) nameDataRoundConditionDepartmentStore, nameDiscountDataRoundConditionDepartmentStore
 ;
 
 EXTEND DESIGN departmentStore {
     headerExtraParams {
         ADD PROPERTY(nameDataRoundConditionDepartmentStore(d));
+        ADD PROPERTY(nameDiscountDataRoundConditionDepartmentStore(d));
     }
 }
 
