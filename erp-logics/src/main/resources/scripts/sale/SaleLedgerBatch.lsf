@@ -27,54 +27,58 @@ backgroundLavenderBatch 'Розовато-лавандовый' (b) = RGB(255,23
 backgroundGreenTeaBatch 'Зеленого чая' (b) = RGB(204,255,204) IF b IS Batch;  
 backgroundSkyBatch 'Небесный' (b) = RGB(127,199,255) IF b IS Batch;  
 
-dbalanceBBatchStockDate 'Остаток на начало дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock, DATE);
-dcostBBatchStockDate 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock, DATE);
-daccountSumBBatchStockDate 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock, DATE); 
+dbalanceBBatchStock 'Остаток на начало дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
+dcostBBatchStock 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+daccountSumBBatchStock 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock); 
         
-dquantitySoldBatchStockDateFromTo 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock, DATE, DATE);  
-dcostSumSoldBatchStockDateFromTo 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock, DATE, DATE);   
-dmarkupSumSoldBatchStockDateFromTo 'Надбавка проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock, DATE, DATE);  
+dquantitySoldBatchStock 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);  
+dcostSumSoldBatchStock 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);   
+dmarkupSumSoldBatchStock 'Надбавка проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
 
-dsumVATSoldBatchStockDateFromTo 'Сумма НДС проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock, DATE, DATE);  
-daveragePriceSoldBatchStockDateFromTo 'Цена за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock, DATE, DATE);  
-dsumSoldBatchStockDateFromTo 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC[22,8] (Batch, Stock, DATE, DATE);  
-daverageMarkupSoldBatchStockDateFromTo 'Средний процент надбавки' = DATA LOCAL NUMERIC[22,8] (Batch, Stock, DATE, DATE);  
+dsumVATSoldBatchStock 'Сумма НДС проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+daveragePriceSoldBatchStock 'Цена за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+dsumSoldBatchStock 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+daverageMarkupSoldBatchStock 'Средний процент надбавки' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
    
-dbalanceABatchStockDate 'Остаток на конец дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock, DATE);
-dcostABatchStockDate 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock, DATE);
-daccountSumABatchStockDate 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock, DATE);                     
-                   
+dbalanceABatchStock 'Остаток на конец дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
+dcostABatchStock 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+daccountSumABatchStock 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);                     
+    
+dmovedBatchStock = DATA LOCAL BOOLEAN (Batch, Stock);
+
 overFillPropertyDateFromTo = ABSTRACT ACTION LIST (DATE, DATE);   
                    
 fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dFrom,dTo) {
-    dbalanceBBatchStockDate(bb,sts,dFrom) <- balanceBBatchStockDate(bb,sts,dFrom) 
+    dbalanceBBatchStock(bb,sts) <- balanceBBatchStockDate(bb,sts,dFrom) 
         WHERE inBatchReportStock(sts);
-    dcostBBatchStockDate(bb,sts,dFrom) <- dbalanceBBatchStockDate(bb,sts,dFrom) * costBatch(bb) 
+    dcostBBatchStock(bb,sts) <- dbalanceBBatchStock(bb,sts) * costBatch(bb) 
         WHERE inBatchReportStock(sts); 
-    daccountSumBBatchStockDate(bb,sts,dFrom) <- dbalanceBBatchStockDate(bb,sts,dFrom) * accountPriceBBatchStockDate(bb,sts,dFrom) 
+    daccountSumBBatchStock(bb,sts) <- dbalanceBBatchStock(bb,sts) * accountPriceBBatchStockDate(bb,sts,dFrom) 
         WHERE inBatchReportStock(sts); 
 //--            
-    dquantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
+    dquantitySoldBatchStock(bb,sts) <- quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
-    dcostSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- costSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
+    dcostSumSoldBatchStock(bb,sts) <- costSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
-    dmarkupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- markupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
+    dmarkupSumSoldBatchStock(bb,sts) <- markupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);     
-    dsumVATSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- sumVATSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
+    dsumVATSoldBatchStock(bb,sts) <- sumVATSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
-    dsumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- sumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
+    dsumSoldBatchStock(bb,sts) <- sumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
-    daveragePriceSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- dsumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) / dquantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo)
+    daveragePriceSoldBatchStock(bb,sts) <- dsumSoldBatchStock(bb,sts) / dquantitySoldBatchStock(bb,sts)
         WHERE inBatchReportStock(sts); 
-    daverageMarkupSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) <- dmarkupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo)/dcostSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo)
+    daverageMarkupSoldBatchStock(bb,sts) <- dmarkupSumSoldBatchStock(bb,sts)/dcostSumSoldBatchStock(bb,sts)
         WHERE inBatchReportStock(sts);
     //--
-    dbalanceABatchStockDate(bb,sts,dTo) <- balanceABatchStockDate(bb,sts,dTo) 
+    dbalanceABatchStock(bb,sts) <- balanceABatchStockDate(bb,sts,dTo) 
         WHERE inBatchReportStock(sts);
-    dcostABatchStockDate(bb,sts,dTo) <- dbalanceABatchStockDate(bb,sts,dTo) * costBatch(bb)
+    dcostABatchStock(bb,sts) <- dbalanceABatchStock(bb,sts) * costBatch(bb)
         WHERE inBatchReportStock(sts); 
-    daccountSumABatchStockDate(bb,sts,dTo) <- dbalanceABatchStockDate(bb,sts,dTo) * accountPriceABatchStockDate(bb,sts,dTo)
+    daccountSumABatchStock(bb,sts) <- dbalanceABatchStock(bb,sts) * accountPriceABatchStockDate(bb,sts,dTo)
         WHERE inBatchReportStock(sts); 
+    
+    dmovedBatchStock(bb, sts) <- dquantitySoldBatchStock(bb,sts) OR dbalanceBBatchStock(bb,sts) OR dbalanceABatchStock(bb,sts);
     
     overFillPropertyDateFromTo(dFrom,dTo);
 }                      
@@ -150,24 +154,24 @@ FORM saleBatch 'Продажи по партиям'
                    costBatch
     PROPERTIES(stst, bbb) READONLY currentValueVATStockBatch
                        
-    PROPERTIES(bbb,stst,dFrom) READONLY READONLY BACKGROUND backgroundLavenderBatch(bbb) dbalanceBBatchStockDate, 
-                   dcostBBatchStockDate, daccountSumBBatchStockDate         
-    PROPERTIES(bbb,stst,dFrom,dTo) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dquantitySoldBatchStockDateFromTo, 
-                   dcostSumSoldBatchStockDateFromTo, dmarkupSumSoldBatchStockDateFromTo
-    PROPERTIES(bbb,stst,dFrom,dTo) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dsumVATSoldBatchStockDateFromTo, daveragePriceSoldBatchStockDateFromTo,  
-                   dsumSoldBatchStockDateFromTo, daverageMarkupSoldBatchStockDateFromTo
+    PROPERTIES(bbb,stst) READONLY READONLY BACKGROUND backgroundLavenderBatch(bbb) dbalanceBBatchStock, 
+                   dcostBBatchStock, daccountSumBBatchStock         
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dquantitySoldBatchStock, 
+                   dcostSumSoldBatchStock, dmarkupSumSoldBatchStock
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dsumVATSoldBatchStock, daveragePriceSoldBatchStock,  
+                   dsumSoldBatchStock, daverageMarkupSoldBatchStock
                    
                    
     FILTERGROUP inactiveStock4 FILTER 'Активный' activeStock(stst) 'ctrl F10' DEFAULT
                                        
-    PROPERTIES(bbb,stst,dTo) READONLY BACKGROUND backgroundSkyBatch(bbb) dbalanceABatchStockDate, dcostABatchStockDate, daccountSumABatchStockDate                 
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSkyBatch(bbb) dbalanceABatchStock, dcostABatchStock, daccountSumABatchStock                 
                              
     FILTERS inBatchReportStock(stst),
             isParentGroupBatch(sk, bbb)  
     FILTERGROUP filtersSold2
-        FILTER 'С движением' dquantitySoldBatchStockDateFromTo(bbb,stst,dFrom,dTo) OR dbalanceBBatchStockDate(bbb,stst,dFrom) OR dbalanceABatchStockDate(bbb,stst,dTo) 'F11'
-        FILTER 'С продажей' dquantitySoldBatchStockDateFromTo(bbb,stst,dFrom,dTo) 'F10'
-        FILTER 'С остатком' dbalanceBBatchStockDate(bbb,stst,dFrom) OR dbalanceABatchStockDate(bbb,stst,dTo) 'F9'                                                      
+        FILTER 'С движением' dmovedBatchStock(bbb, stst) 'F11'
+        FILTER 'С продажей' dquantitySoldBatchStock(bbb,stst) 'F10'
+        FILTER 'С остатком' dbalanceBBatchStock(bbb,stst) OR dbalanceABatchStock(bbb,stst) 'F9'                                                      
     PROPERTIES fillPropertyBatchStockDateFromTo(dFrom,dTo) TODRAW  stbs FORCE PANEL TOOLBAR                                 
 ;
 
