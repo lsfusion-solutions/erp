@@ -161,6 +161,48 @@ FORM printCollationSheet 'Опись'
 printCollationSheet 'Опись' (collationSheet) =
     ACTION FORM printCollationSheet OBJECTS cs = collationSheet PRINT  IMAGE 'print.png' IN print;
 
+FORM printCollationSheetXLS 'Опись'
+
+    OBJECTS          cs=CollationSheet FIXED PANEL
+    PROPERTIES (cs)  SELECTOR nameCollationSheet, fullNameLegalEntityStockCollationSheet, nameLegalEntityStockCollationSheet, committeeCollationSheet, nameCommitteeCollationSheet,
+                              nameChairmanCommitteeCollationSheet, namePositionChairmanCollationSheet, nameEmployeeCollationSheet,
+                              nameTypeOfAdditionCollationSheet, fullNameStockCollationSheet, dateCollationSheet,
+                              quantityPageInventoryDetailCollationSheet, quantityBalanceCollationSheet, quantityShortageCollationSheet,
+                              sumPageInventoryDetailCollationSheet, sumBalanceCollationSheet, sumShortageCollationSheet,
+                              countListInventoryCollationSheet, countPageInventoryCollationSheet, prevDateCollationSheet,
+                              sumItemPageInventoryDetailCollationSheet, sumContainerPageInventoryDetailCollationSheet,
+                              sumItemBalanceCollationSheet, sumContainerBalanceCollationSheet, timeFromCollationSheet, timeToCollationSheet,
+                              sumItemShortageCollationSheet, sumContainerShortageCollationSheet, isBatchCollationSheet, isSkuCollationSheet,
+                              countIndexCollationSheet, countIndexBatchCollationSheet,
+                              positiveQuantityShortageCollationSheet, positiveSumShortageCollationSheet,
+                              negativeQuantityShortageCollationSheet, negativeSumShortageCollationSheet, numberDisposalCollationSheet 
+
+    OBJECTS          i=Sku
+    PROPERTIES(i)     SELECTOR nameSku, idBarcodeSku, idSku, shortNameUOMSku
+    PROPERTIES(cs, i) SELECTOR quantityPageInventoryDetailCollationSheetSku, quantityBalanceCollationSheetSku, quantityShortageCollationSheetSku
+    PROPERTIES(cs, i)          pricePageInventoryDetailCollationSheetSku, priceBalanceCollationSheetSku
+    PROPERTIES(cs, i) SELECTOR sumPageInventoryDetailCollationSheetSku, sumBalanceCollationSheetSku, sumShortageCollationSheetSku
+    FILTERS                    includeCollationSheetSku(cs, i)
+    ORDER BY nameSku(i)
+
+    OBJECTS         b=Batch
+    PROPERTIES(b)    SELECTOR nameSkuBatch, idBarcodeSkuBatch, descriptionBatch, nameBatch, idBatch, shortNameUOMBatch
+    PROPERTIES(cs,b) SELECTOR quantityPageInventoryDetailCollationSheetBatch, quantityBalanceCollationSheetBatch, quantityShortageCollationSheetBatch
+    PROPERTIES(cs,b) SELECTOR pricePageInventoryDetailCollationSheetBatch, priceBalanceCollationSheetBatch
+    PROPERTIES(cs,b) READONLY sumPageInventoryDetailCollationSheetBatch, sumBalanceCollationSheetBatch, sumShortageCollationSheetBatch
+    FILTERS                   includeCollationSheetBatch(cs,b),
+                              quantityPageInventoryDetailCollationSheetBatch(cs,b) OR quantityBalanceCollationSheetBatch(cs,b)
+    ORDER BY nameSkuBatch(b)
+    
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY   nameContact, namePositionEmployee
+    FILTERS        inCollationSheetEmployee(cs, e)    
+    
+;
+
+printCollationSheetXLS 'Опись (xls)' (collationSheet) =
+    ACTION FORM printCollationSheetXLS OBJECTS cs = collationSheet PRINT XLSX 
+    IMAGE 'print.png' IN print;
 //------------------------------------ Сличительная ведомость (итоги) ------------------------------------------//
 
 FORM printTotalCollationSheetBy 'Сличительная ведомость (итоги)'
@@ -185,5 +227,5 @@ printTotalCollationSheetBy 'Сличительная ведомость (ито�
 EXTEND FORM inventories
 
     PROPERTIES(li) printListInventoryBy
-    PROPERTIES(cs) printTotalCollationSheetBy, printCollationSheetBy, printCollationSheet
+    PROPERTIES(cs) printTotalCollationSheetBy, printCollationSheetBy, printCollationSheetXLS, printCollationSheet
 ;

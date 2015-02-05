@@ -235,6 +235,8 @@ TABLE collationSheet (CollationSheet);
 @defineDocumentRelation(inventory, CollationSheet);
 
 @defineDocumentHeaderStock(collationSheet, stock, 'Склад');
+numberDisposalCollationSheet 'Основание для инвентаризации'  = DATA VARISTRING[100] (CollationSheet) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
 @defineDocumentDetailTime(inventory, CollationSheet);
 @defineDocumentDetailPosted(inventory, CollationSheet);
 @defineDocumentDetailIndex(inventory, CollationSheet);
@@ -474,8 +476,24 @@ sumShortageCollationSheetSku 'Сумма недостачи' (collationSheet, sk
     sumBalanceCollationSheetSku(collationSheet, sku) (-) sumPageInventoryDetailCollationSheetSku(collationSheet, sku) PERSISTENT;
 
 quantitySkuShortageCollationSheet 'Кол-во недостачи' (collationSheet) =
-    GROUP SUM quantityShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) BY collationSheet PERSISTENT;
-sumShortageSkuCollationSheet 'Сумма недостачи' (collationSheet) = GROUP SUM sumShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) BY collationSheet PERSISTENT;
+    GROUP SUM quantityShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) 
+        BY collationSheet PERSISTENT;
+sumShortageSkuCollationSheet 'Сумма недостачи' (collationSheet) = 
+    GROUP SUM sumShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) 
+        BY collationSheet PERSISTENT;
+//-- Отдельно излишки, отдельно недостача
+positiveQuantitySkuShortageCollationSheet 'Кол-во недостачи' (collationSheet) =
+    GROUP SUM quantityShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) AND quantityShortageCollationSheetSku(collationSheet, sku)>0 
+        BY collationSheet PERSISTENT;
+positiveSumShortageSkuCollationSheet 'Сумма недостачи' (collationSheet) = 
+    GROUP SUM sumShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) AND sumShortageCollationSheetSku(collationSheet, sku)>0 
+        BY collationSheet PERSISTENT;
+negativeQuantitySkuShortageCollationSheet 'Кол-во излишки' (collationSheet) =
+    GROUP SUM quantityShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) AND quantityShortageCollationSheetSku(collationSheet, sku)<0 
+        BY collationSheet PERSISTENT;
+negativeSumShortageSkuCollationSheet 'Сумма излишки' (collationSheet) = 
+    GROUP SUM sumShortageCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) AND sumShortageCollationSheetSku(collationSheet, sku)<0 
+        BY collationSheet PERSISTENT;
 
 
 sumItemSkuBalanceCollationSheet 'Сумма по остаткам, товар' (collationSheet) = GROUP SUM sumBalanceCollationSheetSku(collationSheet, sku) 
@@ -513,6 +531,21 @@ quantityBatchShortageCollationSheet 'Кол-во недостачи' (collationS
     GROUP SUM quantityShortageCollationSheetBatch(collationSheet, batch) IF includeCollationSheetBatch(collationSheet, batch) BY collationSheet PERSISTENT;
 sumBatchShortageCollationSheet 'Сумма недостачи' (collationSheet) = GROUP SUM sumShortageCollationSheetBatch(collationSheet, batch) 
     IF includeCollationSheetBatch(collationSheet, batch) BY collationSheet PERSISTENT;
+    
+//-- Отдельно излишки, отдельно недостача    
+positiveQuantityBatchShortageCollationSheet 'Кол-во недостачи' (collationSheet) =
+    GROUP SUM quantityShortageCollationSheetBatch(collationSheet, batch) IF includeCollationSheetBatch(collationSheet, batch) AND quantityShortageCollationSheetBatch(collationSheet, batch) >0
+        BY collationSheet PERSISTENT;
+positiveSumBatchShortageCollationSheet 'Сумма недостачи' (collationSheet) = GROUP SUM sumShortageCollationSheetBatch(collationSheet, batch) 
+    IF includeCollationSheetBatch(collationSheet, batch) AND sumShortageCollationSheetBatch(collationSheet, batch) >0
+    BY collationSheet PERSISTENT;
+
+negativeQuantityBatchShortageCollationSheet 'Кол-во излишки' (collationSheet) =
+    GROUP SUM quantityShortageCollationSheetBatch(collationSheet, batch) IF includeCollationSheetBatch(collationSheet, batch) AND quantityShortageCollationSheetBatch(collationSheet, batch) <0
+        BY collationSheet PERSISTENT;
+negativeSumBatchShortageCollationSheet 'Сумма излишки' (collationSheet) = GROUP SUM sumShortageCollationSheetBatch(collationSheet, batch) 
+    IF includeCollationSheetBatch(collationSheet, batch) AND sumShortageCollationSheetBatch(collationSheet, batch) <0
+        BY collationSheet PERSISTENT;
 
 sumItemBatchBalanceCollationSheet 'Сумма по остаткам, товар' (collationSheet) = GROUP SUM sumBalanceCollationSheetBatch(collationSheet, batch) 
     IF includeCollationSheetBatch(collationSheet, batch) IF NOT isContainerBatch(batch) BY collationSheet PERSISTENT;
@@ -545,7 +578,20 @@ quantityShortageCollationSheet 'Кол-во недостачи' (collationSheet)
 sumShortageCollationSheet 'Сумма недостачи' (collationSheet) = IF isBatchCollationSheet(collationSheet)
                                                                     THEN sumBatchShortageCollationSheet(collationSheet)
                                                                     ELSE sumShortageSkuCollationSheet(collationSheet);
-
+                                                                    
+positiveQuantityShortageCollationSheet 'Кол-во недостачи' (collationSheet) = IF isBatchCollationSheet(collationSheet)
+                                                                        THEN positiveQuantityBatchShortageCollationSheet(collationSheet)
+                                                                        ELSE positiveQuantitySkuShortageCollationSheet(collationSheet);
+positiveSumShortageCollationSheet 'Сумма недостачи' (collationSheet) = IF isBatchCollationSheet(collationSheet)
+                                                                    THEN positiveSumBatchShortageCollationSheet(collationSheet)
+                                                                    ELSE positiveSumShortageSkuCollationSheet(collationSheet);                                                                    
+                                                                    
+negativeQuantityShortageCollationSheet 'Кол-во излишки' (collationSheet) = IF isBatchCollationSheet(collationSheet)
+                                                                        THEN negativeQuantityBatchShortageCollationSheet(collationSheet)
+                                                                        ELSE negativeQuantitySkuShortageCollationSheet(collationSheet);
+negativeSumShortageCollationSheet 'Сумма излишки' (collationSheet) = IF isBatchCollationSheet(collationSheet)
+                                                                    THEN negativeSumBatchShortageCollationSheet(collationSheet)
+                                                                    ELSE negativeSumShortageSkuCollationSheet(collationSheet);
 
 sumItemBalanceCollationSheet 'Сумма по остаткам, товар' (collationSheet) = IF isBatchCollationSheet(collationSheet)
                                                                             THEN sumItemBatchBalanceCollationSheet(collationSheet)
@@ -604,10 +650,14 @@ CLASS OutInventorySkuDetail 'Недостача инвентаризации' : 
 CLASS InInventorySkuDetail 'Излишки инвентаризации' : InventorySkuDetail;
 
 needToOutLedgerCollationSheetSku (collationSheet, sku) = (quantityShortageCollationSheetSku(collationSheet, sku) > 0  OR (sumShortageCollationSheetSku(collationSheet, sku) > 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
-    AND includeCollationSheetSku(collationSheet, sku) AND isPostedCollationSheet(collationSheet) AND NOT isBatchCollationSheet(collationSheet);
+    AND includeCollationSheetSku(collationSheet, sku) 
+//    AND isPostedCollationSheet(collationSheet) 
+    AND NOT isBatchCollationSheet(collationSheet);
 
 needToInLedgerCollationSheetSku (collationSheet, sku) = (quantityShortageCollationSheetSku(collationSheet, sku) < 0 OR (sumShortageCollationSheetSku(collationSheet, sku) < 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
-    AND includeCollationSheetSku(collationSheet, sku) AND isPostedCollationSheet(collationSheet) AND NOT isBatchCollationSheet(collationSheet);
+    AND includeCollationSheetSku(collationSheet, sku) 
+//    AND isPostedCollationSheet(collationSheet) 
+    AND NOT isBatchCollationSheet(collationSheet);
 
 @defineAggregation(collationSheet, sku, outInventorySkuDetail, needToOutLedger);
 @defineAggregation(collationSheet, sku, inInventorySkuDetail, needToInLedger);
@@ -669,10 +719,14 @@ CLASS OutInventoryBatchDetail 'Недостача инвентаризации' 
 CLASS InInventoryBatchDetail 'Излишки инвентаризации' : InventoryBatchDetail;
 
 needToOutLedgerCollationSheetBatch (collationSheet, batch) = quantityShortageCollationSheetBatch(collationSheet, batch) > 0
-    AND includeCollationSheetBatch(collationSheet, batch) AND isPostedCollationSheet(collationSheet) AND isBatchCollationSheet(collationSheet);
+    AND includeCollationSheetBatch(collationSheet, batch) 
+//    AND isPostedCollationSheet(collationSheet) 
+    AND isBatchCollationSheet(collationSheet);
 
 needToInLedgerCollationSheetBatch (collationSheet, batch) = quantityShortageCollationSheetBatch(collationSheet, batch) < 0
-    AND includeCollationSheetBatch(collationSheet, batch) AND isPostedCollationSheet(collationSheet) AND isBatchCollationSheet(collationSheet);
+    AND includeCollationSheetBatch(collationSheet, batch) 
+//    AND isPostedCollationSheet(collationSheet) 
+    AND isBatchCollationSheet(collationSheet);
 
 @defineAggregation(collationSheet, batch, outInventoryBatchDetail, needToOutLedger);
 @defineAggregation(collationSheet, batch, inInventoryBatchDetail, needToInLedger);
@@ -985,7 +1039,7 @@ FORM inventory 'Инвентаризация'
     FILTERS            quantityPageInventoryDetailListInventoryBatch(li,bt)
 
     OBJECTS          cs=CollationSheet
-    PROPERTIES (cs)              nameCollationSheet, nameTypeOfAdditionCollationSheet, nameStockCollationSheet,
+    PROPERTIES (cs)              nameCollationSheet, nameTypeOfAdditionCollationSheet, nameStockCollationSheet, numberDisposalCollationSheet,
                                  quantityPageInventoryDetailCollationSheet, quantityBalanceCollationSheet, quantityShortageCollationSheet,
                                  sumPageInventoryDetailCollationSheet, sumBalanceCollationSheet, sumShortageCollationSheet,
                                  countListInventoryCollationSheet, countPageInventoryCollationSheet
@@ -1309,6 +1363,9 @@ operationInventory = DATA Operation (Inventory);
 nameOperationInventory 'Операция' = nameOperation(operationInventory(i));
 idOperationInventory 'ID операции' = idOperation(operationInventory(i)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
+operationCollationSheet =  operationInventory(inventoryCollationSheet(collationSheet));
+nameOperationCollationSheet 'Операция' (cs) = nameOperation(operationCollationSheet(cs));
+idOperationCollationSheet 'ID операции' (cs) = idOperation(operationCollationSheet(cs)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 EXTEND FORM inventory
     PROPERTIES(in) nameOperationInventory
