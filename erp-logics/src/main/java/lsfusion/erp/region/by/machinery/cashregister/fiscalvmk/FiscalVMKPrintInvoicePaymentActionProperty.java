@@ -37,7 +37,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister").read(context);
             BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister").read(context);
 
-            BigDecimal sumPayment = (BigDecimal) findProperty("costOutContractLedgerInContractLedger").read(context, paymentObject, invoiceObject);
+            BigDecimal sumPayment = (BigDecimal) findProperty("Payment.sumPayment").read(context, paymentObject);
             Integer typePayment = (Integer) findProperty("fiscalTypePayment").read(context, paymentObject);
 
             if (sumPayment != null && typePayment != null) {
