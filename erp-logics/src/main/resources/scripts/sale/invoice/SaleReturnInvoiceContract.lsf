@@ -9,10 +9,32 @@ NAMESPACE SaleReturn;
 // --------------------------- Проведение по регистру задолженностей ------------------------------------ //
 
 @implementContractLedger(, Invoice, contractSku);
-sumContractLedger(contractLedger) += -invoiceSumInvoiceDetailInvoice(contractLedger);
+sumContractLedger(contractLedger) +=
+    IF currencyInvoice(contractLedger) != currencyContract(contractSkuInvoice(contractLedger)) THEN 
+        NUMERIC[16,2](-invoiceSumInvoiceDetailInvoice(contractLedger) * 
+                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuInvoice(contractLedger)), 
+                                                     currencyInvoice(contractLedger),
+                                                     dateInvoice(contractLedger)))
+    ELSE 
+        -invoiceSumInvoiceDetailInvoice(contractLedger);
+
 
 @implementContractLedger(a, Invoice, contractSku);
-sumContractALedger(contractALedger) += -invoiceSumInvoiceDetailInvoice(contractALedger);
+sumContractALedger(contractALedger) +=
+    IF currencyInvoice(contractALedger) != currencyContract(contractSkuInvoice(contractALedger)) THEN 
+        NUMERIC[16,2](-invoiceSumInvoiceDetailInvoice(contractALedger) * 
+                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuInvoice(contractALedger)), 
+                                                     currencyInvoice(contractALedger),
+                                                     dateInvoice(contractALedger)))
+    ELSE 
+        -invoiceSumInvoiceDetailInvoice(contractALedger);
 
 @implementOutContractLedger(Invoice, contractSku);
-sumOutContractLedger(outContractLedger) += invoiceSumInvoiceDetailInvoice(outContractLedger);
+sumOutContractLedger(outContractLedger) += 
+    IF currencyInvoice(outContractLedger) != currencyContract(contractSkuInvoice(outContractLedger)) THEN 
+        NUMERIC[16,2](invoiceSumInvoiceDetailInvoice(outContractLedger) * 
+                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuInvoice(outContractLedger)), 
+                                                     currencyInvoice(outContractLedger),
+                                                     dateInvoice(outContractLedger)))
+    ELSE 
+        invoiceSumInvoiceDetailInvoice(outContractLedger);

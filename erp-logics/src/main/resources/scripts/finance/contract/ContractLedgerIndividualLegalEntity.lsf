@@ -2,11 +2,32 @@ MODULE ContractLedgerIndividualLegalEntity;
 
 REQUIRE ContractLedger, IndividualLegalEntity, ContractPayment, POSInvoice;
 
-balanceALegalEntityDate 'Задолженность' = 
-    GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity
+defaultRoundConditionPaymentInstallments  = DATA RoundCondition ();
+nameDefaultRoundConditionPaymentInstallments 'Условия округления рассрочки' = nameRoundCondition(defaultRoundConditionPaymentInstallments());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultRoundConditionPaymentInstallments
+;
+
+EXTEND DESIGN options {
+    pane {
+        paymentInstallmentsy {
+            ADD PROPERTY(nameDefaultRoundConditionPaymentInstallments());
+        }    
+    }
+}
+
+balanceACurrencyPaymentInstallmentsLegalEntityDate 'Задолженность по рассрочке(валюта рассрочки)' = 
+    GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity AND currencyContract(contract) == defaultCurrencyPaymentInstallments()
     BY legalEntity, date;
+balanceADefaultCurrencyCurrencyPaymentInstallmentsLegalEntityDate 'Задолженность по рассрочке(основная валюта)' = 
+    roundPriceRoundCondition(balanceACurrencyPaymentInstallmentsLegalEntityDate(legalEntity, date) / rateOnTypeExchangeCurrencyDate(defaultTypeExchangePaymentInstallments(), defaultCurrency(),date), defaultRoundConditionPaymentInstallments());
+balanceADefaultCurrencyLegalEntityDate 'Задолженность по предоплате' = 
+    GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity AND currencyContract(contract) == defaultCurrency()
+    BY legalEntity, date;        
     
-backgroundDebtIn 'Цвет' () = RGB(213,249,185);
+backgroundDebtInPaymentInstallments 'Цвет' () = RGB(213,249,185);
+backgroundDebtInPrePayment 'Цвет' () = RGB(255,200,125);
 
 fiscalSkip 'Отключить ФР'  = DATA LOCAL BOOLEAN (); 
 
@@ -65,10 +86,13 @@ addPaymentInContractLedger 'Погасить задолженность' = ACTIO
             contractPayment(p) <- contractInContractLedger(ledger);    
             payerPayment(p) <- partyBContractInContractLedger(ledger);
             beneficiaryPayment(p) <- partyAContractInContractLedger(ledger);
-            sumPayment(p) <- chosenNumeric('n');;
-            sumContractPayment(p) <- chosenNumeric('n');;
-            costOutContractLedgerInContractLedger(p, ledger) <- chosenNumeric('n');;
+            sumPayment(p) <- chosenNumeric('n');
             isPostedPayment(p) <- TRUE;
+            IF debtInContractLedger(ledger) >= sumContractPayment(p) THEN {
+                costOutContractLedgerInContractLedger(p, ledger) <- sumContractPayment(p);    
+            } ELSE IF debtInContractLedger(ledger) < sumContractPayment(p) THEN{
+                costOutContractLedgerInContractLedger(p, ledger) <- debtInContractLedger(ledger);     
+            }             
             dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
             IF fiscalSkip() THEN {
                 apply();            
@@ -134,7 +158,7 @@ DESIGN legalEntityPayment FROM DEFAULT {
     REMOVE PROPERTY(formRefresh());
 }
 
-addPaymentLegalEntity 'Внести предоплату' = ACTION (legalEntity) {
+addPrePaymentLegalEntity 'Внести предоплату' = ACTION (legalEntity) {
     FORM legalEntityPayment MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR ADDOBJ p = Payment.Payment DO{
@@ -142,7 +166,6 @@ addPaymentLegalEntity 'Внести предоплату' = ACTION (legalEntity)
             payerPayment(p) <- legalEntity;
             beneficiaryPayment(p) <- chosenObject('l');
             sumPayment(p) <- chosenNumeric('n');
-            sumContractPayment(p) <- chosenNumeric('n');
             FOR ADDOBJ c = UserContractSku DO {
                 supplierContractSku(c) <- chosenObject('l');
                 customerContractSku(c) <- legalEntity;
@@ -164,17 +187,21 @@ FORM contractLedgerLegalEnbtity 'Управление задолженностя
 
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY nameLegalEntity, passportNumberLegalEntity, phoneContact, postAddressContact, emailContact
-    PROPERTIES(l, d) READONLY balanceALegalEntityDate BACKGROUND backgroundDebtIn()   
-    PROPERTIES addPaymentLegalEntity(l) TODRAW l FORCE PANEL TOOLBAR 
+    PROPERTIES(l, d) READONLY balanceACurrencyPaymentInstallmentsLegalEntityDate BACKGROUND backgroundDebtInPaymentInstallments(),
+                              balanceADefaultCurrencyCurrencyPaymentInstallmentsLegalEntityDate BACKGROUND backgroundDebtInPaymentInstallments(),
+                              balanceADefaultCurrencyLegalEntityDate BACKGROUND backgroundDebtInPrePayment()
+    PROPERTIES addPrePaymentLegalEntity(l) TODRAW l FORCE PANEL TOOLBAR 
     FILTERGROUP filters1 
-        FILTER 'С долгами' balanceALegalEntityDate(l, d) 'F7' DEFAULT         
+        FILTER 'С долгами' balanceACurrencyPaymentInstallmentsLegalEntityDate(l, d) OR 
+                           balanceADefaultCurrencyCurrencyPaymentInstallmentsLegalEntityDate(l, d) OR 
+                           balanceADefaultCurrencyLegalEntityDate(l, d) 'F7' DEFAULT         
     FILTERGROUP filters2 
         FILTER 'Только ф.л.' shortNameOwnershipLegalEntity(l) == 'Ф.Л.' 'F7' DEFAULT 
         FILTER 'Только покупатели' isCustomerLegalEntity(l) 'F8'
     
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger
-    PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundDebtIn()
+    PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundDebtInPaymentInstallments()
     PROPERTIES(ic) addPaymentInContractLedger TODRAW ic FORCE PANEL TOOLBAR 
     ORDER BY dateInContractLedger(ic)
     FILTERS activeInContractLedger(ic),

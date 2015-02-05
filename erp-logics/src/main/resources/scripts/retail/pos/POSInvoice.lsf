@@ -13,16 +13,26 @@ fiscalTypePayment 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment);
 dataFiscalTypePayment 'Тип платежа' = DATA INTEGER (Payment.Payment);
 fiscalTypePayment(p) += dataFiscalTypePayment(p); 
 
-EXTEND FORM payment 
-    PROPERTIES(p) fiscalTypePayment
+defaultCurrencyPaymentInstallments = DATA Currency (); 
+nameDefaultCurrencyPaymentInstallmentsy 'Валюта рассрочки' = nameCurrency(defaultCurrencyPaymentInstallments()) PREFCHARWIDTH 30;
+
+defaultTypeExchangePaymentInstallments  = DATA TypeExchange ();
+nameDefaultTypeExchangePaymentInstallments 'Тип обмена рассрочки' = nameTypeExchange(defaultTypeExchangePaymentInstallments());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultCurrencyPaymentInstallmentsy, nameDefaultTypeExchangePaymentInstallments
 ;
 
-EXTEND DESIGN payment {
-    paramContainer {
-        ADD PROPERTY(fiscalTypePayment(p));
+EXTEND DESIGN options {
+    pane {
+        NEW paymentInstallmentsy {
+            caption = 'Рассрочка';
+            ADD PROPERTY(nameDefaultCurrencyPaymentInstallmentsy());
+            ADD PROPERTY(nameDefaultTypeExchangePaymentInstallments());
+        }    
     }
-} 
-  
+}
+
 setPassportPhoneLegalEntity = ABSTRACT ACTION (); 
 
 isReadonly() = DATA LOCAL BOOLEAN ();
@@ -154,9 +164,10 @@ createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCond
             supplierContractSku(c) <- legalEntityStock(departmentStoreReceipt(receipt));
             customerContractSku(c) <- customer;
             dateFromContract(c) <- dateReceipt(receipt);
-            currencyContract(c) <- defaultCurrency();
+            currencyContract(c) <- defaultCurrencyPaymentInstallments();
             typeContractSku(c) <- ContractSkuType.sale;
             paymentConditionContract(c) <- paymentCondition;
+            typeExchangeContract(c) <- defaultTypeExchangePaymentInstallments();
             contractSkuUserInvoice(i) <- c;            
         }
         
@@ -175,10 +186,13 @@ createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCond
             payerPayment(p) <- customer;
             beneficiaryPayment(p) <- legalEntityStock(departmentStoreReceipt(receipt));
             sumPayment(p) <- sum;
-            sumContractPayment(p) <- sum;
             contractPayment(p) <- contractSkuUserInvoice(i);
-            costOutContractLedgerInContractLedger(p, i) <- sum;
             isPostedPayment(p) <- TRUE;
+            IF debtInContractLedger(i) >= sumContractPayment(p) THEN {
+                costOutContractLedgerInContractLedger(p, i) <- sumContractPayment(p);    
+            } ELSE IF debtInContractLedger(i) < sumContractPayment(p) THEN{
+                costOutContractLedgerInContractLedger(p, i) <- debtInContractLedger(i);     
+            } 
             dataFiscalTypePayment(p) <- IF sidPaymentType(paymentType) == 'card' THEN 1 ELSE 0;
             
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   

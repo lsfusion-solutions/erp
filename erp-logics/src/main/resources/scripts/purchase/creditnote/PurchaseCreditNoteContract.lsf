@@ -9,10 +9,31 @@ paymentConditionCreditNote(creditNote) += paymentConditionInvoice(invoiceInvoice
 //------------------- Проведение по регистру задолженностей ----------------------- //
 
 @implementContractLedger(, CreditNote, contractSku);
-sumContractLedger(contractLedger) += -invoiceSumCreditNoteDetailCreditNote(contractLedger);
+sumContractLedger(contractLedger) +=
+    IF currencyCreditNote(contractLedger) != currencyContract(contractSkuCreditNote(contractLedger)) THEN 
+        NUMERIC[16,2](-invoiceSumCreditNoteDetailCreditNote(contractLedger) * 
+                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuCreditNote(contractLedger)), 
+                                                     currencyCreditNote(contractLedger),
+                                                     dateCreditNote(contractLedger)))
+    ELSE 
+        -invoiceSumCreditNoteDetailCreditNote(contractLedger);
 
 @implementContractLedger(a, CreditNote, contractSku);
-sumContractALedger(contractALedger) += -invoiceSumCreditNoteDetailCreditNote(contractALedger);
+sumContractALedger(contractALedger) +=
+    IF currencyCreditNote(contractALedger) != currencyContract(contractSkuCreditNote(contractALedger)) THEN 
+        NUMERIC[16,2](-invoiceSumCreditNoteDetailCreditNote(contractALedger) * 
+                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuCreditNote(contractALedger)), 
+                                                     currencyCreditNote(contractALedger),
+                                                     dateCreditNote(contractALedger)))
+    ELSE 
+        -invoiceSumCreditNoteDetailCreditNote(contractALedger);
 
 @implementOutContractLedger(CreditNote, contractSku);
-sumOutContractLedger(outContractLedger) += invoiceSumCreditNoteDetailCreditNote(outContractLedger);
+sumOutContractLedger(outContractLedger) +=
+    IF currencyCreditNote(outContractLedger) != currencyContract(contractSkuCreditNote(outContractLedger)) THEN 
+        NUMERIC[16,2](invoiceSumCreditNoteDetailCreditNote(outContractLedger) * 
+                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuCreditNote(outContractLedger)), 
+                                                     currencyCreditNote(outContractLedger),
+                                                     dateCreditNote(outContractLedger)))
+    ELSE 
+        invoiceSumCreditNoteDetailCreditNote(outContractLedger);
