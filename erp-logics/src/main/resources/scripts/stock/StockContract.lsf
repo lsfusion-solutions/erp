@@ -34,12 +34,24 @@ supplierContractSku = DATA LegalEntity (ContractSku);
 nameSupplierContractSku 'Поставщик' (contract) = nameLegalEntity(supplierContractSku(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
 partyAContract (contract) += supplierContractSku(contract);
 
+inSupplierStockContractSku 'Вкл.'  = DATA BOOLEAN (Stock, ContractSku);
+inPartyAStockContract (stock, contract) += inSupplierStockContractSku(stock,contract);
+
+CONSTRAINT supplierContractSku(contract) AND inSupplierStockContractSku(stock, contract) AND NOT
+    inLegalEntityStock(supplierContractSku(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
+
 customerContractSku = DATA LegalEntity (ContractSku);
 nameCustomerContractSku 'Покупатель' (contract) = nameLegalEntity(customerContractSku(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
 partyBContract (contract) += customerContractSku(contract);
 
+inCustomerStockContractSku 'Вкл.'  = DATA BOOLEAN (Stock, ContractSku);
+inPartyBStockContract (stock, contract) += inCustomerStockContractSku(stock,contract);
+
+CONSTRAINT customerContractSku(contract) AND inCustomerStockContractSku(stock, contract) AND NOT
+    inLegalEntityStock(customerContractSku(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';
+
 TABLE supplierCustomer(LegalEntity, LegalEntity);
-@defineContractDefault(contractSku, LegalEntity, LegalEntity, supplier, customer);
+@defineContractDefault(contractSku, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
 
 //для договора
 
@@ -67,6 +79,21 @@ FORM userContractSku 'Договор на поставку товаров'
                   nameCurrencyContract,  nameTypeExchangeContract, descriptionPaymentConditionContract,
                   noteContract, saveWordUserContractSku, openWordUserContractSku
 
+    OBJECTS ss = Stock
+    PROPERTIES nameStock(ss) READONLY, idStock(ss) SHOWIF showIDs() READONLY, inSupplierStockContractSku(ss,c)
+    FILTERS inLegalEntityStock(supplierContractSku(c),ss)
+    FILTERGROUP filters1
+        FILTER 'Отм.'  inSupplierStockContractSku(ss,c) 'F10'   
+    FILTERGROUP filters1a
+        FILTER 'Активные'  activeStock(ss) 'F5' DEFAULT  
+    
+    OBJECTS cs = Stock
+    PROPERTIES nameStock(cs) READONLY, idStock(cs) SHOWIF showIDs() READONLY, inCustomerStockContractSku(cs,c)
+    FILTERS inLegalEntityStock(customerContractSku(c),cs)
+    FILTERGROUP filters2
+        FILTER 'Отм.'  inCustomerStockContractSku(cs,c) 'F10'
+    FILTERGROUP filters2a
+        FILTER 'Активные'  activeStock(cs) 'F5' DEFAULT            
     EDIT UserContractSku OBJECT c
 ;
 
@@ -96,9 +123,24 @@ DESIGN userContractSku FROM DEFAULT {
         ADD PROPERTY(saveWordUserContractSku(c));
         ADD PROPERTY(openWordUserContractSku(c));
     }
-    ADD PROPERTY(noteContract(c)) {
-        panelLabelAbove = TRUE;
+    NEW tabContainer{
         fill = 1;
+        type = TABBED;
+        NEW stocksContainer {
+            caption = 'Склады';
+            fill = 1;
+            type = SPLITH ;
+            ADD ss.box {caption = 'Склады поставщика';}
+            ADD cs.box {caption = 'Склады покупателя';}
+        }
+        NEW noteContainer {
+            fill = 1;
+            caption = 'Примечание';
+            ADD PROPERTY(noteContract(c)) {
+                panelLabelAbove = TRUE;
+                fill = 1;
+            }
+        }
     }
     ADD functions.box;
 }
@@ -124,8 +166,8 @@ EXTEND FORM contracts
 ;
 
 FORM contractSkus 'Договоры на поставку'
-    OBJECTS c = ContractSku
-    PROPERTIES(c) READONLY nameSupplierContractSku, nameCustomerContractSku, nameTypeContractSku,
+    OBJECTS c = ContractSku   
+    PROPERTIES(c) READONLY nameSupplierContractSku, namePartyAStocksContract, nameCustomerContractSku, namePartyBStocksContract, nameTypeContractSku,
                   seriesNumberUserContractSku, dateFromContract, dateToContract,
                   nameCurrencyContract,  nameTypeExchangeContract, noteContract
     PROPERTIES  addUserContractSku() TODRAW c FORCE PANEL, editContract(c)
@@ -147,7 +189,7 @@ EXTEND FORM legalEntity
 
     OBJECTS css = UserContractSku FIXED GRID
     PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
-                    dateToContract, nameCurrencyContract, noteContract
+                    dateToContract, nameCurrencyContract, noteContract, namePartyAStocksContract, namePartyBStocksContract
     PROPERTIES      SHOWIF isCustomerLegalEntity(l) addUserContractSkuSupplierCustomer(s, l) TODRAW css FORCE PANEL TOOLBAR
     PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) EDITNESTEDFORM
     PROPERTIES(css) DELETESESSION SHOWIF isCustomerLegalEntityUserContractSku(l,css)

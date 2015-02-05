@@ -151,9 +151,13 @@ isCommissionReturnUserCreditNote 'Продажа на комиссию' = DATA B
 isCommissionReturnUserCreditNote(o) <- typeContractSku(returnContractSkuUserCreditNote(o)) == ContractSkuType.commission
     WHEN CHANGED(returnContractSkuUserCreditNote(o));
 
-returnContractSkuUserCreditNote(o) <- defaultContractSkuSupplierCustomer(customerUserCreditNote(o), supplierUserCreditNote(o))
-                                      WHEN CHANGED(customerUserCreditNote(o)) OR CHANGED(supplierUserCreditNote(o));
-                                      
+WHEN SESSION (CHANGED(supplierUserInvoice(o)) OR CHANGED(customerUserInvoice(o)) OR CHANGED(supplierStockUserInvoice(o))
+            OR CHANGED(customerStockUserInvoice(o)) OR CHANGED(dateUserInvoice(o))) AND NOT CHANGED(contractSkuUserInvoice(o)) DO {
+            
+    contractSkuUserInvoice(o) <- OVERRIDE singleContractSkuSupplierCustomerDate(supplierUserInvoice(o), customerUserInvoice(o), dateUserInvoice(o)) IF countContractSkuSupplierCustomerDate(supplierUserInvoice(o), customerUserInvoice(o), dateUserInvoice(o)),
+                                             defaultContractSkuSupplierCustomerDate(supplierUserInvoice(o), customerUserInvoice(o), dateUserInvoice(o)),
+                                             defaultContractSkuSupplierStockCustomerStockDate(supplierUserInvoice(o), supplierStockUserInvoice(o), customerUserInvoice(o), customerStockUserInvoice(o), dateUserInvoice(o)); 
+}                                     
                                       
 
 CONSTRAINT returnContractSkuUserCreditNote(o) AND NOT customerUserCreditNote(o) == partyAContract(returnContractSkuUserCreditNote(o))

@@ -217,13 +217,16 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
     in###prop###propPostfix##Operation 'Отм' (legalEntity, operation) =
         OVERRIDE nearestIn###prop###propPostfix##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation), dataIn###prop###propPostfix##Operation(legalEntity, operation);
         
-    background###in###prop###propPostfix##GroupOperation 'Цвет' (legalEntityGroup, operation) = IF dataIn###prop###propPostfix##GroupOperation(legalEntityGroup, operation) THEN RGB(0,0,0)
-        ELSE RGB(136,136,196) 
-        IF nearestIn###prop###propPostfix##GroupOperation(legalEntityGroup, operation);    
+    quantityChildWith###in###prop###propPostfix##GroupOperation (group, operation) = GROUP SUM 1 IF dataIn###prop###propPostfix##GroupOperation(childGroup, operation) AND isParentLegalEntityGroupLegalEntityGroup(childGroup, group) BY group, operation PERSISTENT;
+    quantityParentWith###in###prop###propPostfix##GroupOperation (group, operation) = GROUP SUM 1 IF dataIn###prop###propPostfix##GroupOperation(parentGroup, operation) AND isParentLegalEntityGroupLegalEntityGroup(group, parentGroup) BY group, operation PERSISTENT;          
+        
+    background###in###prop###propPostfix##GroupOperation 'Цвет' (group, operation) = CASE
+        WHEN dataIn###prop###propPostfix##GroupOperation(group, operation) THEN RGB(0,0,0)
+        WHEN nearestIn###prop###propPostfix##GroupOperation(group, operation) THEN RGB(230,248,250) 
+        WHEN quantityChildWith###in###prop###propPostfix##GroupOperation(group, operation) != descendantNumberLegalEntityGroup(group) AND NOT quantityParentWith###in###prop###propPostfix##GroupOperation (group, operation) THEN RGB(203,203,203);    
         
     background###in###prop###propPostfix##Operation'Цвет' (legalEntity, operation) = IF dataIn###prop###propPostfix##Operation(legalEntity, operation) THEN RGB(0,0,0)
-        ELSE RGB(136,136,196) 
-        IF nearestIn###prop###propPostfix##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation);   
+        ELSE RGB(230,248,250) IF nearestIn###prop###propPostfix##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation);   
 
     EXTEND FORM operation
         TREE prop###propPostfix###groupTree object##g = LegalEntityGroup PARENT parentLegalEntityGroup
@@ -303,15 +306,23 @@ META defineOperationStock(prop, object, tabcaption)
     in###prop##StockOperation 'Отм' (stock, operation) =
         OVERRIDE in###prop##StockGroupOperation(stockGroupStock(stock), operation),
                  dataIn###prop##StockOperation(stock, operation);
+                 
+    countDataIn###prop##StockGroupsOperation = GROUP SUM 1 IF  dataIn###prop##StockGroupOperation(stockGroup, operation) BY operation;            
                                   
-    background###all###prop##StocksOperation 'Цвет' (operation) = RGB(0,0,0) IF all###prop##StocksOperation(operation);       
-           
-    background###in###prop##StockGroupOperation 'Цвет' (stockGroup, operation) = IF dataIn###prop##StockGroupOperation(stockGroup, operation) THEN RGB(0,0,0)
-        ELSE RGB(136,136,196) 
-        IF (OVERRIDE all###prop##StocksOperation(operation) AND stockGroup IS StockGroup, nearestIn###prop##StockGroupOperation(stockGroup, operation));    
+    background###all###prop##StocksOperation 'Цвет' (operation) = IF all###prop##StocksOperation(operation) THEN RGB(0,0,0)
+        ELSE RGB(203,203,203) IF countDataIn###prop##StockGroupsOperation(operation);      
+     
+    quantityChildWith###in###prop##StockGroupOperation (group, operation) = GROUP SUM 1 IF dataIn###prop##StockGroupOperation(childGroup, operation) AND isParentStockGroupStockGroup(childGroup, group) BY group, operation PERSISTENT;
+    quantityParentWith###in###prop##StockGroupOperation (group, operation) = GROUP SUM 1 IF dataIn###prop##StockGroupOperation(parentGroup, operation) AND isParentStockGroupStockGroup(group, parentGroup) BY group, operation PERSISTENT;          
+          
+    background###in###prop##StockGroupOperation 'Цвет' (group, operation) = CASE
+        WHEN dataIn###prop##StockGroupOperation(group, operation) THEN RGB(0,0,0)
+        WHEN nearestIn###prop##StockGroupOperation(group, operation) THEN RGB(230,248,250) 
+        WHEN quantityChildWith###in###prop##StockGroupOperation(group, operation) != descendantNumberStockGroup(group) AND NOT quantityParentWith###in###prop##StockGroupOperation(group, operation) THEN RGB(203,203,203);           
+        
         
     background###in###prop##StockOperation 'Цвет' (stock, operation) = IF dataIn###prop##StockOperation(stock, operation) THEN RGB(0,0,0)
-        ELSE RGB(136,136,196) 
+        ELSE RGB(230,248,250) 
         IF in###prop##StockGroupOperation(stockGroupStock(stock), operation);                           
                     
 
