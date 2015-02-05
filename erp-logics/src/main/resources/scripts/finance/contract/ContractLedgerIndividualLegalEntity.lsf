@@ -28,6 +28,10 @@ balanceADefaultCurrencyLegalEntityDate 'Задолженность по пред
     
 backgroundDebtInPaymentInstallments 'Цвет' () = RGB(213,249,185);
 backgroundDebtInPrePayment 'Цвет' () = RGB(255,200,125);
+backgroundInContractLedger 'Цвет' (ledger) = CASE
+    WHEN ledger IS InContractLedger AND currencyContract(contractInContractLedger(ledger)) == defaultCurrencyPaymentInstallments() THEN RGB(213,249,185)
+    WHEN ledger IS InContractLedger AND currencyContract(contractInContractLedger(ledger)) == defaultCurrency() THEN RGB(255,200,125)
+;
 
 fiscalSkip 'Отключить ФР'  = DATA LOCAL BOOLEAN (); 
 
@@ -201,7 +205,7 @@ FORM contractLedgerLegalEnbtity 'Управление задолженностя
     
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger
-    PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundDebtInPaymentInstallments()
+    PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundInContractLedger(ic)
     PROPERTIES(ic) addPaymentInContractLedger TODRAW ic FORCE PANEL TOOLBAR 
     ORDER BY dateInContractLedger(ic)
     FILTERS activeInContractLedger(ic),
