@@ -72,29 +72,62 @@ typeDriver 'Класс' = DATA STRING[10](Driver);
 defaultTruckDriver = DATA Truck(Driver);
 nameDefaultTruckDriver 'Машина по умолчанию' = nameTruck(defaultTruckDriver(driver));
 
-EXTEND FORM employee
-    PROPERTIES(e) sidDriver, typeDriver, nameDefaultTruckDriver
+
+FORM driver 'Водитель'
+    OBJECTS e=Driver FIXED PANEL
+    PROPERTIES(e)      lastNameContact, firstNameContact, initialsEmployee, idEmployee SHOWIF showIDs(), namePositionEmployee,
+                       sidDriver, typeDriver, nameDefaultTruckDriver//nameMainRoleUser
+
+    EDIT Driver OBJECT e
 ;
 
-EXTEND DESIGN employee{
-    header {
-        NEW driver BEFORE access {
-            caption = 'Данные водителя';
-            type = COLUMNS;
-            columns = 1;
-            ADD PROPERTY(nameDefaultTruckDriver(e));
-            ADD PROPERTY(sidDriver(e));
-            ADD PROPERTY(typeDriver(e));
+DESIGN driver FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW header {
+            type = CONTAINERH;
+            NEW personal {
+                caption = 'Личные данные';
+                type = CONTAINERH;                
+                ADD PROPERTY(lastNameContact(e));
+                ADD PROPERTY(firstNameContact(e));   
+                ADD PROPERTY(initialsEmployee(e));                  
+                ADD PROPERTY(idEmployee(e));
+                ADD PROPERTY(namePositionEmployee(e));
+            }
+            NEW driver {
+                caption = 'Данные водителя';
+                type = CONTAINERH;
+                ADD PROPERTY(nameDefaultTruckDriver(e));
+                ADD PROPERTY(sidDriver(e));
+                ADD PROPERTY(typeDriver(e));
+            }
         }
+        ADD functions.box;
+    }
+}
+FORM drivers 'Водители'
+    PROPERTIES isEditable()
+    OBJECTS e=Driver
+    PROPERTIES(e) READONLYIF isReadonly() lastNameContact, firstNameContact, initialsEmployee, idEmployee SHOWIF showIDs(), 
+                  namePositionEmployee, shortNameContact, sidDriver, typeDriver, nameDefaultTruckDriver//nameMainRoleUser
+    PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    DIALOG Driver OBJECT e
+;
+
+DESIGN drivers FROM DEFAULT {
+    ADD functions.box{
+        ADD PROPERTY(isEditable()) BEFORE rightControls;
     }
 }
 
 NAVIGATOR {
     NEW transportNavigator 'Транспорт' BEFORE administration TO toolbar IMAGE '/images/truck.png' {
         NEW transportDocuments 'Документы';
-        NEW transportMasterData 'Справочники' {
+        NEW transportMasterData 'Справочники' {            
             ADD trucks;
             ADD truckModels;
+            ADD drivers;
         }
     }
 }

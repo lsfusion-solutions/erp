@@ -16,9 +16,17 @@ inSessionGroup 'Отм.' (group) = OVERRIDE
 includeSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
 includeGroupTypeSku 'Отм.' (groupType, sku) =  OVERRIDE inSessionGroup(groupGroupTypeSku(groupType, sku)), includeSku(sku);
 
+quantityChildWithSessionGroup (group) = GROUP SUM 1 IF dataInSessionGroup(childGroup) AND isParentGroupGroup(childGroup, group) BY group;
+quantityParentWithSessionGroup (group) = GROUP SUM 1 IF dataInSessionGroup(parentGroup) AND isParentGroupGroup(group, parentGroup) BY group;                                                                        
+                                                                           
+backgroundInSessionGroup 'Цвет' (group) = CASE 
+    WHEN dataInSessionGroup(group) THEN RGB(0,0,0)
+    WHEN inParentGroup(group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithSessionGroup (group) != descendantNumberGroup(group) AND NOT quantityParentWithSessionGroup (group) THEN RGB(203,203,203);
+
 backgroundIncludeGroupTypeSku 'Цвет' (groupType, sku) = IF includeSku(sku) 
     THEN RGB(0,0,0) 
-    ELSE RGB(203,203,206) IF inSessionGroup(groupGroupTypeSku(groupType, sku));
+    ELSE RGB(230,248,250) IF inSessionGroup(groupGroupTypeSku(groupType, sku));
 
 //sessionConcatGroups 'Группы' (groupType) =
 //    GROUP CONCAT nameGroup(group) IF inSessionGroup(group) AND NOT inSessionGroup(parentGroup(group)),','
@@ -225,7 +233,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
-    PROPERTIES inSessionGroup(sk)
+    PROPERTIES inSessionGroup(sk) BACKGROUND backgroundInSessionGroup(sk)
     PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
     PROPERTIES(sk, st, d) READONLY sumRecBSkuGroupStockDateTime, accountSumRecBSkuGroupBatchStockDateTime
     ORDER BY orderGroup(sk), skuTreeName
@@ -411,7 +419,7 @@ FORM reportBackSheet 'Оборотная ведомость'
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
-    PROPERTIES inSessionGroup(sk)
+    PROPERTIES inSessionGroup(sk) BACKGROUND backgroundInSessionGroup(sk)
     PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
     PROPERTIES(sk, st, df) READONLY sumRecBSkuGroupStockDate
     PROPERTIES(sk, st, df, dt) READONLY sumRecInGroupSkuStockDateDate, sumRecOutGroupSkuStockDateDate
