@@ -246,9 +246,12 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
     }         
 }
 
+backgroundContractReceipt (contract, receipt)= RGB(255,75,75) IF (balanceAContractCurrentDate(contract) (+) sumReceiptDetailReceipt(receipt) > 0.0); 
+
 FORM prePayment 'Предоплата'
+    OBJECTS r = Receipt FIXED PANEL 
     OBJECTS c = Contract
-    PROPERTIES(c) READONLY namePartyBContract, passportPartyBContract, balanceAContractCurrentDate
+    PROPERTIES(c) READONLY BACKGROUND backgroundContractReceipt(c, r) namePartyBContract, passportPartyBContract, balanceAContractCurrentDate
     FILTERS balanceAContractCurrentDate(c) < 0,
             shortNameOwnershipPartyBContract(c) == 'Ф.Л.'
     
@@ -256,6 +259,7 @@ FORM prePayment 'Предоплата'
 ;
 
 DESIGN prePayment FROM DEFAULT {
+    REMOVE r.box;
     ADD c.box {
         PROPERTY(namePartyBContract(c)){
             caption = 'ФИО';    
@@ -276,7 +280,7 @@ DESIGN prePayment FROM DEFAULT {
 createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
     IF quantityReceiptDetailReceipt(receipt) THEN {
         noteInvoice() <- NULL;
-        FORM prePayment MODAL;
+        FORM prePayment OBJECTS r = receipt MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR ADDOBJ i = UserInvoice DO {
                 supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);

@@ -17,11 +17,18 @@ EXTEND DESIGN options {
     }
 }
 
+debtDefaultCurrencyInContractLedgerDate 'Долг по документу (основная валюта)'= 
+    IF currencyContract(contractInContractLedger(ledger)) != defaultCurrency() THEN
+        roundPriceRoundCondition(debtInContractLedgerDate(ledger, date) / rateOnTypeExchangeCurrencyDate(defaultTypeExchangePaymentInstallments(), defaultCurrency(), date), defaultRoundConditionPaymentInstallments())
+    ELSE
+        debtInContractLedgerDate(ledger, date);
+
 balanceACurrencyPaymentInstallmentsLegalEntityDate 'Задолженность по рассрочке(валюта рассрочки)' = 
     GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity AND currencyContract(contract) == defaultCurrencyPaymentInstallments()
     BY legalEntity, date;
 balanceADefaultCurrencyCurrencyPaymentInstallmentsLegalEntityDate 'Задолженность по рассрочке(основная валюта)' = 
-    roundPriceRoundCondition(balanceACurrencyPaymentInstallmentsLegalEntityDate(legalEntity, date) / rateOnTypeExchangeCurrencyDate(defaultTypeExchangePaymentInstallments(), defaultCurrency(),date), defaultRoundConditionPaymentInstallments());
+    roundPriceRoundCondition(balanceACurrencyPaymentInstallmentsLegalEntityDate(legalEntity, date) / rateOnTypeExchangeCurrencyDate(defaultTypeExchangePaymentInstallments(), defaultCurrency(), date), defaultRoundConditionPaymentInstallments());
+
 balanceADefaultCurrencyLegalEntityDate 'Задолженность по предоплате' = 
     GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity AND currencyContract(contract) == defaultCurrency()
     BY legalEntity, date;        
@@ -205,7 +212,7 @@ FORM contractLedgerLegalEnbtity 'Управление задолженностя
     
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger
-    PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundInContractLedger(ic)
+    PROPERTIES(ic, d) READONLY BACKGROUND backgroundInContractLedger(ic) debtInContractLedgerDate, debtDefaultCurrencyInContractLedgerDate
     PROPERTIES(ic) addPaymentInContractLedger TODRAW ic FORCE PANEL TOOLBAR 
     ORDER BY dateInContractLedger(ic)
     FILTERS activeInContractLedger(ic),
