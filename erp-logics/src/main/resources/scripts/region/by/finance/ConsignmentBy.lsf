@@ -86,9 +86,12 @@ overSupplierConsignment = ABSTRACT LegalEntity (Consignment);
 supplierConsignment (consignment)= OVERRIDE dataSupplierConsignment(consignment), overSupplierConsignment(consignment);
 
 UNPSupplierConsignment 'УНП отправителя' (consignment) = UNPLegalEntity(supplierConsignment(consignment));
+overAddressSupplierConsignment = ABSTRACT VARISTRING[150] (Consignment);
 addressSupplierConsignment 'Юр. адрес отправителя' (consignment) =
-    addressLegalEntityDate(supplierConsignment(consignment), dateConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-fullNameSupplierConsignment 'Наим-ие отправителя' (consignment) = fullNameLegalEntity(supplierConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    OVERRIDE addressLegalEntityDate(supplierConsignment(consignment), dateConsignment(consignment)), overAddressSupplierConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+overFullNameSupplierConsignment = ABSTRACT VARISTRING[200] (Consignment);  
+fullNameSupplierConsignment 'Наим-ие отправителя' (consignment) = 
+    OVERRIDE fullNameLegalEntity(supplierConsignment(consignment)), overFullNameSupplierConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 dataCustomerConsignment = ABSTRACT LegalEntity (Consignment);
 overCustomerConsignment = ABSTRACT LegalEntity (Consignment);
@@ -1079,6 +1082,11 @@ END
 // ------------------------------------- Отпуск товара --------------------------------- //
 
 GROUP invoiceConsignment 'Накладная' : base;
+
+nameConsigmentLegalEntityStock 'Наименование юр. лица' = DATA VARSTRING[200] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
+overFullNameSupplierConsignment(consignment) += nameConsigmentLegalEntityStock(supplierStockConsignment(consignment));
+addressConsigmentLegalEntityStock 'Юр. адрес отправителя' = DATA VARISTRING[150] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
+overAddressSupplierConsignment(consignment) += addressConsigmentLegalEntityStock(supplierStockConsignment(consignment));
 
 issuanceAllowedStock = DATA Employee (Stock);
 nameIssuanceAllowedStock 'Отпуск разрешил' (stock) = nameContact(issuanceAllowedStock(stock)) IN invoiceConsignment;
