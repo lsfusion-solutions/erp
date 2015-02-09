@@ -124,6 +124,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                 int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
                                                 if (result != 0) {
                                                     error = result;
+                                                    break;
                                                 }
                                                 i++;
                                             }
@@ -133,7 +134,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                 if (result != 0)
                                                     error = result;
                                             }
-                                        } while (attempt < 10 && error != 0);
+                                        } while (attempt < 5 && error != 0);
 
                                         if (error != 0) {
                                             if (itemErrors != null && !itemErrors.isEmpty())
@@ -163,6 +164,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         int result = setMessageData(itemErrors, port, i, j + 1, message);
                                                         if (result != 0) {
                                                             error = result;
+                                                            break;
                                                         }
                                                         j++;
                                                     }
@@ -172,7 +174,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         if (result != 0)
                                                             error = result;
                                                     }
-                                                } while (attempt < 10 && error != 0);
+                                                } while (attempt < 5 && error != 0);
 
                                                 if (error != 0) {
                                                     if (itemErrors != null && !itemErrors.isEmpty())
