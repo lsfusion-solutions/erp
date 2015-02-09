@@ -366,6 +366,7 @@ inGroupMachinerySku 'Вкл' (groupMachinery, sku) = groupMachinery IS GroupMach
                                                          AND NOT skipInGroupMachinerySku(groupMachinery, sku);
                                                          
 skipGroupMachineryBarcode = ABSTRACT CASE BOOLEAN (GroupMachinery, Barcode);
+skipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
 
 // Перезагрузка целиком
 snapshotAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
@@ -382,12 +383,23 @@ snapshotGroupMachineryStock 'Ранее загруженные' = ACTION (stock)
                     snapshotMachineryPriceTransaction(t) <- TRUE;
                 }
                 inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery) WHERE groupMachineryMachinery(machinery) == groupMachinery;
-                inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND activeSku(skuBarcode(barcode)) AND
-                                                                      prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery) AND
-                                                                      inGroupMachinerySku(groupMachinery, skuBarcode(barcode)); // важно, что товар должен быть активным на текущий момент
-                nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery);
+
+                LOCAL inBarcode = BOOLEAN (Barcode);
+
+                inBarcode(barcode) <- TRUE IF prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery);
+
+                // делаем разными запросами, чтобы было проще PostgreSQL
+                inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если активный штрихкод
+
+                inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
+
+                inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipGroupMachineryBarcode(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
+                inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND (skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()) OR inactiveSku(skuBarcode(barcode))); // если есть запрет на загрузку
+
+                inMachineryPriceTransactionBarcode(t, barcode) <- inBarcode(barcode); // важно, что товар должен быть активным на текущий момент
+                nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
                 snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery);
-                priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery);
+                priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
             }
         }
         apply();
@@ -415,8 +427,6 @@ createMachineryPriceTransactionComment = DATA LOCAL VARSTRING[100] ();
 createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceTransaction);
 createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
 createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
-
-skipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
 
 excludeGroupMachinery = DATA LOCAL BOOLEAN (GroupMachinery);
 
@@ -560,7 +570,7 @@ META defineMachineryPriceTransactionAttributeBase(object, caption, nameProp)
         object##MachineryPriceTransactionBarcode(prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode);
 
     snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery) +=
-        ACTION ASSIGN object##MachineryPriceTransactionBarcode(t, barcode) <- prevTransaction###object##BarcodeGroupMachinery(barcode, groupMachinery);
+        ACTION ASSIGN object##MachineryPriceTransactionBarcode(t, barcode) <- prevTransaction###object##BarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
 
     EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) nameProp###object##MachineryPriceTransactionBarcode;
     EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY nameProp###object##MachineryPriceTransactionBarcode;
