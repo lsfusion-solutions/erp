@@ -862,12 +862,12 @@ currentBalanceSkuPriceStockOrderSkuFromTo 'Остаток с уч. коэфф.' 
 //    BY sku, order;    
 maxSubstituteSkuPriceSkuOrder = GROUP LAST skuSubstitute 
     BY sku, order
-    ORDER multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)     
+    ORDER multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order), skuSubstitute     
     WHERE currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND multiplierSubstituteFromToSku(sku, skuSubstitute) AND priceStockSkuOrder(skuSubstitute,order) 
 ;    
 minSubstituteSkuPriceSkuOrder = GROUP LAST skuSubstitute 
     BY sku, order
-    ORDER DESC multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)  
+    ORDER DESC multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order), skuSubstitute
     WHERE currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND multiplierSubstituteFromToSku(sku, skuSubstitute) AND priceStockSkuOrder(skuSubstitute,order) 
 ;          
          
@@ -904,7 +904,7 @@ fillSubstitutePriceMinOrder 'Исп. min цену' = ACTION (order) {
 maxSkuBalanceSubstituteSkuOrder (sku, order) =
     GROUP LAST skuSubstitute
           BY   sku, order
-          ORDER (currentBalanceSkuPriceStockOrder(skuSubstitute,order) /(multiplierSubstituteFromToSku(sku, skuSubstitute) IF multiplierSubstituteFromToSku(sku, skuSubstitute)!=0))
+          ORDER (currentBalanceSkuPriceStockOrder(skuSubstitute,order) /(multiplierSubstituteFromToSku(sku, skuSubstitute) IF multiplierSubstituteFromToSku(sku, skuSubstitute)!=0)), skuSubstitute
           WHERE priceStockSkuOrder(skuSubstitute,order) AND currentBalanceSkuPriceStockOrder(skuSubstitute,order) AND multiplierSubstituteFromToSku(sku, skuSubstitute);
 
 fillSubstitutePriceMaxBalanceOrderSkuFrom 'Исп. цену большего остатка' = ACTION (order, sku) {
