@@ -48,6 +48,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.usePLUNumberInMessage;
         boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.newLineNoSubstring;
         boolean useSockets = shtrihSettings == null || shtrihSettings.useSockets;
+        int advancedClearMaxPLU = shtrihSettings == null || shtrihSettings.advancedClearMaxPLU == null ? 0 : shtrihSettings.advancedClearMaxPLU;
 
         List<ScalesInfo> enabledScalesList = new ArrayList<ScalesInfo>();
         for (ScalesInfo scales : scalesList) {
@@ -87,7 +88,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                                 processTransactionLogger.info("Shtrih: Connecting..." + ip);
                                 port.open();
-                                if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
+                                if (!transaction.itemsList.isEmpty() && transaction.snapshot && advancedClearMaxPLU == 0) {
                                     int clear = clearGoodsDB(localErrors, port);
                                     if (clear != 0)
                                         logError(localErrors, String.format("Shtrih: ClearGoodsDb, Error # %s (%s)", clear, getErrorText(clear)));
@@ -95,10 +96,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                                 processTransactionLogger.info("Shtrih: Sending items..." + ip);
                                 if (localErrors.isEmpty()) {
+                                    Set<Integer> usedPLUNumberSet = new HashSet<Integer>();
                                     for (ScalesItemInfo item : transaction.itemsList) {
                                         int error;
                                         int attempt = 0;
-                                        List<String> itemErrors = null;
+                                        List<String> itemErrors;
                                         do {
                                             error = 0;
                                             attempt++;
@@ -110,7 +112,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                             String firstName = item.name.substring(0, len < 28 ? len : 28);
                                             String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
                                             Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
-                                            Integer groupCode = item.idItemGroup == null ? null : Integer.parseInt(item.idItemGroup.replace("_", ""));
+                                            Integer groupCode = item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                             String description = item.description == null ? "" : item.description;
                                             int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
                                             int start = 0;
@@ -138,7 +140,48 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                 localErrors.addAll(itemErrors);
                                             logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
                                         }
+                                        usedPLUNumberSet.add(item.pluNumber);
                                     }
+                                    
+                                    //зануляем незадействованные pluNumber
+                                    if(transaction.snapshot && advancedClearMaxPLU != 0) {
+                                        String firstLine = "Недопустимый штрих-код!";
+                                        String secondLine = "";
+                                        String message = "";
+                                        for (int i = 1; i <= advancedClearMaxPLU; i++)
+                                            if (!usedPLUNumberSet.contains(i)) {
+                                                int error;
+                                                int attempt = 0;
+                                                List<String> itemErrors;
+                                                do {
+                                                    error = 0;
+                                                    attempt++;
+                                                    itemErrors = new ArrayList<String>();
+                                                    
+                                                    int j = 0;
+                                                    while (j < 8) {
+                                                        int result = setMessageData(itemErrors, port, i, j + 1, message);
+                                                        if (result != 0) {
+                                                            error = result;
+                                                        }
+                                                        j++;
+                                                    }
+
+                                                    if (error == 0) {
+                                                        int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(999999), 0, 0, i, new Date(2001 - 1900, 0, 1), 0);
+                                                        if (result != 0)
+                                                            error = result;
+                                                    }
+                                                } while (attempt < 10 && error != 0);
+
+                                                if (error != 0) {
+                                                    if (itemErrors != null && !itemErrors.isEmpty())
+                                                        localErrors.addAll(itemErrors);
+                                                    logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", i, error, getErrorText(error)));
+                                                }
+                                            }
+                                    }
+                                    
                                 }
                                 port.close();
 
