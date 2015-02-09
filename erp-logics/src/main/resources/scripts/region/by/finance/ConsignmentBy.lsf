@@ -98,10 +98,13 @@ overCustomerConsignment = ABSTRACT LegalEntity (Consignment);
 customerConsignment (consignment)= OVERRIDE dataCustomerConsignment(consignment), overCustomerConsignment(consignment);
 
 UNPCustomerConsignment 'УНП получателя' (consignment) = UNPLegalEntity(customerConsignment(consignment));
+overAddressCustomerConsignment = ABSTRACT VARISTRING[150] (Consignment);
 addressCustomerConsignment 'Юр. адрес получателя' (consignment) =
-    addressLegalEntityDate(customerConsignment(consignment), dateConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    OVERRIDE addressLegalEntityDate(customerConsignment(consignment), dateConsignment(consignment)), overAddressCustomerConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 nameCustomerConsignment 'Наим-ие получателя' (consignment) = nameLegalEntity(customerConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-fullNameCustomerConsignment 'Наим-ие получателя' (consignment) = fullNameLegalEntity(customerConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+overFullNameCustomerConsignment = ABSTRACT VARISTRING[200] (Consignment);  
+fullNameCustomerConsignment 'Наим-ие получателя' (consignment) = 
+    OVERRIDE fullNameLegalEntity(customerConsignment(consignment)), overFullNameCustomerConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 payerConsignment = ABSTRACT LegalEntity (Consignment);
 UNPPayerConsignment 'УНП заказчика перевозки' (consignment) = UNPLegalEntity(payerConsignment(consignment));
@@ -1085,8 +1088,11 @@ GROUP invoiceConsignment 'Накладная' : base;
 
 nameConsigmentLegalEntityStock 'Наименование юр. лица' = DATA VARSTRING[200] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
 overFullNameSupplierConsignment(consignment) += nameConsigmentLegalEntityStock(supplierStockConsignment(consignment));
+overFullNameCustomerConsignment(consignment) += nameConsigmentLegalEntityStock(customerStockConsignment(consignment));
+
 addressConsigmentLegalEntityStock 'Юр. адрес отправителя' = DATA VARISTRING[150] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
 overAddressSupplierConsignment(consignment) += addressConsigmentLegalEntityStock(supplierStockConsignment(consignment));
+overAddressCustomerConsignment(consignment) += addressConsigmentLegalEntityStock(customerStockConsignment(consignment));
 
 issuanceAllowedStock = DATA Employee (Stock);
 nameIssuanceAllowedStock 'Отпуск разрешил' (stock) = nameContact(issuanceAllowedStock(stock)) IN invoiceConsignment;
