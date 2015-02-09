@@ -28,14 +28,18 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "";
         
-        // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error                
-//        String groupId = "";
-//        for(MachineryInfo scales : transactionInfo.machineryInfoList) {
-//            groupId += scales.port + ";";
-//        }
-//        return groupId;
+        ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
+        boolean allowParallel = shtrihSettings == null || shtrihSettings.allowParallel;
+        // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error   
+        if (allowParallel) {
+            String groupId = "";
+            for (MachineryInfo scales : transactionInfo.machineryInfoList) {
+                groupId += scales.port + ";";
+            }
+            return groupId;
+        } else return "";
+        
     }
     
     @Override
