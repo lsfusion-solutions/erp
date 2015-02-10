@@ -385,7 +385,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
+    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
         List<List<Object>> result = new ArrayList<List<Object>>();
         
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
@@ -417,15 +417,22 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     ResultSet rs = statement.executeQuery(queryString);
                     while (rs.next()) {
                         String numberZReport = String.valueOf(rs.getInt(1));
-                        if (zReportSumMap.containsKey(numberZReport)) {
-                            Integer nppCashRegister = rs.getInt(2);
-                            BigDecimal fusionSum = zReportSumMap.get(numberZReport);
+                        Integer nppCashRegister = rs.getInt(2);
+                        String key = numberZReport + "/" + nppCashRegister;
+                        if (zReportSumMap.containsKey(key)) {
+                            List<Object> fusionEntry = zReportSumMap.get(key);
+                            BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
+                            Date fusionDate = (Date) fusionEntry.get(1);
                             double kristalSum = rs.getDouble(3);
-                            Date date = rs.getDate(4);
+                            Date kristalDate = rs.getDate(4);
                             if (fusionSum == null || fusionSum.doubleValue() != kristalSum) {
-                                result.add(Arrays.asList((Object) nppCashRegister,
-                                        String.format("ZReport %s (%s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, date, fusionSum, kristalSum)));
-                                requestExchangeLogger.error(String.format("%s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", date, nppCashRegister, numberZReport, fusionSum, kristalSum));
+                                if(kristalDate.compareTo(fusionDate) == 0) {
+                                    result.add(Arrays.asList((Object) nppCashRegister,
+                                            String.format("ZReport %s (%s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, kristalDate, fusionSum, kristalSum)));
+                                    requestExchangeLogger.error(String.format("%s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nppCashRegister, numberZReport, fusionSum, kristalSum));
+                                } else {
+                                    requestExchangeLogger.error(String.format("Not equal dates for CashRegister %s, ZReport %s (%s(fusion) and %s (kristal);", nppCashRegister, numberZReport, fusionDate, kristalDate));
+                                }
                             }
                         }
                     }

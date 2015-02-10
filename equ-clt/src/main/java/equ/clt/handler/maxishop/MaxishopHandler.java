@@ -222,7 +222,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public List<List<Object>> checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
+    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
         return null;
     }
 

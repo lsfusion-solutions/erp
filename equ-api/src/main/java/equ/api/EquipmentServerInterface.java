@@ -70,7 +70,7 @@ public interface EquipmentServerInterface extends Remote {
 
     String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
 
-    Map<String,BigDecimal> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
+    Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
 
     void logRequestZReportSumCheck(Integer idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
     
