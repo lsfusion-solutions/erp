@@ -1536,6 +1536,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
                     
                     DataSession session = getDbManager().createSession();
+
+                    ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(sidEquipmentServer));
+                    Date startDate = (Date) equLM.findProperty("startDateEquipmentServer").read(session, equipmentServerObject);
+                    
                     ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("nppGroupMachinery"));
                     ImportField nppMachineryField = new ImportField(zReportLM.findProperty("nppMachinery"));
 
@@ -1744,19 +1748,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             barcodeMap.put(sale.itemObject, barcode);
                         }
                         
-                        String idReceipt = sale.getIdReceipt();
+                        String idReceipt = sale.getIdReceipt(startDate);
                         if(sale.isGiftCard) {
                             //giftCard 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail);
                             dataGiftCard.add(row);
                         } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                             //return 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact, 
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
@@ -1765,9 +1769,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             dataReturn.add(row);
                         } else {
                             //sale 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
@@ -1855,8 +1859,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String message = formatCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size());
 
                     DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-                    Object equipmentServerObject = equLM.findProperty("sidToEquipmentServer").read(session, new DataObject(sidEquipmentServer));
-                    equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject, session, logObject);
+                    equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject.getValue(), session, logObject);
                     equLM.findProperty("dataEquipmentServerLog").change(message, session, logObject);
                     equLM.findProperty("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
 
@@ -1903,6 +1906,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
 
                     DataSession session = getDbManager().createSession();
+
+                    ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(sidEquipmentServer));
+                    Date startDate = (Date) equLM.findProperty("startDateEquipmentServer").read(session, equipmentServerObject);
 
                     List<ImportField> commonImportFields = new ArrayList<ImportField>();
                     List<ImportField> saleImportFields = new ArrayList<ImportField>();
@@ -2141,19 +2147,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             barcodeMap.put(sale.itemObject, barcode);
                         }
 
-                        String idReceipt = sale.getIdReceipt();
+                        String idReceipt = sale.getIdReceipt(startDate);
                         if(sale.isGiftCard) {
                             //giftCard 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail);
                             dataGiftCard.add(row);
                         } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                             //return 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
@@ -2162,9 +2168,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             dataReturn.add(row);
                         } else {
                             //sale 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(), sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                             if (discountCardLM != null) {
                                 row = new ArrayList<Object>(row);
@@ -2210,8 +2216,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String message = formatCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size());
 
                     DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-                    Object equipmentServerObject = equLM.findProperty("sidToEquipmentServer").read(session, new DataObject(sidEquipmentServer));
-                    equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject, session, logObject);
+                    equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject.getValue(), session, logObject);
                     equLM.findProperty("dataEquipmentServerLog").change(message, session, logObject);
                     equLM.findProperty("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
 

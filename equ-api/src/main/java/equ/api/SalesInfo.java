@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
+import java.text.SimpleDateFormat;
 
 public class SalesInfo implements Serializable {
     public boolean isGiftCard;
@@ -60,16 +61,20 @@ public class SalesInfo implements Serializable {
         this.numberReceiptDetail = numberReceiptDetail;
         this.filename = filename;
     }
-    
-    public String getIdZReport() {
-        return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
+
+    //startDate - для обратной совместимости
+    public String getIdZReport(Date startDate) {
+        if (startDate == null || startDate.compareTo(dateReceipt) <= 0)
+            return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt);
+        else
+            return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
     }
     
-    public String getIdReceipt() {
-        return getIdZReport() + "_" + numberReceipt;
+    public String getIdReceipt(Date startDate) {
+        return getIdZReport(startDate) + "_" + numberReceipt;
     }
 
-    public String getIdReceiptDetail() {
-        return getIdReceipt() + "_" + numberReceiptDetail;
+    public String getIdReceiptDetail(Date startDate) {
+        return getIdReceipt(startDate) + "_" + numberReceiptDetail;
     }
 }
