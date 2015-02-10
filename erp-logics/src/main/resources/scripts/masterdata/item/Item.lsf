@@ -1350,8 +1350,9 @@ netWeightItem(i) <- netWeightUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i)) AND netWei
 @defineItemAttributeBatchClass (grossWeight, 'Вес брутто, кг', sku);
 grossWeightSku(sku) += grossWeightItem(sku);
 
-grossWeightItem(sku) <- (OVERRIDE netWeightItem(sku), grossWeightUOM(UOMItem(sku)))
-    WHEN CHANGED(netWeightItem(sku)) OR (CHANGED(UOMItem(sku) AND grossWeightUOM(UOMItem(sku))));
+WHEN SESSION (CHANGED(netWeightItem(sku)) OR (CHANGED(UOMItem(sku) AND grossWeightUOM(UOMItem(sku))))) AND NOT CHANGED(grossWeightItem(sku)) DO
+    grossWeightItem(sku) <- OVERRIDE netWeightItem(sku), grossWeightUOM(UOMItem(sku));
+
 // Кол-во в грузовом месте
 // todo : здесь скорее всего надо будет рефакторить на более сложную логику
 //@defineDoubleItemAttribute(packQuantity, NUMERIC[9,3], 'Количество в грузовом месте', itemSize);
