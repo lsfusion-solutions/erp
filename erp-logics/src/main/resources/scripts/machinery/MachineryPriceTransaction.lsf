@@ -85,8 +85,10 @@ succeededPriceTransactionDocument 'Загружен в оборудование'
 succeededMachineryMachineryPriceTransaction 'Загружено' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
 dateTimeSucceededMachineryMachineryPriceTransaction 'Время загрузки' = DATA DATETIME(Machinery, MachineryPriceTransaction);
 
-countSucceededMachineriesPriceTransactionDocument'Кол-во загруженного оборудования' (priceTransactionDocument) = GROUP SUM 1 IF succeededMachineryMachineryPriceTransaction(m,t) 
-    BY priceTransactionDocumentMachineryPriceTransaction(t);
+countSucceededMachineriesPriceTransactionDocument'Кол-во загруженного оборудования' (t) = 
+    GROUP SUM 1 IF succeededMachineryMachineryPriceTransaction(m, t) OR 
+                   (succeededMachineryPriceTransaction(t) AND groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t)) 
+          BY priceTransactionDocumentMachineryPriceTransaction(t);
     
 countSucceededMachineriesMachineryPriceTransaction'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
     IF succeededMachineryMachineryPriceTransaction(m,t) BY t;
