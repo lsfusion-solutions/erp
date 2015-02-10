@@ -50,11 +50,16 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
         switch (hssfCell.getCellType()) {
             case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC:
             case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_FORMULA:
-                String result = new DecimalFormat("#.#####").format(hssfCell.getNumericCellValue());
+                String result;
+                try {
+                    result = new DecimalFormat("#.#####").format(hssfCell.getNumericCellValue());
+                } catch (Exception e) {
+                    result = hssfCell.getStringCellValue().isEmpty() ? defaultValue : trim(hssfCell.getStringCellValue());
+                }
                 return result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
             case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_STRING:
             default:
-                return (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : hssfCell.getStringCellValue().trim();
+                return (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(hssfCell.getStringCellValue());
         }
     }
 
