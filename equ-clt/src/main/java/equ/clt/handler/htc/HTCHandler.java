@@ -616,7 +616,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         Integer numberReceipt = getDBFIntegerFieldValue(receiptDBFFile, "NUMDOC", charset);
                         BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
                         BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
-                        receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard));
+                        String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
+                        receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
 
                     }
                     receiptDBFFile.close();
@@ -633,7 +634,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         List<Object> receiptEntry = receiptMap.get(numberReceipt);
                         BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
                         BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
-
+                        String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
+                        
                         String idEmployee = getDBFFieldValue(dbfFile, "CASHIER", charset);
                         Date dateReceipt = getDBFDateFieldValue(dbfFile, "DATE", charset);
                         if(dateReceipt != null) {
@@ -665,7 +667,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
                                     timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail,
-                                    priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail,
+                                    priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
                                     salesFile.getName()));
                         }
                     }
