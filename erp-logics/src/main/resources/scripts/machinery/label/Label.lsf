@@ -875,14 +875,14 @@ EXTEND  FORM currentBalanceSkuStock
 // Инкрементная загрузка
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
 
-priceALabelTransactionDetailPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTimeIn) =
+priceALabelTransactionDetailSkuStockDateTime 'Цена' (sku, stock, dateTimeIn) =
     GROUP LAST priceLabelTransactionDetail(ledger)
-          BY priceListTypeLabelTransactionDetail(ledger), skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger), dateTimeIn
+          BY skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger), dateTimeIn
           ORDER dateTimeLabelTransactionDetail(ledger), ledger
           WHERE priceLabelTransactionDetail(ledger) AND dateTimeLabelTransactionDetail(ledger) <= dateTimeIn COMPLEX;
 
 needLabelTransactionPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = 
-    prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) == priceALabelTransactionDetailPriceListTypeSkuStockDateTime(type, sku, stock, dateTime); 
+    prevPriceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) == priceALabelTransactionDetailSkuStockDateTime(sku, stock, dateTime); 
 
 needLabelTransactionStockDateTime (stock, dateTime) = GROUP SUM 1 IF needLabelTransactionPriceListTypeSkuStockDateTime (priceListTypeLabelType(labelType), sku, stock, dateTime) 
                                                                   AND inLabelTypeSkuDepartmentStore(labelType, sku, stock)
