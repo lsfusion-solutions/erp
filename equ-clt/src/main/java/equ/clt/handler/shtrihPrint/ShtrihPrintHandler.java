@@ -30,7 +30,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
     public String getGroupId(TransactionScalesInfo transactionInfo) {
         
         ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
-        boolean allowParallel = shtrihSettings == null || shtrihSettings.allowParallel;
+        boolean allowParallel = shtrihSettings == null || shtrihSettings.isAllowParallel();
         // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error   
         if (allowParallel) {
             String groupId = "";
@@ -49,10 +49,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         processTransactionLogger.info("Shtrih: Reading settings...");
         ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
-        boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.usePLUNumberInMessage;
-        boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.newLineNoSubstring;
-        boolean useSockets = shtrihSettings == null || shtrihSettings.useSockets;
-        int advancedClearMaxPLU = shtrihSettings == null || shtrihSettings.advancedClearMaxPLU == null ? 0 : shtrihSettings.advancedClearMaxPLU;
+        boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.isUsePLUNumberInMessage();
+        boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.isNewLineNoSubstring();
+        boolean useSockets = shtrihSettings == null || shtrihSettings.isUseSockets();
+        int advancedClearMaxPLU = shtrihSettings == null || shtrihSettings.getAdvancedClearMaxPLU() == null ? 0 : shtrihSettings.getAdvancedClearMaxPLU();
 
         List<ScalesInfo> enabledScalesList = new ArrayList<ScalesInfo>();
         for (ScalesInfo scales : scalesList) {
