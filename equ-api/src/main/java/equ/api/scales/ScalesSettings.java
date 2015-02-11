@@ -10,6 +10,8 @@ public class ScalesSettings implements Serializable{
     private boolean allowParallel;
     private Integer advancedClearMaxPLU;
 
+    public ScalesSettings() {}
+    
     //конструктор оставлен для обратной совместимости
     public ScalesSettings(boolean usePLUNumberInMessage, boolean newLineNoSubstring, boolean useSockets, boolean allowParallel, Integer advancedClearMaxPLU) {
         this.usePLUNumberInMessage = usePLUNumberInMessage;
@@ -19,7 +21,7 @@ public class ScalesSettings implements Serializable{
         this.advancedClearMaxPLU = advancedClearMaxPLU;
     }
 
-        public boolean isUsePLUNumberInMessage() {
+    public boolean isUsePLUNumberInMessage() {
         return usePLUNumberInMessage;
     }
 
