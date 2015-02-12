@@ -6,6 +6,7 @@ public class Kristal10Settings implements Serializable{
 
     private Boolean brandIsManufacturer;
     private Boolean seasonIsCountry;
+    private Boolean idItemInMarkingOfTheGood;
 
     public Kristal10Settings() {
     }
@@ -24,5 +25,13 @@ public class Kristal10Settings implements Serializable{
 
     public Boolean getSeasonIsCountry() {
         return seasonIsCountry;
+    }
+
+    public Boolean isIdItemInMarkingOfTheGood() {
+        return idItemInMarkingOfTheGood;
+    }
+
+    public void setIdItemInMarkingOfTheGood(Boolean idItemInMarkingOfTheGood) {
+        this.idItemInMarkingOfTheGood = idItemInMarkingOfTheGood;
     }
 }

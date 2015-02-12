@@ -52,6 +52,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
         boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
         boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -81,7 +82,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 Element good = new Element("good");
                 //временное решение для весовых товаров
                 String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
-                setAttribute(good, "marking-of-the-good", item.idBarcode);
+                setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : item.idBarcode);
                 rootElement.addContent(good);
 
                 /*//parent: rootElement
