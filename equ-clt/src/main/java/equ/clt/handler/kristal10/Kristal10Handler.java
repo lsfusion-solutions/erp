@@ -77,102 +77,102 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             doc.setRootElement(rootElement);
 
             for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    String idItem = idItemInMarkingOfTheGood ? item.idItem : item.idBarcode;
 
-                String idItem = idItemInMarkingOfTheGood ? item.idItem : item.idBarcode;
-                
-                //parent: rootElement
-                Element good = new Element("good");
-                //временное решение для весовых товаров
-                String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
-                setAttribute(good, "marking-of-the-good", idItem);
-                rootElement.addContent(good);
+                    //parent: rootElement
+                    Element good = new Element("good");
+                    //временное решение для весовых товаров
+                    String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
+                    setAttribute(good, "marking-of-the-good", idItem);
+                    rootElement.addContent(good);
 
-                //parent: rootElement
-                Element maxDiscountRestriction = new Element("max-discount-restriction");
-                setAttribute(maxDiscountRestriction, "id", item.idBarcode);
-                setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
-                setAttribute(maxDiscountRestriction, "subject-code", idItem);
-                setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
-                setAttribute(maxDiscountRestriction, "value", "0");
-                addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
-                addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
-                addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
-                addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
-                addStringElement(maxDiscountRestriction, "deleted", item.notPromotionItem ? "false" : "true");
-                rootElement.addContent(maxDiscountRestriction);
+                    //parent: rootElement
+                    Element maxDiscountRestriction = new Element("max-discount-restriction");
+                    setAttribute(maxDiscountRestriction, "id", item.idBarcode);
+                    setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
+                    setAttribute(maxDiscountRestriction, "subject-code", idItem);
+                    setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
+                    setAttribute(maxDiscountRestriction, "value", "0");
+                    addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
+                    addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
+                    addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
+                    addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
+                    addStringElement(maxDiscountRestriction, "deleted", item.notPromotionItem ? "false" : "true");
+                    rootElement.addContent(maxDiscountRestriction);
 
-                addStringElement(good, "name", item.name);
+                    addStringElement(good, "name", item.name);
 
-                //parent: good
-                Element barcode = new Element("bar-code");
-                setAttribute(barcode, "code", barcodeItem);
-                addStringElement(barcode, "default-code", "true");
-                good.addContent(barcode);
-
-                String productType;
-                if (item.passScalesItem)
-                    productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
-                else
-                    productType = "ProductPieceEntity";
-                addStringElement(good, "product-type", productType);
-
-                //parent: good
-                Element priceEntry = new Element("price-entry");
-                Object price = item.price == null ? null : (item.price.intValue() == 0 ? "0.00" : item.price.intValue());
-                setAttribute(priceEntry, "price", price);
-                setAttribute(priceEntry, "deleted", "false");
-                addStringElement(priceEntry, "begin-date", "2001-01-01T00:00:00");
-                addStringElement(priceEntry, "number", "1");
-                good.addContent(priceEntry);
-
-                addStringElement(good, "vat", "20");
-
-                //parent: priceEntry
-                Element department = new Element("department");
-                setAttribute(department, "number", transactionInfo.nppGroupMachinery);
-                addStringElement(department, "name", transactionInfo.nameGroupMachinery == null ? "Отдел" : transactionInfo.nameGroupMachinery);
-                priceEntry.addContent(department);
-
-                //parent: good
-                Element group = new Element("group");
-                setAttribute(group, "id", item.idItemGroup);
-                addStringElement(group, "name", item.nameItemGroup);
-                good.addContent(group);
-
-                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                if(hierarchyItemGroup != null)
-                    addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
-
-                //parent: good
-                if (item.idUOM == null || item.shortNameUOM == null) {
-                    String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
-                    processTransactionLogger.error(error);
-                    throw Throwables.propagate(new RuntimeException(error));
-                }
-                Element measureType = new Element("measure-type");
-                setAttribute(measureType, "id", item.idUOM);
-                addStringElement(measureType, "name", item.shortNameUOM);
-                good.addContent(measureType);
-
-                if(brandIsManufacturer) {
                     //parent: good
-                    Element manufacturer = new Element("manufacturer");
-                    setAttribute(manufacturer, "id", item.idBrand);
-                    addStringElement(manufacturer, "name", item.nameBrand);
-                    good.addContent(manufacturer);
-                }
-                
-                if(seasonIsCountry) {
+                    Element barcode = new Element("bar-code");
+                    setAttribute(barcode, "code", barcodeItem);
+                    addStringElement(barcode, "default-code", "true");
+                    good.addContent(barcode);
+
+                    String productType;
+                    if (item.passScalesItem)
+                        productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
+                    else
+                        productType = "ProductPieceEntity";
+                    addStringElement(good, "product-type", productType);
+
                     //parent: good
-                    Element country = new Element("country");
-                    setAttribute(country, "id", item.idSeason);
-                    addStringElement(country, "name", item.nameSeason);
-                    good.addContent(country);
+                    Element priceEntry = new Element("price-entry");
+                    Object price = item.price == null ? null : (item.price.intValue() == 0 ? "0.00" : item.price.intValue());
+                    setAttribute(priceEntry, "price", price);
+                    setAttribute(priceEntry, "deleted", "false");
+                    addStringElement(priceEntry, "begin-date", "2001-01-01T00:00:00");
+                    addStringElement(priceEntry, "number", "1");
+                    good.addContent(priceEntry);
+
+                    addStringElement(good, "vat", "20");
+
+                    //parent: priceEntry
+                    Element department = new Element("department");
+                    setAttribute(department, "number", transactionInfo.nppGroupMachinery);
+                    addStringElement(department, "name", transactionInfo.nameGroupMachinery == null ? "Отдел" : transactionInfo.nameGroupMachinery);
+                    priceEntry.addContent(department);
+
+                    //parent: good
+                    Element group = new Element("group");
+                    setAttribute(group, "id", item.idItemGroup);
+                    addStringElement(group, "name", item.nameItemGroup);
+                    good.addContent(group);
+
+                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                    if (hierarchyItemGroup != null)
+                        addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
+
+                    //parent: good
+                    if (item.idUOM == null || item.shortNameUOM == null) {
+                        String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
+                        processTransactionLogger.error(error);
+                        throw Throwables.propagate(new RuntimeException(error));
+                    }
+                    Element measureType = new Element("measure-type");
+                    setAttribute(measureType, "id", item.idUOM);
+                    addStringElement(measureType, "name", item.shortNameUOM);
+                    good.addContent(measureType);
+
+                    if (brandIsManufacturer) {
+                        //parent: good
+                        Element manufacturer = new Element("manufacturer");
+                        setAttribute(manufacturer, "id", item.idBrand);
+                        addStringElement(manufacturer, "name", item.nameBrand);
+                        good.addContent(manufacturer);
+                    }
+
+                    if (seasonIsCountry) {
+                        //parent: good
+                        Element country = new Element("country");
+                        setAttribute(country, "id", item.idSeason);
+                        addStringElement(country, "name", item.nameSeason);
+                        good.addContent(country);
+                    }
+
+                    addStringElement(good, "delete-from-cash", "false");
+                    
                 }
-                
-                addStringElement(good, "delete-from-cash", "false");
-
-
             }
 
             String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
@@ -191,7 +191,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     private void waitForDeletion(File file) {
         int count = 0;
-        while (file.exists()) {
+        while (!Thread.currentThread().isInterrupted() && file.exists()) {
             try {
                 count++;
                 if(count>=60) {

@@ -89,11 +89,13 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                         SERTNO, SERTDATE, PQTY2, PQTY3, PQTY4, PQTY5, PQTY6, PMINPRICE, PSTATUS, PMATVIEN});
 
                 for (ItemInfo item : transactionInfo.itemsList) {
-                    PLUCODE.put(item.idBarcode);
-                    NAME.put(item.name);
-                    PRICE1.put(item.price.doubleValue());
-                    file.write();
-                    file.file.setLength(file.file.length() - 1);
+                    if(!Thread.currentThread().isInterrupted()) {
+                        PLUCODE.put(item.idBarcode);
+                        NAME.put(item.name);
+                        PRICE1.put(item.price.doubleValue());
+                        file.write();
+                        file.file.setLength(file.file.length() - 1);
+                    }
                 }
 
                 File fileOut = new File(path + ".OUT");

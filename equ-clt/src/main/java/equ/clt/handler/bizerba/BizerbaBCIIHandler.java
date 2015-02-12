@@ -73,12 +73,14 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                         processTransactionLogger.info("Bizerba: Sending items..." + ip);
                         if (localErrors.isEmpty()) {
                             for (ScalesItemInfo item : transaction.itemsList) {
-                                item.description = item.description == null ? "" : item.description;
-                                item.descriptionNumber = item.descriptionNumber == null ? 0 : item.descriptionNumber;
-                                String resultPLU = loadMessage2(port, scales, new Message(item.descriptionNumber, item.description));
-                                if (!resultPLU.equals("0"))
-                                    logError(localErrors, String.format("Bizerba: Item # %s, Error %s", item.idBarcode, resultPLU));
-                                loadPLU(localErrors, port, scales, item);
+                                if(!Thread.currentThread().isInterrupted()) {
+                                    item.description = item.description == null ? "" : item.description;
+                                    item.descriptionNumber = item.descriptionNumber == null ? 0 : item.descriptionNumber;
+                                    String resultPLU = loadMessage2(port, scales, new Message(item.descriptionNumber, item.description));
+                                    if (!resultPLU.equals("0"))
+                                        logError(localErrors, String.format("Bizerba: Item # %s, Error %s", item.idBarcode, resultPLU));
+                                    loadPLU(localErrors, port, scales, item);
+                                }
                             }
                         }
                         port.close();

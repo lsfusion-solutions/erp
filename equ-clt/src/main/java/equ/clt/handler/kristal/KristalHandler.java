@@ -100,15 +100,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
                 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
-                    boolean isWeightItem = item.passScalesItem && item.splitItem;
-                    Object code = useIdItem ? item.idItem : item.idBarcode;
-                    String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
-                    String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
-                            (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
-                            departmentNumber + "|"/*section*/ + item.price.intValue() + "|" + "0|"/*fixprice*/ + 
-                            (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
-                    writer.println(record);
+                    if(!Thread.currentThread().isInterrupted()) {
+                        String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
+                        boolean isWeightItem = item.passScalesItem && item.splitItem;
+                        Object code = useIdItem ? item.idItem : item.idBarcode;
+                        String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                        String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
+                                (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
+                                departmentNumber + "|"/*section*/ + item.price.intValue() + "|" + "0|"/*fixprice*/ +
+                                (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
+                        writer.println(record);
+                    }
                 }
                 writer.close();
 
@@ -136,9 +138,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        if (item.description != null && !item.description.equals("")) {
-                            String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
-                            writer.println(record);
+                        if(!Thread.currentThread().isInterrupted()) {
+                            if (item.description != null && !item.description.equals("")) {
+                                String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
+                                writer.println(record);
+                            }
                         }
                     }
                     writer.close();
@@ -167,7 +171,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        if (item.passScalesItem) {
+                        if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                             String messageNumber = (item.description != null ? item.idBarcode : "0");
                             Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
                             Object code = useIdItem ? item.idItem : item.idBarcode;
@@ -198,14 +202,16 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     Set<String> numberGroupItems = new HashSet<String>();
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                        hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
-                        for (int i = 0; i < hierarchyItemGroup.size(); i++) {
-                            String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
-                            if (!numberGroupItems.contains(idItemGroup)) {
-                                String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
-                                writer.println(record);
-                                numberGroupItems.add(idItemGroup);
+                        if(!Thread.currentThread().isInterrupted()) {
+                            List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                            hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
+                            for (int i = 0; i < hierarchyItemGroup.size(); i++) {
+                                String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
+                                if (!numberGroupItems.contains(idItemGroup)) {
+                                    String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
+                                    writer.println(record);
+                                    numberGroupItems.add(idItemGroup);
+                                }
                             }
                         }
                     }
@@ -224,7 +230,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     private void waitForDeletion(File file, File flagFile) {
         if (flagFile.delete()) {
             int count = 0;
-            while (file.exists()) {
+            while (!Thread.currentThread().isInterrupted() && file.exists()) {
                 try {
                     count++;
                     if(count>=60)

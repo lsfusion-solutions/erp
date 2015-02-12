@@ -84,26 +84,28 @@ public class DigiHandler extends ScalesHandler {
                             new FileOutputStream(f), "CP866"));
             String row = "";
             for (ScalesItemInfo item : transactionInfo.itemsList) {
-                String recordNumber = addZeros(item.idBarcode, 8, false);
-                String statusCode = item.splitItem ? "7C000DA003" : "7D000DA003";
-                String price = addZeros(String.valueOf(item.price.intValue()), 8, false);
+                if(!Thread.currentThread().isInterrupted()) {
+                    String recordNumber = addZeros(item.idBarcode, 8, false);
+                    String statusCode = item.splitItem ? "7C000DA003" : "7D000DA003";
+                    String price = addZeros(String.valueOf(item.price.intValue()), 8, false);
 
-                int deltaDaysExpiry = (int)((item.expiryDate.getTime() - System.currentTimeMillis())/1000/3600/24);
-                String daysExpiry = addZeros(String.valueOf(item.daysExpiry == null ? (deltaDaysExpiry>=0 ? deltaDaysExpiry : 0): item.daysExpiry), 4, false);
-                String hoursExpiry = addZeros(addZeros(String.valueOf(item.hoursExpiry), 2, false), 4, true);
-                String labelFormat = addZeros(Integer.toHexString(item.labelFormat != null ? item.labelFormat : 0), 2, false);
+                    int deltaDaysExpiry = (int) ((item.expiryDate.getTime() - System.currentTimeMillis()) / 1000 / 3600 / 24);
+                    String daysExpiry = addZeros(String.valueOf(item.daysExpiry == null ? (deltaDaysExpiry >= 0 ? deltaDaysExpiry : 0) : item.daysExpiry), 4, false);
+                    String hoursExpiry = addZeros(addZeros(String.valueOf(item.hoursExpiry), 2, false), 4, true);
+                    String labelFormat = addZeros(Integer.toHexString(item.labelFormat != null ? item.labelFormat : 0), 2, false);
 
-                String barcodeFormat = "05";
-                String pieceItemCode = entry.getValue().pieceCodeGroupScales != null ? entry.getValue().pieceCodeGroupScales : "21";
-                String weightItemCode = entry.getValue().weightCodeGroupScales != null ? entry.getValue().weightCodeGroupScales : "20";
-                String barcode = (item.splitItem ? weightItemCode : pieceItemCode) + item.idBarcode.substring(0, 5) + "000000" + (item.splitItem ? "1" : "2");
+                    String barcodeFormat = "05";
+                    String pieceItemCode = entry.getValue().pieceCodeGroupScales != null ? entry.getValue().pieceCodeGroupScales : "21";
+                    String weightItemCode = entry.getValue().weightCodeGroupScales != null ? entry.getValue().weightCodeGroupScales : "20";
+                    String barcode = (item.splitItem ? weightItemCode : pieceItemCode) + item.idBarcode.substring(0, 5) + "000000" + (item.splitItem ? "1" : "2");
 
-                String len = addZeros(Integer.toHexString((recordNumber + statusCode + price + labelFormat + barcodeFormat +
-                        barcode + daysExpiry + hoursExpiry +
-                        itemNameDescriptionToASCII(item.name, item.description) + "0C00").length() / 2 + 2), 4, false).toUpperCase();
+                    String len = addZeros(Integer.toHexString((recordNumber + statusCode + price + labelFormat + barcodeFormat +
+                            barcode + daysExpiry + hoursExpiry +
+                            itemNameDescriptionToASCII(item.name, item.description) + "0C00").length() / 2 + 2), 4, false).toUpperCase();
 
-                row += recordNumber + len + statusCode + price + labelFormat + barcodeFormat + barcode +
-                        daysExpiry + hoursExpiry + itemNameDescriptionToASCII(item.name, item.description) + "0C00";
+                    row += recordNumber + len + statusCode + price + labelFormat + barcodeFormat + barcode +
+                            daysExpiry + hoursExpiry + itemNameDescriptionToASCII(item.name, item.description) + "0C00";
+                }
             }
             writer.print(row);
             writer.close();
