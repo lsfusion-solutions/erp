@@ -78,23 +78,28 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
             for (CashRegisterItemInfo item : transactionInfo.itemsList) {
 
+                String idItem = idItemInMarkingOfTheGood ? item.idItem : item.idBarcode;
+                
                 //parent: rootElement
                 Element good = new Element("good");
                 //временное решение для весовых товаров
                 String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
-                setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : item.idBarcode);
+                setAttribute(good, "marking-of-the-good", idItem);
                 rootElement.addContent(good);
 
-                /*//parent: rootElement
+                //parent: rootElement
                 Element maxDiscountRestriction = new Element("max-discount-restriction");
                 setAttribute(maxDiscountRestriction, "id", item.idBarcode);
                 setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
-                setAttribute(maxDiscountRestriction, "subject-code", item.idBarcode);
+                setAttribute(maxDiscountRestriction, "subject-code", idItem);
                 setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
                 setAttribute(maxDiscountRestriction, "value", "0");
                 addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
-                addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T00:00:00");
-                rootElement.addContent(good);*/
+                addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
+                addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
+                addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
+                addStringElement(maxDiscountRestriction, "deleted", item.notPromotionItem ? "false" : "true");
+                rootElement.addContent(maxDiscountRestriction);
 
                 addStringElement(good, "name", item.name);
 
