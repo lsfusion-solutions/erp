@@ -27,7 +27,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return "";
+        return "atol";
     }
     
     @Override

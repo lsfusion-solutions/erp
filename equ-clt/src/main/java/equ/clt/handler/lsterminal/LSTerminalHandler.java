@@ -28,7 +28,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
     @Override
     public String getGroupId(TransactionInfo transactionInfo) throws IOException {
-        return "";
+        return "lsterminal";
     }
 
     @Override

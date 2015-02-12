@@ -21,7 +21,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return "";
+        return "maxishop";
     }
     
     @Override

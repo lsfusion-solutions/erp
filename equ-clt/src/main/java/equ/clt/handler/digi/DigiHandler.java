@@ -19,7 +19,7 @@ public class DigiHandler extends ScalesHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "";
+        return "digi";
     }
 
     @Override

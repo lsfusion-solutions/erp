@@ -37,8 +37,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
             for (MachineryInfo scales : transactionInfo.machineryInfoList) {
                 groupId += scales.port + ";";
             }
-            return groupId;
-        } else return "";
+            return "shtrihPrint" + groupId;
+        } else return "shtrihPrint";
         
     }
     

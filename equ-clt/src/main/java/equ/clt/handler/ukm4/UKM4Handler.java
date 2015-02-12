@@ -28,7 +28,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return "";
+        return "ukm4";
     }
 
     @Override

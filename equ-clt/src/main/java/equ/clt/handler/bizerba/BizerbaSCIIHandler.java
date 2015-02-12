@@ -24,7 +24,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "";
+        return "bizerbascii";
     }
     
     @Override

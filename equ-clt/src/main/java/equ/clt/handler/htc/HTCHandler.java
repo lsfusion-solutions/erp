@@ -36,7 +36,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return transactionInfo.nameGroupMachinery;
+        return "htc" + transactionInfo.nameGroupMachinery;
     }
 
     @Override

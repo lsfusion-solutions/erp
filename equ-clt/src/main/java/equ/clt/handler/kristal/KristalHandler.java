@@ -53,7 +53,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
         List<String> directoriesList = getDirectoriesList(transactionInfo.machineryInfoList);
-        return directoriesList.isEmpty() ? null : directoriesList.get(0);
+        return "kristal" + (directoriesList.isEmpty() ? "" : directoriesList.get(0));
     }
 
     protected List<String> getDirectoriesList(List<CashRegisterInfo> machineryInfoList) {

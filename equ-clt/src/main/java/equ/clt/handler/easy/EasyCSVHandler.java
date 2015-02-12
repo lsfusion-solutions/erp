@@ -29,7 +29,7 @@ public class EasyCSVHandler {
         }
 
         public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-            return "";
+            return "easycr";
         }
         
         @Override
@@ -121,7 +121,7 @@ public class EasyCSVHandler {
         }
 
         public String getGroupId(TransactionPriceCheckerInfo transactionInfo) {
-            return "";
+            return "easypc";
         }
         
         @Override
@@ -161,7 +161,7 @@ public class EasyCSVHandler {
         }
 
         public String getGroupId(TransactionScalesInfo transactionInfo) {
-            return "";
+            return "easysc";
         }
         
         @Override

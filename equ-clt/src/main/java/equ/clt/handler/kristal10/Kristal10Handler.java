@@ -41,7 +41,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
-        return "";
+        return "kristal10";
     }
 
     @Override
@@ -83,6 +83,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
                 setAttribute(good, "marking-of-the-good", item.idBarcode);
                 rootElement.addContent(good);
+
+                /*//parent: rootElement
+                Element maxDiscountRestriction = new Element("max-discount-restriction");
+                setAttribute(maxDiscountRestriction, "id", item.idBarcode);
+                setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
+                setAttribute(maxDiscountRestriction, "subject-code", item.idBarcode);
+                setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
+                setAttribute(maxDiscountRestriction, "value", "0");
+                addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
+                addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T00:00:00");
+                rootElement.addContent(good);*/
 
                 addStringElement(good, "name", item.name);
 
