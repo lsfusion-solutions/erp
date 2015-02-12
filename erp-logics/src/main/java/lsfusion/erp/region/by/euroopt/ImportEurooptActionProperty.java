@@ -27,6 +27,11 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.silvertunnel_ng.netlib.api.NetFactory;
+import org.silvertunnel_ng.netlib.api.NetLayer;
+import org.silvertunnel_ng.netlib.api.NetLayerIDs;
+import org.silvertunnel_ng.netlib.api.util.TcpipNetAddress;
+import org.silvertunnel_ng.netlib.util.HttpUtil;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -38,6 +43,8 @@ import java.util.*;
 public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
     String mainPage = "http://e-dostavka.by/";
+    String mainPage2 = "http://e-dostavka.by";
+    String mainPage3 = "e-dostavka.by";
     String itemGroupPattern = "http:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
     String itemPattern = "http:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
@@ -50,11 +57,12 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         try {
 
+            boolean useTor = findProperty("importEurooptUseTor").read(context) != null;
             boolean importItems = findProperty("importEurooptItems").read(context) != null;
             boolean importUserPriceLists = findProperty("importEurooptUserPriceLists").read(context) != null;
             boolean skipKeys = findProperty("importEurooptSkipKeys").read(context) != null;
 
-            List<List<List<Object>>> data = importDataFromWeb(context, importItems, importUserPriceLists, skipKeys);
+            List<List<List<Object>>> data = importDataFromWeb(context, useTor, importItems, importUserPriceLists, skipKeys);
 
             if (importItems)
                 importItems(context, data.get(0), skipKeys);
@@ -253,7 +261,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         session.close();
     }
 
-    private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean importItems, boolean importUserPriceLists, boolean skipKeys)
+    private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean useTor, boolean importItems, boolean importUserPriceLists, boolean skipKeys)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> itemsList = new ArrayList<List<Object>>();
         List<List<Object>> userPriceListsList = new ArrayList<List<Object>>();
@@ -261,11 +269,12 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         Set<String> amountPackSkuSet = getAmountPackSkuSet(context);
         try {
 
+            NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
             String idPriceList = String.valueOf(Calendar.getInstance().getTimeInMillis());
-            Set<String> itemsSet = getItemsSet();
+            Set<String> itemsSet = useTor ? getItemsSetTor(lowerNetLayer) : getItemsSet();
             int idPriceListDetail = 1;
             for (String item : itemsSet) {
-                Document doc = getDocument(item);
+                Document doc = useTor ? getDocumentTor(lowerNetLayer, item) : getDocument(item);
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("prodImage");
                     File imageItem = prodImage.size() == 0 ? null : readImage(doc.getElementsByClass("prodImage").get(0).attr("src"));
@@ -380,6 +389,22 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         }
         return itemsSet;
     }
+    
+    private Set<String> getItemsSetTor(NetLayer lowerNetLayer) throws IOException {
+        Set<String> itemsSet = new LinkedHashSet<String>();
+        for (String itemGroup : getItemGroupsSetTor(lowerNetLayer)) {
+            Document doc = getDocumentTor(lowerNetLayer, itemGroup);
+            if (doc != null) {
+                for (Element item : doc.getElementsByTag("a")) {
+                    String href = item.attr("href");
+                    if (href != null && href.matches(itemPattern))
+                        itemsSet.add(href.replace(mainPage2, ""));
+                }
+            }
+        }
+        return itemsSet;
+    }
+
 
     private Set<String> getItemGroupsSet() throws IOException {
         Set<String> itemGroupsSet = new HashSet<String>();
@@ -389,6 +414,19 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 String href = url.attr("href");
                 if (href != null && href.matches(itemGroupPattern))
                     itemGroupsSet.add(href);
+            }
+        }
+        return itemGroupsSet;
+    }
+
+    private Set<String> getItemGroupsSetTor(NetLayer lowerNetLayer) throws IOException {
+        Set<String> itemGroupsSet = new HashSet<String>();
+        Document doc = getDocumentTor(lowerNetLayer, "/catalog/");
+        if(doc != null) {
+            for (Element url : doc.getElementsByTag("a")) {
+                String href = url.attr("href");
+                if (href != null && href.matches(itemGroupPattern))
+                    itemGroupsSet.add(href.replace(mainPage2, ""));
             }
         }
         return itemGroupsSet;
@@ -429,6 +467,37 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         return amountPackSkuSet;
     }
 
+    private NetLayer getNetLayer() throws IOException {
+        NetLayer lowerNetLayer = NetFactory.getInstance().getNetLayerById(NetLayerIDs.TOR);
+        // wait until TOR is ready (optional):
+        lowerNetLayer.waitUntilReady();
+        return lowerNetLayer;
+    }
+    
+    private Document getDocumentTor(NetLayer lowerNetLayer, String url) throws IOException {
+        int count = 2;
+        while (count > 0) {
+            try {
+                Thread.sleep(50);
+                
+                // prepare parameters
+                TcpipNetAddress httpServerNetAddress = new TcpipNetAddress(mainPage3, 80);
+                long timeoutInMs = 5000;
+
+                // do the request and wait for the response
+                byte[] responseBody = new HttpUtil().get(lowerNetLayer, httpServerNetAddress, url, timeoutInMs);
+                return Jsoup.parse(new ByteArrayInputStream(responseBody), "utf-8", "");
+            } catch (HttpStatusException e) {
+                count--;
+                if(count <= 0)
+                    ServerLoggers.systemLogger.error(e);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return null;
+    }
+    
     private Document getDocument(String url) throws IOException {
         int count = 2;
         while (count > 0) {
