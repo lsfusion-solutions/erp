@@ -102,50 +102,54 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                 if (localErrors.isEmpty()) {
                                     Set<Integer> usedPLUNumberSet = new HashSet<Integer>();
                                     for (ScalesItemInfo item : transaction.itemsList) {
-                                        int error;
-                                        int attempt = 0;
-                                        List<String> itemErrors;
-                                        do {
-                                            error = 0;
-                                            attempt++;
-                                            itemErrors = new ArrayList<String>();
-                                            Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                            Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
-                                            int len = item.name.length();
-                                            String firstName = item.name.substring(0, len < 28 ? len : 28);
-                                            String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
-                                            Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
-                                            Integer groupCode = item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
-                                            String description = item.description == null ? "" : item.description;
-                                            int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
-                                            int start = 0;
-                                            int total = description.length();
-                                            int i = 0;
-                                            while (i < 8) {
-                                                String message = getMessage(description, start, total, newLineNoSubstring);
-                                                start += message.length() + 1;
-                                                int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
-                                                if (result != 0) {
-                                                    error = result;
-                                                    break;
+                                        if (!Thread.currentThread().isInterrupted()) {
+
+                                            int error;
+                                            int attempt = 0;
+                                            List<String> itemErrors;
+                                            do {
+                                                error = 0;
+                                                attempt++;
+                                                itemErrors = new ArrayList<String>();
+                                                Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                                Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
+
+                                                int len = item.name.length();
+                                                String firstName = item.name.substring(0, len < 28 ? len : 28);
+                                                String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
+                                                Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
+                                                Integer groupCode = item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
+                                                String description = item.description == null ? "" : item.description;
+                                                int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
+                                                int start = 0;
+                                                int total = description.length();
+                                                int i = 0;
+                                                while (i < 8) {
+                                                    String message = getMessage(description, start, total, newLineNoSubstring);
+                                                    start += message.length() + 1;
+                                                    int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
+                                                    if (result != 0) {
+                                                        error = result;
+                                                        break;
+                                                    }
+                                                    i++;
                                                 }
-                                                i++;
-                                            }
-                                            
-                                            if (error == 0) {
-                                                int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
-                                                if (result != 0)
-                                                    error = result;
-                                            }
-                                        } while (attempt < 5 && error != 0);
 
-                                        if (error != 0) {
-                                            if (itemErrors != null && !itemErrors.isEmpty())
-                                                localErrors.addAll(itemErrors);
-                                            logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
+                                                if (error == 0) {
+                                                    int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
+                                                    if (result != 0)
+                                                        error = result;
+                                                }
+                                            } while (attempt < 5 && error != 0);
+
+                                            if (error != 0) {
+                                                if (itemErrors != null && !itemErrors.isEmpty())
+                                                    localErrors.addAll(itemErrors);
+                                                logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
+                                            }
+                                            usedPLUNumberSet.add(item.pluNumber);
                                         }
-                                        usedPLUNumberSet.add(item.pluNumber);
                                     }
                                     
                                     //зануляем незадействованные pluNumber
@@ -154,7 +158,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                         String secondLine = "";
                                         String message = "";
                                         for (int i = 1; i <= advancedClearMaxPLU; i++)
-                                            if (!usedPLUNumberSet.contains(i)) {
+                                            if (!Thread.currentThread().isInterrupted() && !usedPLUNumberSet.contains(i)) {
                                                 int error;
                                                 int attempt = 0;
                                                 List<String> itemErrors;
