@@ -32,6 +32,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSaleslogger");
     
+    String encoding = "utf-8";
     String weightPrefix = "21";
 
     private FileSystemXmlApplicationContext springContext;
@@ -177,10 +178,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
             String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
             XMLOutputter xmlOutput = new XMLOutputter();
-            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding("windows-1251"));
-            PrintWriter fw = new PrintWriter(
-                                new OutputStreamWriter(
-                                    new FileOutputStream(filePath), "windows-1251"));
+            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filePath), encoding));
             xmlOutput.output(doc, fw);
             fw.close();
             
@@ -248,7 +247,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     String exchangeDirectory = directory + "/reports/source/";
 
                     if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), "windows-1251"));
+                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), encoding));
                         writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
                         writer.close();
                     } else
@@ -419,8 +418,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
 
             XMLOutputter xmlOutput = new XMLOutputter();
-            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding("windows-1251"));
-            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), "windows-1251"));
+            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
             xmlOutput.output(doc, fw);
             fw.close();
             
