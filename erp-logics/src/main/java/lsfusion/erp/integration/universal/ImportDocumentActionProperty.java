@@ -188,7 +188,13 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         if (importedFile.isFile()) {
             File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
                     (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), newExtensionLowCase)) : null);
-            if (renamedFile != null && !importedFile.renameTo(renamedFile))
+            int i = 1;
+            while (renamedFile != null && renamedFile.exists()) {
+                renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, "") + "(" + i + ")" + newExtensionUpCase) :
+                        (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), "") + "(" + i + ")" + newExtensionLowCase) : null);
+                i += 1;
+            }
+            if (renamedFile == null || !importedFile.renameTo(renamedFile))
                 context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
     }
