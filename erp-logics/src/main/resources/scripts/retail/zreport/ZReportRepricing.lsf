@@ -1,0 +1,68 @@
+MODULE ZReportRepricing;
+
+REQUIRE Repricing, ZReport;
+
+NAMESPACE Repricing;
+
+//----------------- Переоценка товаров, которые были возвращены покупателями по кассе -----------------//
+
+retailPricingPriceBReceiptDetail 'Розничная цена (действующая)' (d) =
+    priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuReceiptDetail(d), departmentStoreReceiptDetail(d), dateTimeReceiptDetail(d));
+
+userRepricingDetailReceiptReturnDetail = DATA  UserRepricingDetail(ReceiptReturnDetail);
+
+toRepricingReceiptReturnDetail (d) = (d IS ReceiptReturnDetail) AND NOT (retailPricingPriceBReceiptDetail(d) == priceReceiptDetail(d)) AND
+            NOT userRepricingDetailReceiptReturnDetail(d);
+toRepricingReceiptReturnDetailDepartment (stock) =  GROUP SUM 1 IF toRepricingReceiptReturnDetail(d) BY departmentStoreReceiptReturnDetail(d);
+
+setReceiptReturnDetailUserRepricingStockOperation 'Создать акт переоценки'  = ACTION (stock, operation) NEWSESSION {
+    IF toRepricingReceiptReturnDetailDepartment (stock) AND stock IS DepartmentStore THEN {
+    
+        FOR ADDOBJ p = UserRepricing DO {
+            departmentStoreUserRepricing(p) <- stock;
+            dateUserRepricing(p) <- currentDate();
+            timeUserRepricing(p) <- currentTime();
+            skipChangeLedgerUserRepricing(p) <- TRUE;
+            operationUserRepricing(p) <- operation;
+            
+            FOR toRepricingReceiptReturnDetail(detail) AND departmentStoreReceiptDetail(detail) == stock ADDOBJ d = UserRepricingDetail DO {
+                userRepricingUserRepricingDetail(d) <- p;   
+                userRepricingDetailReceiptReturnDetail(detail) <- d;  
+                                
+                skuUserRepricingDetail(d) <- skuReceiptReturnDetail(detail);
+                quantityUserRepricingDetail(d) <- quantityReceiptReturnDetail(detail);
+                curRetailPriceUserRepricingDetail(d) <- priceReceiptDetail(detail);
+                retailPriceUserRepricingDetail(d) <- retailPricingPriceBReceiptDetail(detail);
+            }  
+            FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL;
+        }
+    }     
+} TOOLBAR;
+
+FORM returnReceiptDetail 'Дооценка на возврате (касса)'
+
+    OBJECTS st = DepartmentStore FIXED PANEL 
+    PROPERTIES (st) SELECTOR nameDepartmentStore
+    FILTERS isCompanyStock(st)
+    
+    OBJECTS o = Operation FIXED PANEL 
+    PROPERTIES (o) SELECTOR nameOperation
+        
+    OBJECTS d = ReceiptReturnDetail
+   
+    PROPERTIES(d) FORCE GRID READONLY dateTimeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerDepartmentStore(st),
+                  descriptionSaleReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
+                  numberVATReceiptDetail,retailPricingPriceBReceiptDetail
+    FILTERS departmentStoreReceiptDetail(d) == st,
+            toRepricingReceiptReturnDetail(d)
+            
+    PROPERTIES TODRAW d FORCE PANEL setReceiptReturnDetailUserRepricingStockOperation(st,o)
+;
+
+@extendFormFilterStockAccess(st, returnReceiptDetail, company);
+
+NAVIGATOR {
+    retailDashboardNavigator {       
+        ADD returnReceiptDetail;       
+    } 
+}
