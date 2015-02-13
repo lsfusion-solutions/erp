@@ -4,6 +4,17 @@ REQUIRE Pricing, Invoice;
 
 NAMESPACE Pricing;
 
+@defineDocumentAbstractHeaderProperty (invoice, createPricing, 'Создать акт расценки');
+backgroundRetailInvoice 'Цвет' (invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
+
+@defineDocumentAbstractDetailMarkupCustomPrefix(invoiceDetail, retail, );
+@defineDocumentAbstractDetailMarkupSumCustomPrefix (invoiceDetail, retail, );
+@defineDocumentAbstractDetailVATCustom(invoiceDetail, retail, ' розничный');
+@defineDocumentAbstractDetailVATDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
+@defineDocumentAbstractDetailPriceCustomPrefix(invoiceDetail, retail, ' розничная');
+@defineDocumentAbstractDetailDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
+@defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, pricing, ' (расценено)');
+
 META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, captionPost, stockProp, prefix)
 
     // Комиссия
@@ -71,6 +82,15 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     
     // Создание акта расценки
     @defineDocumentInterfaceProperty (invoice, createPricing, 'Создать акт расценки');
+    Pricing.createPricingInvoice(i) += createPricingInvoice(i);
+    Pricing.retailMarkupInvoiceDetail(d) += retailMarkupInvoiceDetail(d);
+    Pricing.retailMarkupSumInvoiceDetail(d) += retailMarkupSumInvoiceDetail(d);
+    Pricing.retailVATInvoiceDetail(d) += retailVATInvoiceDetail(d);
+    Pricing.valueRetailVATInvoiceDetail(d) += valueRetailVATInvoiceDetail(d); 
+    Pricing.retailVATSumInvoiceDetail(d) += retailVATSumInvoiceDetail(d);
+    Pricing.retailPriceInvoiceDetail(d) += retailPriceInvoiceDetail(d);
+    Pricing.retailSumInvoiceDetail(d) += retailSumInvoiceDetail(d);
+    Pricing.pricingQuantityInvoiceDetail(d) += pricingQuantityInvoiceDetail(d);
        
     showCreatePricingInvoice (invoice) = stockProp###stock###invoice(invoice) IS DepartmentStore AND NOT costLedgerDepartmentStore(stockProp###stock###invoice(invoice));
     showPricingInvoice (invoice) = showCreatePricingInvoice (invoice) AND NOT createPricingInvoice(invoice);
