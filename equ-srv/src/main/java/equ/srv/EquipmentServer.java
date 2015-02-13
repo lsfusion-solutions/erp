@@ -82,7 +82,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule scalesItemLM;
     private ScriptingLogicsModule stopListLM;
-    private ScriptingLogicsModule storeItemLM;
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule zReportLM;
     private ScriptingLogicsModule zReportDiscountCardLM;
@@ -149,7 +148,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
         scalesItemLM = getBusinessLogics().getModule("ScalesItem");
         stopListLM = getBusinessLogics().getModule("StopList");
-        storeItemLM = getBusinessLogics().getModule("MachineryPriceTransactionStoreItem");
         terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
@@ -291,10 +289,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeasonBarcode").getExpr(barcodeExpr));
                 }
 
-                if (storeItemLM != null) {
-                    skuQuery.addProperty("notPromotionSkuMachineryPriceTransactionBarcode", storeItemLM.findProperty("notPromotionSkuMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
-                }
-                
                 if(cashRegisterItemLM != null) {
                     skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode", 
                             cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
@@ -387,7 +381,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer itemObject = (Integer) row.get("skuBarcode");
                         String idItem = (String) row.get("idSkuBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
-                        boolean notPromotionItem = storeItemLM != null && row.get("notPromotionSkuMachineryPriceTransactionBarcode") != null;
                         String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
 
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
@@ -395,7 +388,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, itemObject, description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, 
-                                nameSeason, notPromotionItem));
+                                nameSeason));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 

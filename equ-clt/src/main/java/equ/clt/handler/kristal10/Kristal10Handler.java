@@ -99,7 +99,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
                     addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
                     addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
-                    addStringElement(maxDiscountRestriction, "deleted", item.notPromotionItem ? "false" : "true");
+                    addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ( (item.flags & 16) == 0 ) ? "false" : "true");
                     rootElement.addContent(maxDiscountRestriction);
 
                     addStringElement(good, "name", item.name);

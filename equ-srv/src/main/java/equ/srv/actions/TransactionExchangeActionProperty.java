@@ -518,17 +518,16 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             if(transaction instanceof TransactionCashRegisterInfo) {
                 for(ItemInfo itemInfo : itemsListTransaction) {
                     CashRegisterItemInfo item = (CashRegisterItemInfo) itemInfo;
-                    Boolean notPromotionItem = item.notPromotionItem ? true : null;
                     if (itemFashionLM == null)
                         cashRegisterData.add(Arrays.asList((Object) idTransaction, transaction.nppGroupMachinery, dateTransaction, timeTransaction, snapshotTransaction,
                                 transaction.description, item.idItem, item.idBarcode, item.name, item.idBrand, item.nameBrand,
                                 item.price, format(item.splitItem), item.daysExpiry, item.expiryDate, item.description, item.pluNumber, item.flags, item.idUOM, 
-                                item.shortNameUOM, format(item.passScalesItem), item.vat, notPromotionItem, item.idItemGroup, true));
+                                item.shortNameUOM, format(item.passScalesItem), item.vat, item.idItemGroup, true));
                     else
                         cashRegisterData.add(Arrays.asList((Object) idTransaction, transaction.nppGroupMachinery, dateTransaction, timeTransaction, snapshotTransaction,
                                 transaction.description, item.idItem, item.idBarcode, item.name, item.idBrand, item.nameBrand, item.idSeason, item.nameSeason,
                                 item.price, format(item.splitItem), item.daysExpiry, item.expiryDate, item.description, item.pluNumber, item.flags, item.idUOM, 
-                                item.shortNameUOM, format(item.passScalesItem), item.vat, notPromotionItem, item.idItemGroup, true));
+                                item.shortNameUOM, format(item.passScalesItem), item.vat, item.idItemGroup, true));
                 }
             } else if(transaction instanceof TransactionScalesInfo) {               
                 for(ItemInfo itemInfo : itemsListTransaction) {
@@ -767,10 +766,6 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             if(machineryPriceTransactionStockTaxLM != null)
                 props.add(new ImportProperty(valueVATItemCountryDateField, machineryPriceTransactionStockTaxLM.findProperty("VATMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(valueVATItemCountryDateField);
-
-            ImportField notPromotionItemField = new ImportField(findProperty("notPromotionItem"));
-            props.add(new ImportProperty(notPromotionItemField, findProperty("notPromotionItem").getMapping(itemKey)));
-            fields.add(notPromotionItemField);
 
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),

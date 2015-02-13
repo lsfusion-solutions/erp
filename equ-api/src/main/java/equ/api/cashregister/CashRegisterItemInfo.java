@@ -15,12 +15,11 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String nameBrand;
     public String idSeason;
     public String nameSeason;
-    public boolean notPromotionItem;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, Integer idItemObject,
                                 String description, String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,  
-                                String idBrand, String nameBrand, String idSeason, String nameSeason, boolean notPromotionItem) {
+                                String idBrand, String nameBrand, String idSeason, String nameSeason) {
         super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags);
         this.idItemObject = idItemObject;
         this.description = description;
@@ -32,6 +31,5 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.nameBrand = nameBrand;
         this.idSeason = idSeason;
         this.nameSeason = nameSeason;
-        this.notPromotionItem = notPromotionItem;
     }
 }
