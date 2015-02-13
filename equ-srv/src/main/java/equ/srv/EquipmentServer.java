@@ -149,7 +149,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
         scalesItemLM = getBusinessLogics().getModule("ScalesItem");
         stopListLM = getBusinessLogics().getModule("StopList");
-        storeItemLM = getBusinessLogics().getModule("StoreItem");
+        storeItemLM = getBusinessLogics().getModule("MachineryPriceTransactionStoreItem");
         terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
@@ -290,9 +290,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     skuQuery.addProperty("idSeasonBarcode", itemFashionLM.findProperty("idSeasonBarcode").getExpr(barcodeExpr));
                     skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeasonBarcode").getExpr(barcodeExpr));
                 }
-                
-                if(storeItemLM != null) {
-                    skuQuery.addProperty("notPromotionSkuBarcode", storeItemLM.findProperty("notPromotionSkuBarcode").getExpr(barcodeExpr));
+
+                if (storeItemLM != null) {
+                    skuQuery.addProperty("notPromotionSkuMachineryPriceTransactionBarcode", storeItemLM.findProperty("notPromotionSkuMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if(cashRegisterItemLM != null) {
@@ -387,7 +387,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer itemObject = (Integer) row.get("skuBarcode");
                         String idItem = (String) row.get("idSkuBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
-                        boolean notPromotionItem = storeItemLM != null && row.get("notPromotionSkuBarcode") != null;
+                        boolean notPromotionItem = storeItemLM != null && row.get("notPromotionSkuMachineryPriceTransactionBarcode") != null;
                         String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
 
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
@@ -601,7 +601,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             while(itemGroupMap.containsKey(idParent)) {
                 ItemGroup parentItemGroup = itemGroupMap.get(idParent);
                 hierarchy.add(parentItemGroup);
-                idParent = parentItemGroup.idParentItemGroup;               
+                idParent = parentItemGroup.idParentItemGroup;
             }
             result.put(entry.getKey(), hierarchy);
         }
