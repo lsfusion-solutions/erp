@@ -494,12 +494,27 @@ sumNegativeCashPaymentZReport 'Сумма возврата (наличные)' (
 sumPositiveCardPaymentZReport 'Сумма продажа (карточка)' (zReport) = GROUP SUM sumPositiveCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
 sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
 
-CONSTRAINT receipt IS Receipt AND NOT sumPaymentReceipt(receipt) MESSAGE 'По чеку не указаны платежи';
-CONSTRAINT (sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt)) OR
-           (sumReceiptDetailReceipt(receipt) < 0 AND sumReceiptDetailReceipt(receipt) != sumPaymentReceipt(receipt)) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
-CONSTRAINT (sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt)) 
-           OR (sumReceiptDetailReceipt(receipt) <0 AND sumReceiptDetailReceipt(receipt) > sumCardPaymentReceipt(receipt)) 
-           MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
+isSumPaymentReceipt 'Выключть ограничения по суммам платежа в чеке' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() isSumPaymentReceipt
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(isSumPaymentReceipt());
+    }
+}
+
+CONSTRAINT receipt IS Receipt AND NOT isSumPaymentReceipt() AND NOT sumPaymentReceipt(receipt) MESSAGE 'По чеку не указаны платежи';
+
+CONSTRAINT ((sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt)) OR
+           (sumReceiptDetailReceipt(receipt) < 0 AND sumReceiptDetailReceipt(receipt) != sumPaymentReceipt(receipt))) AND NOT isSumPaymentReceipt()
+    MESSAGE 'Сумма платежей по чеку меньше суммы чека';
+    
+CONSTRAINT ((sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt)) 
+           OR (sumReceiptDetailReceipt(receipt) <0 AND sumReceiptDetailReceipt(receipt) > sumCardPaymentReceipt(receipt))) AND NOT isSumPaymentReceipt()
+    MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
 
 // Итоги по Z-отчету
 
