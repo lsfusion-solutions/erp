@@ -167,6 +167,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         ImportField idBrandField = new ImportField(findProperty("idBrand"));
         ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
                 findProperty("brandId").getMapping(idBrandField));
+        brandKey.skipKey = true;
         keys.add(brandKey);
         props.add(new ImportProperty(idBrandField, findProperty("idBrand").getMapping(brandKey)));
         props.add(new ImportProperty(idBrandField, findProperty("nameBrand").getMapping(brandKey), true));
@@ -178,6 +179,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         ImportKey<?> packBarcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
                 findProperty("extBarcodeId").getMapping(extIdPackBarcodeSkuField));
         keys.add(packBarcodeKey);
+        packBarcodeKey.skipKey = skipKeys;
         props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extIdBarcode").getMapping(packBarcodeKey)));
         props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("skuBarcode").getMapping(packBarcodeKey),
                 object(findClass("Item")).getMapping(itemKey)));
