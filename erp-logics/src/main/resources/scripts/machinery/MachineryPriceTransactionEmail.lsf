@@ -1,0 +1,72 @@
+MODULE MachineryPriceTransactionEmail;
+
+REQUIRE MachineryPriceTransaction;
+
+NAMESPACE Machinery;
+
+
+inEmployeeDow 'Рабочий день' = DATA BOOLEAN (Employee, DOW);
+
+EXTEND FORM employee
+    OBJECTS dow = DOW
+    PROPERTIES READONLY staticCaption(dow), numberDOW(dow), inEmployeeDow(e,dow) EDITABLE 
+    ORDER BY numberDOW(dow)
+;
+EXTEND DESIGN employee {
+    ADD dow.box BEFORE functions.box;
+}
+
+
+inEmployeeDowDateTime (employee, dateTime)=inEmployeeDow(employee, extractDOW(toDate(dateTime)));
+
+
+countMinutesMachineryPriceTransaction 'Количество минут для проверки незагруженных в оборудование документов' = DATA LONG ();
+EXTEND FORM options
+    PROPERTIES countMinutesMachineryPriceTransaction() 
+;
+
+EXTEND DESIGN options {
+    machinery {
+        ADD PROPERTY(countMinutesMachineryPriceTransaction());                
+    }
+}
+
+subtractDateTimeMinutes(dateTime, mins) = [= FORMULA DATETIME PG '(($1)-($2)*CAST(\'1 minutes\' AS INTERVAL))' MS 'DATEADD(mm, $2, $1)'](dateTime AS DATETIME, mins AS LONG);
+
+includeEmailMachineryPriceTransactionDateTime (tt, dateTime)  = subtractDateTimeMinutes(dateTime, countMinutesMachineryPriceTransaction())<= dateTimeMachineryPriceTransaction(tt) 
+    IF dateTime >= dateTimeMachineryPriceTransaction(tt)
+    AND  (NOT succeededMachineryPriceTransaction(tt) OR (countSucceededMachineriesMachineryPriceTransaction(tt) != countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(tt))));
+
+    
+countIncludeEmailMachineryPriceTransactionsDateTime (dateTime) = GROUP SUM 1 IF includeEmailMachineryPriceTransactionDateTime (tt, dateTime) AND inEmployeeDowDateTime(user, dateTime) BY dateTime;
+
+FORM emailMachineryPriceTransaction 'Загрузки в оборудование'
+    
+    OBJECTS dt = DATETIME FIXED PANEL 
+
+    OBJECTS tt = MachineryPriceTransaction
+    PROPERTIES(tt) READONLY FORCE GRID snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
+                            timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, succeededMachineryPriceTransaction, 
+                            dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
+                            quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(tt),
+                            nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(tt)
+    PROPERTIES(tt) READONLY FORCE GRID createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+
+    FILTERS includeEmailMachineryPriceTransactionDateTime(tt,dt) 
+;
+
+emailNotSucceededMachineryPriceTransactionDateTimeUser 'Выслать уведомление о незагруженных документах в оборудование' (dateTime, user) = ACTION EMAIL
+    SUBJECT 'Уведомление о незагруженных документах в оборудование'
+    TO emailContact(user)
+    INLINE emailMachineryPriceTransaction OBJECTS dt = dateTime AS DATE
+;
+
+emailNotSucceededMachineryPriceTransaction= ACTION () {
+    IF countIncludeEmailMachineryPriceTransactionsDateTime(currentDateTime()) THEN
+        FOR inEmployeeDowDateTime(user,currentDateTime()) DO {
+            emailNotSucceededMachineryPriceTransactionDateTimeUser(currentDateTime(), user); 
+        }    
+
+}
+
+
