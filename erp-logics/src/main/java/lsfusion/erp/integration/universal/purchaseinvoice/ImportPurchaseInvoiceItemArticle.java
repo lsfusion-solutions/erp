@@ -157,17 +157,17 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             }
 
             if (showField(userInvoiceDetailsList, "UOMItem")) {
-                ImportField idUOMField = new ImportField(findProperty("idUOM"));
-                ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                        findProperty("UOMId").getMapping(idUOMField));
+                ImportField idUOMField = new ImportField(LM.findProperty("idUOM"));
+                ImportKey<?> UOMKey = new ImportKey((CustomClass) LM.findClass("UOM"),
+                        LM.findProperty("UOMId").getMapping(idUOMField));
                 keys.add(UOMKey);
-                props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("UOMItem").getMapping(itemKey),
-                        object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("UOMArticle").getMapping(articleKey),
-                        object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, LM.findProperty("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, LM.findProperty("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, LM.findProperty("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, LM.findProperty("UOMItem").getMapping(itemKey),
+                        object(LM.findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, LM.findProperty("UOMArticle").getMapping(articleKey),
+                        object(LM.findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
                 fields.add(idUOMField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("UOMItem"));
