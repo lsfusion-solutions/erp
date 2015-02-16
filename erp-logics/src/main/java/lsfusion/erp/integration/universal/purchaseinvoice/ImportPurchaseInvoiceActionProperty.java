@@ -211,7 +211,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if (showField(userInvoiceDetailsList, "currencyDocument")) {
                 ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
-                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
                         findProperty("currencyShortName").getMapping(shortNameCurrencyField));
                 keys.add(currencyKey);
                 props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserInvoice").getMapping(userInvoiceObject),
@@ -222,7 +222,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             ImportField idUserInvoiceDetailField = new ImportField(findProperty("idUserInvoiceDetail"));
-            ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) findClass("Purchase.UserInvoiceDetail"),
+            ImportKey<?> userInvoiceDetailKey = new ImportKey((CustomClass) findClass("Purchase.UserInvoiceDetail"),
                     findProperty("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
             keys.add(userInvoiceDetailKey);
             props.add(new ImportProperty(idUserInvoiceDetailField, findProperty("idUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
@@ -243,7 +243,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             if (showField(userInvoiceDetailsList, "idSupplier")) {
 
                 ImportField idSupplierField = new ImportField(findProperty("idLegalEntity"));
-                ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
+                ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
                         findProperty("legalEntityId").getMapping(idSupplierField));
                 keys.add(supplierKey);
                 props.add(new ImportProperty(idSupplierField, findProperty("supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey),
@@ -288,7 +288,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
-            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
+            ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
             props.add(new ImportProperty(idBarcodeSkuField, findProperty("idBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
@@ -341,24 +341,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCaptionItem"));
             }
 
-            if (showField(userInvoiceDetailsList, "UOMItem")) {
-                ImportField idUOMField = new ImportField(findProperty("idUOM"));
-                ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
-                        findProperty("UOMId").getMapping(idUOMField));
-                keys.add(UOMKey);
-                props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, findProperty("UOMItem").getMapping(itemKey),
-                        object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                fields.add(idUOMField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("UOMItem"));
-            }
-
             if (showField(userInvoiceDetailsList, "idManufacturer")) {
                 ImportField idManufacturerField = new ImportField(findProperty("idManufacturer"));
-                ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) findClass("Manufacturer"),
+                ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
                         findProperty("manufacturerId").getMapping(idManufacturerField));
                 keys.add(manufacturerKey);
                 props.add(new ImportProperty(idManufacturerField, findProperty("idManufacturer").getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
@@ -390,7 +375,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
             ImportKey<?> countryKey = countryField == null ? null : 
-                    new ImportKey((ConcreteCustomClass) findClass("Country"), countryAggr.getMapping(countryField));
+                    new ImportKey((CustomClass) findClass("Country"), countryAggr.getMapping(countryField));
 
             if (countryKey != null) {
                 keys.add(countryKey);
@@ -420,7 +405,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if (showField(userInvoiceDetailsList, "idCustomer")) {
                 ImportField idCustomerField = new ImportField(findProperty("idLegalEntity"));
-                ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
+                ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
                         findProperty("legalEntityId").getMapping(idCustomerField));
                 keys.add(customerKey);
                     props.add(new ImportProperty(idCustomerField, findProperty("Purchase.customerUserInvoice").getMapping(userInvoiceObject),
@@ -462,7 +447,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if (showField(userInvoiceDetailsList, "valueVAT")) {
                 ImportField valueVATUserInvoiceDetailField = new ImportField(findProperty("Purchase.valueVATUserInvoiceDetail"));
-                ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+                ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"),
                         findProperty("valueCurrentVATDefaultValue").getMapping(valueVATUserInvoiceDetailField));
                 keys.add(VATKey);
                 props.add(new ImportProperty(valueVATUserInvoiceDetailField, findProperty("Purchase.VATUserInvoiceDetail").getMapping(userInvoiceDetailKey),
@@ -523,7 +508,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if (showField(userInvoiceDetailsList, "idItemGroup")) {
                 ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
-                ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+                ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                         findProperty("itemGroupId").getMapping(idItemGroupField));
                 keys.add(itemGroupKey);
                 props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
