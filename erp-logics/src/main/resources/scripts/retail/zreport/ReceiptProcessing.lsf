@@ -1,0 +1,67 @@
+MODULE ReceiptProcessing;
+
+REQUIRE ZReport;
+
+FORM receiptProcessing 'Обработка чеков'
+    OBJECTS ds = DepartmentStore FIXED PANEL
+    PROPERTIES(ds) SELECTOR nameDepartmentStore 
+
+    FILTERS isCompanyStock(ds)
+    
+    OBJECTS b=Receipt
+    PROPERTIES(b) READONLY numberReceipt, dateTimeReceipt, nameEmployeeReceipt, numberCashRegisterReceipt,
+                  sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
+                  discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
+                  
+    FILTERS departmentStoreReceipt(b)==ds
+
+    OBJECTS d = ReceiptDetail FIXED GRID
+    PROPERTIES(d) READONLY FORCE GRID typeReceiptDetail, idBarcodeReceiptDetail
+    PROPERTIES(d) READONLY FORCE GRID idSkuReceiptDetail, nameSkuReceiptDetail 
+    PROPERTIES(d) READONLY FORCE GRID descriptionSaleReceiptReturnDetail, quantityReceiptDetail, quantityReturnedReceiptSaleDetail,
+                  priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceiptDetail, numberVATReceiptDetail, 
+                  valueVATReceiptDetail                  
+    PROPERTIES(d) DELETESESSION FORCE PANEL TOOLBAR               
+//    PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt 
+    
+    OBJECTS p=Payment
+    PROPERTIES(p) namePaymentTypePayment, namePaymentMeansPayment, sumPayment, ADDOBJ, DELETESESSION
+
+    FILTERS receiptPayment(p)==b
+               
+    FILTERS receiptReceiptDetail(d) == b          
+    FILTERGROUP receiptFilter
+        FILTER  'Нет платежа' NOT sumPaymentReceipt(b)
+        FILTER  'Сумма платежей меньше суммы чека' 
+            ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) > sumPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) < 0 AND sumReceiptDetailReceipt(b) != sumPaymentReceipt(b)))
+        FILTER  'Сумма по безналу больше суммы чека' 
+            ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) < sumCardPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) <0 AND sumReceiptDetailReceipt(b) > sumCardPaymentReceipt(b)))   
+        FILTER  'С отклонениями'  
+            ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) > sumPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) < 0 AND sumReceiptDetailReceipt(b) != sumPaymentReceipt(b))) OR                                                                                                                  
+            ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) < sumCardPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) <0 AND sumReceiptDetailReceipt(b) > sumCardPaymentReceipt(b))) OR                         
+            (NOT sumPaymentReceipt(b)) DEFAULT                                                  
+                                                           
+;
+DESIGN receiptProcessing FROM DEFAULT{
+
+    ADD ds.box;    
+    ADD b.box;
+    NEW secondCase{
+        fill = 1;
+        type = SPLITH;
+
+        ADD d.box {
+            fill = 3;
+            caption = 'Строка чека';
+        }
+        ADD p.box;
+    }           
+
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        ADD receiptProcessing;
+    }
+}
