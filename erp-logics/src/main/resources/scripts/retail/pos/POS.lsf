@@ -47,23 +47,22 @@ closedCurrentZReport() = NOT currentZReport();
 
 // --------------------------------- Применение акций ----------------------------- //
 
-// Накопленные суммы
-
-posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) PERSISTENT;
-posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
-cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
-
-externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
-totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
-
-prevTotalSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(totalSumDiscountCard(discountCard))](discountCardReceipt(receipt));
-totalSumReceiptPromotion (receipt, promotion) = IF useCurrentReceiptPromotion(promotion) THEN totalSumDiscountCard(discountCardReceipt(receipt))
-                                                                                         ELSE prevTotalSumReceipt (receipt);
-
-EXTEND FORM discountCards
-    PROPERTIES(d) READONLY AFTER initialSumDiscountCard(d) posSumDiscountCard, posReturnSumDiscountCard, cumulativeSumDiscountCard, externalSumDiscountCard, totalSumDiscountCard
-;
-
+// Накопленные суммы // Перенесены в модуль ZReportDiscountCard
+//
+//posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) PERSISTENT;
+//posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
+//cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
+//
+//externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+//totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
+//
+//EXTEND FORM discountCards
+//    PROPERTIES(d) READONLY AFTER initialSumDiscountCard(d) posSumDiscountCard, posReturnSumDiscountCard, cumulativeSumDiscountCard, externalSumDiscountCard, totalSumDiscountCard
+//;
+//
+//prevTotalSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(totalSumDiscountCard(discountCard))](discountCardReceipt(receipt));
+//totalSumReceiptPromotion (receipt, promotion) = IF useCurrentReceiptPromotion(promotion) THEN totalSumDiscountCard(discountCardReceipt(receipt))
+//                                                                                         ELSE prevTotalSumReceipt (receipt);
 // Расчет сумм скидок
 
 setUserPromotionReceipt (receipt) = GROUP SUM 1 IF setUserPromotionReceiptSaleDetailPromotionCondition (receiptSaleDetail, promotionCondition)  BY receiptReceiptSaleDetail (receiptSaleDetail);

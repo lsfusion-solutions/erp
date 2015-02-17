@@ -26,3 +26,16 @@ EXTEND FORM zReport
 EXTEND FORM zReports
     PROPERTIES(b) READONLY AFTER nameEmployeeReceipt(b) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt 
 ;
+
+//--Накопленные суммы
+
+posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) PERSISTENT;
+posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
+cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
+
+externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
+
+EXTEND FORM discountCards
+    PROPERTIES(d) READONLY AFTER initialSumDiscountCard(d) posSumDiscountCard, posReturnSumDiscountCard, cumulativeSumDiscountCard, externalSumDiscountCard, totalSumDiscountCard
+;
