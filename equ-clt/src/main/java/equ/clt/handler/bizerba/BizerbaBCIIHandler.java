@@ -68,6 +68,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                             String clear = clearAllPLU(localErrors, port, scales);
                             if (!clear.equals("0"))
                                 logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
+                            for(int z = 0; z < 1000; z++) {
+                                clearMessage(localErrors, port, scales, z, false);
+                            }
                         }
 
                         processTransactionLogger.info("Bizerba: Sending items..." + ip);
@@ -75,8 +78,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                             for (ScalesItemInfo item : transaction.itemsList) {
                                 if(!Thread.currentThread().isInterrupted()) {
                                     item.description = item.description == null ? "" : item.description;
-                                    item.descriptionNumber = item.descriptionNumber == null ? 0 : item.descriptionNumber;
-                                    String resultPLU = loadMessage2(port, scales, new Message(item.descriptionNumber, item.description));
+                                    item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
+                                    String resultPLU = loadMessage2(localErrors, port, scales, new Message(item.descriptionNumber, item.description));
                                     if (!resultPLU.equals("0"))
                                         logError(localErrors, String.format("Bizerba: Item # %s, Error %s", item.idBarcode, resultPLU));
                                     loadPLU(localErrors, port, scales, item);
@@ -141,7 +144,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         int var7;
         TreeMap messageMap = new TreeMap();
         getPLUMessage(item, messageMap);
-        loadPLUMessages2(port, scales, messageMap);
+        loadPLUMessages(errors, port, scales, messageMap);
         command2 = "TFZU@00@04";
         var7 = 0;
 
@@ -312,48 +315,23 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         }
     }
 
-    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> var1) throws CommunicationException {
-        String var3 = "";
-        Iterator var4 = var1.keySet().iterator();
-
-        String var2;
-        Integer var5;
-        String var6;
-        do {
-            if(!var4.hasNext()) {
-                return;
-            }
-
-            var5 = (Integer)var4.next();
-            var2 = var1.get(var5);
-            var3 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var5 + '\u001b' + "ATTE" + var2 + getEndCommand();
-            clearReceiveBuffer(port);
-            sendCommand(errors, port, var3);
-            var6 = receiveReply(errors, port);
-        } while(var6.equals("0"));
-
-        logError(errors, "Result is " + var6 + " [msgNo=" + var5 + "]");
-    }
-    
-    private void loadPLUMessages2(TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap) throws CommunicationException, IOException {
-        Iterator messageMapIterator = messageMap.keySet().iterator();
+    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap) throws CommunicationException {
+        Iterator iterator = messageMap.keySet().iterator();
+        
         Integer messageNumber;
         String result;
-        String message;
         do {
-            if(!messageMapIterator.hasNext()) {
+            if(!iterator.hasNext()) {
                 return;
             }
-            messageNumber = (Integer)messageMapIterator.next();
-            message = messageMap.get(messageNumber);
-            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + messageNumber + '\u001b' + "ATTE" + prepareRusText(message) + getEndCommand();
+            messageNumber = (Integer)iterator.next();
+            String messageText = messageMap.get(messageNumber); //prepareRusText(messageText)
+            String message = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + messageNumber + '\u001b' + "ATTE" + messageText + getEndCommand();
             clearReceiveBuffer(port);
-            sendCommand2(port, command);
-            result = receiveReply2(port);
+            sendCommand(errors, port, message);
+            result = receiveReply(errors, port);
         } while(result.equals("0"));
-
-        System.out.println("Error");
-        throw new RuntimeException("Result is " + result + " [msgNo=" + messageNumber + "]");
+        logError(errors, "Result is " + result + " [msgNo=" + messageNumber + "]");
     }
 
     private String prepareRusText(String var1) {
@@ -430,9 +408,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                 var2.put(Integer.valueOf(var12), var9);
                 ++var3;
             }
-
-            //loadPLUMessages(errors, port, scales, var2);
-            loadPLUMessages2(port, scales, var2);
+            
+            loadPLUMessages(errors, port, scales, var2);
             return null;
         } else {
             if(textMessage == null) {
@@ -452,13 +429,13 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         }
     }
 
-    public String loadMessage2(TCPPort port, ScalesInfo scales, Message var1) throws CommunicationException, IOException {
-        boolean splitMessage = false;
+    public String loadMessage2(List<String> errors, TCPPort port, ScalesInfo scales, Message message) throws CommunicationException, IOException {
+        boolean splitMessage = true;
         if(splitMessage) {
             TreeMap var2 = new TreeMap();
             int var3 = 0;
             boolean var4 = false;
-            String var5 = var1.text.replace("\u0007\n", "\u0007");
+            String var5 = message.text.replace("\u0007\n", "\u0007");
             String[] var6 = var5.split("\u0007");
             int var7 = var6.length;
 
@@ -469,35 +446,46 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                     var9 = var9.substring(0, 1999);
                 }
 
-                int var12 = var1.id * 100 + var3;
+                int var12 = message.id * 100 + var3;
                 var2.put(Integer.valueOf(var12), var9);
                 ++var3;
             }
 
-            loadPLUMessages2(port, scales, var2);
-            return null;
+            loadPLUMessages(errors, port, scales, var2);
+            return "0";
         } else {
-            if(var1.text == null) {
-                var1.text = "";
+            if(message.text == null) {
+                message.text = "";
             }
 
             String var10 = "";
-            String var11 = var1.text.replace('@', 'a');
+            String var11 = message.text.replace('@', 'a');
             if(var11.length() > 2000) {
                 var11 = var11.substring(0, 1999);
             }
 
-            var10 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var1.id + '\u001b' + "ATTE" + prepareRusText(replaceDelimiter(var11)) + getEndCommand();
+            var10 = "ATST  \u001bS" + zeroedInt(scales.number, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + message.id + '\u001b' + "ATTE" + prepareRusText(replaceDelimiter(var11)) + getEndCommand();
             clearReceiveBuffer(port);
             sendCommand2(port, var10);
-            String var13 = receiveReply2(port);
-            if(!var13.equals("0")) {
-                throw new RuntimeException("Result is " + var13 + " [JobId=" + var1.jobId + ";JobKey=" + var1.jobKey + "]");
+            String reply = receiveReply2(port);
+            if(!reply.equals("0")) {
+                throw new RuntimeException("Result is " + reply + " [JobId=" + message.jobId + ";JobKey=" + message.jobKey + "]");
             }
-            return var13;
+            return reply;
         }
     }
 
+    protected void sendCommand(List<String> errors, TCPPort port, String command) throws CommunicationException {
+        try {
+            byte[] var2 = command.getBytes("cp866");
+            encode(var2);
+            port.getOutputStream().write(var2);
+            port.getOutputStream().flush();
+        } catch (IOException e) {
+            logError(errors, "Send command exception: ", e);
+        }
+    }
+    
     private void sendCommand2(TCPPort port, String command) throws CommunicationException, IOException {
             byte[] commandBytes = command.getBytes("utf-8");
             port.getOutputStream().write(commandBytes);
@@ -536,17 +524,6 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         sendCommand(errors, port, var1);
         Thread.sleep(5000);
         return receiveReply(errors, port);
-    }
-
-    protected void sendCommand(List<String> errors, TCPPort port, String command) throws CommunicationException {
-        try {
-            byte[] var2 = command.getBytes("cp866");
-            encode(var2);
-            port.getOutputStream().write(var2);
-            port.getOutputStream().flush();
-        } catch (IOException e) {
-            logError(errors, "Send command exception: ", e);
-        }
     }
     
     protected String receiveReply(List<String> errors, TCPPort port) throws CommunicationException {
