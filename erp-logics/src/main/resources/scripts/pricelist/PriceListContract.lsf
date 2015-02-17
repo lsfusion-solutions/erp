@@ -1,0 +1,61 @@
+MODULE PriceListContract;
+
+REQUIRE PriceList, StockContract;
+
+NAMESPACE PriceList;
+
+@defineDocumentAbstractContract (PriceList, contractSku, ContractSku);
+
+contractSkuUserPriceList = DATA ContractSku (UserPriceList);
+seriesNumberContractSkuUserPriceList 'Номер договора' (o) = seriesNumberContract(contractSkuUserPriceList(o)) IN documentPrm;
+dateFromContractSkuUserPriceList 'Дата договора' (o) = dateFromContract(contractSkuUserPriceList(o)) IN documentPrm;
+
+descriptionContractSkuUserPriceList 'Описание договора' (o)= CONCAT ' ', seriesNumberContractSkuUserPriceList(o), ' от ' + dateFromContractSkuUserPriceList(o);
+
+isCommissionUserPriceList 'Продажа на комиссию' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+
+contractSkuPriceList(o) += contractSkuUserPriceList(o);
+isCommissionPriceList(o) += isCommissionUserPriceList(o);
+
+isCommissionUserPriceList(o) <- typeContractSku(contractSkuUserPriceList(o)) == ContractSkuType.commission
+    WHEN CHANGED(contractSkuUserPriceList(o));
+
+
+WHEN SESSION (CHANGED(companyUserPriceList(o)) OR CHANGED(companyStockUserPriceList(o)) OR CHANGED(fromDateUserPriceList(o))) AND NOT CHANGED(contractSkuUserPriceList(o)) DO {
+            
+    contractSkuUserPriceList(o) <- defaultContractSkuSupplierStockDate(companyUserPriceList(o), companyStockUserPriceList(o), fromDateUserPriceList(o))
+                                    IF countContractSkuSupplierStockDate(companyUserPriceList(o), companyStockUserPriceList(o), fromDateUserPriceList(o)) == 1;
+
+}
+
+CONSTRAINT contractSkuUserPriceList(o) AND NOT companyUserPriceList(o) == partyAContract(contractSkuUserPriceList(o))
+    CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (поставщик) договора прайса не соответствует компании прайса';
+
+CONSTRAINT contractSkuUserPriceList(o) AND NOT isSellerLegalEntity(partyAContract(contractSkuUserPriceList(o)))
+    CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (поставщик) договора прайса не является поставщиком или компанией';
+
+CONSTRAINT contractSkuUserPriceList(o) AND NOT isBuyerLegalEntity(partyBContract(contractSkuUserPriceList(o)))
+    CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (покупатель) договора прайса не является покупателем или компанией';
+    
+CONSTRAINT contractSkuUserPriceList(o) 
+    AND NOT (dateFromContract(contractSkuUserPriceList(o)) <= fromDateUserPriceList(o) AND NOT (dateToContract(contractSkuUserPriceList(o)) < fromDateUserPriceList(o)))
+           CHECKED BY contractSkuUserPriceList
+           MESSAGE 'Договор просрочен или еще не действует';    
+               
+CONSTRAINT contractSkuUserPriceList(o) AND countSuppliersStockContractSku(contractSkuUserPriceList(o)) AND NOT inSupplierStockContractSku(companyStockUserPriceList(o),contractSkuUserPriceList(o))
+    CHECKED BY contractSkuUserPriceList MESSAGE 'Для прайса выбран склад организации, который не включен в договор';
+
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) seriesNumberContractSkuUserPriceList, isCommissionUserPriceList
+;
+EXTEND DESIGN userPriceList {
+    p.documentPrm{ 
+        ADD PROPERTY (seriesNumberContractSkuUserPriceList(p)) AFTER PROPERTY(nameCompanyStockUserPriceList(p));
+        ADD PROPERTY (isCommissionUserPriceList(p)) AFTER PROPERTY(seriesNumberContractSkuUserPriceList(p));
+    }
+}
+
+EXTEND FORM priceLists
+    PROPERTIES (p) READONLY seriesNumberContractSkuPriceList AFTER nameCompanyStockPriceList(p)
+;

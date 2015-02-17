@@ -119,6 +119,17 @@ META defineContractDefault (contract, contractClass, partyAClass, stockAClass, p
         IF inSupplierStockContractSku(sA,contract) AND inCustomerStockContractSku(sB,contract)
         AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
             BY prefixA###contract(contract), sA, prefixB###contract(contract), sB, dateIn;
+            
+    default###contract###prefixA###stock###date (pA, sA, dateIn) = GROUP MAX contract 
+        IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
+            BY prefixA###contract(contract), sA, dateIn;      
+                  
+    count###contract###prefixA###stock###date (pA, sA, dateIn) = GROUP SUM 1 
+        IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
+            BY prefixA###contract(contract), sA, dateIn;                      
+                  
 END
 
 META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage)
@@ -156,9 +167,16 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
     CONSTRAINT contractType##objectClass(o) AND NOT prefixB##objectClass(o) == partyBContract(contractType##objectClass(o))
         CHECKED BY contractType##objectClass MESSAGE partyBMessage;
         
-    CONSTRAINT contractType##objectClass(o) AND NOT (dateFromContract(contractType##objectClass(o)) <= date###objectClass(o) AND NOT (toDateTimeAgreement(contractType##objectClass(o)) < date###objectClass(o)))
+    CONSTRAINT contractType##objectClass(o) AND NOT (dateFromContract(contractType##objectClass(o)) <= date###objectClass(o) AND NOT (dateToContract(contractType##objectClass(o)) < date###objectClass(o)))
                CHECKED BY contractType##objectClass
-               MESSAGE 'Договор просрочен или еще не действует';        
+               MESSAGE 'Договор просрочен или еще не действует';
+                  
+    CONSTRAINT contractType##objectClass(o) AND count###prefixA##sStock###contractType(contractType##objectClass(o)) AND NOT in###prefixA###stock###contractType(prefixA###stock##objectClass(o),contractType##objectClass(o))
+        CHECKED BY contractType##objectClass MESSAGE 'Для документа выбран склад поставщика, который не включен в договор';        
+                  
+    CONSTRAINT contractType##objectClass(o) AND count###prefixB##sStock###contractType(contractType##objectClass(o)) AND NOT in###prefixB###stock###contractType(prefixB###stock##objectClass(o),contractType##objectClass(o))
+        CHECKED BY contractType##objectClass MESSAGE 'Для документа выбран склад покупателя, который не включен в договор';                    
+                  
 END
 
 META defineDocumentAbstractContract (objectClass, contractType)
