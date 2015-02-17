@@ -543,6 +543,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     }
                                 }
 
+                                String discountCard = null;
+                                List discountCardsList = ((Element) purchaseNode).getChildren("discountCards");
+                                for (Object discountCardNode : discountCardsList) {
+                                    List discountCardList = ((Element) discountCardNode).getChildren("discountCard");
+                                    for (Object discountCardEntry : discountCardList) {
+                                        discountCard = ((Element)discountCardEntry).getValue();
+                                        if(discountCard != null)
+                                            break;
+                                    }
+                                }
+
                                 List positionsList = ((Element) purchaseNode).getChildren("positions");
                                 List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
                                 BigDecimal currentPaymentSum = BigDecimal.ZERO;
@@ -582,7 +593,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                             currentSalesInfoList.add(new SalesInfo(isGiftCard, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                     numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                    sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, 
+                                                    sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, discountCard, 
                                                     numberReceiptDetail, fileName));
                                         count++;
                                     }
