@@ -223,7 +223,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                 "    PROPERTIES() loadDefaultCustomsGroups\n" +
                 ";\n" +
                 "\n" +
-                "EXTEND DESIGN defaultData {\n" +
+                "DESIGN defaultData {\n" +
                 "    pane {\n" +
                 "        customs {\n" +
                 "            ADD PROPERTY(loadDefaultCustomsGroups);\n" +
