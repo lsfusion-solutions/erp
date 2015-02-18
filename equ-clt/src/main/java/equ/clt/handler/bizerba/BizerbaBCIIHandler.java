@@ -23,10 +23,6 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     
     private FileSystemXmlApplicationContext springContext;
 
-    private static String charset = "UTF-8";
-    private static char separator = '\u001b';
-    private static String endCommand = separator + "BLK " + separator;
-
     public BizerbaBCIIHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
     }
@@ -139,7 +135,6 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         String captionItem = item.name.trim();
         if (captionItem.isEmpty())
             logError(errors, "PLU name is invalid. Name is empty");
-        Integer var1Number = item.pluNumber;
 
         int department = 1;
 
@@ -205,8 +200,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             priceOverflow = 1;
         }
 
-        if (var1Number == 0 || var1Number > 999999 || var1Number < 0) {
-            throw new RuntimeException("PLU number is invalid. Number is " + var1Number);
+        if (item.pluNumber == 0 || item.pluNumber > 999999 || item.pluNumber < 0) {
+            throw new RuntimeException("PLU number is invalid. Number is " + item.pluNumber);
         }
 
         //if(department == 0 || department > 999 || department < 0) {
@@ -323,8 +318,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         }
     }
 
-    private String prepareRusText(String var1) {
-        return var1 == null ? null : (var1.replace('е', 'e').replace('Е', 'E').replace('о', 'o').replace('О', 'O').replace('р', 'p').replace('Р', 'P').replace('а', 'a').replace('А', 'A').replace('д', 'g').replace('к', 'k').replace('К', 'K').replace('х', 'x').replace('Х', 'X').replace('с', 'c').replace('С', 'C').replace('т', 'm').replace('Т', 'T').replace('у', 'y').replace('и', 'u').replace('Ь', 'b').replace('З', '3').replace('В', 'B').replace('Н', 'H').replace('М', 'M').replace('г', 'r'));
+    private String prepareRusText(String value) {
+        return value == null ? null : (value.replace('е', 'e').replace('Е', 'E').replace('о', 'o').replace('О', 'O').replace('р', 'p').replace('Р', 'P').replace('а', 'a').replace('А', 'A').replace('д', 'g').replace('к', 'k').replace('К', 'K').replace('х', 'x').replace('Х', 'X').replace('с', 'c').replace('С', 'C').replace('т', 'm').replace('Т', 'T').replace('у', 'y').replace('и', 'u').replace('Ь', 'b').replace('З', '3').replace('В', 'B').replace('Н', 'H').replace('М', 'M').replace('г', 'r'));
     }
     
     private void sendCommand(List<String> errors, TCPPort port, String command) throws CommunicationException, IOException {
@@ -344,7 +339,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + item.pluNumber + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, command);
-            return receiveReply(errors, port, charset);
+            return receiveReply(errors, port);
         }
     }
     
@@ -354,7 +349,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                 String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + messageList.get(i) + endCommand;
                 clearReceiveBuffer(port);
                 sendCommand(errors, port, command);
-                return receiveReply(errors, port, charset);
+                return receiveReply(errors, port);
             }
         }
         return null;
@@ -362,54 +357,21 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
 
     public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
         int BIZERBABS_Group = 1;
-        String var2 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator
+        String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator
                 + "PNUM" + item.pluNumber + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
                 + "GPR10" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + item.idBarcode + separator
                 + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX"
                 + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, var2);
+        sendCommand(errors, port, command);
         return receiveReply(errors, port);
     }
     
     public String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales) throws CommunicationException, InterruptedException, IOException {
-        String var1 = "PLST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
+        String command = "PLST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, var1);
+        sendCommand(errors, port, command);
         Thread.sleep(5000);
-        return receiveReply(errors, port, charset);
-    }
-
-    protected String receiveReply(List<String> errors, TCPPort port) throws CommunicationException {
-        String reply;
-        Pattern var3 = Pattern.compile("QUIT(\\d+)");
-        byte[] var4 = new byte[500];
-
-        try {
-            long var5 = (new Date()).getTime();
-
-            long var7;
-            do {
-                if(port.getBisStream().available() != 0) {
-                    port.getBisStream().read(var4);
-                    reply = new String(var4, charset);
-
-                    Matcher var10 = var3.matcher(reply);
-                    if(var10.find()) {
-                        reply = var10.group(1);
-                    }
-
-                    return reply;
-                }
-
-                Thread.sleep(10L);
-                var7 = (new Date()).getTime();
-            } while(var7 - var5 <= 10000L);
-
-            logError(errors, "Scales reply timeout");
-        } catch (Exception e) {
-            logError(errors, "Receive Reply Error", e);
-        }
-        return "-1";
+        return receiveReply(errors, port);
     }
 }

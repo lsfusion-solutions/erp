@@ -15,8 +15,12 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected static final int[] encoders1 = new int[]{65, 192, 66, 193, 194, 69, 195, 197, 198, 199, 75, 200, 77, 72, 79, 201, 80, 67, 84, 202, 203, 88, 208, 209, 210, 211, 212, 213, 215, 216, 217, 218, 97, 224, 236, 225, 226, 101, 227, 229, 230, 231, 237, 232, 238, 239, 111, 233};
     protected static final int[] encoders2 = new int[]{112, 99, 253, 234, 235, 120, 240, 241, 242, 243, 244, 245, 247, 248, 249, 250};
     
-    protected String receiveReply(List<String> errors, TCPPort port, String charset) throws CommunicationException {
-        String reply = "";
+    protected static String charset = "UTF-8";
+    protected static char separator = '\u001b';
+    protected static String endCommand = separator + "BLK " + separator;
+    
+    protected String receiveReply(List<String> errors, TCPPort port) throws CommunicationException {
+        String reply;
         Pattern var3 = Pattern.compile("QUIT(\\d+)");
         byte[] var4 = new byte[500];
 
@@ -40,11 +44,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 var7 = (new Date()).getTime();
             } while(var7 - var5 <= 10000L);
 
-            throw new RuntimeException("Scales reply timeout");
-        } catch (Exception var9) {
-            logError(errors, "BIZERBA exception. Reply is " + reply, var9);
-            return reply;
+            logError(errors, "Scales reply timeout");
+        } catch (Exception e) {
+            logError(errors, "Receive Reply Error", e);
         }
+        return "-1";
     }
 
     protected String zeroedInt(int var1, int var2) {

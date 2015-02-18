@@ -13,9 +13,6 @@ import java.math.BigDecimal;
 import java.util.*;
 
 public class BizerbaSCIIHandler extends BizerbaHandler {
-
-
-    private static String charset = "utf-8";
     
     private FileSystemXmlApplicationContext springContext;
 
@@ -157,7 +154,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
                 Integer var9 = (Integer) var8.next();
                 var5 = var7 + 1;
                 if (var7 < 4) {
-                    var3 = var3 + "ALT" + var5 + var9 + '\u001b';
+                    var3 = var3 + "ALT" + var5 + var9 + separator;
                 }
 
                 if (var7 < 10) {
@@ -169,13 +166,13 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
                 var4 = var4 + "@00@00@00@00";
             }
         } else {
-            var3 = "ALT1" + item.descriptionNumber + '\u001b';
+            var3 = "ALT1" + item.descriptionNumber + separator;
             var4 = "TFZU@00@04@" + makeString(item.descriptionNumber);
             boolean var12 = false;
             if (!item.description.equals("")) {
                 var5 = Integer.parseInt(item.idItem) + 100000;
                 //loadMessage(errors, port, item, splitMessage, var5, item.description);
-                var3 = var3 + "ALT2" + var5 + '\u001b';
+                var3 = var3 + "ALT2" + var5 + separator;
                 var4 = var4 + "@" + makeString(var5);
             } else {
                 var4 = var4 + "@00@00@00@00";
@@ -221,7 +218,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
             logError(errors, "PLU number is invalid. Number is " + item.pluNumber);
         }
 
-        String var10 = "PLST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO0" + '\u001b' + "PNUM" + item.pluNumber + '\u001b' + "ABNU" + department + '\u001b' + "ANKE0" + '\u001b';
+        String var10 = "PLST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + separator + "WALO0" + separator + "PNUM" + item.pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
         boolean manualWeight = false;
         if (!manualWeight) {
             if (isWeightItem) {
@@ -234,33 +231,33 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
         }
 
         var15 = var15.replace('@', 'a');
-        var10 = var10 + "GPR1" + item.price.intValue() + '\u001b';
+        var10 = var10 + "GPR1" + item.price.intValue() + separator;
         //exPrice?
         //if (var1.exPrice > 0) {
-        //    var10 = var10 + "EXPR" + var1.exPrice + '\u001b';
+        //    var10 = var10 + "EXPR" + var1.exPrice + separator;
         //}
 
         int BIZERBABS_Group = 1;
         boolean expired = false;
         int tareWeight = 0;
         int tarePercent = 0;
-        var10 = var10 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + '\u001b' + "ECO1" + item.idBarcode + '\u001b' + "HBA1" + expired + '\u001b' + "HBA20" + '\u001b' + "TARA" + tareWeight + '\u001b' + "TAPR" + tarePercent + '\u001b' + "KLGE" + var18 + '\u001b' + var3 + "PLTE" + var15 + '\u001b';
+        var10 = var10 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + separator + "ECO1" + item.idBarcode + separator + "HBA1" + expired + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent + separator + "KLGE" + var18 + separator + var3 + "PLTE" + var15 + separator;
         if (!var4.isEmpty()) {
-            var10 = var10 + var4 + '\u001b';
+            var10 = var10 + var4 + separator;
         }
 
         var10 = var10 + "BLK \u001b";
         clearReceiveBuffer(port);
         sendCommand(errors, port, var10);
-        return receiveReply(errors, port, charset);
+        return receiveReply(errors, port);
     }
 
     public String clearPLU(List<String> errors, ScalesItemInfo item, TCPPort port, int var1) throws CommunicationException {
         int BIZERBABS_Group = 1;
-        String var2 = "PLST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO1" + '\u001b' + "PNUM" + var1 + '\u001b' + "ABNU1" + '\u001b' + "ANKE0" + '\u001b' + "KLAR1" + '\u001b' + "GPR10" + '\u001b' + "WGNU" + BIZERBABS_Group + '\u001b' + "ECO1" + item.idBarcode + '\u001b' + "HBA10" + '\u001b' + "HBA20" + '\u001b' + "KLGE0" + '\u001b' + "ALT10" + '\u001b' + "PLTEXXX" + '\u001b' + "BLK " + '\u001b';
+        String var2 = "PLST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + separator + "WALO1" + separator + "PNUM" + var1 + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator + "GPR10" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + item.idBarcode + separator + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX" + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, var2);
-        return receiveReply(errors, port, charset);
+        return receiveReply(errors, port);
     }
 
     private void loadPLUMessages(List<String> errors, TCPPort port, ScalesItemInfo item, Map<Integer, String> var1) throws CommunicationException {
@@ -277,10 +274,10 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
 
             var5 = (Integer)var4.next();
             var2 = var1.get(var5);
-            var3 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + var5 + '\u001b' + "ATTE" + var2 + '\u001b' + "BLK " + '\u001b';
+            var3 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + separator + "WALO0" + separator + "ATNU" + var5 + separator + "ATTE" + var2 + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, var3);
-            var6 = receiveReply(errors, port, charset);
+            var6 = receiveReply(errors, port);
         } while(var6.equals("0"));
 
         logError(errors, "Result is " + var6 + " [msgNo=" + var5 + ";msg=" + var5 + "]");
@@ -320,10 +317,10 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
                 var11 = var11.substring(0, 1999);
             }
 
-            var10 = "ATST  \u001bS" + zeroedInt(idMessage, 2) + '\u001b' + "WALO0" + '\u001b' + "ATNU" + idMessage + '\u001b' + "ATTE" + replaceDelimiter(var11) + '\u001b' + "BLK " + '\u001b';
+            var10 = "ATST  \u001bS" + zeroedInt(idMessage, 2) + separator + "WALO0" + separator + "ATNU" + idMessage + separator + "ATTE" + replaceDelimiter(var11) + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, var10);
-            return receiveReply(errors, port, charset);
+            return receiveReply(errors, port);
         }
     }
 
@@ -331,10 +328,10 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
         if(var1 != null) {
             for(int var2 = 0; var2 < var1.size(); ++var2) {
                 String var3 = "";
-                var3 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO1" + '\u001b' + "ATNU" + var1.get(var2) + '\u001b' + "BLK " + '\u001b';
+                var3 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + separator + "WALO1" + separator + "ATNU" + var1.get(var2) + endCommand;
                 clearReceiveBuffer(port);
                 sendCommand(errors, port, var3);
-                return receiveReply(errors, port,charset);
+                return receiveReply(errors, port);
             }
         }
         return null;
@@ -346,17 +343,17 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
             return clearMessages(errors, item, port, var2);
         } else {
             String var4 = "";
-            var4 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "WALO1" + '\u001b' + "ATNU" + var1 + '\u001b' + "BLK " + '\u001b';
+            var4 = "ATST  \u001bS" + zeroedInt(Integer.parseInt(item.idItem), 2) + separator + "WALO1" + separator + "ATNU" + var1 + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, var4);
-            return receiveReply(errors, port, charset);
+            return receiveReply(errors, port);
         }
     }
 
     public void clearAllPLU(List<String> errors, TCPPort port, ScalesItemInfo item) throws CommunicationException {
-        String var1 = "PLST  \u001bL" + zeroedInt(Integer.parseInt(item.idItem), 2) + '\u001b' + "BLK " + '\u001b';
+        String var1 = "PLST  \u001bL" + zeroedInt(Integer.parseInt(item.idItem), 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, var1);
-        receiveReply(errors, port, charset);
+        receiveReply(errors, port);
     }
 }
