@@ -390,7 +390,19 @@ VATReceiptReturnDetail(d) <- VATSkuStock(skuReceiptReturnDetail(d), departmentSt
 
 VATReceiptDetail 'НДС' = ABSTRACT Range(ReceiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
-valueVATReceiptDetail 'НДС, %' (receiptDetail) = valueRateRangeDate(VATReceiptDetail(receiptDetail), dateReceiptDetail(receiptDetail));
+valueVATReceiptDetail 'НДС, %' (receiptDetail) = DATA NUMERIC[10,5] (ReceiptDetail) PERSISTENT;
+WHEN SESSION CHANGED(VATReceiptDetail(receiptDetail)) OR CHANGED(dateReceiptDetail(receiptDetail)) DO {
+    valueVATReceiptDetail(receiptDetail) <- valueRateRangeDate(VATReceiptDetail(receiptDetail), dateReceiptDetail(receiptDetail));
+}
+// todo: после запуска у  всех клиентов удалить
+isDataValueVATReceiptDetail = DATA BOOLEAN ();
+onStarted() += ACTION () {
+    FOR d IS ReceiptDetail AND NOT isDataValueVATReceiptDetail() DO {
+        valueVATReceiptDetail(d) <- valueRateRangeDate(VATReceiptDetail(d), dateReceiptDetail(d));    
+    }    
+    isDataValueVATReceiptDetail() <- TRUE;
+    apply();
+}
 
 sumVATReceiptDetail 'Сумма НДС' (d) = NUMERIC[16,2](roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)));
 signedSumVATReceiptDetail 'Сумма НДС' (d) = NUMERIC[16,2](roundPriceCurrency(signedSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)));
