@@ -286,13 +286,14 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         if(item.description != null) {
             int count = 0;
             String[] splittedMessage = item.description.split("\n");
-            
-            for (String line : splittedMessage) {
+
+            boolean isDouble = splittedMessage.length > 4;
+            for (int i = 0; i < splittedMessage.length; i = i + (isDouble ? 2 : 1)) {
+                String line = splittedMessage[i] + (isDouble && (i+1 < splittedMessage.length) ? (" " + splittedMessage[i+1]) : "");
                 line = line.replace('@', 'a');
                 if (line.length() > 2000) {
                     line = line.substring(0, 1999);
                 }
-
                 int messageNumber = item.pluNumber * 10 + count;
                 messageMap.put(messageNumber, line);
                 ++count;
