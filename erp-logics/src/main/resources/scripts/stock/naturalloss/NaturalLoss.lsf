@@ -19,7 +19,7 @@ nameSubNaturalLossGroup 'Наименование' = DATA VARISTRING[110](SubNat
 CLASS SubNaturalLossGroupDetail 'Строка группы естественной убыли';
 TABLE subNaturalLossGroupDetail(SubNaturalLossGroupDetail);
 
-parentNaturalLossGroup = DATA NaturalLossGroup (SubNaturalLossGroup);
+parentNaturalLossGroup = DATA NaturalLossGroup (SubNaturalLossGroup) AUTOSET;
 nameParentNaturalLossGroup 'Родительская группа' (subNaturalLossGroup) = nameNaturalLossGroup(parentNaturalLossGroup(subNaturalLossGroup));
 codeSubNaturalLossGroup 'Код нормы естественной убыли' = DATA STRING[3] (SubNaturalLossGroup);
 
@@ -38,23 +38,23 @@ inInterval(prm1, prm2, prm3, prm4, prm5, prm6) = (dateToNumber(prm1, prm2) >= da
                                                AND (dateToNumber(prm1, prm2) <= dateToNumber(prm5, prm6));
 
 inIntervalNaturalLoss (date, subNaturalLossGroupDetail) =
- inInterval(extractDay(date), extractMonthNumber(date),
-            dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail),
-            numberMonth(monthFromNaturalLossGroupDetail(subNaturalLossGroupDetail)),
-            dayToNaturalLossGroupDetail(subNaturalLossGroupDetail),
-            numberMonth(monthToNaturalLossGroupDetail(subNaturalLossGroupDetail))) AND date IS DATE;
+    inInterval(extractDay(date), extractMonthNumber(date),
+    dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail),
+    numberMonth(monthFromNaturalLossGroupDetail(subNaturalLossGroupDetail)),
+    dayToNaturalLossGroupDetail(subNaturalLossGroupDetail),
+    numberMonth(monthToNaturalLossGroupDetail(subNaturalLossGroupDetail))) AND date IS DATE;
 
 castIntervalNaturalLoss (subNaturalLossGroupDetail) =
- dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' ' +
-              nameMonthFromNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' - ' +
-              dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' ' +
-              nameMonthToNaturalLossGroupDetail(subNaturalLossGroupDetail);
+    dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' ' +
+    nameMonthFromNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' - ' +
+    dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' ' +
+    nameMonthToNaturalLossGroupDetail(subNaturalLossGroupDetail);
 
 concatSubNaturalLossGroupDetail (subNaturalLossGroup) =
- GROUP CONCAT STRING[15](percentNaturalLossGroupDetail(subNaturalLossGroupDetail)), ','
-       BY subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
-       ORDER subNaturalLossGroupDetail
-       MINCHARWIDTH 10 PREFCHARWIDTH 30;
+    GROUP CONCAT STRING[15](percentNaturalLossGroupDetail(subNaturalLossGroupDetail)), ','
+        BY subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
+        ORDER subNaturalLossGroupDetail
+        MINCHARWIDTH 10 PREFCHARWIDTH 30;
 
 inSubNaturalLossGroup (subNaturalLossGroup, subNaturalLossGroupDetail) =
  subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail) ==  subNaturalLossGroup;
@@ -62,22 +62,22 @@ inSubNaturalLossGroup (subNaturalLossGroup, subNaturalLossGroupDetail) =
 subNaturalLossGroupCountrySku 'Группа естественной убыли товара(ИД)' = ABSTRACT SubNaturalLossGroup (Country, Sku);
 nameSubNaturalLossGroupCountrySku 'Группа естественной убыли товара' (country, sku) = nameSubNaturalLossGroup(subNaturalLossGroupCountrySku(country, sku)) IN rate;
 rateSubNaturalLossGroupCountrySku 'Норма естественной убыли, %' (country, sku) =
- concatSubNaturalLossGroupDetail(subNaturalLossGroupCountrySku(country, sku)) IN rate;
+    concatSubNaturalLossGroupDetail(subNaturalLossGroupCountrySku(country, sku)) IN rate;
 
 inParentNaturalLossGroup(naturalLossGroup, subNaturalLossGroup) =
- parentNaturalLossGroup(subNaturalLossGroup ) == naturalLossGroup;
+    parentNaturalLossGroup(subNaturalLossGroup ) == naturalLossGroup;
 
 inParentNullNaturalLossGroup (naturalLossGroup, subNaturalLossGroup) = OVERRIDE
- parentNaturalLossGroup(subNaturalLossGroup) == naturalLossGroup,
- subNaturalLossGroup IS SubNaturalLossGroup AND NOT naturalLossGroup;
+    parentNaturalLossGroup(subNaturalLossGroup) == naturalLossGroup,
+    subNaturalLossGroup IS SubNaturalLossGroup AND NOT naturalLossGroup;
 
 numberFromSubNaturalLossGroupDetail (subNaturalLossGroupDetail) =
- dateToNumber(dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail),
-              numberMonth(monthFromNaturalLossGroupDetail(subNaturalLossGroupDetail)));
+    dateToNumber(dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail),
+    numberMonth(monthFromNaturalLossGroupDetail(subNaturalLossGroupDetail)));
 
 numberToSubNaturalLossGroupDetail (subNaturalLossGroupDetail) =
- dateToNumber(dayToNaturalLossGroupDetail(subNaturalLossGroupDetail),
-              numberMonth(monthToNaturalLossGroupDetail(subNaturalLossGroupDetail)));
+    dateToNumber(dayToNaturalLossGroupDetail(subNaturalLossGroupDetail),
+    numberMonth(monthToNaturalLossGroupDetail(subNaturalLossGroupDetail)));
 
 intersect(prm1, prm2, prm3, prm4) = (prm4-prm1)*(prm2-prm3) >= 0;
 
@@ -90,13 +90,11 @@ CONSTRAINT intersectNaturalLoss(interval1, interval2) AND interval1 != interval2
         AND subNaturalLossGroupSubNaturalLossGroupDetail(interval1) == subNaturalLossGroupSubNaturalLossGroupDetail(interval2)
         CHECKED BY intersectNaturalLoss MESSAGE 'Интервалы не могут пересекаться';
 
- CONSTRAINT dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) < 1
-        OR dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) > 31
-        CHECKED BY dayFromNaturalLossGroupDetail MESSAGE 'Задайте корректный день месяца';
+CONSTRAINT dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) < 1  OR dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) > 31
+    CHECKED BY dayFromNaturalLossGroupDetail MESSAGE 'Задайте корректный день месяца';
 
- CONSTRAINT dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) < 1
-        OR dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) > 31
-        CHECKED BY dayToNaturalLossGroupDetail MESSAGE 'Задайте корректный день месяца';
+CONSTRAINT dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) < 1 OR dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) > 31
+    CHECKED BY dayToNaturalLossGroupDetail MESSAGE 'Задайте корректный день месяца';
 
 countryNaturalLossGroup = DATA Country (NaturalLossGroup) AUTOSET;
 nameCountryNaturalLossGroup 'Страна' (naturalLossGroup) = nameCountry(countryNaturalLossGroup(naturalLossGroup)) IN base;
@@ -132,6 +130,13 @@ FORM subNaturalLossGroupDetail 'Строка группы естественно
     DIALOG SubNaturalLossGroupDetail OBJECT s
 ;
 
+FORM naturalLossGroup 'Группа естественной убыли'
+    OBJECTS n = NaturalLossGroup FIXED PANEL
+    PROPERTIES nameNaturalLossGroup(n), nameCountryNaturalLossGroup(n)   
+    EDIT NaturalLossGroup  OBJECT n
+;
+
+
 FORM naturalLossGroups 'Справочник норм естественной убыли'
     OBJECTS c=Country FIXED PANEL
     PROPERTIES(c) SELECTOR nameCountry
@@ -139,7 +144,7 @@ FORM naturalLossGroups 'Справочник норм естественной �
     TREE treeNaturalLoss a=STRING[3], n=NaturalLossGroup
     PROPERTIES READONLY OBJVALUE(a)
     PROPERTIES READONLY nameNaturalLossGroup(n), nameCountryNaturalLossGroup(n)
-    PROPERTIES ADDOBJ(n), deleten=DELETE(n) FORCE PANEL TOOLBAR
+    PROPERTIES ADDFORM(n), deleten=DELETE(n) FORCE PANEL TOOLBAR
     ORDER BY nameNaturalLossGroup(n)
 
     OBJECTS sg=SubNaturalLossGroup, d=SubNaturalLossGroupDetail

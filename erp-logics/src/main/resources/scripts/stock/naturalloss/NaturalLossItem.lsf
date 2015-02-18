@@ -31,3 +31,26 @@ EXTEND FORM item
     PROPERTIES(i) nameSubNaturalLossGroupDefaultCountryItem ON CHANGE changeSubNaturalLossGroupDefaultCountryItem(i)
 ;
 DESIGN item { regionPrm  { ADD PROPERTY(nameSubNaturalLossGroupDefaultCountryItem(i));} }
+
+//--
+
+@defineItemDefaultValue(statisticGroup, 'Группа естественной убыли (по-умолчанию)', SubNaturalLossGroup, nameSubNaturalLossGroup, country);
+
+
+EXTEND FORM itemGroup
+    OBJECTS tc=Country 
+    PROPERTIES(tc)   READONLY nameCountry
+    PROPERTIES(tc, g) nameSubNaturalLossGroupCountryItemGroup
+    FILTERGROUP isResident
+        FILTER 'Отечественный производитель' residentCountry(tc) OR defaultCountry()==tc DEFAULT 
+    
+;    
+
+DESIGN itemGroup {
+    detail1 {
+        ADD tc.box { caption = 'Группа естественной убыли';}
+    }         
+}
+
+WHEN SESSION CHANGED(itemGroupItem(item)) AND country IS Country AND NOT subNaturalLossGroupCountryItem(country, item) DO
+    subNaturalLossGroupCountryItem(country, item) <- statisticGroupCountryItemGroup(country, itemGroupItem(item));
