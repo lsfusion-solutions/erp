@@ -451,11 +451,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         Set<String> directorySet = new HashSet<String>();
+        Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
                 directorySet.add(c.directory);
+            if (c.directory != null)
+                directoryDepartNumberGroupCashRegisterMap.put(c.directory + "_" + c.number + "_" + c.overDepartNumber, c.numberGroup);
             if (c.directory != null && c.number != null && c.numberGroup != null)
                 directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
             if (c.directory != null && c.number != null && c.startDate != null)
@@ -564,6 +567,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     List positionEntryList = ((Element) positionNode).getChildren("position");
 
                                     int count = 1;
+                                    String departNumber = null;
                                     for (Object positionEntryNode : positionEntryList) {
 
                                         String barcode = readStringXMLAttribute(positionEntryNode, "barCode");
@@ -588,13 +592,18 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
                                         //discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
                                         Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
+                                        if(departNumber == null)
+                                            departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
 
                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
-                                        if (startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                            currentSalesInfoList.add(new SalesInfo(isGiftCard, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
+                                        if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
+                                            Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(directory + "_" + numberCashRegister + "_" + departNumber);
+                                            nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                            currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
                                                     numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                    sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, discountCard, 
+                                                    sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, discountCard,
                                                     numberReceiptDetail, fileName));
+                                        }
                                         count++;
                                     }
 
