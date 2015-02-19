@@ -1,6 +1,6 @@
 MODULE PriceListCompare;
 
-REQUIRE PriceList;
+REQUIRE PriceList, PriceListDashboard;
 
 //Подсветка строк сравнения прайсов
 isSkuPriceList (sku, priceList) = GROUP SUM 1 BY skuPriceListDetail(detail), priceListPriceListDetail(detail);
@@ -49,5 +49,82 @@ DESIGN userPriceList{
             }
             ADD s3.box;
         }
+    }
+}
+
+
+percentPriceBPriceListTypePriceListTypeSkuStockDateTime 'Отклонение цены, %' (pa,pb,sk,st,d)  = (priceBPriceListTypeSkuStockDateTime(pb,sk,st,d) - priceBPriceListTypeSkuStockDateTime(pa,sk,st,d))*100.00/
+                                                                           priceBPriceListTypeSkuStockDateTime(pa,sk,st,d) IF priceBPriceListTypeSkuStockDateTime(pa,sk,st,d)!=0;
+
+backgroundPercentPriceBPriceListTypePriceListTypeSkuStockDateTime  = IF percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sku,st,d) < 0 THEN RGB(255,100,100) 
+                                                        ELSE IF percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sku,st,d)> 0 THEN RGB(100,255,100);
+
+FORM comparePriceList 'Сравнение цен '
+    OBJECTS pa = PriceListType FIXED PANEL, pb = PriceListType FIXED PANEL  
+    PROPERTIES SELECTOR namePriceListType(pa), namePriceListType(pb) 
+    
+    OBJECTS           st=Stock FIXED PANEL 
+    PROPERTIES(st)    SELECTOR nameStock
+    FILTERS           activeStock(st),
+                      isCompanyStock(st)    
+    
+    OBJECTS d = DATETIME 'Дата' FIXED PANEL 
+    PROPERTIES OBJVALUE (d)     
+    
+    OBJECTS           t=GroupType FIXED PANEL 
+    PROPERTIES(t)     SELECTOR nameGroupType        
+        
+    TREE skuTree g = Group PARENT parentGroup
+    PROPERTIES READONLY orderGroup(g), nameGroup(g)
+    ORDER BY orderGroup(g), nameGroup(g)
+    FILTERS groupTypeGroup(g) == t
+    FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT 
+
+    OBJECTS sk = Sku FIXED GRID 
+    PROPERTIES idBarcodeSku(sk),nameSku(sk), priceBPriceListTypeSkuStockDateTime(pa,sk,st,d), priceBPriceListTypeSkuStockDateTime(pb,sk,st,d),
+               percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d) BACKGROUND backgroundPercentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d)
+    FILTERS priceBPriceListTypeSkuStockDateTime(pa,sk,st,d) > 0 OR priceBPriceListTypeSkuStockDateTime(pb,sk,st,d) > 0,
+            isParentGroupSku(g,sk)
+    FILTERGROUP compareFilter
+        FILTER 'Первая цена выше' percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d) < 0 'F9' 
+        FILTER 'Вторя цена выше' percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d) > 0 'F10'
+    
+;
+
+DESIGN comparePriceList {
+    NEW top FIRST{
+        NEW cen  {
+                type = CONTAINERH;
+                ADD pa.box {caption = 'Первый вид цены';};
+                ADD pb.box {caption = 'Второй вид цены';};
+            } 
+            NEW opt AFTER cen {
+                type = CONTAINERH;
+                ADD st.box;
+                ADD d.box;
+            }
+    }
+    
+    NEW bottom AFTER top {
+        fill = 1;
+        type = SPLITH;
+        NEW leftBottom {
+            fill=2;
+            ADD t.box;
+            ADD skuTree.tree.box;
+        }
+        NEW rightBottom {
+            fill = 5;
+            ADD sk.box;
+        }
+    }
+
+    ADD functions.box;
+
+}
+
+NAVIGATOR {
+    priceListDashboardNavigator {
+        ADD comparePriceList;
     }
 }
