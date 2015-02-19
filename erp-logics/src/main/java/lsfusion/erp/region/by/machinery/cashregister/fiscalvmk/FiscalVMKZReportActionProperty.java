@@ -27,7 +27,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
 
             if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(2, baudRate, comPort));
+                Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(2, baudRate, comPort, null));
                 if (result instanceof Integer) {
                     if ((Integer) result != 0)
                         findProperty("numberZReport").change(String.valueOf(result), context, zReportObject);

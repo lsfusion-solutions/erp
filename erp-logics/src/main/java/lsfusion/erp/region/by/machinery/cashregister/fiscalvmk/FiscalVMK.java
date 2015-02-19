@@ -138,8 +138,14 @@ public class FiscalVMK {
     }
 
     public static boolean printFiscalText(String msg) {
-        logAction("vmk_prnch", msg);
-        return vmkDLL.vmk.vmk_prnch(msg);
+        if(msg != null && !msg.isEmpty()) {
+            for(String line : msg.split("\n")) {
+                logAction("vmk_prnch", line);
+                boolean result = vmkDLL.vmk.vmk_prnch(line);
+                if(!result) return false;
+            }
+        }
+        return true;
     }
 
     public static boolean repeatReceipt() {

@@ -19,10 +19,11 @@ public class FiscalVMKXReportActionProperty extends ScriptingActionProperty {
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
-
-            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(1, baudRate, comPort));
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
+            String fiscalVMKZReportTop = (String) findProperty("fiscalVMKZReportTop").read(context);
+            
+            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(1, baudRate, comPort, fiscalVMKZReportTop));
             if (result == null) {
                 context.apply();
             }

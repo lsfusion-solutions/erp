@@ -40,7 +40,10 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
             DataObject zReportObject = (DataObject) findProperty("zReportReceipt").readClasses(context, receiptObject);
-
+            
+            String fiscalVMKZReportTop = (String) findProperty("fiscalVMKZReportTop").read(context);
+            String fiscalVMKZReportBottom = (String) findProperty("fiscalVMKZReportBottom").read(context);
+            
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
             boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
@@ -146,7 +149,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(baudRate, comPort, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
-                            sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList)));
+                            sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList), 
+                            fiscalVMKZReportTop, fiscalVMKZReportBottom));
                     if (result instanceof Integer) {
                         findProperty("numberReceipt").change(result, context, receiptObject);
                         context.apply();

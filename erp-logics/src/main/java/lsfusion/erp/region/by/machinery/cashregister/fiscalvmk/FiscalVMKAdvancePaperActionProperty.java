@@ -22,7 +22,7 @@ public class FiscalVMKAdvancePaperActionProperty extends ScriptingActionProperty
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(3, baudRate, comPort));
+            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(3, baudRate, comPort, null));
             if (result != null)
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             

@@ -9,20 +9,24 @@ import java.util.List;
 
 
 public class FiscalVMKPrintReceiptClientAction implements ClientAction {
-
-    ReceiptInstance receipt;
+    
     int baudRate;
     int comPort;
     int placeNumber;
     int operatorNumber;
+    ReceiptInstance receipt;
+    String zReportTop;
+    String zReportBottom;
 
-    public FiscalVMKPrintReceiptClientAction(Integer baudRate, Integer comPort, Integer placeNumber,
-                                             Integer operatorNumber, ReceiptInstance receipt) {
-        this.receipt = receipt;
+    public FiscalVMKPrintReceiptClientAction(Integer baudRate, Integer comPort, Integer placeNumber, Integer operatorNumber, 
+                                             ReceiptInstance receipt, String zReportTop, String zReportBottom) {
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
         this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
+        this.receipt = receipt;
+        this.zReportTop = zReportTop;
+        this.zReportBottom = zReportBottom;
     }
 
 
@@ -83,7 +87,9 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             return null;
         
         Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
-
+        
+        FiscalVMK.printFiscalText(zReportTop);
+        
         for (ReceiptItem item : receiptList) {
             if (!FiscalVMK.registerItem(item))
                 return null;
@@ -95,6 +101,8 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             return null;
         if (!FiscalVMK.discountReceipt(receipt))
             return null;
+        
+        FiscalVMK.printFiscalText(zReportBottom);
         
         if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
             return null;
