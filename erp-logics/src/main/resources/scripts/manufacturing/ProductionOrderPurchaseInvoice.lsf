@@ -1,0 +1,26 @@
+MODULE ProductionOrderPurchaseInvoice;
+
+REQUIRE ProductionOrder, PurchaseInvoice;
+
+NAMESPACE Production;
+
+// --------------- Проведение по регистру цен ------------- //
+
+EXTEND CLASS ProductDetail : PriceListLedger;
+
+fromDateTimePriceListLedger (ledger) += dateTimeProductDetail(ledger);
+
+isPostedPriceListLedger(ledger) += isPostedProductDetail(ledger);
+
+skuPriceListLedger (ledger) += skuProductDetail(ledger);
+
+descriptionPriceListLedger (ledger) += descriptionProductDetail(ledger);
+
+companyPriceListLedger (ledger) += companyOrder(orderProductDetail(ledger));
+
+inPriceListLedgerStock (ledger, stock) += productsStockOrder(orderProductDetail(ledger)) == stock;
+
+editPriceListLedger(d) += ACTION editProductDetail(d);
+
+inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(costPriceProductDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
+pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(costPriceProductDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN costPriceProductDetail(ledger);
