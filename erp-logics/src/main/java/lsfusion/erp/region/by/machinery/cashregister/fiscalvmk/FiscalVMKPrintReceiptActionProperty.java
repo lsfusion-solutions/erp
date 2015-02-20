@@ -42,11 +42,11 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             DataObject zReportObject = (DataObject) findProperty("zReportReceipt").readClasses(context, receiptObject);
             
             String fiscalVMKZReportTop = (String) findProperty("fiscalVMKZReportTop").read(context);
-            String fiscalVMKZReportBottom = (String) findProperty("fiscalVMKZReportBottom").read(context);
+            String fiscalVMKZReportBottom = (String) findProperty("fiscalVMKZReportBottom").read(context, receiptObject);
             
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
                 findAction("createCurrentReceipt").execute(context);
@@ -78,7 +78,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.and(findProperty("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
@@ -114,7 +114,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
                 receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
                 List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
