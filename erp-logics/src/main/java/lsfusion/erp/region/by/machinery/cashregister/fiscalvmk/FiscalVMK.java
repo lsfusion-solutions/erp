@@ -44,7 +44,7 @@ public class FiscalVMK {
 
         Boolean vmk_cancel();
 
-        Boolean vmk_sale(String coddigit, byte[] codname, Integer codcena, Integer ot, Double quantity,
+        Boolean vmk_sale(byte[] coddigit, byte[] codname, Integer codcena, Integer ot, Double quantity,
                          Integer sum);
 
         Boolean vmk_discount(byte[] name, Integer value, int flag);
@@ -239,7 +239,7 @@ public class FiscalVMK {
     public static boolean registerItem(ReceiptItem item) {
         try {
             logAction("vmk_sale", item.barcode, item.name, (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
-            return vmkDLL.vmk.vmk_sale(item.barcode, (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
+            return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -248,7 +248,7 @@ public class FiscalVMK {
     public static boolean registerItemPayment(long sumPayment) {
         try {
             logAction("vmk_sale", "", "ОПЛАТА", (int) Math.abs(sumPayment), 1 /*отдел*/, 1, 0);
-            return vmkDLL.vmk.vmk_sale("", ("ОПЛАТА" + "\0").getBytes("cp1251"), (int) Math.abs(sumPayment), 1 /*отдел*/, 1.0, 0);
+            return vmkDLL.vmk.vmk_sale("\0".getBytes("cp1251"), ("ОПЛАТА" + "\0").getBytes("cp1251"), (int) Math.abs(sumPayment), 1 /*отдел*/, 1.0, 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }

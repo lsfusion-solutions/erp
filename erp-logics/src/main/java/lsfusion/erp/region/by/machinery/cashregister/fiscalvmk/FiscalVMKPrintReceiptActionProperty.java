@@ -111,7 +111,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 receiptDetailQuery.addProperty("discountSumReceiptDetail", findProperty("discountSumReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.addProperty("numberVATReceiptDetail", findProperty("numberVATReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.addProperty("typeReceiptDetail", findProperty("typeReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-
+                receiptDetailQuery.addProperty("skuReceiptDetail", findProperty("skuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -129,6 +129,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     BigDecimal quantityValue = (BigDecimal) receiptDetailValues.get("quantityReceiptDetail");
                     double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
                     String barcode = (String) receiptDetailValues.get("idBarcodeReceiptDetail");
+                    if(barcode != null)
+                        barcode = String.valueOf(receiptDetailValues.get("skuReceiptDetail"));
                     String name = (String) receiptDetailValues.get("nameSkuReceiptDetail");
                     name = name == null ? "" : name.trim();
                     BigDecimal sumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
