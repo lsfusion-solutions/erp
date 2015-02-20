@@ -68,7 +68,7 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                     ImList propertyDrawsList = formEntity.getPropertyDrawsList();
                     for(int i = 0; i<propertyDrawsList.size();i++) {
                         PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                        if(instance.toDraw != null) {
+                        if(instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
                             Object value = row.values.get(instance);
                             rowString += (value == null ? "" : value.toString()).trim() + separator;
                         }
