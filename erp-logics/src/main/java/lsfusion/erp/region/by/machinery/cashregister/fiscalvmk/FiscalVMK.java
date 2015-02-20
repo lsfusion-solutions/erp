@@ -53,7 +53,7 @@ public class FiscalVMK {
 
         Boolean vmk_subtotal();
 
-        Boolean vmk_prnch(String message);
+        Boolean vmk_prnch(byte[] message);
 
         Boolean vmk_repeat();
 
@@ -138,14 +138,19 @@ public class FiscalVMK {
     }
 
     public static boolean printFiscalText(String msg) {
+        try {
         if(msg != null && !msg.isEmpty()) {
             for(String line : msg.split("\n")) {
                 logAction("vmk_prnch", line);
-                boolean result = vmkDLL.vmk.vmk_prnch(line);
+                boolean result = vmkDLL.vmk.vmk_prnch((line + "\0").getBytes("cp1251"));
                 if(!result) return false;
             }
         }
         return true;
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace(); 
+            return false;
+        }
     }
 
     public static boolean repeatReceipt() {
