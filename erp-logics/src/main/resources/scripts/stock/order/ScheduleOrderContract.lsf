@@ -1,0 +1,80 @@
+MODULE ScheduleOrderContract;
+
+REQUIRE ScheduleOrder, StockContract;
+
+contractSkuScheduleOrder = ABSTRACT ContractSku (ScheduleOrder) PERSISTENT ;
+seriesNumberContractSkuScheduleOrder 'Номер договора' (o) = seriesNumberContract(contractSkuScheduleOrder(o)) IN documentPrm;
+dateFromContractSkuScheduleOrder 'Дата договора' (o) = dateFromContract(contractSkuScheduleOrder(o)) IN documentPrm;
+
+descriptionContractSkuScheduleOrder 'Описание договора' (o)= CONCAT ' ', seriesNumberContractSkuScheduleOrder(o), ' от ' + dateFromContractSkuScheduleOrder(o);
+
+isCommissionScheduleOrder 'Продажа на комиссию' = ABSTRACT BOOLEAN (ScheduleOrder) IN documentPrm PERSISTENT;
+
+contractSkuScheduleOrderDetail (d) = contractSkuScheduleOrder(scheduleOrderScheduleOrderDetail(d));
+seriesNumberContractSkuScheduleOrderDetail 'Номер договора' (d) = seriesNumberContract(contractSkuScheduleOrderDetail (d));
+
+
+META defineScheduleOrderContract (contractType, contractClass)
+    contractType###scheduleOrder = DATA contractClass (ScheduleOrder);
+    seriesNumber###contractType###scheduleOrder 'Номер договора' (o) = seriesNumberContract(contractType###scheduleOrder(o)) IN documentPrm;
+    dateFrom###contractType###scheduleOrder 'Дата договора' (o) = dateFromContract(contractType###scheduleOrder(o)) IN documentPrm;
+    
+    description###contractType###scheduleOrder 'Описание договора' (o)= CONCAT ' ', seriesNumber###contractType###scheduleOrder(o), ' от ' + dateFrom###contractType###scheduleOrder(o);
+    
+    isCommissionScheduleOrder 'Продажа на комиссию' = DATA BOOLEAN (ScheduleOrder) IN documentPrm;
+    
+    contractType###scheduleOrderDetail (d) = contractType###scheduleOrder(scheduleOrderScheduleOrderDetail(d));
+    seriesNumber###contractType###ScheduleOrderDetail 'Номер договора' (d) = seriesNumberContract(contractType###scheduleOrderDetail (d));
+    
+    ScheduleOrderContract.contractType###scheduleOrder(o) += contractType###scheduleOrder(o);
+    ScheduleOrderContract.isCommissionScheduleOrder(o) += isCommissionScheduleOrder(o);
+    
+    isCommissionScheduleOrder(o) <- type###contractType(contractType###scheduleOrder(o)) == ContractSkuType.commission
+        WHEN CHANGED(contractType###scheduleOrder(o));
+    
+    
+    WHEN SESSION (CHANGED(supplierScheduleOrder(o)) OR CHANGED(supplierStockScheduleOrder(o)) OR CHANGED(customerScheduleOrder(o)) OR CHANGED(startDateScheduleOrder(o))) 
+        AND NOT CHANGED(contractType###scheduleOrder(o)) DO {
+                
+        contractType###scheduleOrder(o) <- default###contractType###supplierStockCustomerDate(supplierScheduleOrder(o), supplierStockScheduleOrder(o), customerScheduleOrder(o), startDateScheduleOrder(o))
+                                        IF count###contractType###supplierStockCustomerDate(supplierScheduleOrder(o), supplierStockScheduleOrder(o), customerScheduleOrder(o), startDateScheduleOrder(o)) == 1;
+    
+    }
+    
+    CONSTRAINT contractType###scheduleOrder(o) AND NOT supplierScheduleOrder(o) == partyAContract(contractType###scheduleOrder(o))
+        CHECKED BY contractType###scheduleOrder MESSAGE 'Организация (поставщик) договора графика поставок не соответствует организация (поставщик) графика поставок';
+    
+    CONSTRAINT contractType###scheduleOrder(o) AND NOT customerScheduleOrder(o) == partyBContract(contractType###scheduleOrder(o))
+        CHECKED BY contractType###scheduleOrder MESSAGE 'Организация (покупатель) договора графика поставок не соответствует организация (покупатель) графика поставок';
+        
+    CONSTRAINT contractType###scheduleOrder(o) AND NOT (dateFromContract(contractType###scheduleOrder(o)) <= startDateScheduleOrder(o) AND NOT (dateToContract(contractType###scheduleOrder(o)) < startDateScheduleOrder(o)))
+               CHECKED BY contractType###scheduleOrder
+               MESSAGE 'Договор просрочен или еще не действует';
+                  
+    CONSTRAINT contractType###scheduleOrder(o) AND countSuppliersStock###contractType###(contractType###scheduleOrder(o)) AND NOT inSupplierStock###contractType(supplierStockScheduleOrder(o),contractType###scheduleOrder(o))
+        CHECKED BY contractType###scheduleOrder MESSAGE 'Для графмика поставок выбран склад поставщика, который не включен в договор';
+    
+    
+    EXTEND FORM scheduleOrder
+        PROPERTIES (s) seriesNumber###contractType###scheduleOrder, isCommissionScheduleOrder
+    ;
+    DESIGN scheduleOrder {
+        main {
+            ADD s.documentPrm AFTER header { 
+                type = CONTAINERH;
+                ADD PROPERTY (seriesNumber###contractType###scheduleOrder(s));
+                ADD PROPERTY (isCommissionScheduleOrder(s));
+            }    
+        }   
+    
+    }
+    
+    EXTEND FORM scheduleOrderDashboard
+        PROPERTIES (s) READONLY seriesNumber###contractType###scheduleOrder AFTER stocksScheduleOrder(s)
+    ;
+END
+
+META defineScheduleOrderContract (contractType)
+    @defineScheduleOrderContract (contractType, ###contractType);
+END
+
