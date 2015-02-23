@@ -1,6 +1,6 @@
 MODULE ConsignmentDashboard;
 
-REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripOrderInvoice,  OrderInvoicePickingOrder; 
+REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripOrderInvoice,  OrderInvoicePickingOrder, SaleInvoiceConsignmentBy, PurchaseReturnInvoiceConsignmentBy; 
 
 NAMESPACE Order;
 
@@ -25,6 +25,15 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
             createPickingUserInvoicePostedOrder(order);
             FOR createdUserInvoiceOrder(i, o) DO {
                 tripInvoice(i) <- tripOrder(o);
+                IF i IS Sale.Invoice AND tripInvoice(i) THEN {
+                    Sale.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
+                    Sale.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                    Sale.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));
+                } ELSE IF i IS PurchaseReturn.Invoice AND tripInvoice(i) THEN {
+                    PurchaseReturn.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
+                    PurchaseReturn.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                    PurchaseReturn.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));                                
+                }                
             }
             apply();
         }
@@ -32,6 +41,15 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
         createPickingUserInvoicePostedOrder(order);  
         FOR createdUserInvoiceOrder(i, order) DO {
             tripInvoice(i) <- tripOrder(order);
+            IF i IS Sale.Invoice AND tripInvoice(i) THEN {
+                Sale.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
+                Sale.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                Sale.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));
+            } ELSE IF i IS PurchaseReturn.Invoice AND tripInvoice(i) THEN {
+                PurchaseReturn.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
+                PurchaseReturn.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                PurchaseReturn.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));                                
+            }            
         }
         apply();
     }
@@ -61,7 +79,7 @@ changeTripOrder = ACTION (order){
 changeNumberInvoice (invoice) = ACTION (invoice) {
     REQUEST STRING[18] INPUT;
     IF requestedString() THEN {
-        numberInvoice(invoice) <- requestedString();         
+        Invoice.numberInvoice(invoice) <- requestedString();         
         apply();
     }    
 }
@@ -69,7 +87,7 @@ changeNumberInvoice (invoice) = ACTION (invoice) {
 changeSeriesInvoice (invoice) = ACTION (invoice) {
     REQUEST STRING[2] INPUT;
     IF requestedString() THEN {
-        seriesInvoice(invoice) <- requestedString();
+        Invoice.seriesInvoice(invoice) <- requestedString();
         apply();
     }    
 }
@@ -99,11 +117,11 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     
     OBJECTS d = OrderDetail FIXED GRID
     PROPERTIES(d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, nameBatchOrderDetail, quantityOrderDetail,
-                  pickingQuantityOrderDetail, invoicedOrderDetail, toInvoicePickedOrderDetail    
+                  pickingQuantityOrderDetail, Invoice.invoicedOrderDetail, toInvoicePickedOrderDetail    
     FILTERS orderOrderDetail(d) == o
     FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' toInvoicePickedOrderDetail(d) 'ctrl F6' DEFAULT 
     
-    OBJECTS i = Invoice FIXED GRID
+    OBJECTS i = Invoice.Invoice FIXED GRID
     PROPERTIES (i) FORCE PANEL numInv=numberInvoice ON CHANGE changeNumberInvoice(i), serInv=seriesInvoice ON CHANGE changeSeriesInvoice(i)
     PROPERTIES (i) READONLY isPostedInvoice 
     PROPERTIES (i) READONLY numberInvoice, seriesInvoice
@@ -193,6 +211,7 @@ DESIGN consignmentDashboard {
 
                             NEW contOne {
                                 caption = 'Накладная';
+                                type = CONTAINERH;
                                 ADD PROPERTY(editAttributesConsignment(i));
                             }
                             NEW tn{
