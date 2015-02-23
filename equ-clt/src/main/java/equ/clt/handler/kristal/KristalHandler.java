@@ -274,7 +274,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 String logRecord = "softcheque data: ";
                 for (Map.Entry<String, SoftCheckInvoice> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
                     logRecord += userInvoice.getKey() + ";";
-                    String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice.getKey()));
+                    String record = String.format("%s|1|1|1|1|1|1|1|100500|1|1|0", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);
                 }
                 sendSoftCheckLogger.info(logRecord);
@@ -375,7 +375,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
+                String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE StatusNotUsed='1' AND PayState='1'";
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
