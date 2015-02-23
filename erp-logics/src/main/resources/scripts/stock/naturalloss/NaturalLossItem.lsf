@@ -37,7 +37,7 @@ EXTEND FORM items
 ;   
 //--
 
-@defineItemDefaultValue(statisticGroup, 'Группа естественной убыли (по-умолчанию)', SubNaturalLossGroup, nameSubNaturalLossGroup, country);
+@defineItemDefaultValue(subNaturalLossGroup, 'Группа естественной убыли (по-умолчанию)', SubNaturalLossGroup, nameSubNaturalLossGroup, country);
 
 
 EXTEND FORM itemGroup
@@ -56,4 +56,27 @@ DESIGN itemGroup {
 }
 
 WHEN SESSION CHANGED(itemGroupItem(item)) AND country IS Country AND NOT subNaturalLossGroupCountryItem(country, item) DO
-    subNaturalLossGroupCountryItem(country, item) <- statisticGroupCountryItemGroup(country, itemGroupItem(item));
+    subNaturalLossGroupCountryItem(country, item) <- subNaturalLossGroupCountryItemGroup(country, itemGroupItem(item));
+
+
+EXTEND CLASS NaturalLossGroup : Group;
+EXTEND CLASS SubNaturalLossGroup : Group;
+
+EXTEND CLASS SystemGroupType { naturalLossGroupType 'Естественная убыль' };
+
+CLASS NaturalLossGroupAll { naturalLossAll 'Все' } : Group;
+TABLE naturalLossGroupAll(NaturalLossGroupAll);
+
+parentGroup (group) += NaturalLossGroupAll.naturalLossAll IF group IS NaturalLossGroup;
+parentGroup (group) += parentNaturalLossGroup(group);
+
+nameGroup (group) += VARISTRING[250](staticCaption(group)) IF group IS NaturalLossGroupAll;
+nameGroup (group) += nameSubNaturalLossGroup(group);
+nameGroup (group) += nameNaturalLossGroup(group);
+
+groupTypeGroup(group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroupAll;
+groupTypeGroup(group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroup ;
+groupTypeGroup(group) += SystemGroupType.naturalLossGroupType IF group IS SubNaturalLossGroup;
+
+
+groupGroupTypeSku(type, sku) += WHEN CLASS(subNaturalLossGroupCountryItem(defaultCountry(),sku)) AND type == SystemGroupType.naturalLossGroupType THEN subNaturalLossGroupCountryItem(defaultCountry(),sku);
