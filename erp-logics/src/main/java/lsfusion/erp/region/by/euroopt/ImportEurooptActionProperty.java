@@ -305,7 +305,11 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                                 netWeight = new BigDecimal(split[0]);
                                 UOMItem = split.length >= 2 ? split[1] : null;
                             } else if(textAttribute[0].equals("Кол-во товара в заводской таре")) {
-                                quantityPack = new BigDecimal(textAttribute[1]);
+                                try {
+                                    quantityPack = new BigDecimal(textAttribute[1]);
+                                } catch(Exception e) {
+                                    quantityPack = null;
+                                }
                                 idBarcodePack = idBarcode + "pack";
                             }
                         }
