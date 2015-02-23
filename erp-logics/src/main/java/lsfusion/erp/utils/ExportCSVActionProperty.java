@@ -3,6 +3,7 @@ package lsfusion.erp.utils;
 import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImList;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
@@ -19,6 +20,11 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.io.*;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
 
 public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
     String idForm;
@@ -44,40 +50,56 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                     for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())
                         formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
                 
-                File exportFile = new File(filePath);
-                PrintWriter bw = new PrintWriter(exportFile, "cp1251");                             
+                    /*ftp://username:password@host:port/path_to_file*/
+                    Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@(.*):([^\\/]*)(?:\\/(.*))?");
+                    Matcher connectionStringMatcher = connectionStringPattern.matcher(filePath);
+                if (connectionStringMatcher.matches()) {
+                    String username = connectionStringMatcher.group(1); //lstradeby
+                    String password = connectionStringMatcher.group(2); //12345
+                    String server = connectionStringMatcher.group(3); //ftp.harmony.neolocation.net
+                    Integer port = Integer.parseInt(connectionStringMatcher.group(4)); //21
+                    String remoteFile = connectionStringMatcher.group(5);
 
-                FormData formData = formInstance.getFormData(0);
+                    FTPClient ftpClient = new FTPClient();
+                    File localFile = null;
+                    try {
 
-                for(FormRow row : formData.rows) {
-                    if(printHeader) {
-                        String headerString = "";
-                        ImList propertyDrawsList = formEntity.getPropertyDrawsList();
-                        for(int i = 0; i<propertyDrawsList.size();i++) {
-                            PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                            if(instance.toDraw != null) {
-                                headerString += instance.propertyObject.property.caption + separator;
+                        ftpClient.connect(server, port);
+                        ftpClient.login(username, password);
+                        ftpClient.enterLocalPassiveMode();
+
+                        ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+                        localFile = File.createTempFile("tmp", ".csv");
+                        exportFile(formEntity, formInstance, localFile.getAbsolutePath(), separator, printHeader);
+
+                        InputStream inputStream = new FileInputStream(localFile);
+                        boolean done = ftpClient.storeFile(remoteFile, inputStream);
+                        inputStream.close();
+                        if (!done) {
+                            throw Throwables.propagate(new RuntimeException("Some error occurred while uploading file to ftp"));
+                        }
+
+                    } catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    } finally {
+                        try {
+                            if (localFile != null)
+                                localFile.delete();
+                            if (ftpClient.isConnected()) {
+                                ftpClient.logout();
+                                ftpClient.disconnect();
                             }
-                        }
-                        headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
-                        bw.println(headerString);
-                        printHeader = false;
-                    }
-                    String rowString = "";
-                    
-                    ImList propertyDrawsList = formEntity.getPropertyDrawsList();
-                    for(int i = 0; i<propertyDrawsList.size();i++) {
-                        PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                        if(instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
-                            Object value = row.values.get(instance);
-                            rowString += (value == null ? "" : value.toString()).trim() + separator;
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
                     }
-                    rowString = rowString.isEmpty() ? rowString : rowString.substring(0, rowString.length() - separator.length());
-                    bw.println(rowString);
+                } else {
+                    if (filePath.startsWith("ftp://"))
+                        context.delayUserInteraction(new MessageClientAction("Неверный формат ftp connection string. Правильный формат: ftp://username:password@host:port/path_to_file", "Ошибка"));
+                    else
+                        exportFile(formEntity, formInstance, filePath, separator, printHeader);
                 }
-                bw.close();
-                
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
@@ -87,5 +109,46 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
         } catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
+    }
+    
+    private void exportFile(FormEntity formEntity, FormInstance formInstance, String filePath, String separator, boolean printHeader) 
+            throws FileNotFoundException, UnsupportedEncodingException, SQLException, SQLHandledException {
+        File exportFile = new File(filePath);
+        PrintWriter bw = new PrintWriter(exportFile, "cp1251");
+
+        FormData formData = formInstance.getFormData(0);
+
+        for(FormRow row : formData.rows) {
+            if(printHeader) {
+                String headerString = "";
+                ImList propertyDrawsList = formEntity.getPropertyDrawsList();
+                for(int i = 0; i<propertyDrawsList.size();i++) {
+                    PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
+                    if(instance.toDraw != null) {
+                        headerString += instance.propertyObject.property.caption + separator;
+                    }
+                }
+                headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
+                bw.println(headerString);
+                printHeader = false;
+            }
+            String rowString = "";
+
+            ImList propertyDrawsList = formEntity.getPropertyDrawsList();
+            for(int i = 0; i<propertyDrawsList.size();i++) {
+                PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
+                if(instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
+                    Object value = row.values.get(instance);
+                    rowString += (value == null ? "" : value.toString()).trim() + separator;
+                }
+            }
+            rowString = rowString.isEmpty() ? rowString : rowString.substring(0, rowString.length() - separator.length());
+            bw.println(rowString);
+        }
+        bw.close();
+    }
+    
+    protected boolean checkDirectory(String directory) {
+        return directory != null  && (directory.startsWith("ftp://") || !new File(directory).exists());
     }
 }
