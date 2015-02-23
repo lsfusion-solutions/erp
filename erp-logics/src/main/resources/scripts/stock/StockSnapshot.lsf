@@ -809,55 +809,55 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
             LOCAL dateCur = DATE();           
             dateCur() <- dateFrom;           
             WHILE dateCur() <= dateTo DO { // сделано так, иначе происходит зацикливание
-                balanceBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
+                balanceBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();
                 balanceBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateCur())) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() 
                         AND isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND balanceBSkuStockDate(sku, stock, dateCur());
                 
-                sumBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;        
+                sumBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();        
                 sumBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateCur())) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() 
                         AND isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND sumBSkuStockDate(sku, stock, dateCur());
                 
-                balanceASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL; 
+                balanceASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur(); 
                 balanceASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateCur())) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() 
                         AND isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND balanceASkuStockDate(sku, stock, dateCur());
-                sumASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;        
+                sumASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();        
                 sumASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateCur())) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() 
                         AND isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND sumASkuStockDate(sku, stock, dateCur());
                           
                 IF isNetWeightSnapshot(snapshot) THEN {
-                    netWeightBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL; 
+                    netWeightBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur(); 
                     netWeightBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateCur())*overNetWeightSku(sku)) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND isBalanceBSnapshot(snapshot) AND balanceBSkuStockDate(sku, stock, dateCur());
                     
-                    netWeightASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;   
+                    netWeightASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();   
                     netWeightASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateCur())*overNetWeightSku(sku)) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND isBalanceASnapshot(snapshot) AND balanceASkuStockDate(sku, stock, dateCur());                            
                             
                 }          
                                 
                 IF isCostSnapshot(snapshot) THEN {
-                    costBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
+                    costBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();
                     costBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumBSkuStockDate(sku, stock, dateCur())) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND costSumBSkuStockDate(sku, stock, date)
                             AND isBalanceBSnapshot(snapshot);   
                     
-                    costASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
+                    costASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();
                     costASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumASkuStockDate(sku, stock, dateCur())) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND costSumASkuStockDate(sku, stock, date)
                             AND isBalanceASnapshot(snapshot);                                             
                 
                 } 
                 IF isVATSupplierSnapshot(snapshot) THEN {
-                    VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
+                    VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();
                     VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumBSkuStockDate(sku, stock, dateCur())*valueVATSkuCountryDate(sku,countryStock(stock),dateCur())/100) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND costSumBSkuStockDate(sku, stock, date)
                             AND isBalanceBSnapshot(snapshot);   
                             
-                    VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;        
+                    VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL WHERE date == dateCur();        
                     VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumASkuStockDate(sku, stock, dateCur())*valueVATSkuCountryDate(sku,countryStock(stock),dateCur())/100) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND costSumASkuStockDate(sku, stock, date)
                             AND isBalanceASnapshot(snapshot);                                             
