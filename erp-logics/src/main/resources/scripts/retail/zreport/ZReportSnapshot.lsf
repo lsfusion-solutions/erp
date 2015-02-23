@@ -66,15 +66,17 @@ overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, d
     IF isDiscountSnapshot(snapshot) THEN {
         IF isDateSnapshot(snapshot) THEN {
             IF isSumSnapshot(snapshot) THEN {
+                discountSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
                 discountSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](discountSumSkuStockDate(sku, stock, date)) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND discountSumSkuStockDate(sku, stock, date);  
                      
             }                               
         }  
-        IF isSumSnapshot(snapshot) THEN {    
+        IF isSumSnapshot(snapshot) THEN {  
+            discountSumSkuStockSnapshot(sku, stock, snapshot) <- NULL;
             discountSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](discountSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);    
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND discountSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo);    
  
         }              
     }            
@@ -90,8 +92,9 @@ discountSumBatchStockDateFromTo 'Скидка за интервал (сумма)
 overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
     IF isDiscountSnapshot(snapshot) THEN {
         IF isSumSnapshot(snapshot) THEN { 
+            discountSumBatchStockSnapshot(batch, stock, snapshot) <- NULL;
             discountSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](discountSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));   
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND discountSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo);   
        
         }          
     }      

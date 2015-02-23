@@ -77,13 +77,13 @@ accessCustomerEmployeeStockGroup 'Доступ разрешен (покупат�
     employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
     dataAccessCustomerEmployee(employee) AND stockGroup IS StockGroup,
     nearestInCustomerEmployeeStockGroup(employee, stockGroup),
-    dataAccessCustomerStockGroupEmployee(stockGroup, employee); // PERSISTENT;
+    dataAccessCustomerStockGroupEmployee(stockGroup, employee); 
 
 accessCustomerEmployeeStock 'Доступ разрешен (покупатель)' (employee, stock) = OVERRIDE
     employee IS Employee AND stock IS Stock AND NOT limitAccessEmployee(employee),
     dataAccessCustomerEmployee(employee) AND stock IS Stock,
     nearestInCustomerEmployeeStockGroup(employee, stockGroupStock(stock)),
-    dataAccessCustomerStockEmployee(stock, employee); // PERSISTENT;
+    dataAccessCustomerStockEmployee(stock, employee); 
 
 countAccessCustomerEmployeeStockGroup 'Кол-во доступных подразделений (покупатель)' (employee, stockGroup) =
     GROUP SUM 1 IF accessCustomerEmployeeStock(employee, stock)
@@ -93,20 +93,20 @@ countAccessCustomerEmployeeStockGroup 'Кол-во доступных подра
 EXTEND FORM employee
 
     TREE stockTree a = STRING[3], sg = StockGroup  PARENT parentStockGroup
-    PROPERTIES READONLY SHOWIF limitAccessEmployee(e) OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
-    PROPERTIES(e) SHOWIF limitAccessEmployee(e) TODRAW a dataAccessSupplierEmployee, dataAccessCompanyEmployee, dataAccessCustomerEmployee
-    PROPERTIES(e,sg) SHOWIF limitAccessEmployee(e) accessSupplierEmployeeStockGroup, accessCompanyEmployeeStockGroup, accessCustomerEmployeeStockGroup
+    PROPERTIES(e)  TODRAW a dataAccessSupplierEmployee, dataAccessCompanyEmployee, dataAccessCustomerEmployee
+    PROPERTIES(e,sg)  accessSupplierEmployeeStockGroup, accessCompanyEmployeeStockGroup, accessCustomerEmployeeStockGroup
 
     OBJECTS s = Stock FIXED GRID
-    PROPERTIES(s) READONLY idStock SHOWIF showLimitAccessEmployee(e)
-    PROPERTIES(s) READONLY SHOWIF limitAccessEmployee(e) stockName = nameStock, nameLegalEntityStock
-    PROPERTIES(s,e) SHOWIF limitAccessEmployee(e) inStockEmployee
+    PROPERTIES(s) READONLY idStock 
+    PROPERTIES(s) READONLY stockName = nameStock, nameLegalEntityStock
+    PROPERTIES(s,e) inStockEmployee 
     ORDER BY stockName
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT
-    PROPERTIES(e,s) SHOWIF limitAccessEmployee(e) accessSupplierEmployeeStock, accessCompanyEmployeeStock, accessCustomerEmployeeStock
+    PROPERTIES(e,s) accessSupplierEmployeeStock, accessCompanyEmployeeStock, accessCustomerEmployeeStock
 ;
 DESIGN employee {
     pane {

@@ -111,42 +111,51 @@ EXTEND FORM snapshotTypes
 overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
     IF isPurchaseSnapshot(snapshot) THEN {
         IF isDateSnapshot(snapshot) THEN {
+            purchaseQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
             purchaseQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityPurchaseSkuStockDate(sku, stock, date)) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                     AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date) AND isQuantitySnapshot(snapshot);
-                    
+            
+            purchaseNetWeightSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
             purchaseNetWeightSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityPurchaseSkuStockDate(sku, stock, date)*overNetWeightSku(sku)) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                     AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date) AND isNetWeightSnapshot(snapshot);
-                                        
+            
+            purchaseSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;                            
             purchaseSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumPurchaseSkuStockDate(sku, stock, date)) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                     AND date <= (dateTo AS DATE) AND sumPurchaseSkuStockDate(sku, stock, date) AND isSumSnapshot(snapshot);  
-                     
+                
+            purchaseCostSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL; 
             purchaseCostSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumPurchaseSkuStockDate(sku, stock, date)) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND costSumPurchaseSkuStockDate(sku, stock, date) AND isCostSnapshot(snapshot);                      
-
+                    AND date <= (dateTo AS DATE) AND costSumPurchaseSkuStockDate(sku, stock, date) AND isCostSnapshot(snapshot);   
+                                       
+            purchaseVATSupplierSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
             purchaseVATSupplierSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumVATPurchaseSkuStockDate(sku, stock, date)) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                     AND date <= (dateTo AS DATE) AND sumVATPurchaseSkuStockDate(sku, stock, date) AND isVATSupplierSnapshot(snapshot);                      
                      
         }
-        
+        purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NULL;
         purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isQuantitySnapshot(snapshot);
-            
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isQuantitySnapshot(snapshot) AND quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);
+        
+        purchaseNetWeightSkuStockSnapshot(sku, stock, snapshot) <- NULL;    
         purchaseNetWeightSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)*overNetWeightSku(sku)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isNetWeightSnapshot(snapshot);
-                        
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isNetWeightSnapshot(snapshot) AND quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);
+        
+        purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NULL;                
         purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isSumSnapshot(snapshot);   
-            
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isSumSnapshot(snapshot) AND sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);   
+        
+        purchaseCostSkuStockSnapshot(sku, stock, snapshot) <- NULL;    
         purchaseCostSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](costSumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isCostSnapshot(snapshot);  
-                          
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isCostSnapshot(snapshot) AND costSumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);  
+        
+        purchaseVATSupplierSkuStockSnapshot(sku, stock, snapshot) <- NULL;                  
         purchaseVATSupplierSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumVATPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isVATSupplierSnapshot(snapshot);                
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isVATSupplierSnapshot(snapshot) AND sumVATPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);                
     }    
 }; 
 //-- SHOWIF

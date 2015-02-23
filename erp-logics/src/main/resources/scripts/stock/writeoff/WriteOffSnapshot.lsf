@@ -81,11 +81,13 @@ overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, d
     IF isWriteOffSnapshot(snapshot) THEN {
         IF isDateSnapshot(snapshot) THEN {
             IF isQuantitySnapshot(snapshot) THEN {
+                writeOffQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
                 writeOffQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](writeOffQuantitySkuStockDate(sku, stock, date)) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND writeOffQuantitySkuStockDate(sku, stock, date);
             }
             IF isSumSnapshot(snapshot) THEN {
+                writeOffSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
                 writeOffSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](writeOffSumSkuStockDate(sku, stock, date)) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND writeOffSumSkuStockDate(sku, stock, date);   
@@ -94,12 +96,14 @@ overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, d
         }
         
         IF isQuantitySnapshot(snapshot) THEN {
+            writeOffQuantitySkuStockSnapshot(sku, stock, snapshot) <- NULL;
             writeOffQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](writeOffQuantitySkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND writeOffQuantitySkuStockDateFromTo(sku, stock, dateFrom, dateTo);
         }    
-        IF isSumSnapshot(snapshot) THEN {    
+        IF isSumSnapshot(snapshot) THEN { 
+            writeOffSumSkuStockSnapshot(sku, stock, snapshot) <- NULL;
             writeOffSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](writeOffSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);    
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND writeOffSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo);    
  
         }              
     }            
@@ -119,12 +123,14 @@ writeOffQuantityBatchStockDateFromTo 'списано за интервал (ко
 overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
     IF isWriteOffSnapshot(snapshot) THEN {
         IF isQuantitySnapshot(snapshot) THEN {
+            writeOffQuantityBatchStockSnapshot(batch, stock, snapshot) <- NULL;
             writeOffQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](writeOffQuantityBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND writeOffQuantityBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
         }
         IF isSumSnapshot(snapshot) THEN { 
+            writeOffSumBatchStockSnapshot(batch, stock, snapshot) <- NULL;
             writeOffSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](writeOffSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));   
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND writeOffSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo);   
        
         }          
     }      
