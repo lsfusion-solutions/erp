@@ -1,0 +1,134 @@
+MODULE POSConsultant;
+
+REQUIRE POS;
+
+
+barcodeEmployee 'Штрихкод' = DATA STRING[15] (Employee) FIXEDCHARWIDTH 15;
+isConsultantEmployee 'Продавец' = DATA BOOLEAN (Employee);
+
+employeeBarcode (string) =
+    GROUP AGGR e
+        BY barcodeEmployee(e) WHERE e IS Employee;
+
+EXTEND FORM employee
+    PROPERTIES (e) isConsultantEmployee, barcodeEmployee
+;
+DESIGN employee{
+    personal {
+        type = COLUMNS;
+        columns = 2;
+        ADD PROPERTY (barcodeEmployee(e));
+        ADD PROPERTY (isConsultantEmployee(e));
+    }
+}
+
+EXTEND FORM employees
+    PROPERTIES (e) READONLYIF isReadonly() barcodeEmployee
+;
+
+isConsultantReceiptStore 'Учет личных продаж' = DATA BOOLEAN (Store);
+isConsultantReceiptDepartmentStore 'Учет личных продаж' = isConsultantReceiptStore(storeDepartmentStore(d));
+isConsultantReceip = isConsultantReceiptDepartmentStore(departmentStoreReceipt(r));
+
+EXTEND FORM store
+    PROPERTIES (s) isConsultantReceiptStore
+;
+DESIGN store {
+    headerExtraParams {
+        ADD PROPERTY (isConsultantReceiptStore(s));
+    }
+}
+
+consultantReceipt = DATA Employee (Receipt);
+nameConsultantReceipt 'Продавец' (r) = nameContact(consultantReceipt(r)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+
+CONSTRAINT consultantReceipt(r) AND NOT inStockEmployee(departmentStoreReceipt(r), consultantReceipt(r))
+    CHECKED BY consultantReceipt MESSAGE 'В качестве продавца в чекевыбран сотрудник, которые не является работником данного отдела';
+CONSTRAINT consultantReceipt(r) AND NOT isConsultantEmployee(consultantReceipt(r))
+    CHECKED BY consultantReceipt MESSAGE 'В качестве продавца в чеке выбран сотрудник, у которого не задан признак "Продавец".';    
+    
+        
+consultantReceiptDetail = ABSTRACT Employee (ReceiptDetail);
+nameConsultantReceiptDetail 'Продавец' (d) = nameContact(consultantReceiptDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+
+consultantReceiptSaleDetail = DATA Employee (ReceiptSaleDetail);
+
+WHEN SESSION FORMS POS SET (d IS ReceiptSaleDetail) AND NOT CHANGED (consultantReceiptSaleDetail(d)) DO {
+    consultantReceiptSaleDetail(d) <- consultantReceipt(receiptReceiptSaleDetail(d));
+};
+
+CONSTRAINT consultantReceiptSaleDetail(r) AND NOT inStockEmployee(departmentStoreReceiptSaleDetail(r), consultantReceiptSaleDetail(r))
+    CHECKED BY consultantReceiptSaleDetail MESSAGE 'В качестве продавца в строке чеке выбран сотрудник, которые не является работником данного отдела';
+CONSTRAINT consultantReceiptSaleDetail(r) AND NOT isConsultantEmployee(consultantReceiptSaleDetail(r))
+    CHECKED BY consultantReceiptSaleDetail MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
+        
+consultantReceiptReturnDetail = DATA Employee (ReceiptReturnDetail);
+
+WHEN SESSION FORMS POS SET (d IS ReceiptReturnDetail) AND NOT CHANGED (consultantReceiptReturnDetail(d)) DO {
+    consultantReceiptReturnDetail(d) <- consultantReceipt(receiptReceiptReturnDetail(d));
+};
+
+CONSTRAINT consultantReceiptReturnDetail(r) AND NOT inStockEmployee(departmentStoreReceiptReturnDetail(r), consultantReceiptReturnDetail(r))
+    CHECKED BY consultantReceiptReturnDetail MESSAGE 'В качестве продавца в строке чека выбран сотрудник, которые не является работником данного отдела';
+CONSTRAINT consultantReceiptReturnDetail(r) AND NOT isConsultantEmployee(consultantReceiptReturnDetail(r))
+    CHECKED BY consultantReceiptReturnDetail MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
+    
+consultantReceiptDetail(d) += consultantReceiptSaleDetail(d);
+consultantReceiptDetail(d) += consultantReceiptReturnDetail(d);
+
+EXTEND FORM POS
+    PROPERTIES (r) SHOWIF isConsultantReceip(r) nameConsultantReceipt
+    PROPERTIES (d) SHOWIF isConsultantReceip(r) nameConsultantReceiptDetail
+;
+
+DESIGN POS {
+    receiptDiscountRow2 {
+        ADD PROPERTY (nameConsultantReceipt(r)){ alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+    } 
+}
+
+EXTEND FORM zReport
+    PROPERTIES (d) SHOWIF isConsultantReceip(b) nameConsultantReceiptDetail
+;
+EXTEND FORM zReports
+    PROPERTIES (d) READONLY SHOWIF isConsultantReceip(b) nameConsultantReceiptDetail
+;
+
+consultantSaleLedger = ABSTRACT Employee (SaleLedger);
+nameConsultantSaleLedger 'Продавец' (l) = nameContact(consultantSaleLedger(l)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+
+consultantSaleLedger(l) +=  consultantReceiptSaleDetail(l);
+consultantSaleLedger(l) +=  consultantReceiptReturnDetail(l); 
+
+saleConsultant 'Продавец' = DATA LOCAL Employee ();
+nameSaleConsultant 'Продавец' = nameContact(saleConsultant());
+filterSaleConsultantSaleLedger = consultantSaleLedger(ledger)==saleConsultant() OR (ledger IS SaleLedger AND NOT saleConsultant());
+
+CONSTRAINT saleConsultant()  AND NOT isConsultantEmployee(saleConsultant())
+    CHECKED BY saleConsultant MESSAGE 'В качестве продавца в фильтре выбран сотрудник, у которого не задан признак "Продавец".';  
+
+EXTEND FORM saleLedger
+    PROPERTIES()   nameSaleConsultant
+    PROPERTIES (s) READONLY nameConsultantSaleLedger
+    
+    FILTERS filterSaleConsultantSaleLedger(s)
+;
+DESIGN saleLedger {
+    operationContainer{
+        ADD PROPERTY(nameSaleConsultant());
+    } 
+}
+
+//задание продавца по штрихкоду для чека
+
+overChangeBarcodeConsultant = ACTION (string, receipt) {
+    IF employeeBarcode(string) AND isConsultantEmployee(employeeBarcode(string)) AND receipt IS Receipt AND string IS STRING[15]  THEN {
+        consultantReceipt(receipt) <- employeeBarcode(string);        
+        consumedChangeBarcodeSaleReceipt() <- TRUE;
+    }
+} TOOLBAR;
+
+overChangeBarcodeSaleReceipt(string, receipt) += ACTION overChangeBarcodeConsultant(string, receipt);
+
+
+
