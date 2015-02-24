@@ -1,6 +1,6 @@
 MODULE ConsignmentDashboard;
 
-REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripOrderInvoice,  OrderInvoicePickingOrder, SaleInvoiceConsignmentBy, PurchaseReturnInvoiceConsignmentBy; 
+REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripOrderInvoice,  OrderInvoicePickingOrder, SaleInvoiceConsignmentBy, PurchaseReturnInvoiceConsignmentBy, TripInvoiceConsignmentBy; 
 
 NAMESPACE Order;
 
@@ -27,11 +27,11 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
                 tripInvoice(i) <- tripOrder(o);
                 IF i IS Sale.Invoice AND tripInvoice(i) THEN {
                     Sale.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                    Sale.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                    Sale.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
                     Sale.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));
                 } ELSE IF i IS PurchaseReturn.Invoice AND tripInvoice(i) THEN {
                     PurchaseReturn.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                    PurchaseReturn.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                    PurchaseReturn.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
                     PurchaseReturn.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));                                
                 }                
             }
@@ -43,11 +43,11 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
             tripInvoice(i) <- tripOrder(order);
             IF i IS Sale.Invoice AND tripInvoice(i) THEN {
                 Sale.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                Sale.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                Sale.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
                 Sale.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));
             } ELSE IF i IS PurchaseReturn.Invoice AND tripInvoice(i) THEN {
                 PurchaseReturn.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                PurchaseReturn.timeUserInvoice(i) <- timeTrip(tripInvoice(i));
+                PurchaseReturn.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
                 PurchaseReturn.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));                                
             }            
         }
