@@ -404,12 +404,12 @@ postCashReceipt 'Наличными' = ACTION (receipt) {
 resetBoardReceipt 'Сбросить текст на дисплее' = ABSTRACT ACTION LIST(Receipt);
 
 cancelReceipt 'Обнулить чек' = ACTION (receipt) {
-    EXEC resetBoardReceipt(receipt);
+    resetBoardReceipt(receipt);
     IF sumReceiptDetailReceipt(receipt) OR quantityReceiptDetailReceipt(receipt) THEN {
         cancel();
         createCurrentReceipt();
     }
-    EXEC fiscalCancelReceipt(receipt);
+    fiscalCancelReceipt(receipt);
 } EDITKEY 'shift F11' CONFIRM IN receiptAction;
 
 // Операции по добавлению строк в чек
@@ -511,7 +511,7 @@ changeBarcodeSaleReceipt = ACTION (receipt) {
         dialogBarcodeSku() <- skuBarcodeIdDate(barcode(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
-            EXEC createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), barcode());
+            createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), barcode());
         } ELSE
             MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
     }
@@ -570,7 +570,7 @@ DESIGN searchSkuSaleReceipt {
 searchSkuSaleReceipt 'Поиск' = ACTION (receipt) {
     FORM searchSkuSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
-        EXEC createReceiptSaleDetailSku(receipt, chosenObject('s'), idBarcodeSku(chosenObject('s')));
+        createReceiptSaleDetailSku(receipt, chosenObject('s'), idBarcodeSku(chosenObject('s')));
     }
 } EDITKEY 'F3' IN receiptSaleAction;
 
@@ -631,6 +631,22 @@ searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
 
 // Возвраты
 
+allReceiptReturn 'Возврат чека целиком' = DATA BOOLEAN ();
+selectiveReturn = TRUE AND NOT allReceiptReturn();
+
+EXTEND FORM options 
+    PROPERTIES () allReceiptReturn 
+;
+DESIGN options {
+    pane {
+        NEW pos {
+            caption = 'POS';
+            type = CONTAINERV;
+            ADD PROPERTY (allReceiptReturn());
+        }
+    }    
+}
+
 createReceiptReturnDetail 'Добавить строку возврата' = ACTION (receipt, receiptSaleDetail, barcode) {
     FOR ADDOBJ d = ReceiptReturnDetail DO {
         receiptReceiptReturnDetail(d) <- receipt;
@@ -642,6 +658,20 @@ createReceiptReturnDetail 'Добавить строку возврата' = ACT
         VATReceiptReturnDetail(d) <- VATReceiptSaleDetail(receiptSaleDetail);
         batchReceiptReturnDetail(d) <- batchReceiptSaleDetail(receiptSaleDetail);
         focusQuantityReceiptDetail(d);
+    }
+}
+overCreateReturnReceiptDetail = ABSTRACT ACTION LIST (ReceiptReturnDetail, ReceiptSaleDetail);
+createReturnReceipt 'Добавить строки возврата' = ACTION (receipt, receiptReturn) {
+    FOR receiptReceiptSaleDetail(receiptSaleDetail) == receiptReturn ADDOBJ d = ReceiptReturnDetail DO {
+        receiptReceiptReturnDetail(d) <- receipt;        
+        idBarcodeReceiptDetail(d) <- idBarcodeSku(skuReceiptSaleDetail(receiptSaleDetail));        
+        receiptSaleDetailReceiptReturnDetail(d) <- receiptSaleDetail;
+        skuReceiptReturnDetail(d) <- skuReceiptSaleDetail(receiptSaleDetail);
+        quantityReceiptReturnDetail(d) <- quantityReceiptSaleDetail(receiptSaleDetail);
+        priceReceiptReturnDetail(d) <- priceReceiptSaleDetail(receiptSaleDetail);
+        VATReceiptReturnDetail(d) <- VATReceiptSaleDetail(receiptSaleDetail);
+        batchReceiptReturnDetail(d) <- batchReceiptSaleDetail(receiptSaleDetail);
+        overCreateReturnReceiptDetail(d,receiptSaleDetail);
     }
 }
 
@@ -727,7 +757,11 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
 searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
     FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt) DIALOG;
     IF formResult() == FormResult.ok THEN {
-        EXEC createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
+        IF selectiveReturn() THEN {        
+            createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
+        } ELSE {
+            createReturnReceipt(receipt, chosenObject('s'));
+        }
     }
 } EDITKEY 'F6' IN receiptReturnAction;
 
@@ -1100,7 +1134,7 @@ WHEN SESSION FORMS POS CHANGED(quantityReceiptDetailReceipt(receipt)) OR
 WHEN SESSION FORMS POS CHANGED(quantityReceiptDetail(receiptDetail)) OR CHANGED(sumReceiptDetail(receiptDetail)) DO 
     fiscalDisplayTextReceiptDetail(receiptDetail);
     
-WHEN SESSION FORMS POS CHANGED(discountCardReceipt(receipt)) DO EXEC recalculatedPriceReceipt(receipt);
+WHEN SESSION FORMS POS CHANGED(discountCardReceipt(receipt)) DO recalculatedPriceReceipt(receipt);
 
 NAVIGATOR {
     retailDashboardNavigator {
