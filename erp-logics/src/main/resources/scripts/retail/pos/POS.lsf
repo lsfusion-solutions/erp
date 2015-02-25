@@ -740,6 +740,7 @@ scanBarcodeReturnReceipt 'Ввести штрихкод' = ACTION (receipt) {
 
 FORM searchSkuReturnReceipt 'Поиск строки возврата'
     OBJECTS st = DepartmentStore FIXED PANEL
+    OBJECTS c = CashRegister FIXED PANEL
 
     OBJECTS s = Receipt FIXED GRID
     PROPERTIES(s) READONLY  numberReceipt, dateReceipt, timeReceipt, nameEmployeeReceipt,
@@ -753,9 +754,12 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
                             sumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceiptDetail
     FILTERS receiptReceiptSaleDetail(r) == s
 ;
+DESIGN searchSkuReturnReceipt {
+    preferredSize = (1024, 768);
+}
 
 searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
-    FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt) DIALOG;
+    FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt), c = cashRegisterReceipt(receipt) DIALOG;
     IF formResult() == FormResult.ok THEN {
         IF selectiveReturn() THEN {        
             createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
