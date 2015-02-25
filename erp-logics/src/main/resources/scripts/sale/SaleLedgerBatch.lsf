@@ -29,7 +29,9 @@ backgroundSkyBatch 'Небесный' (b) = RGB(127,199,255) IF b IS Batch;
 
 dbalanceBBatchStock 'Остаток на начало дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
 dcostBBatchStock 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-daccountSumBBatchStock 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock); 
+dVATSumBBatchStock 'НДС поставщика на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dSumBBatchStock 'Сумма поставщика с НДС на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+daccountSumBBatchStock 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
         
 dquantitySoldBatchStock 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);  
 dcostSumSoldBatchStock 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);   
@@ -42,6 +44,8 @@ daverageMarkupSoldBatchStock 'Средний процент надбавки' = 
    
 dbalanceABatchStock 'Остаток на конец дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
 dcostABatchStock 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dVATSumABatchStock 'НДС поставщика на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dSumABatchStock 'Сумма поставщика с НДС на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
 daccountSumABatchStock 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);                     
     
 dmovedBatchStock = DATA LOCAL BOOLEAN (Batch, Stock);
@@ -53,6 +57,10 @@ fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dF
         WHERE inBatchReportStock(sts);
     dcostBBatchStock(bb,sts) <- dbalanceBBatchStock(bb,sts) * costBatch(bb) 
         WHERE inBatchReportStock(sts); 
+    dVATSumBBatchStock(bb, sts) <- dcostBBatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0
+        WHERE inBatchReportStock(sts);
+    dSumBBatchStock(bb, sts) <- dcostBBatchStock(bb, sts) (+) dVATSumBBatchStock(bb, sts)
+        WHERE inBatchReportStock(sts);         
     daccountSumBBatchStock(bb,sts) <- dbalanceBBatchStock(bb,sts) * accountPriceBBatchStockDate(bb,sts,dFrom) 
         WHERE inBatchReportStock(sts); 
 //--            
@@ -75,6 +83,10 @@ fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dF
         WHERE inBatchReportStock(sts);
     dcostABatchStock(bb,sts) <- dbalanceABatchStock(bb,sts) * costBatch(bb)
         WHERE inBatchReportStock(sts); 
+    dVATSumABatchStock(bb, sts) <- dcostABatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0
+        WHERE inBatchReportStock(sts);
+    dSumABatchStock(bb, sts) <- dcostABatchStock(bb, sts) (+) dVATSumABatchStock(bb, sts)
+        WHERE inBatchReportStock(sts);           
     daccountSumABatchStock(bb,sts) <- dbalanceABatchStock(bb,sts) * accountPriceABatchStockDate(bb,sts,dTo)
         WHERE inBatchReportStock(sts); 
     
@@ -150,12 +162,12 @@ FORM saleBatch 'Продажи по партиям'
 //-- Таблица                                                 
     OBJECTS stbs = (stst=Stock, bbb=Batch)                              
     PROPERTIES(stst)READONLY nameStock                          
-    PROPERTIES(bbb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
+    PROPERTIES(bbb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSupplierBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
                    costBatch
     PROPERTIES(stst, bbb) READONLY currentValueVATStockBatch
                        
     PROPERTIES(bbb,stst) READONLY READONLY BACKGROUND backgroundLavenderBatch(bbb) dbalanceBBatchStock, 
-                   dcostBBatchStock, daccountSumBBatchStock         
+                   dcostBBatchStock, dVATSumBBatchStock, dSumBBatchStock, daccountSumBBatchStock         
     PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dquantitySoldBatchStock, 
                    dcostSumSoldBatchStock, dmarkupSumSoldBatchStock
     PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dsumVATSoldBatchStock, daveragePriceSoldBatchStock,  
@@ -164,7 +176,8 @@ FORM saleBatch 'Продажи по партиям'
                    
     FILTERGROUP inactiveStock4 FILTER 'Активный' activeStock(stst) 'ctrl F10' DEFAULT
                                        
-    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSkyBatch(bbb) dbalanceABatchStock, dcostABatchStock, daccountSumABatchStock                 
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSkyBatch(bbb) dbalanceABatchStock, 
+                    dcostABatchStock, dVATSumABatchStock, dSumABatchStock, daccountSumABatchStock                 
                              
     FILTERS inBatchReportStock(stst),
             isParentGroupBatch(sk, bbb)  
