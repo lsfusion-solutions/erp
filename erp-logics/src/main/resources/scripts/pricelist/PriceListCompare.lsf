@@ -53,23 +53,23 @@ DESIGN userPriceList{
 }
 
 
-percentPriceBPriceListTypePriceListTypeSkuStockDateTime 'Отклонение цены, %' (pa,pb,sk,st,d)  = (priceBPriceListTypeSkuStockDateTime(pb,sk,st,d) - priceBPriceListTypeSkuStockDateTime(pa,sk,st,d))*100.00/
-                                                                           priceBPriceListTypeSkuStockDateTime(pa,sk,st,d) IF priceBPriceListTypeSkuStockDateTime(pa,sk,st,d)!=0;
+percentPrice 'Отклонение цены, %' (pa,pb,sk,sa,sb,da,db)  = (priceBPriceListTypeSkuStockDateTime(pb,sk,sb,db) - priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da))*100.00/
+                                                                           priceBPriceListTypeSkuStockDateTime(pa,sk,sb,db) IF priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da)!=0;
 
-backgroundPercentPriceBPriceListTypePriceListTypeSkuStockDateTime  = IF percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sku,st,d) < 0 THEN RGB(255,100,100) 
-                                                        ELSE IF percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sku,st,d)> 0 THEN RGB(100,255,100);
+backgroundPercentPrice  = IF percentPrice(pa,pb,sk,sa,sb,da,db) < 0 THEN RGB(255,100,100) 
+                                   ELSE IF percentPrice(pa,pb,sk,sa,sb,da,db)> 0 THEN RGB(100,255,100);
+backgroundCompareA = RGB(250,225,225);
+backgroundCompareB = RGB(225,225,250);
+isDifferent(a,b) = IF a != b THEN TRUE;
 
 FORM comparePriceList 'Сравнение цен '
-    OBJECTS pa = PriceListType FIXED PANEL, pb = PriceListType FIXED PANEL  
-    PROPERTIES SELECTOR namePriceListType(pa), namePriceListType(pb) 
+    OBJECTS pa = PriceListType FIXED PANEL, pb = PriceListType FIXED PANEL,sa=Stock FIXED PANEL, sb=Stock FIXED PANEL  
+    PROPERTIES SELECTOR BACKGROUND backgroundCompareA() namePriceListType(pa), nameStock(sa)
+    PROPERTIES SELECTOR BACKGROUND backgroundCompareB() namePriceListType(pb), nameStock(sb)
+    FILTERS activeStock(sa), isCompanyStock(sa), activeStock(sb), isCompanyStock(sb)    
     
-    OBJECTS           st=Stock FIXED PANEL 
-    PROPERTIES(st)    SELECTOR nameStock
-    FILTERS           activeStock(st),
-                      isCompanyStock(st)    
-    
-    OBJECTS d = DATETIME 'Дата' FIXED PANEL 
-    PROPERTIES OBJVALUE (d)     
+    OBJECTS da = DATETIME 'Дата' FIXED PANEL, db = DATETIME 'Дата' FIXED PANEL 
+    PROPERTIES OBJVALUE (da) BACKGROUND backgroundCompareA(), OBJVALUE (db) BACKGROUND backgroundCompareB()     
     
     OBJECTS           t=GroupType FIXED PANEL 
     PROPERTIES(t)     SELECTOR nameGroupType        
@@ -81,33 +81,32 @@ FORM comparePriceList 'Сравнение цен '
     FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT 
 
     OBJECTS sk = Sku FIXED GRID 
-    PROPERTIES READONLY idBarcodeSku(sk),nameSku(sk),currentBalanceSkuStock(sk,st),dateTimeLastOrderBatchSkuStock(sk,st),
-               priceBPriceListTypeSkuStockDateTime(pa,sk,st,d), priceBPriceListTypeSkuStockDateTime(pb,sk,st,d),
-               percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d) BACKGROUND backgroundPercentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d)
-    FILTERS priceBPriceListTypeSkuStockDateTime(pa,sk,st,d) > 0 OR priceBPriceListTypeSkuStockDateTime(pb,sk,st,d) > 0,
-            isParentGroupSku(g,sk)
+    PROPERTIES READONLY idBarcodeSku(sk),nameSku(sk)
+    PROPERTIES READONLY BACKGROUND backgroundCompareA() currentBalanceSkuStock(sk,sa), dateTimeLastOrderBatchSkuStock(sk,sa), priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da)
+    PROPERTIES READONLY BACKGROUND backgroundCompareB() currentBalanceSkuStock(sk,sb) SHOWIF isDifferent(sa,sb),dateTimeLastOrderBatchSkuStock(sk,sb) SHOWIF isDifferent(sa,sb),
+                                                        priceBPriceListTypeSkuStockDateTime(pb,sk,sb,db)
+    PROPERTIES READONLY percentPrice(pa,pb,sk,sa,sb,da,db) BACKGROUND backgroundPercentPrice(pa,pb,sk,sa,sb,da,db)
+    FILTERS priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da) OR priceBPriceListTypeSkuStockDateTime(pb,sk,sb,db), isParentGroupSku(g,sk)
     FILTERGROUP ostFilter
-        FILTER 'Есть остаток' currentBalanceSkuStock(sk,st) 'F8' 
+        FILTER 'Есть остаток' currentBalanceSkuStock(sk,sa) OR currentBalanceSkuStock(sk,sb) 'F8' 
     FILTERGROUP compareFilter
-        FILTER 'Первая цена выше' percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d) < 0 'F9' 
-        FILTER 'Вторая цена выше' percentPriceBPriceListTypePriceListTypeSkuStockDateTime(pa,pb,sk,st,d) > 0 'F10'
-    
+        FILTER 'Первая цена выше' percentPrice(pa,pb,sk,sa,sb,da,db) < 0 'F9' 
+        FILTER 'Вторая цена выше' percentPrice(pa,pb,sk,sa,sb,da,db) > 0 'F10'
 ;
 
 DESIGN comparePriceList {
     NEW top FIRST{
-        NEW cen  {
-                type = CONTAINERH;
-                ADD pa.box {caption = 'Первый вид цены';};
-                ADD pb.box {caption = 'Второй вид цены';};
-            } 
-            NEW opt AFTER cen {
-                type = CONTAINERH;
-                ADD st.box;
-                ADD d.box;
-            }
+        NEW param  {
+            type = COLUMNS ;
+            columns = 2;
+            ADD pa.box;
+            ADD pb.box;
+            ADD sa.box;
+            ADD sb.box;
+            ADD da.box;
+            ADD db.box;
+        } 
     }
-    
     NEW bottom AFTER top {
         fill = 1;
         type = SPLITH;
@@ -121,9 +120,7 @@ DESIGN comparePriceList {
             ADD sk.box;
         }
     }
-
     ADD functions.box;
-
 }
 
 NAVIGATOR {
