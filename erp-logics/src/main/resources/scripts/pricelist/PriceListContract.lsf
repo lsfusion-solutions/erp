@@ -33,6 +33,24 @@ WHEN SESSION (CHANGED(companyUserPriceList(o)) OR CHANGED(companyStockUserPriceL
 
 }
 
+dateFromConstraintContractUserPriceList 'Дата начала контроля сроков договора прайс' = DATA DATE ();  
+
+EXTEND FORM options 
+    PROPERTIES dateFromConstraintContractUserPriceList()    
+;
+    
+DESIGN options {
+    contract {
+        ADD PROPERTY(dateFromConstraintContractUserPriceList());
+    }
+}   
+   
+CONSTRAINT contractSkuUserPriceList(o) 
+    AND NOT (dateFromContract(contractSkuUserPriceList(o)) <= fromDateUserPriceList(o) AND NOT (dateToContract(contractSkuUserPriceList(o)) < fromDateUserPriceList(o)))
+    AND NOT (dateFromConstraintContractUserPriceList() > fromDateUserPriceList(o))
+           CHECKED BY contractSkuUserPriceList
+           MESSAGE 'Договор просрочен или еще не действует';   
+
 CONSTRAINT contractSkuUserPriceList(o) AND NOT companyUserPriceList(o) == partyAContract(contractSkuUserPriceList(o))
     CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (поставщик) договора прайса не соответствует компании прайса';
 
@@ -41,11 +59,6 @@ CONSTRAINT contractSkuUserPriceList(o) AND NOT isSellerLegalEntity(partyAContrac
 
 CONSTRAINT contractSkuUserPriceList(o) AND NOT isBuyerLegalEntity(partyBContract(contractSkuUserPriceList(o)))
     CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (покупатель) договора прайса не является покупателем или компанией';
-    
-CONSTRAINT contractSkuUserPriceList(o) 
-    AND NOT (dateFromContract(contractSkuUserPriceList(o)) <= fromDateUserPriceList(o) AND NOT (dateToContract(contractSkuUserPriceList(o)) < fromDateUserPriceList(o)))
-           CHECKED BY contractSkuUserPriceList
-           MESSAGE 'Договор просрочен или еще не действует';    
                
 CONSTRAINT contractSkuUserPriceList(o) AND countSuppliersStockContractSku(contractSkuUserPriceList(o)) AND NOT inSupplierStockContractSku(companyStockUserPriceList(o),contractSkuUserPriceList(o))
     CHECKED BY contractSkuUserPriceList MESSAGE 'Для прайса выбран склад организации, который не включен в договор';

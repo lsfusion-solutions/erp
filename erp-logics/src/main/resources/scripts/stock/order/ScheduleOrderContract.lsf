@@ -14,7 +14,7 @@ contractSkuScheduleOrderDetail (d) = contractSkuScheduleOrder(scheduleOrderSched
 seriesNumberContractSkuScheduleOrderDetail 'Номер договора' (d) = seriesNumberContract(contractSkuScheduleOrderDetail (d));
 
 
-META defineScheduleOrderContract (contractType, contractClass)
+META defineScheduleOrderContract (contractType, contractClass, caption, NS)
     contractType###scheduleOrder = DATA contractClass (ScheduleOrder);
     seriesNumber###contractType###scheduleOrder 'Номер договора' (o) = seriesNumberContract(contractType###scheduleOrder(o)) IN documentPrm;
     dateFrom###contractType###scheduleOrder 'Дата договора' (o) = dateFromContract(contractType###scheduleOrder(o)) IN documentPrm;
@@ -40,17 +40,30 @@ META defineScheduleOrderContract (contractType, contractClass)
                                         IF count###contractType###supplierStockCustomerDate(supplierScheduleOrder(o), supplierStockScheduleOrder(o), customerScheduleOrder(o), startDateScheduleOrder(o)) == 1;
     
     }
+     
+    dateFromConstraintContract###scheduleOrder 'Дата начала контроля сроков договора график поставок'##caption = DATA DATE ();  
+    
+    EXTEND FORM options 
+        PROPERTIES NS###dateFromConstraintContract###scheduleOrder = NS.dateFromConstraint###scheduleOrder()    
+    ;
+        
+    DESIGN options {
+        contract {
+            ADD PROPERTY(NS###dateFromConstraintContract###scheduleOrder);
+        }
+    }     
+    
+    CONSTRAINT contractType###scheduleOrder(o) AND NOT (dateFromContract(contractType###scheduleOrder(o)) <= startDateScheduleOrder(o) AND NOT (dateToContract(contractType###scheduleOrder(o)) < startDateScheduleOrder(o)))
+               AND NOT (dateFromConstraintContract###scheduleOrder() > startDateScheduleOrder(o))
+               CHECKED BY contractType###scheduleOrder
+               MESSAGE 'Договор просрочен или еще не действует';    
     
     CONSTRAINT contractType###scheduleOrder(o) AND NOT supplierScheduleOrder(o) == partyAContract(contractType###scheduleOrder(o))
         CHECKED BY contractType###scheduleOrder MESSAGE 'Организация (поставщик) договора графика поставок не соответствует организация (поставщик) графика поставок';
     
     CONSTRAINT contractType###scheduleOrder(o) AND NOT customerScheduleOrder(o) == partyBContract(contractType###scheduleOrder(o))
         CHECKED BY contractType###scheduleOrder MESSAGE 'Организация (покупатель) договора графика поставок не соответствует организация (покупатель) графика поставок';
-        
-    CONSTRAINT contractType###scheduleOrder(o) AND NOT (dateFromContract(contractType###scheduleOrder(o)) <= startDateScheduleOrder(o) AND NOT (dateToContract(contractType###scheduleOrder(o)) < startDateScheduleOrder(o)))
-               CHECKED BY contractType###scheduleOrder
-               MESSAGE 'Договор просрочен или еще не действует';
-                  
+                         
     CONSTRAINT contractType###scheduleOrder(o) AND countSuppliersStock###contractType(contractType###scheduleOrder(o)) AND NOT inSupplierStock###contractType(supplierStockScheduleOrder(o),contractType###scheduleOrder(o))
         CHECKED BY contractType###scheduleOrder MESSAGE 'Для графмика поставок выбран склад поставщика, который не включен в договор';
     
@@ -74,7 +87,7 @@ META defineScheduleOrderContract (contractType, contractClass)
     ;
 END
 
-META defineScheduleOrderContract (contractType)
-    @defineScheduleOrderContract (contractType, ###contractType);
+META defineScheduleOrderContract (contractType, caption, NS)
+    @defineScheduleOrderContract (contractType, ###contractType, caption, NS);
 END
 

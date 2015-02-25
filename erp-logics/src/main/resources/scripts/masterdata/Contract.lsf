@@ -88,6 +88,14 @@ FORM contracts 'Договоры'
     DIALOG Contract OBJECT c
 ;
 
+DESIGN options {
+    pane{
+        NEW contract {
+            caption = 'Договор';
+        }
+    }
+}
+
 // ------------------------------------ Макрос для создания договоров по умолчанию ----------------------------- //
 
 //META defineContractDefault (contract, partyA, partyB)
@@ -142,15 +150,15 @@ META defineContractDefault (contract, contractClass, partyAClass, stockAClass, p
                   
 END
 
-META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage)
-    @defineDocumentContract (objectClass, contractType, prefixA, prefixB, default###contractType###prefixA###prefixB, partyAMessage, partyBMessage);
+META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
+    @defineDocumentContract (objectClass, contractType, prefixA, prefixB, default###contractType###prefixA###prefixB, partyAMessage, partyBMessage, caption, NS);
 END
 
-META defineDocumentContract (objectClass, contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage)
-    @defineDocumentContract (objectClass, contractType, ###contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage);
+META defineDocumentContract (objectClass, contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
+    @defineDocumentContract (objectClass, contractType, ###contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS);
 END
 
-META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage)
+META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
     contractType##objectClass = DATA contractTypeClass (objectClass);
     number###contractType##objectClass 'Договор (номер)' (o) = numberContract(contractType##objectClass(o)) IN documentPrm;
     seriesNumber###contractType##objectClass 'Договор (серия/номер)' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrm;
@@ -176,8 +184,21 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
 
     CONSTRAINT contractType##objectClass(o) AND NOT prefixB##objectClass(o) == partyBContract(contractType##objectClass(o))
         CHECKED BY contractType##objectClass MESSAGE partyBMessage;
+    
+    dateFromConstraintContract##objectClass 'Дата начала контроля сроков договора '##caption = DATA DATE ();  
+    
+    EXTEND FORM options 
+        PROPERTIES NS###dateFromConstraintContract##objectClass = NS.dateFromConstraintContract##objectClass()    
+    ;
         
-    CONSTRAINT contractType##objectClass(o) AND NOT (dateFromContract(contractType##objectClass(o)) <= date###objectClass(o) AND NOT (dateToContract(contractType##objectClass(o)) < date###objectClass(o)))
+    DESIGN options {
+        contract {
+            ADD PROPERTY(NS###dateFromConstraintContract##objectClass);
+        }
+    }      
+        
+    CONSTRAINT contractType##objectClass(o) AND NOT (dateFromContract(contractType##objectClass(o)) <= date###objectClass(o) 
+               AND NOT (dateToContract(contractType##objectClass(o)) < date###objectClass(o))) AND NOT (dateFromConstraintContract##objectClass() > date###objectClass(o))
                CHECKED BY contractType##objectClass
                MESSAGE 'Договор просрочен или еще не действует';
                   
@@ -202,9 +223,9 @@ META defineDocumentAbstractContract (objectClass, contractType, contractTypeClas
 
     isCommission##objectClass 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) PERSISTENT IN documentPrm;
 END
-META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage)
+META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
     @defineDocumentAbstractContract(objectClass, contractType);
-    @defineDocumentContract(User###objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage);
+    @defineDocumentContract(User###objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS);
     contractType###objectClass(o) += contractType###user###objectClass(o);
     isCommission###objectClass(o) += isCommissionUser###objectClass(o);
 END

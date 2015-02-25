@@ -380,7 +380,15 @@ NAVIGATOR {
 WHEN SESSION FORMS agreement 
     SET(a IS Agreement) OR  SET(countSuppliersAgreement(a)) DO {
         currencyAgreement (a) <- currencyLegalEntity(defaultSupplierAgreement(a));
-    }        
+    }
+            
+DESIGN options {
+    pane{
+        NEW agreement {
+            caption = 'Соглашение';
+        }
+    }
+}        
         
 // ---------------------------------------------- Копирование соглащений --------------------------------------- //
 
@@ -556,7 +564,7 @@ META defineDocumentInterfaceHeaderAgreement (object)
 
 END
 
-META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
+META deriveDocumentHeaderAgreement (object, supplierProp, customerProp, caption, NS)
 
     defaultAgreement###object = ABSTRACT Agreement (###object);
     changedDefaultAgreement###object = ABSTRACT Object (###object);
@@ -570,6 +578,23 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
                  CHANGED(supplierProp###object(o)) OR 
                  CHANGED(changedDefaultAgreement###object(o)) DO
         agreement###object (o) <- overDefaultAgreement###object(o);
+        
+    dateFromConstraintAgreement###object 'Дата начала контроля сроков соглашения '##caption = DATA DATE ();  
+    
+    EXTEND FORM options 
+        PROPERTIES NS###dateFromConstraintAgreement###object = NS.dateFromConstraintAgreement###object()    
+    ;
+        
+    DESIGN options {
+        agreement {
+            ADD PROPERTY(NS###dateFromConstraintAgreement###object);
+        }
+    }          
+
+    CONSTRAINT agreement###object(o) AND NOT (fromDateTimeAgreement(agreement###object(o)) <= dateTime###object(o) 
+               AND NOT (toDateTimeAgreement(agreement###object(o)) < dateTime###object(o))) AND NOT (dateFromConstraintAgreement###object() > date###object(o))
+               CHECKED BY agreement###object
+               MESSAGE 'Соглашение просрочено или еще не действует';
 
     CONSTRAINT currency###object(o) != currencyAgreement(agreement###object(o))
                CHECKED BY agreement###object
@@ -583,11 +608,6 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
                AND NOT inAgreementCustomer(agreement###object(object), customerProp###object(object))
                CHECKED BY agreement###object
                MESSAGE 'Соглашение должно быть между заданными организациями (покупатель)';
-               
-    CONSTRAINT agreement###object(o) AND NOT (fromDateTimeAgreement(agreement###object(o)) <= dateTime###object(o) AND NOT (toDateTimeAgreement(agreement###object(o)) < dateTime###object(o)))
-               CHECKED BY agreement###object
-               MESSAGE 'Соглашение просрочено или еще не действует';
-               
 END
 
 META defineDocumentDetailAgreement (object, detail)
