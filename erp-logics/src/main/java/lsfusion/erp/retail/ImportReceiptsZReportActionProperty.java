@@ -5,7 +5,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
-import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.ValueClass;
@@ -209,24 +208,24 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 ImportField numberReceiptField = new ImportField(findProperty("numberReceipt"));
                 ImportField numberReceiptDetailField = new ImportField(findProperty("numberReceiptDetail"));
                 
-                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) findClass("CashRegister"), findProperty("cashRegisterNumber").getMapping(numberCashRegisterField));
+                ImportKey<?> cashRegisterKey = new ImportKey((CustomClass) findClass("CashRegister"), findProperty("cashRegisterNumber").getMapping(numberCashRegisterField));
                 saleKeys.add(cashRegisterKey);
                 returnKeys.add(cashRegisterKey);
                 paymentKeys.add(cashRegisterKey);
                 
-                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) findClass("ZReport"), findProperty("zReportNumberCashRegister").getMapping(numberZReportField, numberCashRegisterField));
+                ImportKey<?> zReportKey = new ImportKey((CustomClass) findClass("ZReport"), findProperty("zReportNumberCashRegister").getMapping(numberZReportField, numberCashRegisterField));
                 saleKeys.add(zReportKey);
                 returnKeys.add(zReportKey);
                 
-                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) findClass("Receipt"), findProperty("receiptZReportNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberCashRegisterField));
+                ImportKey<?> receiptKey = new ImportKey((CustomClass) findClass("Receipt"), findProperty("receiptZReportNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberCashRegisterField));
                 saleKeys.add(receiptKey);
                 returnKeys.add(receiptKey);
                 paymentKeys.add(receiptKey);
                 
-                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) findClass("ReceiptSaleDetail"), findProperty("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
+                ImportKey<?> receiptSaleDetailKey = new ImportKey((CustomClass) findClass("ReceiptSaleDetail"), findProperty("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
                 saleKeys.add(receiptSaleDetailKey);
                 
-                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) findClass("ReceiptReturnDetail"), findProperty("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
+                ImportKey<?> receiptReturnDetailKey = new ImportKey((CustomClass) findClass("ReceiptReturnDetail"), findProperty("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
                 returnKeys.add(receiptReturnDetailKey);
                 
                 saleProperties.add(new ImportProperty(numberCashRegisterField, findProperty("cashRegisterZReport").getMapping(zReportKey),
@@ -340,7 +339,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 if (zReportDiscountCardLM != null) {
 
                     ImportField seriesNumberDiscountCardField = new ImportField(zReportDiscountCardLM.findProperty("seriesNumberDiscountCard"));
-                    ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
+                    ImportKey<?> discountCardKey = new ImportKey((CustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
                     saleKeys.add(discountCardKey);
                     returnKeys.add(discountCardKey);
                     
@@ -364,7 +363,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 if (zReportRetailCRMLM != null) {
 
                     ImportField idPromotionConditionField = new ImportField(zReportRetailCRMLM.findProperty("idPromotionCondition"));
-                    ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) zReportRetailCRMLM.findClass("PromotionCondition"),
+                    ImportKey<?> promotionConditionKey = new ImportKey((CustomClass) zReportRetailCRMLM.findClass("PromotionCondition"),
                             zReportRetailCRMLM.findProperty("promotionConditionId").getMapping(idPromotionConditionField));
                     saleKeys.add(promotionConditionKey);
                     saleImportFields.add(idPromotionConditionField);
@@ -389,7 +388,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 }
 
                 ImportField numberPaymentField = new ImportField(findProperty("numberPayment"));
-                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) findClass("Payment"), findProperty("paymentZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberPaymentField, numberCashRegisterField));
+                ImportKey<?> paymentKey = new ImportKey((CustomClass) findClass("Payment"), findProperty("paymentZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberPaymentField, numberCashRegisterField));
                 paymentKeys.add(paymentKey);
                 paymentProperties.add(new ImportProperty(numberPaymentField, findProperty("numberPayment").getMapping(paymentKey)));
                 paymentImportFields.add(numberPaymentField);
@@ -399,7 +398,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 paymentImportFields.add(numberReceiptField);
                 
                 ImportField sidTypePaymentField = new ImportField(findProperty("sidPaymentType"));
-                ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) findClass("PaymentType"), findProperty("typePaymentSID").getMapping(sidTypePaymentField));
+                ImportKey<?> paymentTypeKey = new ImportKey((CustomClass) findClass("PaymentType"), findProperty("typePaymentSID").getMapping(sidTypePaymentField));
                 paymentKeys.add(paymentTypeKey);
                 paymentProperties.add(new ImportProperty(sidTypePaymentField, findProperty("paymentTypePayment").getMapping(paymentKey),
                         object(findClass("PaymentType")).getMapping(paymentTypeKey)));
