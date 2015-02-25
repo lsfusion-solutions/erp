@@ -168,6 +168,29 @@ addCalcPriceListType 'Добавить расчетную цену' = ACTION ADD
 editCalcPriceListType 'Редактировать' = ACTION EDITFORM CalcPriceListType;
 editPriceListType(priceListType) += ACTION editCalcPriceListType(priceListType);
 
+copyCalcPriceListType 'Копировать' = ACTION (priceListType) {
+    FOR ADDOBJ p = CalcPriceListType DO {
+        includeVATPriceListType(p) <- includeVATPriceListType(priceListType);
+        countryCalcPriceListType(p) <- countryCalcPriceListType(priceListType);
+        currencyPriceListType(p) <- currencyPriceListType(priceListType);
+        roundConditionPriceListType(p) <- roundConditionPriceListType(priceListType);
+        basePriceListTypeCalcPriceListType(p) <- basePriceListTypeCalcPriceListType(priceListType);
+        parentCalcPriceListType(p) <- parentCalcPriceListType(priceListType);
+       // pricingBaseCalcPriceListType(p) <- pricingBaseCalcPriceListType(p);
+        groupTypeCalcPriceListType(p) <- groupTypeCalcPriceListType(priceListType);
+        FOR dataMarkupCalcPriceListTypeGroup(priceListType, group) DO {
+            dataMarkupCalcPriceListTypeGroup(p, group) <- dataMarkupCalcPriceListTypeGroup(priceListType, group);    
+        }
+        FOR dataRoundConditionCalcPriceListTypeGroup(priceListType, group) DO {
+            dataRoundConditionCalcPriceListTypeGroup(p, group) <- dataRoundConditionCalcPriceListTypeGroup(priceListType, group);    
+        }
+        FOR dataMarkupCalcPriceListTypeSku(priceListType, sku) DO {
+            dataMarkupCalcPriceListTypeSku(p, sku) <- dataMarkupCalcPriceListTypeSku(priceListType, sku);    
+        }
+        FORM calcPriceListType OBJECTS c=p; 
+    }
+}
+
 EXTEND FORM priceListTypes
     PROPERTIES() TODRAW pt FORCE PANEL addCalcPriceListType
 //    PROPERTIES(pt) SHOWIF showIDs() READONLY idCalcPriceListType
