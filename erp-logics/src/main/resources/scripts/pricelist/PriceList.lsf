@@ -64,6 +64,19 @@ EXTEND FORM priceListTypes
 //    PROPERTIES(pt) SHOWIF showIDs() READONLY idDataPriceListType
 ;
 
+overCopyPriceListType (priceListType) += ACTION (priceListType) NEWSESSION {
+    IF priceListType IS DataPriceListType THEN {
+        FOR ADDOBJ p = DataPriceListType DO {
+            batchLedgerDataPriceListType(p) <- batchLedgerDataPriceListType(priceListType);
+            includeVATDataPriceListType(p) <- includeVATDataPriceListType(priceListType);
+            roundConditionPriceListType(p) <- roundConditionPriceListType(priceListType);
+            currencyDataPriceListType(p) <- currencyDataPriceListType(priceListType);
+                                    
+            FORM dataPriceListType OBJECTS d=p MANAGESESSION DOCKEDMODAL; 
+        }
+    }
+}
+
 // --------------------------- Прайс-листы ------------------------- //
 
 CLASS ABSTRACT PriceList 'Прайс' : Document;

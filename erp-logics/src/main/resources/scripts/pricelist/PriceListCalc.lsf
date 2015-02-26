@@ -168,26 +168,24 @@ addCalcPriceListType 'Добавить расчетную цену' = ACTION ADD
 editCalcPriceListType 'Редактировать' = ACTION EDITFORM CalcPriceListType;
 editPriceListType(priceListType) += ACTION editCalcPriceListType(priceListType);
 
-copyCalcPriceListType 'Копировать' = ACTION (priceListType) {
-    FOR ADDOBJ p = CalcPriceListType DO {
-        includeVATPriceListType(p) <- includeVATPriceListType(priceListType);
-        countryCalcPriceListType(p) <- countryCalcPriceListType(priceListType);
-        currencyPriceListType(p) <- currencyPriceListType(priceListType);
-        roundConditionPriceListType(p) <- roundConditionPriceListType(priceListType);
-        basePriceListTypeCalcPriceListType(p) <- basePriceListTypeCalcPriceListType(priceListType);
-        parentCalcPriceListType(p) <- parentCalcPriceListType(priceListType);
-       // pricingBaseCalcPriceListType(p) <- pricingBaseCalcPriceListType(p);
-        groupTypeCalcPriceListType(p) <- groupTypeCalcPriceListType(priceListType);
-        FOR dataMarkupCalcPriceListTypeGroup(priceListType, group) DO {
-            dataMarkupCalcPriceListTypeGroup(p, group) <- dataMarkupCalcPriceListTypeGroup(priceListType, group);    
+overCopyPriceListType (priceListType) += ACTION (priceListType) NEWSESSION {
+    IF priceListType IS CalcPriceListType THEN {
+        FOR ADDOBJ p = CalcPriceListType DO {
+            includeVATCalcPriceListType(p) <- includeVATCalcPriceListType(priceListType);
+            countryCalcPriceListType(p) <- countryCalcPriceListType(priceListType);            
+            currencyCalcPriceListType(p) <- currencyCalcPriceListType(priceListType);            
+            roundConditionPriceListType(p) <- roundConditionPriceListType(priceListType);            
+            basePriceListTypeCalcPriceListType(p) <- basePriceListTypeCalcPriceListType(priceListType);
+            parentCalcPriceListType(p) <- parentCalcPriceListType(priceListType);
+           // pricingBaseCalcPriceListType(p) <- pricingBaseCalcPriceListType(p);
+            groupTypeCalcPriceListType(p) <- groupTypeCalcPriceListType(priceListType);
+            
+            dataMarkupCalcPriceListTypeGroup(p, group) <- dataMarkupCalcPriceListTypeGroup(priceListType, group) WHERE dataMarkupCalcPriceListTypeGroup(priceListType, group);    
+            dataRoundConditionCalcPriceListTypeGroup(p, group) <- dataRoundConditionCalcPriceListTypeGroup(priceListType, group) WHERE dataRoundConditionCalcPriceListTypeGroup(priceListType, group);    
+            dataMarkupCalcPriceListTypeSku(p, sku) <- dataMarkupCalcPriceListTypeSku(priceListType, sku) WHERE dataMarkupCalcPriceListTypeSku(priceListType, sku);    
+            
+            FORM calcPriceListType OBJECTS c=p MANAGESESSION DOCKEDMODAL; 
         }
-        FOR dataRoundConditionCalcPriceListTypeGroup(priceListType, group) DO {
-            dataRoundConditionCalcPriceListTypeGroup(p, group) <- dataRoundConditionCalcPriceListTypeGroup(priceListType, group);    
-        }
-        FOR dataMarkupCalcPriceListTypeSku(priceListType, sku) DO {
-            dataMarkupCalcPriceListTypeSku(p, sku) <- dataMarkupCalcPriceListTypeSku(priceListType, sku);    
-        }
-        FORM calcPriceListType OBJECTS c=p; 
     }
 }
 

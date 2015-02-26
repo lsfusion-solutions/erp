@@ -113,6 +113,14 @@ priceABasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += price
 
 editPriceListType 'Редактировать' = ABSTRACT ACTION LIST (PriceListType) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
+showCopyPriceListType = ABSTRACT BOOLEAN (PriceListType);
+overCopyPriceListType = ABSTRACT ACTION LIST (PriceListType);
+
+copyPriceListType 'Копировать' = ACTION (priceListType) {
+    overCopyPriceListType(priceListType);
+} TOOLBAR;
+
+
 FORM priceListType 'Вид цены'
 
     OBJECTS p = PriceListType
@@ -126,8 +134,9 @@ FORM priceListTypes 'Виды цен'
 
     OBJECTS pt = PriceListType
     PROPERTIES(pt) READONLY idPriceListType SHOWIF showIDs(), namePriceListType, nameCurrencyPriceListType, nameRoundConditionPriceListType, objectClassName
-    PROPERTIES(pt) editPriceListType, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(pt) editPriceListType, DELETE FORCE PANEL TOOLBAR SHOWIF showCopyPriceListType(pt)  
     ORDER BY objectClassName(pt)
+    PROPERTIES (pt) copyPriceListType SHOWIF showCopyPriceListType(pt)  
 ;   
 
 DESIGN priceListTypes {
