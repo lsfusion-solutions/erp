@@ -551,12 +551,19 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         PROPERTIES(object) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
         ORDER BY nameProp###object(object)
         PROPERTIES replace###object(object) TODRAW object FORCE PANEL TOOLBAR
+        
+        OBJECTS object##Item = Item
+        PROPERTIES(object##Item) READONLY idBarcodeSku, nameSku
+        FILTERS object##Item(object##Item) == object
     ;
     
     DESIGN attributesItem {
         tabContainer {
-            ADD object.box{
+            NEW object##Tab {
+                type = SPLITV;
                 caption = ''###caption2;
+                ADD object.box { fill = 3; };
+                ADD object##Item.box;
             }
         }
     }
@@ -784,6 +791,7 @@ END
 
 META defineObjectItemAttributeForm(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
+    deleteUnusedAttributes() += ACTION { DELETE o WHERE o IS attributeClass AND NOT [= GROUP SUM 1 BY attribute##Item(item)](o);}
     identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
     @defineItemAttributeForm(attribute, identity, caption, group);
 END
