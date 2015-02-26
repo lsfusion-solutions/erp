@@ -456,13 +456,42 @@ levelSkuRangeDateFromTo (sku, range, dateFrom, dateTo) =
     GROUP MIN level IF indexRangeGroupSkuDateFromTo(range, sku, dateFrom, dateTo) <= totalRangeLevel(range, level)
           BY sku, range, dateFrom, dateTo;
 
+
+countFilterRangeStoreDateFromTo 'Кол-во наименований' (range, store, dateFrom, dateTo) = GROUP SUM 1 IF countFilterRangeSkuStoreDateFromTo(sku, store, dateFrom, dateTo) 
+    AND inDataRangeSkuGroup(range, group) AND isParentSkuGroupSku(group, sku)
+        BY range, store, dateFrom, dateTo;
+
+countFilterRangeRevStoreDateFromTo 'Кол-во наименований' (v, store, dateFrom, dateTo) = countFilterRangeStoreDateFromTo(rangeRangeRev(v),store, dateFrom, dateTo);
+
+balanceARangeStoreDate 'Остаток (ассортимент)' (range, store,  dateTo) = GROUP SUM balanceASkuStockDate(sku,stock,dateTo)     
+    IF inDataRangeSkuGroup(range, group) AND isParentSkuGroupSku(group, sku)
+        BY range, storeDepartmentStore(stock), dateTo;
+
+balanceARangeRevStoreDate 'Остаток (ассортимент)' (v, store, dateTo) = balanceARangeStoreDate(rangeRangeRev(v),store, dateTo);
+
+EXTEND FORM rangeRev
+    PROPERTIES READONLY countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+    
+    OBJECTS st = Store FIXED GRID
+    PROPERTIES READONLY nameStore(st), countFilterRangeRevStoreDateFromTo(v,st,dFrom, dTo), balanceARangeRevStoreDate(v,st,dTo)
+    FILTERS countFilterRangeRevStoreDateFromTo(v,st,dFrom, dTo) OR balanceARangeRevStoreDate(v,st,dTo)
+;
+DESIGN rangeRev {
+    NEW header BEFORE functions.box {
+        type = TABBED;
+        fill = 1;
+        ADD s.box;
+        ADD st.box;
+    }
+}
+
 FORM param 'Параметры заполнения ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL 
+
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
-    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+
     OBJECTS l = RangeLevel
     PROPERTIES(l) nameRangeLevel READONLY, countRangeLevel 
-//    PROPERTIES total(v,l)
     FILTERS inRangeRangeLevel(rangeRangeRev(v), l)
     
     OBJECTS s = Sku
@@ -484,11 +513,11 @@ DESIGN param {
     }
 }
 
-fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev) {
-    FORM param OBJECTS v =  rangeRev MODAL;
+fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, dateTo) {
+    FORM param OBJECTS v =  rangeRev, dFrom = dateFrom, dTo = dateTo MODAL;
     IF formResult() == FormResult.ok THEN { 
         IF countRangeLevelsRange(rangeRangeRev(rangeRev)) THEN {
-            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDateFromTo (sku, rangeRangeRev(rangeRev), chosenDate('dFrom'), chosenDate('dTo')) WHERE levelSkuRangeDateFromTo (sku, rangeRangeRev(rangeRev), chosenDate('dFrom'), chosenDate('dTo')) ;
+            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDateFromTo (sku, rangeRangeRev(rangeRev), dateFrom, dateTo) WHERE levelSkuRangeDateFromTo (sku, rangeRangeRev(rangeRev), dateFrom, dateTo) ;
         } ELSE {
             MESSAGE 'Не задано количество товара ни для одного уровня ассортиментной матрицы.';
         }
@@ -498,7 +527,7 @@ fillRangeRev 'Заполнить матрицу по остаткам и про�
 
 
 EXTEND FORM rangeRev
-    PROPERTIES (v) fillRangeRev TODRAW s
+    PROPERTIES (v,dFrom,dTo) fillRangeRev TODRAW s
 ;
 
 
