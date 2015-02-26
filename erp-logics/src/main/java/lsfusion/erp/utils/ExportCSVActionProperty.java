@@ -29,7 +29,7 @@ import org.apache.commons.net.ftp.FTPClient;
 public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
     String idForm;
     String idGroupObject;
-    
+
     public ExportCSVActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject, ValueClass... classes) {
         super(LM, classes);
         this.idForm = idForm;
@@ -51,8 +51,8 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                         formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
                 
                     /*ftp://username:password@host:port/path_to_file*/
-                    Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@(.*):([^\\/]*)(?:\\/(.*))?");
-                    Matcher connectionStringMatcher = connectionStringPattern.matcher(filePath);
+                Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@(.*):([^\\/]*)(?:\\/(.*))?");
+                Matcher connectionStringMatcher = connectionStringPattern.matcher(filePath);
                 if (connectionStringMatcher.matches()) {
                     String username = connectionStringMatcher.group(1); //lstradeby
                     String password = connectionStringMatcher.group(2); //12345
@@ -67,7 +67,6 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                         ftpClient.connect(server, port);
                         ftpClient.login(username, password);
                         ftpClient.enterLocalPassiveMode();
-
                         ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
                         localFile = File.createTempFile("tmp", ".csv");
@@ -110,21 +109,21 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
             throw Throwables.propagate(e);
         }
     }
-    
-    private void exportFile(FormEntity formEntity, FormInstance formInstance, String filePath, String separator, boolean printHeader) 
+
+    private void exportFile(FormEntity formEntity, FormInstance formInstance, String filePath, String separator, boolean printHeader)
             throws FileNotFoundException, UnsupportedEncodingException, SQLException, SQLHandledException {
         File exportFile = new File(filePath);
         PrintWriter bw = new PrintWriter(exportFile, "cp1251");
 
         FormData formData = formInstance.getFormData(0);
 
-        for(FormRow row : formData.rows) {
-            if(printHeader) {
+        for (FormRow row : formData.rows) {
+            if (printHeader) {
                 String headerString = "";
                 ImList propertyDrawsList = formEntity.getPropertyDrawsList();
-                for(int i = 0; i<propertyDrawsList.size();i++) {
+                for (int i = 0; i < propertyDrawsList.size(); i++) {
                     PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                    if(instance.toDraw != null) {
+                    if (instance.toDraw != null) {
                         headerString += instance.propertyObject.property.caption + separator;
                     }
                 }
@@ -135,9 +134,9 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
             String rowString = "";
 
             ImList propertyDrawsList = formEntity.getPropertyDrawsList();
-            for(int i = 0; i<propertyDrawsList.size();i++) {
+            for (int i = 0; i < propertyDrawsList.size(); i++) {
                 PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                if(instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
+                if (instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
                     Object value = row.values.get(instance);
                     rowString += (value == null ? "" : value.toString()).trim() + separator;
                 }
@@ -147,8 +146,8 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
         }
         bw.close();
     }
-    
+
     protected boolean checkDirectory(String directory) {
-        return directory != null  && (directory.startsWith("ftp://") || !new File(directory).exists());
+        return directory != null && (directory.startsWith("ftp://") || !new File(directory).exists());
     }
 }
