@@ -1536,7 +1536,7 @@ EXTEND FORM order
     ORDER BY orderSkuGroup(g)
     
     OBJECTS p=Product
-    PROPERTIES(p) idProduct SHOWIF showIDs()
+    PROPERTIES(p) READONLY idProduct SHOWIF showIDs()
     PROPERTIES(p) READONLY descriptionProduct, nameSkuProduct, shortNameUOMProduct
     PROPERTIES(o,p) quantityOrderProduct ON CHANGE changeQuantityProductOrder(p,o)
 
@@ -1566,4 +1566,76 @@ DESIGN order{
 
 editProductDetail(d) = ACTION (d) NEWSESSION {
     FORM order OBJECTS o = orderProductDetail(d), pd = d MANAGESESSION DOCKEDMODAL;
+}
+
+//-------------------- Подбор компонентов -----------------//
+componentDetailOrderBruttoSku (order,bruttoSku) =  GROUP MAX componentDetail
+    BY orderComponentDetail(componentDetail), bruttoSkuComponentDetail(componentDetail);
+
+bruttoQuantityOrderBruttoSku 'Кол-во брутто компонентов в документе' (order,bruttoSku) =  GROUP SUM bruttoQuantityComponentDetail(componentDetail)
+    BY orderComponentDetail(componentDetail), bruttoSkuComponentDetail(componentDetail);    
+    
+changeBruttoQuantityBruttoSkuOrder = ACTION (bruttoSku, order) {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF componentDetailOrderBruttoSku(order,bruttoSku) THEN {
+        IF requestedNumeric() THEN {
+            bruttoQuantityComponentDetail(detail) <- requestedNumeric() WHERE detail == componentDetailOrderBruttoSku(order,bruttoSku);
+        } ELSE {
+            DELETE detail WHERE detail == componentDetailOrderBruttoSku(order,bruttoSku);
+        }
+    } ELSE {
+        IF requestedNumeric() THEN {
+            FOR ADDOBJ d = ComponentDetail DO {
+                orderComponentDetail(d) <- order;
+                bruttoSkuComponentDetail(d) <- bruttoSku;
+                bruttoQuantityComponentDetail (d) <- requestedNumeric();
+            }
+        }
+    }
+}
+
+prevCurrentBalanceSkuOrder 'Остаток' (sku, o) = prevCurrentBalanceSkuStock(sku, componentsStockOrder(o));
+
+
+EXTEND FORM order
+
+    TREE skuTree1 g1 = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(g1), nameSkuGroup(g1)
+    ORDER BY nameSkuGroup(g1)
+    FILTERGROUP inactive1 FILTER 'Активные' activeSkuGroup(g1) 'F5' DEFAULT
+    ORDER BY orderSkuGroup(g1)
+    
+    OBJECTS p1=Sku
+    PROPERTIES(p1) READONLY idSku SHOWIF showIDs()
+    PROPERTIES(p1) READONLY nameSku, shortNameUOMSku
+    PROPERTIES(o,p1) bruttoQuantityOrderBruttoSku ON CHANGE changeBruttoQuantityBruttoSkuOrder(p1,o)
+
+    ORDER BY nameSku(p1)
+    
+    FILTERS isParentSkuGroupSku(g1, p1),
+            activeSku(p1)    
+            
+    FILTERGROUP filter
+        FILTER 'С остатком (скл. комп.)' prevCurrentBalanceSkuOrder(p1, o) 'F10' DEFAULT
+        FILTER 'В документе (брутто)' bruttoQuantityOrderBruttoSku(o, p1) 'F9'            
+            
+;
+
+DESIGN order{
+    specification.box {
+        NEW tabContainerComponent BEFORE row2 {
+            fill = 1;
+            type = TABBED;
+            caption = 'Компоненты';
+            ADD cd.box;
+            NEW selectPane1 {
+                caption = 'Подбор';
+                fill = 1;
+                type = SPLITH;
+                ADD skuTree1.tree.box { caption = 'Группы'; }                
+                ADD p1.box;
+            }    
+        }    
+    }
+
 }
