@@ -331,7 +331,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDateGroupCashRegister").read(session, groupMachineryObject);
                     Boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
                     Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberGroupCashRegister").read(session, groupMachineryObject);
-
+                    String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idDepartmentStoreGroupCashRegister").read(session, groupMachineryObject);
+                    
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
                     KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
                     ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
@@ -388,7 +389,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, itemObject, description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, 
-                                nameSeason));
+                                nameSeason, idDepartmentStoreGroupCashRegister));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 

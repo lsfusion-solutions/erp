@@ -102,6 +102,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ( (item.flags & 16) == 0 ) ? "false" : "true");
                     rootElement.addContent(maxDiscountRestriction);
 
+                    addStringElement(good, "shop-indices", item.idDepartmentStore);
+
                     addStringElement(good, "name", item.name);
 
                     //parent: good
