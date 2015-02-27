@@ -403,16 +403,13 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         List<String> unusedEntryTypes = Arrays.asList("4", "14", "21", "23", "42", "43", "45", "49", "50", "51", "55", "60", "61", "63");
 
-        Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.handlerModel.endsWith("AtolHandler"))
-                directorySet.add(c.directory);
             if (c.directory != null && c.number != null && c.numberGroup != null)
                 directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
             if (c.directory != null && c.number != null && c.startDate != null)
@@ -422,102 +419,100 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
         Set<Integer> cancelReceiptSet = new HashSet<Integer>();
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         Map<String, Boolean> filePathList = new HashMap<String, Boolean>();
-        for (String directory : directorySet) {
 
-            String exchangeDirectory = directory + "/OUT/";
+        String exchangeDirectory = directory + "/OUT/";
 
-            File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return acceptSalesFile(pathname);
+        File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                return acceptSalesFile(pathname);
+            }
+        });
+
+        if (filesList != null) {
+            for (File file : filesList) {
+
+                boolean isCurrent = file.getName().contains("current");
+                List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
+
+                if (file.getName().contains("_current")) {
+                    filePathList.put(file.getAbsolutePath(), true);
+                    break;
                 }
-            });
-
-            if (filesList != null) {
-                for (File file : filesList) {
-
-                    boolean isCurrent = file.getName().contains("current");
-                    List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
-
-                    if (file.getName().contains("_current")) {
-                        filePathList.put(file.getAbsolutePath(), true);
-                        break;
+                Scanner scanner = new Scanner(file, "cp1251");
+                if (!isCurrent && (!scanner.hasNextLine() || !scanner.nextLine().equals("#"))) {
+                    break;
+                } else {
+                    if (!isCurrent) {
+                        scanner.nextLine(); //db
+                        scanner.nextLine(); //reportNumber
                     }
-                    Scanner scanner = new Scanner(file, "cp1251");
-                    if (!isCurrent && (!scanner.hasNextLine() || !scanner.nextLine().equals("#"))) {
-                        break;
-                    } else {
-                        if (!isCurrent) {
-                            scanner.nextLine(); //db
-                            scanner.nextLine(); //reportNumber
-                        }
-                        while (scanner.hasNextLine()) {
-                            String[] entry = scanner.nextLine().split(";");
+                    while (scanner.hasNextLine()) {
+                        String[] entry = scanner.nextLine().split(";");
 
-                            String entryType = getStringValue(entry, 3);
-                            boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
-                            boolean isReturn = entryType != null && (entryType.equals("2") || entryType.equals("12"));
-                            boolean isPayment = entryType != null && (entryType.equals("40") || entryType.equals("41"));
-                            boolean isCancelDocument = entryType != null && entryType.equals("56");
+                        String entryType = getStringValue(entry, 3);
+                        boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
+                        boolean isReturn = entryType != null && (entryType.equals("2") || entryType.equals("12"));
+                        boolean isPayment = entryType != null && (entryType.equals("40") || entryType.equals("41"));
+                        boolean isCancelDocument = entryType != null && entryType.equals("56");
 
-                            Integer numberReceiptDetail = getIntValue(entry, 0);
-                            Integer numberReceipt = getIntValue(entry, 5);
-                            String documentType = getStringValue(entry, 22);
+                        Integer numberReceiptDetail = getIntValue(entry, 0);
+                        Integer numberReceipt = getIntValue(entry, 5);
+                        String documentType = getStringValue(entry, 22);
 
-                            if (isPayment) {
-                                for (SalesInfo salesInfo : currentSalesInfoList) {
-                                    if (salesInfo.numberReceipt != null && numberReceipt != null && salesInfo.numberReceipt.equals(numberReceipt)) {
-                                        Integer paymentType = getIntValue(entry, 8);
-                                        BigDecimal sum = getBigDecimalValue(entry, 9);
-                                        if (paymentType != null) {
-                                            switch (paymentType) {
-                                                case 2:
-                                                    salesInfo.sumCard = safeAdd(salesInfo.sumCard, sum);
-                                                    break;
-                                                case 1:
-                                                default:
-                                                    salesInfo.sumCash = safeAdd(salesInfo.sumCash, sum);
-                                                    break;
-                                            }
+                        if (isPayment) {
+                            for (SalesInfo salesInfo : currentSalesInfoList) {
+                                if (salesInfo.numberReceipt != null && numberReceipt != null && salesInfo.numberReceipt.equals(numberReceipt)) {
+                                    Integer paymentType = getIntValue(entry, 8);
+                                    BigDecimal sum = getBigDecimalValue(entry, 9);
+                                    if (paymentType != null) {
+                                        switch (paymentType) {
+                                            case 2:
+                                                salesInfo.sumCard = safeAdd(salesInfo.sumCard, sum);
+                                                break;
+                                            case 1:
+                                            default:
+                                                salesInfo.sumCash = safeAdd(salesInfo.sumCash, sum);
+                                                break;
                                         }
                                     }
                                 }
-                            } else if (isSale && documentType.equals("2000001")) {
-                                //nothing to do: it's soft check
-                            } else if (isSale || isReturn) {
-                                Date dateReceipt = getDateValue(entry, 1);
-                                Time timeReceipt = getTimeValue(entry, 2);
-                                Integer numberCashRegister = getIntValue(entry, 4);
-                                Integer itemObject = getIntValue(entry, 7);
-                                BigDecimal priceReceiptDetail = getBigDecimalValue(entry, 9);
-                                BigDecimal quantityReceiptDetail = getBigDecimalValue(entry, 10);
-                                BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
-                                String numberZReport = getStringValue(entry, 13);
-                                BigDecimal discountedSumReceiptDetail = getBigDecimalValue(entry, 14);
-                                BigDecimal discountSumReceiptDetail = safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
-                                String barcodeItem = getStringValue(entry, 18);
-
-                                Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
-                                if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                    currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
-                                            numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, null/*sumCard*/,
-                                            null/*sumCash*/, null/*sumGiftCard*/, barcodeItem, itemObject, quantityReceiptDetail, priceReceiptDetail,
-                                            sumReceiptDetail, discountSumReceiptDetail, null/*discountSumReceipt*/, null, numberReceiptDetail, file.getName()));
-                            } else if (isCancelDocument) {
-                                cancelReceiptSet.add(numberReceipt);
-                            } else {
-                                assert unusedEntryTypes.contains(entryType);
                             }
-                        }
-                        scanner.close();
-                    }
+                        } else if (isSale && documentType.equals("2000001")) {
+                            //nothing to do: it's soft check
+                        } else if (isSale || isReturn) {
+                            Date dateReceipt = getDateValue(entry, 1);
+                            Time timeReceipt = getTimeValue(entry, 2);
+                            Integer numberCashRegister = getIntValue(entry, 4);
+                            Integer itemObject = getIntValue(entry, 7);
+                            BigDecimal priceReceiptDetail = getBigDecimalValue(entry, 9);
+                            BigDecimal quantityReceiptDetail = getBigDecimalValue(entry, 10);
+                            BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
+                            String numberZReport = getStringValue(entry, 13);
+                            BigDecimal discountedSumReceiptDetail = getBigDecimalValue(entry, 14);
+                            BigDecimal discountSumReceiptDetail = safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
+                            String barcodeItem = getStringValue(entry, 18);
 
-                    for (SalesInfo salesInfo : currentSalesInfoList) {
-                        if (!cancelReceiptSet.contains(salesInfo.numberReceipt) && (notNull(salesInfo.sumCash) || notNull(salesInfo.sumCard)))
-                            salesInfoList.add(salesInfo);
+                            Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
+                            if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
+                                currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
+                                        numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, null/*sumCard*/,
+                                        null/*sumCash*/, null/*sumGiftCard*/, barcodeItem, itemObject, quantityReceiptDetail, priceReceiptDetail,
+                                        sumReceiptDetail, discountSumReceiptDetail, null/*discountSumReceipt*/, null, numberReceiptDetail, file.getName()));
+                        } else if (isCancelDocument) {
+                            cancelReceiptSet.add(numberReceipt);
+                        } else {
+                            assert unusedEntryTypes.contains(entryType);
+                        }
                     }
-                    filePathList.put(file.getAbsolutePath(), isCurrent);
+                    scanner.close();
                 }
+
+                for (SalesInfo salesInfo : currentSalesInfoList) {
+                    if (!cancelReceiptSet.contains(salesInfo.numberReceipt) && (notNull(salesInfo.sumCash) || notNull(salesInfo.sumCard)))
+                        salesInfoList.add(salesInfo);
+                }
+                filePathList.put(file.getAbsolutePath(), isCurrent);
             }
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :

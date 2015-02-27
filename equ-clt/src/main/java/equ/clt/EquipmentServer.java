@@ -369,17 +369,21 @@ public class EquipmentServer {
                         }
                     }
 
-                    SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(cashRegisterInfoList);
-                    if (salesBatch == null) {
-                        sendSalesLogger.info("SalesInfo is empty");
-                    } else {
-                        sendSalesLogger.info("Sending SalesInfo");
-                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
-                        if (result != null) {
-                            reportEquipmentServerError(remote, sidEquipmentServer, result);
-                        } else {
-                            sendSalesLogger.info("Finish Reading starts");
-                            ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                    if(directorySet != null) {
+                        for (String directory : directorySet) {
+                            SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(directory, cashRegisterInfoList);
+                            if (salesBatch == null) {
+                                sendSalesLogger.info("SalesInfo is empty");
+                            } else {
+                                sendSalesLogger.info("Sending SalesInfo");
+                                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                                if (result != null) {
+                                    reportEquipmentServerError(remote, sidEquipmentServer, result);
+                                } else {
+                                    sendSalesLogger.info("Finish Reading starts");
+                                    ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                                }
+                            }
                         }
                     }
 

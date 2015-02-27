@@ -76,7 +76,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
+        public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
             return null;
         }
 

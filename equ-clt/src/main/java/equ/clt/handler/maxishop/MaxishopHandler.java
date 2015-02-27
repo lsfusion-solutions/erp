@@ -130,7 +130,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
@@ -141,13 +141,15 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         List<String> readFiles = new ArrayList<String>();
         for (Map.Entry<Integer, String> entry : cashRegisterDirectories.entrySet()) {
+            Integer numberCashRegister = entry.getKey();
+            String dir = entry.getValue() == null ? null : entry.getValue().trim();
             DBF importFile = null;
             try {
-                if (entry.getValue() != null) {
-                    File directory = new File(entry.getValue().trim() + "/READ/");
-                    if (directory.isDirectory())
-                        for (String fileName : directory.list(new DBFFilter())) {
-                            String filePath = entry.getValue().trim() + "/READ/" + fileName;
+                if (dir != null && dir.equals(directory)) {
+                    File directoryFile = new File(dir + "/READ/");
+                    if (directoryFile.isDirectory())
+                        for (String fileName : directoryFile.list(new DBFFilter())) {
+                            String filePath = dir + "/READ/" + fileName;
                             importFile = new DBF(filePath);
                             readFiles.add(filePath);
                             int recordCount = importFile.getRecordCount();
@@ -173,7 +175,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                         numberReceiptDetail = 1;
                                         oldReceiptNumber = receiptNumber;
                                     }
-                                    salesInfoList.add(new SalesInfo(false, entry.getKey(), null, zReportNumber, receiptNumber, date, time, null, null, null,
+                                    salesInfoList.add(new SalesInfo(false, numberCashRegister, null, zReportNumber, receiptNumber, date, time, null, null, null,
                                             BigDecimal.ZERO, sumCash, BigDecimal.ZERO, barcodeReceiptDetail, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
                                             discountSumReceiptDetail, null, null, numberReceiptDetail, fileName));
                                     numberReceiptDetail++;
@@ -188,7 +190,6 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                     importFile.close();
             }
         }
-
         return new MaxishopSalesBatch(salesInfoList, readFiles);
     }
 

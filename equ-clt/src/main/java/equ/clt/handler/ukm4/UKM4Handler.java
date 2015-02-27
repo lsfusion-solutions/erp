@@ -233,121 +233,116 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
-        Set<String> directorySet = new HashSet<String>();
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (cashRegister.directory != null && cashRegister.handlerModel.endsWith("UKM4Handler"))
-                directorySet.add(cashRegister.directory.trim());
             if (cashRegister.number != null && cashRegister.numberGroup != null)
                 directoryGroupCashRegisterMap.put(cashRegister.directory + "_" + cashRegister.number, cashRegister.numberGroup);
         }
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         List<String> readFiles = new ArrayList<String>();
-        for (String directory : directorySet) {
-            DBF importSailFile = null;
-            DBF importDiscFile = null;
-            DBF importCardFile = null;
-            Map<String, BigDecimal> discountMap = new HashMap<String, BigDecimal>();
-            Map<String, String> discountCardMap = new HashMap<String, String>();
-            try {
-                String fileDiscPath = directory + "/sail/CASHDISC.DBF";
-                if (new File(fileDiscPath).exists()) {
-                    importDiscFile = new DBF(fileDiscPath);
-                    readFiles.add(fileDiscPath);
-                    int recordDiscCount = importDiscFile.getRecordCount();
-                    for (int i = 0; i < recordDiscCount; i++) {
-                        importDiscFile.read();
+        DBF importSailFile = null;
+        DBF importDiscFile = null;
+        DBF importCardFile = null;
+        Map<String, BigDecimal> discountMap = new HashMap<String, BigDecimal>();
+        Map<String, String> discountCardMap = new HashMap<String, String>();
+        try {
+            String fileDiscPath = directory + "/sail/CASHDISC.DBF";
+            if (new File(fileDiscPath).exists()) {
+                importDiscFile = new DBF(fileDiscPath);
+                readFiles.add(fileDiscPath);
+                int recordDiscCount = importDiscFile.getRecordCount();
+                for (int i = 0; i < recordDiscCount; i++) {
+                    importDiscFile.read();
 
-                        String cashRegisterNumber = getDBFFieldValue(importDiscFile, "CASHNUMBER", defaultCharset);
-                        String zNumber = getDBFFieldValue(importDiscFile, "ZNUMBER", defaultCharset);
-                        Integer receiptNumber = getDBFIntegerFieldValue(importDiscFile, "CHECKNUMBE", defaultCharset);
-                        Integer numberReceiptDetail = getDBFIntegerFieldValue(importDiscFile, "ID", defaultCharset);
-                        BigDecimal discountSum = getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTCU", defaultCharset);
+                    String cashRegisterNumber = getDBFFieldValue(importDiscFile, "CASHNUMBER", defaultCharset);
+                    String zNumber = getDBFFieldValue(importDiscFile, "ZNUMBER", defaultCharset);
+                    Integer receiptNumber = getDBFIntegerFieldValue(importDiscFile, "CHECKNUMBE", defaultCharset);
+                    Integer numberReceiptDetail = getDBFIntegerFieldValue(importDiscFile, "ID", defaultCharset);
+                    BigDecimal discountSum = getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTCU", defaultCharset);
 
-                        String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
-                        BigDecimal tempSum = discountMap.get(sid);
-                        discountMap.put(sid, safeAdd(discountSum, tempSum));
-                    }
-                    importDiscFile.close();
+                    String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
+                    BigDecimal tempSum = discountMap.get(sid);
+                    discountMap.put(sid, safeAdd(discountSum, tempSum));
                 }
-
-                String fileCardPath = directory + "/sail/CASHDCRD.DBF";
-                if (new File(fileCardPath).exists()) {
-                    importCardFile = new DBF(fileCardPath);
-                    readFiles.add(fileCardPath);
-                    int recordCardCount = importCardFile.getRecordCount();
-                    for (int i = 0; i < recordCardCount; i++) {
-                        importCardFile.read();
-
-                        String cashRegisterNumber = getDBFFieldValue(importCardFile, "CASHNUMBER", defaultCharset);
-                        String zNumber = getDBFFieldValue(importCardFile, "ZNUMBER", defaultCharset);
-                        Integer receiptNumber = getDBFIntegerFieldValue(importCardFile, "CHECKNUMBE", "Cp1251");
-                        String cardNumber = getDBFFieldValue(importCardFile, "CARDNUMBER", "Cp1251");
-
-                        String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber;
-                        discountCardMap.put(sid, cardNumber);
-                    }
-                    importCardFile.close();
-                }
-
-                String fileSailPath = directory + "/sail/CASHSAIL.DBF";
-                if (new File(fileSailPath).exists()) {
-                    importSailFile = new DBF(fileSailPath);
-                    readFiles.add(fileSailPath);
-                    int recordSailCount = importSailFile.getRecordCount();
-                    Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<Integer, BigDecimal[]>();
-
-                    for (int i = 0; i < recordSailCount; i++) {
-                        importSailFile.read();
-
-                        Integer operation = getDBFIntegerFieldValue(importSailFile, "OPERATION", defaultCharset);
-                        //0 - возврат cash, 1 - продажа cash, 2,4 - возврат card, 3,5 - продажа card
-
-                        String numberCashRegister = getDBFFieldValue(importSailFile, "CASHNUMBER", defaultCharset);
-                        String zNumber = getDBFFieldValue(importSailFile, "ZNUMBER", defaultCharset);
-                        Integer receiptNumber = getDBFIntegerFieldValue(importSailFile, "CHECKNUMBE", defaultCharset);
-                        Integer numberReceiptDetail = getDBFIntegerFieldValue(importSailFile, "ID", defaultCharset);
-                        Date date = getDBFDateFieldValue(importSailFile, "DATE", defaultCharset);
-                        String timeString = getDBFFieldValue(importSailFile, "TIME", defaultCharset);
-                        timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
-                        Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
-                        String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
-                        BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
-                        BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
-                        BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset);
-                        BigDecimal discountSumReceiptDetail = discountMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
-                        String discountCardNumber = discountCardMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber);
-
-                        BigDecimal[] tempSumReceipt = receiptNumberSumReceipt.get(receiptNumber);
-                        BigDecimal tempSum1 = tempSumReceipt != null ? tempSumReceipt[0] : null;
-                        BigDecimal tempSum2 = tempSumReceipt != null ? tempSumReceipt[1] : null;
-                        receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1, (operation <= 1 ? sumReceiptDetail : null)),
-                                safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
-
-                        salesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), Integer.parseInt(numberCashRegister), zNumber,
-                                receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
-                                null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
-                                priceReceiptDetail,
-                                operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
-                                discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null));
-                    }
-                    for (SalesInfo salesInfo : salesInfoList) {
-                        salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
-                        salesInfo.sumCard = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[1];
-                    }
-                }
-
-            } catch (xBaseJException e) {
-                throw new RuntimeException(e.toString(), e.getCause());
-            } finally {
-                if (importSailFile != null)
-                    importSailFile.close();
-                if (importCardFile != null)
-                    importCardFile.close();
-                if (importDiscFile != null)
-                    importDiscFile.close();
+                importDiscFile.close();
             }
+
+            String fileCardPath = directory + "/sail/CASHDCRD.DBF";
+            if (new File(fileCardPath).exists()) {
+                importCardFile = new DBF(fileCardPath);
+                readFiles.add(fileCardPath);
+                int recordCardCount = importCardFile.getRecordCount();
+                for (int i = 0; i < recordCardCount; i++) {
+                    importCardFile.read();
+
+                    String cashRegisterNumber = getDBFFieldValue(importCardFile, "CASHNUMBER", defaultCharset);
+                    String zNumber = getDBFFieldValue(importCardFile, "ZNUMBER", defaultCharset);
+                    Integer receiptNumber = getDBFIntegerFieldValue(importCardFile, "CHECKNUMBE", "Cp1251");
+                    String cardNumber = getDBFFieldValue(importCardFile, "CARDNUMBER", "Cp1251");
+
+                    String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber;
+                    discountCardMap.put(sid, cardNumber);
+                }
+                importCardFile.close();
+            }
+
+            String fileSailPath = directory + "/sail/CASHSAIL.DBF";
+            if (new File(fileSailPath).exists()) {
+                importSailFile = new DBF(fileSailPath);
+                readFiles.add(fileSailPath);
+                int recordSailCount = importSailFile.getRecordCount();
+                Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<Integer, BigDecimal[]>();
+
+                for (int i = 0; i < recordSailCount; i++) {
+                    importSailFile.read();
+
+                    Integer operation = getDBFIntegerFieldValue(importSailFile, "OPERATION", defaultCharset);
+                    //0 - возврат cash, 1 - продажа cash, 2,4 - возврат card, 3,5 - продажа card
+
+                    String numberCashRegister = getDBFFieldValue(importSailFile, "CASHNUMBER", defaultCharset);
+                    String zNumber = getDBFFieldValue(importSailFile, "ZNUMBER", defaultCharset);
+                    Integer receiptNumber = getDBFIntegerFieldValue(importSailFile, "CHECKNUMBE", defaultCharset);
+                    Integer numberReceiptDetail = getDBFIntegerFieldValue(importSailFile, "ID", defaultCharset);
+                    Date date = getDBFDateFieldValue(importSailFile, "DATE", defaultCharset);
+                    String timeString = getDBFFieldValue(importSailFile, "TIME", defaultCharset);
+                    timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
+                    Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
+                    String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
+                    BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
+                    BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
+                    BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset);
+                    BigDecimal discountSumReceiptDetail = discountMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
+                    String discountCardNumber = discountCardMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber);
+
+                    BigDecimal[] tempSumReceipt = receiptNumberSumReceipt.get(receiptNumber);
+                    BigDecimal tempSum1 = tempSumReceipt != null ? tempSumReceipt[0] : null;
+                    BigDecimal tempSum2 = tempSumReceipt != null ? tempSumReceipt[1] : null;
+                    receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1, (operation <= 1 ? sumReceiptDetail : null)),
+                            safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
+
+                    salesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), Integer.parseInt(numberCashRegister), zNumber,
+                            receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
+                            null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
+                            priceReceiptDetail,
+                            operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
+                            discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null));
+                }
+                for (SalesInfo salesInfo : salesInfoList) {
+                    salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
+                    salesInfo.sumCard = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[1];
+                }
+            }
+
+        } catch (xBaseJException e) {
+            throw new RuntimeException(e.toString(), e.getCause());
+        } finally {
+            if (importSailFile != null)
+                importSailFile.close();
+            if (importCardFile != null)
+                importCardFile.close();
+            if (importDiscFile != null)
+                importDiscFile.close();
         }
         return new UKM4SalesBatch(salesInfoList, readFiles);
     }
