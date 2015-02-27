@@ -148,6 +148,6 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
     }
 
     protected boolean checkDirectory(String directory) {
-        return directory != null && (directory.startsWith("ftp://") || !new File(directory).exists());
+        return directory != null && (directory.startsWith("ftp://") || new File(directory).exists());
     }
 }
