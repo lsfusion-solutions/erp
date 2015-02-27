@@ -644,8 +644,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
             if (newLineNoSubstring) {
                 message = description.substring(start, total).split("\n")[0];
                 message = message.substring(0, Math.min(message.length(), 50));
-            } else
-                message = description.substring(start, Math.min(start + 50, total)).split("\n")[0];
+            } else {
+                String[] splitted = description.substring(start, Math.min(start + 50, total)).split("\n");
+                message = splitted.length == 0 ? "" : splitted[0];
+            }
         }
         return message;
     }
