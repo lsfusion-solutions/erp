@@ -346,7 +346,7 @@ public class LSTerminalHandler extends TerminalHandler {
             for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
                 if (tdt.id != null)
                     sql += String.format("INSERT OR REPLACE INTO vop VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(tdt.id), "", formatValue(tdt.name), formatValue(tdt.analytics1), formatValue(tdt.analytics2), "", formatValue(tdt.flag == null ? "31" : tdt.flag));
+                            formatValue(tdt.id), "", formatValue(tdt.name), formatValue(tdt.analytics1), formatValue(tdt.analytics2), "", formatValue(tdt.flag == null ? "1" : tdt.flag));
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
