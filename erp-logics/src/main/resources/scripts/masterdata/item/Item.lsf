@@ -698,17 +698,6 @@ META defineDoubleItemAttribute(attribute, type, caption, group)
     @definePrimitiveItemAttribute(attribute, type, caption, group);
 END
 
-deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ABSTRACT ACTION LIST();
-EXTEND FORM options PROPERTIES() deleteUnusedAttributes;
-DESIGN options { items { ADD PROPERTY(deleteUnusedAttributes()); } };
-
-META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
-    attribute##Item = DATA attributeClass (Item);
-    deleteUnusedAttributes() += ACTION { DELETE o WHERE o IS attributeClass AND NOT [= GROUP SUM 1 BY attribute##Item(item)](o);}
-    identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
-    @defineItemAttribute(attribute, identity, caption, group);
-END
-
 // ------------------------------- Значения для групп по умолчанию ------------------------------------- //
 
 GROUP defaultItemGroup 'По-умолчанию' : base;
@@ -789,10 +778,18 @@ META defineItemAttributeForm(attribute, formProperty, caption, group)
     background###attribute###item = ABSTRACT COLOR (Item);
 END
 
-META defineObjectItemAttributeForm(attribute, attributeClass, identity, caption, group)
+deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ABSTRACT ACTION LIST();
+EXTEND FORM options PROPERTIES() deleteUnusedAttributes;
+DESIGN options { items { ADD PROPERTY(deleteUnusedAttributes()); } };
+
+META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
     deleteUnusedAttributes() += ACTION { DELETE o WHERE o IS attributeClass AND NOT [= GROUP SUM 1 BY attribute##Item(item)](o);}
     identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
+
+    CONSTRAINT DROPPED(o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute##Item(o) BY PREV(attribute##Item(o))](o)
+        MESSAGE 'Запрещено удалять атрибут ('##caption##'), так как на него есть ссылки в справочнике товаров';
+
     @defineItemAttributeForm(attribute, identity, caption, group);
 END
 
@@ -1143,7 +1140,7 @@ extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
 @defineItemAttributeBatch (originalCaption, 'Название (ориг.)');
 
 // Единица измерения
-@defineObjectItemAttributeForm(UOM, UOM, name, 'Единица измерения', itemBase);
+@defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
 shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
@@ -1189,7 +1186,7 @@ FORM brands 'Бренды'
 ;
 DESIGN brands { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttributeForm(brand, Brand, name, 'Бренд', itemBase);
+@defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
 
 idBrandBarcode(barcode) = idBrand(brandItem(skuBarcode(barcode)));
 nameBrandBarcode(barcode) = nameBrand(brandItem(skuBarcode(barcode)));
@@ -1206,7 +1203,7 @@ EXTEND FORM attributesItem
 ;
 
 // Страна
-@defineObjectItemAttributeForm(country, Country, name, 'Страна', itemBase);
+@defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
 @defineObjectItemAttributeBatch (country, nameCountry, 'Страна', sku);
 @implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
 
@@ -1262,7 +1259,7 @@ FORM manufacturerDialog 'Производители товара'
 ;
 DESIGN manufacturerDialog { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttributeForm(manufacturer, Manufacturer, name, 'Производитель', itemBase);
+@defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
 @implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 
