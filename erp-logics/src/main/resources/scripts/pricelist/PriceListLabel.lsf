@@ -1,0 +1,84 @@
+MODULE PriceListLabel;
+
+REQUIRE PriceList, Label;
+
+NAMESPACE PriceList;
+
+@Label.implementPriceTransactionDocument(PriceList);
+
+
+FORM selectDepartmentStore 'Выбор отделов магазина для печати'
+    OBJECTS p = PriceList FIXED PANEL 
+    
+    OBJECTS d = DepartmentStore 
+    PROPERTIES nameDepartmentStore(d) READONLY
+    FILTERS inPriceListStock(p,d)
+    
+;
+
+createPriceListLabelPriceTransaction 'Распечатать ценники' = ACTION (priceList) NEWSESSION {
+    FORM selectDepartmentStore OBJECTS p = priceList DIALOG;
+    IF formResult() == FormResult.ok THEN {
+        selectSkuLabelTypeDepartmentStore(sku, labelType, department) <- countPriceListDetailSkuPriceList(sku,priceList) AND inLabelTypeSkuDepartmentStore(labelType, sku, chosenObject('d')) AND department == chosenObject('d');   
+    
+        createLabelTransactionDepartmentStore(chosenObject('d'));  
+        FOR t == addedObject() DO { 
+            priceTransactionDocumentLabelTransaction(t) <- priceList;
+        }
+    }
+    apply();
+} TOOLBAR;
+
+createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION (priceList) {
+    
+    FORM selectDepartmentStore OBJECTS p = priceList DIALOG;
+    IF formResult() == FormResult.ok THEN {
+        selectSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku,priceList);   
+    
+        createSnapshotLabelTransactionDepartmentStore(chosenObject('d'));   
+        FOR t == addedObject() DO { 
+            priceTransactionDocumentLabelTransaction(t) <- priceList;
+        }                
+    }
+    apply();
+    
+} TOOLBAR;
+
+EXTEND FORM priceLists
+    PROPERTIES(p)   createPriceListLabelPriceTransaction, createSelectedSkuStockSnapshotLabelTransaction 
+;
+DESIGN priceLists {
+    actionContainer {
+        NEW priceContainer {
+            caption = 'Ценники';                     
+            type = CONTAINERV;
+            ADD PROPERTY (createPriceListLabelPriceTransaction(p));
+            ADD PROPERTY (createSelectedSkuStockSnapshotLabelTransaction(p));
+        }
+    }
+}
+
+overFillDocumentLabelTransactionDetailDocumentDetail = ABSTRACT ACTION CASE (LabelTransactionDetail, DocumentDetail); 
+fillDocumentLabelTransaction 'Подбор документа' = ACTION (labelTransaction) {
+    FORM documents MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL chosenDocument = Document();
+        chosenDocument() <- chosenObject('d');
+        FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = LabelTransactionDetail DO {
+            labelTransactionLabelTransactionDetail(i) <- labelTransaction;
+            skuLabelTransactionDetail(i) <- skuDocumentDetail(documentDetail);
+            nameLabelTransactionDetail(i) <- nameSku(skuLabelTransactionDetail(i));
+            createAttributeLabelTransactionDetail(i);        
+            overFillDocumentLabelTransactionDetailDocumentDetail(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+
+overFillDocumentLabelTransactionDetailDocumentDetail (i, d) += ACTION (i, d) {
+    batchLabelTransactionDetail(i) <- batchDocumentDetail(d);
+}
+
+EXTEND FORM customLabelTransaction
+    PROPERTIES (l) TODRAW d fillDocumentLabelTransaction FORCE PANEL TOOLBAR 
+;
+
