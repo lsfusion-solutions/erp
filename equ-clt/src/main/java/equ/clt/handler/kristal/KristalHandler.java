@@ -375,7 +375,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE StatusNotUsed='1' AND PayState='1'";
+                String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE PayState='1' AND StatusNotUsed='1'";
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
