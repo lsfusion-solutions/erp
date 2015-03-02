@@ -884,9 +884,20 @@ changeQuantityReceiptDetail 'Изменить кол-во строки чека'
     }
 }
 
+notBackgroundPOS 'Не подсвечивать форму POS' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () notBackgroundPOS
+;
+DESIGN options {
+    pos {
+        ADD PROPERTY (notBackgroundPOS());
+    }  
+}
+
 backgroundReceiptDetail(r, d) = RGB(255, 128, 128) 
-    IF (posNotExplicitBatchLedgerReceipt(r) AND prevCurrentBalanceSkuReceiptDetail(d) < quantityReceiptDetail(d)) OR 
-       (posExplicitBatchLedgerReceipt(r) AND prevCurrentBalanceBatchReceiptDetail(d) < quantityReceiptDetail(d));
+    IF ((posNotExplicitBatchLedgerReceipt(r) AND prevCurrentBalanceSkuReceiptDetail(d) < quantityReceiptDetail(d)) OR 
+       (posExplicitBatchLedgerReceipt(r) AND prevCurrentBalanceBatchReceiptDetail(d) < quantityReceiptDetail(d))) AND NOT notBackgroundPOS();
 
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
