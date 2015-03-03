@@ -418,6 +418,9 @@ averageSoldSkuStockSnapshot 'Продаж в день' (sku, stock, snapshot) =
 
 turnoverSkuStockSnapshot 'Товароооборачиваемость, дн.' (sku, stock, snapshot) = cumBalanceSkuStockSnapshot(sku, stock, snapshot) /
     (saleSumSkuStockSnapshot(sku, stock, snapshot) IF saleSumSkuStockSnapshot(sku, stock, snapshot) != 0);
+    
+coutDaysToEndSkuStockSnapshot 'Дней хватит' (sku, stock, snapshot) = balanceASkuStockSnapshot(sku, stock, snapshot) / 
+    (averageSoldSkuStockSnapshot(sku, stock, snapshot) IF averageSoldSkuStockSnapshot(sku, stock, snapshot) != 0);
         
 //-- группа/склад       
 cumBalanceGroupStockSnapshot 'Накопленный остаток' (group, stock, snapshot) =
@@ -540,7 +543,8 @@ EXTEND FORM snapshot
     PROPERTIES(s,st,r) SHOWIF turnoverSkuSnapshot(r) BACKGROUND hintSaleBackground() AFTER saleNetWeightSkuStockSnapshot(s,st,r)
                        daysOnStockSkuStockSnapshot, 
                        averageSoldSkuStockSnapshot, 
-                       turnoverSkuStockSnapshot  
+                       turnoverSkuStockSnapshot,
+                       coutDaysToEndSkuStockSnapshot
 //-- batch
     PROPERTIES(bt,ss,r) SHOWIF isTurnoverBatchSnapshot(r) BACKGROUND hintSaleBackground() AFTER saleNetWeightBatchStockSnapshot(bt,ss,r)
                        daysOnStockBatchStockSnapshot, 
