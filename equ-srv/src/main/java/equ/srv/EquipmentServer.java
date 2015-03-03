@@ -2426,6 +2426,20 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public void processingTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
+        try {
+            if(machineryPriceTransactionLM != null) {
+                DataSession session = getDbManager().createSession();
+                DataObject machineryPriceTransactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                machineryPriceTransactionLM.findProperty("dateTimeProcessingMachineryPriceTransaction").change(dateTime, session, machineryPriceTransactionObject);
+                session.apply(getBusinessLogics());
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+    
+    @Override
     public void succeedCashRegisterTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
         try {
             if(machineryPriceTransactionLM != null) {

@@ -666,7 +666,10 @@ public class EquipmentServer {
                     try {
                         if (clsHandler instanceof TerminalHandler)
                             ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
+
+                        remote.processingTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
                         List<MachineryInfo> succeededMachineryInfoList = transactionInfo.sendTransaction(clsHandler, transactionInfo.machineryInfoList);
+                        
                         if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
                             noErrors = false;
                         if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
