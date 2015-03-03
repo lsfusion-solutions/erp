@@ -1,0 +1,27 @@
+MODULE DiscountCardReceiptSkuLedger;
+
+REQUIRE ZReportDiscountCard;
+
+NAMESPACE DiscountCard;
+
+hourReceiptDetail 'Час' (d) = extractHour(dateTimeReceiptDetail(d));  
+nameDOWReceiptDetail 'День недели' (d) = extractDOWName(dateReceiptDetail(d));
+nameMonthReceiptDetail 'Месяц' (d) = extractMonthName(dateReceiptDetail(d));
+
+EXTEND FORM discountCards
+    OBJECTS l=ReceiptDetail
+    PROPERTIES(l) READONLY typeReceiptDetail, nameDOWReceiptDetail, dateTimeReceiptDetail,  
+                           nameDepartmentStoreReceiptDetail, nameSkuReceiptDetail, descriptionReceiptDetail, numberReceiptDetail,
+                           quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, valueVATReceiptDetail
+//                           costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger, sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger   
+    ORDER BY dateTimeReceiptDetail(l)                        
+    FILTERS discountCardReceiptDetail(l)==d OR discountCardReceipt(receiptSaleReceiptReturnDetail(l))==d                           
+    
+;
+DESIGN discountCards {
+    main {
+        ADD d.box;
+        ADD l.box;
+        ADD functions.box;
+    }
+}
