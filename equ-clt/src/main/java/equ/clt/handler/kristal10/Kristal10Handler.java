@@ -513,7 +513,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     firstNameEmployee = firstNameEmployee == null ? splittedNameEmployee[i] : (firstNameEmployee + " " + splittedNameEmployee[i]);
                                 }
                             }
-                            BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
+                            BigDecimal discountSumReceipt = null; //пока считаем, что скидки по чеку нету //readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
                             //discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
 
                             long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"/*.SSSX"*/).parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
