@@ -1,0 +1,30 @@
+MODULE SaleStatisticsItemDescription;
+
+REQUIRE SaleStatistics, ItemDescription;
+
+NAMESPACE Sale;
+
+TABLE groupStaticPackType (GroupStatic, PackType);
+factorGroupStaticPackType 'Коэффициент перевода (количество)' = DATA NUMERIC[14,3] (GroupStatic, PackType);
+
+overFactorGroupStaticSku (groupStatic,sku) += OVERRIDE 1.0 IF groupStatic IS GroupStatic AND sku IS Sku, factorGroupStaticPackType(groupStatic, packTypeItem(sku));
+
+EXTEND FORM groupStatics 
+    OBJECTS p=PackType
+    PROPERTIES   namePackType(p) READONLY, factorGroupStaticPackType(g,p)
+
+    FILTERGROUP filters1
+        FILTER 'Упаковка с коэфф.' factorGroupStaticPackType(g,p) 'F10'
+;
+
+DESIGN groupStatics {
+    ADD g.box;
+    NEW top {
+        fill = 1;
+        type = TABBED;
+        ADD u.box;
+        ADD p.box;
+    }
+    ADD functions.box;
+
+}
