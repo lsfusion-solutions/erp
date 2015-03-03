@@ -3,6 +3,7 @@ package lsfusion.erp.utils;
 import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImList;
+import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -13,7 +14,6 @@ import lsfusion.server.form.instance.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 
-public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
+public abstract class ExportCSVActionProperty extends DefaultExportActionProperty {
     String idForm;
     String idGroupObject;
 
@@ -36,7 +36,8 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
         this.idGroupObject = idGroupObject;
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator) throws SQLException, SQLHandledException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator, String charset) 
+            throws SQLException, SQLHandledException {
 
         try {
 
@@ -70,7 +71,7 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                         ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
                         localFile = File.createTempFile("tmp", ".csv");
-                        exportFile(formEntity, formInstance, localFile.getAbsolutePath(), separator, printHeader);
+                        exportFile(formEntity, formInstance, localFile.getAbsolutePath(), separator, charset, printHeader);
 
                         InputStream inputStream = new FileInputStream(localFile);
                         boolean done = ftpClient.storeFile(remoteFile, inputStream);
@@ -97,7 +98,7 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                     if (filePath.startsWith("ftp://"))
                         context.delayUserInteraction(new MessageClientAction("Неверный формат ftp connection string. Правильный формат: ftp://username:password@host:port/path_to_file", "Ошибка"));
                     else
-                        exportFile(formEntity, formInstance, filePath, separator, printHeader);
+                        exportFile(formEntity, formInstance, filePath, separator, charset, printHeader);
                 }
             }
 
@@ -110,10 +111,10 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
         }
     }
 
-    private void exportFile(FormEntity formEntity, FormInstance formInstance, String filePath, String separator, boolean printHeader)
+    private void exportFile(FormEntity formEntity, FormInstance formInstance, String filePath, String separator, String charset, boolean printHeader)
             throws FileNotFoundException, UnsupportedEncodingException, SQLException, SQLHandledException {
         File exportFile = new File(filePath);
-        PrintWriter bw = new PrintWriter(exportFile, "cp1251");
+        PrintWriter bw = new PrintWriter(exportFile, charset);
 
         FormData formData = formInstance.getFormData(0);
 
