@@ -780,7 +780,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ObjectValue stopListObject = stopListLM.findProperty("stopListNumber").readClasses(session, new DataObject(numberStopList));
             stopListLM.findProperty("stopListStopListError").change(stopListObject.getValue(), session, errorObject);
             stopListLM.findProperty("dataStopListError").change(e.toString(), session, errorObject);
-            stopListLM.findProperty("dateStopListError").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
+            stopListLM.findProperty("dateStopListError").change(getCurrentTimestamp(), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             e.printStackTrace(new PrintStream(os));
             stopListLM.findProperty("errorTraceStopListError").change(os.toString(), session, errorObject);
@@ -1051,9 +1051,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 DataSession session = getDbManager().createSession();
                 for (Integer request : succeededRequestsSet) {
                     DataObject requestExchangeObject = new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
-                    Timestamp timeStamp = DateConverter.dateToStamp(Calendar.getInstance().getTime());
                     machineryPriceTransactionLM.findProperty("succeededRequestExchange").change(true, session, requestExchangeObject);
-                    machineryPriceTransactionLM.findProperty("dateTimeSucceededRequestExchange").change(timeStamp, session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("dateTimeSucceededRequestExchange").change(getCurrentTimestamp(), session, requestExchangeObject);
                 }
                 session.apply(getBusinessLogics());
             }
@@ -1436,7 +1435,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Object message = entry.get(1);
                     DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
                     ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
-                    machineryPriceTransactionLM.findProperty("dateRequestExchangeLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
+                    machineryPriceTransactionLM.findProperty("dateRequestExchangeLog").change(getCurrentTimestamp(), session, logObject);
                     machineryPriceTransactionLM.findProperty("messageRequestExchangeLog").change(message, session, logObject);
                     machineryPriceTransactionLM.findProperty("machineryRequestExchangeLog").change(cashRegisterObject.getValue(), session, logObject);
                     machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeLog").change(idRequestExchange, session, logObject);
@@ -1513,6 +1512,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     numberAtATime = salesInfoList.size();
 
                 for (int start = 0; true;) {
+                    
+                    Timestamp timeStart = getCurrentTimestamp();
 
                     int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
                     
@@ -1849,20 +1850,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     List<ImportField> paymentImportFields = Arrays.asList(idPaymentField, idReceiptField, sidTypePaymentField,
                             sumPaymentField, numberPaymentField);
-
-                    String message = formatCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size());
-
-                    DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-                    equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject.getValue(), session, logObject);
-                    equLM.findProperty("dataEquipmentServerLog").change(message, session, logObject);
-                    equLM.findProperty("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
-
+                    
                     new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey),
                             paymentProperties).synchronize(true);
 
                     String result = session.applyMessage(getBusinessLogics());
-//                    session.popVolatileStats();
-                    if(result != null)
+                    if(result == null)
+                        return logCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                    else 
                         return result;
                 }
             } else return null;
@@ -1884,6 +1879,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 for (int start = 0; true;) {
 
+                    Timestamp timeStart = getCurrentTimestamp();
+                    
                     int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
 
                     Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
@@ -2206,18 +2203,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         giftCardProperties.addAll(commonProperties);
                         new IntegrationService(session, new ImportTable(importFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                     }
-
-                    String message = formatCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size());
-
-                    DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-                    equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject.getValue(), session, logObject);
-                    equLM.findProperty("dataEquipmentServerLog").change(message, session, logObject);
-                    equLM.findProperty("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
-
+                    
                     new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), paymentKeys, paymentProperties).synchronize(true);
-
                     String result = session.applyMessage(getBusinessLogics());
-                    if(result != null)
+                    
+                    if(result == null)
+                        return logCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                    else
                         return result;
                 }
             } else return null;
@@ -2227,8 +2219,25 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
     
-    private String formatCompleteMessage(List<SalesInfo> data, int dataSize) {
-        String message = "Загружено записей: " + dataSize;
+    private String logCompleteMessage(List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        
+        String message = formatCompleteMessage(data, dataSize, timeStart);
+        
+        DataSession session = getDbManager().createSession();
+        ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(sidEquipmentServer));
+        DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
+        equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject.getValue(), session, logObject);
+        equLM.findProperty("dataEquipmentServerLog").change(message, session, logObject);
+        equLM.findProperty("dateEquipmentServerLog").change(getCurrentTimestamp(), session, logObject);
+        return session.applyMessage(getBusinessLogics());
+    }
+    
+    private String formatCompleteMessage(List<SalesInfo> data, int dataSize, Timestamp timeStart) {
+
+        Timestamp timeFinish = getCurrentTimestamp();
+        String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s",  
+                (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize);
+        
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<Integer, Set<Integer>>();
         List<String> fileNames = new ArrayList<String>();
         Set<String> dates = new HashSet<String>();
@@ -2240,8 +2249,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             if ((salesInfo.filename != null) && (!fileNames.contains(salesInfo.filename.trim())))
                 fileNames.add(salesInfo.filename.trim());
             if(salesInfo.dateReceipt != null)
-                dates.add(new SimpleDateFormat("dd.MM.yyyy").format(salesInfo.dateReceipt));
+                dates.add(formatDate(salesInfo.dateReceipt));
         }
+        
         message += "\nИз касс: ";
         for (Map.Entry<Integer, Set<Integer>> cashRegisterEntry : nppCashRegisterMap.entrySet()) {
             for(Integer cashRegister : cashRegisterEntry.getValue())
@@ -2510,7 +2520,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));
             equLM.findProperty("machineryPriceTransactionMachineryPriceTransactionError").change(transactionID, session, errorObject);
             equLM.findProperty("dataMachineryPriceTransactionError").change(e.toString(), session, errorObject);
-            equLM.findProperty("dateMachineryPriceTransactionError").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
+            equLM.findProperty("dateMachineryPriceTransactionError").change(getCurrentTimestamp(), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             e.printStackTrace(new PrintStream(os));
             equLM.findProperty("errorTraceMachineryPriceTransactionError").change(os.toString(), session, errorObject);
@@ -2534,7 +2544,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             exception.printStackTrace(new PrintStream(os));
             equLM.findProperty("erTraceEquipmentServerError").change(os.toString(), session, errorObject);
 
-            equLM.findProperty("dateEquipmentServerError").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
+            equLM.findProperty("dateEquipmentServerError").change(getCurrentTimestamp(), session, errorObject);
 
             session.apply(getBusinessLogics());
         } catch (Exception e) {
@@ -2587,6 +2597,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     protected boolean notNullNorEmpty(Set value) {
         return value != null && !value.isEmpty();
+    }
+    
+    protected String formatDate(Date date) {
+        return new SimpleDateFormat("dd.MM.yyyy").format(date);
+    }
+    
+    protected String formatDateTime(Timestamp date) {
+        return new SimpleDateFormat("dd.MM.yyyy hh:mm:ss").format(date);
+    }
+    
+    protected Timestamp getCurrentTimestamp() {
+        return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
     
     private List<List<Object>> initData(int size) {
