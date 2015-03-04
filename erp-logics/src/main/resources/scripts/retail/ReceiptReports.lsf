@@ -8,6 +8,12 @@ NAMESPACE ZReport;
 CLASS ReceiptReport 'Отчет по чекам';
 CLASS ReceiptReportDetail 'Строка отчета по чекам';
 
+CLASS IntervalReport 'Диапозон суммы по чеку';
+TABLE intervalReport (IntervalReport);
+
+CLASS IntervalReportDetail 'Диапозон';
+TABLE intervalReportDetail (IntervalReportDetail);
+
 @defineDocument(receiptReport);
 @deriveDocumentHeaderTimePrefix(ReceiptReport, );
 
@@ -15,8 +21,23 @@ CLASS ReceiptReportDetail 'Строка отчета по чекам';
 @defineNumeratedDefault(ReceiptReport, 'Отчет по чекам', 'ОЧ');
 
 
-@defineDocumentDescription (receiptReport, 'Отчет комиссионера');
+@defineDocumentDescription (receiptReport, 'Отчет по чекам');
 
+//--
+
+sumIntervalReport 'Верхний порог суммы' = DATA NUMERIC[16,2] (IntervalReport) NOT NULL DELETE;
+
+@defineDocumentRelation (receiptReport, IntervalReport, '');
+
+intervalPrevIntervalReportReceiptReport (interval, report) = PARTITION PREV interval IF inReceiptReportIntervalReport(report, interval) 
+    BY report ORDER DESC sumIntervalReport(report);
+fromSumIntervalReportReceiptReport 'Сумма с' (interval, report)= sumIntervalReport(intervalPrevIntervalReportReceiptReport (interval, report));   
+
+@defineDocumentRelation (receiptReportDetail, IntervalReportDetail, '');
+@defineDocumentDetailActions(receiptReportDetail, IntervalReportDetail);
+
+intervalReportIntervalReportDetail  = DATA IntervalReport (IntervalReportDetail);
+sumIntervalReportDetail 'Верхний порог суммы'  = sumIntervalReport(intervalReportIntervalReportDetail(d));
 
 fromDateReceiptReport 'Дата с' = DATA DATE (ReceiptReport) IN documentPrm;
 fromDateReceiptReportDetail 'Дата с' (d)= fromDateReceiptReport(receiptReportReceiptReportDetail(d));
@@ -92,7 +113,12 @@ countBonDetailReceiptReportDetail 'Ср. кол-во позиций в чеке'
 countSelectedBonDetailReceiptReportDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
 sumBonReceiptReportDetail 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReportDetail);
 sumSelectedBonDetailReceiptReportDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReportDetail);
-  
+
+countBonIntervalReportDetail 'Кол-во чеков' = DATA NUMERIC[14,3] (IntervalReportDetail);
+countBonDetailIntervalReportDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
+countSelectedBonDetailIntervalReportDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
+sumBonIntervalReportDetail 'Ср. сумма чека' = DATA NUMERIC[16,2] (IntervalReportDetail);
+sumSelectedBonDetailIntervalReportDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (IntervalReportDetail);
             
             
 inReceiptReportReceiptDetail (r, d) = 
@@ -109,6 +135,31 @@ countBonDetailStoreReceiptReport 'Кол-во позиций в выбранны
 inReceiptReportStore 'Кол-во выбранных позиций' = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY report, storeReceiptDetail(d);
 sumBonDetailStoreReceiptReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY storeReceipt(receipt), report;
 sumSelectedBonDetailStoreReceiptReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF inReceiptReportReceiptDetail (report, d) BY storeReceiptDetail(d), report;
+
+//-- С диапазонами сумм
+inReceiptReportReceiptIntervalReport (report, receipt, interval) = inReceiptReportReceipt (report, receipt) IF
+    receiptReportIntervalReport(interval) == report AND sumReceiptDetailReceipt(receipt) <= sumIntervalReport(interval) AND 
+    ((fromSumIntervalReportReceiptReport(interval, report) < sumReceiptDetailReceipt(receipt)) OR  (NOT fromSumIntervalReportReceiptReport(interval, report)));
+
+countBonStoreReceiptReportIntervalReport 'Кол-во чеков' = GROUP SUM 1 IF
+    inReceiptReportReceiptIntervalReport(report, receipt, interval) 
+        BY storeReceipt(receipt), report, interval;
+countBonDetailStoreReceiptReportIntervalReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF 
+    inReceiptReportReceiptIntervalReport(report, receipt, interval) 
+        BY storeReceipt(receipt), report, interval;        
+        
+inReceiptReportStoreIntervalReport 'Кол-во выбранных позиций' = GROUP SUM 1 IF 
+    inReceiptReportReceiptDetail (report, d) AND inReceiptReportReceiptIntervalReport(report, receiptReceiptDetail(d), interval)  
+        BY report, storeReceiptDetail(d), interval;
+        
+sumBonDetailStoreReceiptReportIntervalReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF
+     inReceiptReportReceiptIntervalReport(report, receipt, interval) 
+        BY storeReceipt(receipt), report, interval;
+sumSelectedBonDetailStoreReceiptReportIntervalReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF
+    inReceiptReportReceiptDetail (report, d) AND inReceiptReportReceiptIntervalReport(report, receiptReceiptDetail(d), interval)  
+        BY storeReceiptDetail(d), report, interval;
+
+
 //--
 calcCountBonReceiptReport 'Кол-во чеков' = GROUP SUM 1 IF inReceiptReportReceipt(report, receipt) BY report;
 calcCountBonDetailReceiptReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY report;
@@ -119,6 +170,7 @@ calcSumSelectedBonDetailReceiptReport 'Сумма выбранных позиц�
 
 fillDataReceiptReport 'Заполнить данные' = ACTION (report) {
     DELETE d WHERE d IS ReceiptReportDetail AND receiptReportReceiptReportDetail(d)== report;
+
     
     countBonReceiptReport(report) <- NUMERIC[14,3](calcCountBonReceiptReport(report));
     countBonDetailReceiptReport(report) <- NUMERIC[14,3](calcCountBonDetailReceiptReport(report) /(countBonReceiptReport(report)));        
@@ -136,6 +188,19 @@ fillDataReceiptReport 'Заполнить данные' = ACTION (report) {
         countSelectedBonDetailReceiptReportDetail(d) <- NUMERIC[14,3](inReceiptReportStore(report, store) /(countBonReceiptReportDetail(d)));        
         sumBonReceiptReportDetail(d) <- NUMERIC[16,2](sumBonDetailStoreReceiptReport(store, report)/(countBonReceiptReportDetail(d)));
         sumSelectedBonDetailReceiptReportDetail(d) <- NUMERIC[16,2](sumSelectedBonDetailStoreReceiptReport(store, report)/(inReceiptReportStore(report, store)));
+        
+        FOR receiptReportIntervalReport(interval) == report ADDOBJ dd = IntervalReportDetail DO {
+            intervalReportIntervalReportDetail(dd) <- interval;
+            receiptReportDetailIntervalReportDetail(dd) <- d;
+//            todo: Валится ассоршен, без -еа- работает. Разобраться. Начиная со свойства (countBonStoreReceiptReportIntervalReport(store, report, interval))
+
+            countBonIntervalReportDetail(dd) <- NUMERIC[14,3](countBonStoreReceiptReportIntervalReport(store, report, interval));
+            countBonDetailIntervalReportDetail(dd) <- NUMERIC[14,3](countBonDetailStoreReceiptReportIntervalReport(store, report, interval) /(countBonIntervalReportDetail(dd)));
+            countSelectedBonDetailIntervalReportDetail(dd) <- NUMERIC[14,3](inReceiptReportStoreIntervalReport(report, store,interval) /(countBonIntervalReportDetail(dd)));        
+            sumBonIntervalReportDetail(dd) <- NUMERIC[16,2](sumBonDetailStoreReceiptReportIntervalReport(store, report, interval)/(countBonIntervalReportDetail(dd)));
+            sumSelectedBonDetailIntervalReportDetail(dd) <- NUMERIC[16,2](sumSelectedBonDetailStoreReceiptReportIntervalReport(store, report,interval)/(inReceiptReportStoreIntervalReport(report, store,interval)));            
+            
+        }        
     }        
 }
 
@@ -168,6 +233,11 @@ FORM receiptReport 'Отчет по чекам'
     FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
     PROPERTIES(l,r) inLegalEntityReceiptReport
+    
+    OBJECTS i = IntervalReport
+    PROPERTIES(i) sumIntervalReport
+    PROPERTIES ADDOBJ(i), deletei = DELETESESSION(i), fromSumIntervalReportReceiptReport(i,r)
+    FILTERS receiptReportIntervalReport(i) == r
 
     OBJECTS d = ReceiptReportDetail
     PROPERTIES (d) indexReceiptReportDetail, nameStoreReceiptReportDetail, countBonReceiptReportDetail, countBonDetailReceiptReportDetail, countSelectedBonDetailReceiptReportDetail,
@@ -182,6 +252,17 @@ FORM receiptReport 'Отчет по чекам'
     PROPERTIES(r) TODRAW d deleteReceiptReportDetailReceiptReport
     
     FILTERS receiptReportReceiptReportDetail(d) == r
+    
+    OBJECTS dd = IntervalReportDetail
+    PROPERTIES (dd) sumIntervalReportDetail, countBonIntervalReportDetail, countBonDetailIntervalReportDetail, countSelectedBonDetailIntervalReportDetail,
+                    sumBonIntervalReportDetail, sumSelectedBonDetailIntervalReportDetail    
+    PROPERTIES (dd) ADDOBJ, deleteidd=DELETESESSION                    
+    PROPERTIES deleteIntervalReportDetailReceiptReportDetail(d) TODRAW dd 
+    
+    ORDER BY sumIntervalReportDetail(dd)  
+                 
+    FILTERS receiptReportDetailIntervalReportDetail(dd) == d
+            
 
     EDIT ReceiptReport OBJECT r
 ;
@@ -228,13 +309,21 @@ DESIGN receiptReport {
                         ADD PROPERTY(nameGroupTypeReceiptReport(r));
                     }                    
                     ADD groupTree.tree.box {fill = 1; caption = 'Группы товаров';}
-                }                
+                } 
+//                NEW row5 {
+//                    fill = 1;
+                    ADD i.box{                    
+                        caption = 'Задание диапазона сумм'; 
+                    }
+//                    ADD o.box;
+//                }
             }
-
-            ADD d.box {
+            NEW specContainer{
                 fill = 1;
                 caption = 'Спецификация';
-            }            
+                ADD d.box;
+                ADD dd.box {caption = 'Диапозоны сумм';}
+            }           
         }        
 
         ADD functions.box;
