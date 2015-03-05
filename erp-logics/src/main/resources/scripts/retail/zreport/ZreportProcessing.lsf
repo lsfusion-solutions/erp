@@ -9,6 +9,9 @@ retailPriceReceiptDetail 'Розничная цена' (d)= IF batchReceiptDetai
 FORM ZReportProcessing 'Обработка Z-отчетов'
     OBJECTS ds = DepartmentStore FIXED PANEL
     PROPERTIES(ds) SELECTOR nameDepartmentStore 
+    
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)         
 
     FILTERS isCompanyStock(ds)
 
@@ -23,7 +26,18 @@ FORM ZReportProcessing 'Обработка Z-отчетов'
     FILTERGROUP priceFilter
         FILTER  'Без расценки' skuReceiptDetail(d) AND NOT retailPriceReceiptDetail(d) 'F11'
         FILTER  'Разные цены' retailPriceReceiptDetail(d) != priceReceiptDetail(d) 'F10'
+        
+    FILTERS dateReceiptDetail(d) >= dFrom,  dateReceiptDetail(d) <= dTo  
 ;
+DESIGN ZReportProcessing {
+    NEW top {
+        type = CONTAINERH;
+        ADD dates.box {caption = 'Период';}
+        ADD ds.box;
+    }
+    ADD d.box;
+    ADD functions.box;
+}
 
 fillSkuReceiptDetails 'Привязать штрихкоды' = ACTION () { 
     CONFIRM 'Вы хотите перепривязать товары в соответствии со штрихкодом?';
