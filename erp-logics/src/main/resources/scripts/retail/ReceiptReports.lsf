@@ -29,9 +29,9 @@ sumIntervalReport 'Верхний порог суммы' = DATA NUMERIC[16,2] (I
 
 @defineDocumentRelation (receiptReport, IntervalReport, '');
 
-intervalPrevIntervalReportReceiptReport (interval, report) = PARTITION PREV interval IF inReceiptReportIntervalReport(report, interval) 
-    BY report ORDER DESC sumIntervalReport(report);
-fromSumIntervalReportReceiptReport 'Сумма с' (interval, report)= sumIntervalReport(intervalPrevIntervalReportReceiptReport (interval, report));   
+intervalPrevIntervalReport (interval) = PARTITION PREV interval 
+    BY receiptReportIntervalReport(interval) ORDER sumIntervalReport(interval) PERSISTENT;
+fromSumIntervalReportReceiptReport 'Сумма с' (interval)= sumIntervalReport(intervalPrevIntervalReport (interval));   
 
 @defineDocumentRelation (receiptReportDetail, IntervalReportDetail, '');
 @defineDocumentDetailActions(receiptReportDetail, IntervalReportDetail);
@@ -139,7 +139,7 @@ sumSelectedBonDetailStoreReceiptReport 'Сумма выбранных позиц
 //-- С диапазонами сумм
 inReceiptReportReceiptIntervalReport (report, receipt, interval) = inReceiptReportReceipt (report, receipt) IF
     receiptReportIntervalReport(interval) == report AND sumReceiptDetailReceipt(receipt) <= sumIntervalReport(interval) AND 
-    ((fromSumIntervalReportReceiptReport(interval, report) < sumReceiptDetailReceipt(receipt)) OR  (NOT fromSumIntervalReportReceiptReport(interval, report)));
+    ((fromSumIntervalReportReceiptReport(interval) < sumReceiptDetailReceipt(receipt)) OR  (NOT fromSumIntervalReportReceiptReport(interval)));
 
 countBonStoreReceiptReportIntervalReport 'Кол-во чеков' = GROUP SUM 1 IF
     inReceiptReportReceiptIntervalReport(report, receipt, interval) 
@@ -236,7 +236,7 @@ FORM receiptReport 'Отчет по чекам'
     
     OBJECTS i = IntervalReport
     PROPERTIES(i) sumIntervalReport
-    PROPERTIES ADDOBJ(i), deletei = DELETESESSION(i), fromSumIntervalReportReceiptReport(i,r)
+    PROPERTIES ADDOBJ(i), deletei = DELETESESSION(i)
     FILTERS receiptReportIntervalReport(i) == r
 
     OBJECTS d = ReceiptReportDetail
