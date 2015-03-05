@@ -71,6 +71,8 @@ curRepricingPriceRepricingDetail (detail) = OVERRIDE curPriceRepricingDetail(det
 //-- Партии
 @defineDocumentInterfaceDetailBatch(repricing, batch);
 
+overBatchUserRepricingDetail(d)= OVERRIDE lastOrderBatchSkuStock(skuUserRepricingDetail(d), departmentStoreUserRepricingDetail(d)), batchUserRepricingDetail(d);
+
 changeBatchUserRepricingDetail = ACTION (detail) {
     FORM dialogBatchStock OBJECTS st = departmentStoreUserRepricingDetail(detail),
                              t = dateTimeUserRepricingDetail(detail),
@@ -309,8 +311,11 @@ changePriceUserRepricing 'Изменить цену' (repricing) = ACTION (repri
 } TOOLBAR;
 
 overRecalculatePriceUserRepricingDetail = ABSTRACT ACTION LIST (UserRepricingDetail);
-recalculatePriceUserRepricing 'Пересчитать цены (до)' (repricing) = ACTION (repricing) {
+overConfirmRecalculatePriceUserRepricingDetail = ABSTRACT ACTION LIST (UserRepricingDetail);
 
+recalculatePriceUserRepricing 'Пересчитать цены (до)' (repricing) = ACTION (repricing) {
+    CONFIRM 'Может, Вы, хотите пересчитать и цены (после)?';
+    
     FOR userRepricingUserRepricingDetail(d) == repricing DO {
         curPriceUserRepricingDetail(d) <- IF batchUserRepricingDetail(d)                                          
                 THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
@@ -337,7 +342,17 @@ recalculatePriceUserRepricing 'Пересчитать цены (до)' (repricin
                             
                             
         overRecalculatePriceUserRepricingDetail(d);
-    }
+    }    
+    IF (confirmed()) THEN {
+        FOR userRepricingUserRepricingDetail(d) == repricing DO {
+            priceUserRepricingDetail(d) <- curPriceUserRepricingDetail(d);
+            overConfirmRecalculatePriceUserRepricingDetail(d);        
+        }
+
+        
+    }      
+
+
         
 } TOOLBAR;
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
