@@ -233,7 +233,8 @@ public class LSTerminalHandler extends TerminalHandler {
                                         if (quantity != null && !quantity.equals(BigDecimal.ZERO))
                                             terminalDocumentDetailList.add(new TerminalDocumentDetail(idTerminalDocument, numberTerminalDocument,
                                                     directory, idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType,
-                                                    idTerminalDocumentDetail, numberTerminalDocumentDetail, barcode, price, quantity, sum));
+                                                    null, idTerminalDocumentDetail, numberTerminalDocumentDetail, barcode, null,
+                                                    price, quantity, sum));
                                     }
                                 } finally {
                                     if(connection != null)

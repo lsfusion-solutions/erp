@@ -1274,107 +1274,122 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             List<List<Object>> data = initData(terminalDocumentDetailList.size());
 
-            ImportField idTerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalDocument"));
-            ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocument"),
-                    terminalLM.findProperty("terminalDocumentId").getMapping(idTerminalDocumentField));
-            keys.add(terminalDocumentKey);
-            props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("idTerminalDocument").getMapping(terminalDocumentKey)));
-            fields.add(idTerminalDocumentField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocument);
+            if (notNullNorEmpty(terminalDocumentDetailList)) {
 
-            ImportField titleTerminalDocumentField = new ImportField(terminalLM.findProperty("titleTerminalDocument"));
-            props.add(new ImportProperty(titleTerminalDocumentField, terminalLM.findProperty("titleTerminalDocument").getMapping(terminalDocumentKey)));
-            fields.add(titleTerminalDocumentField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocument);
+                ImportField idTerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalDocument"));
+                ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocument"),
+                        terminalLM.findProperty("terminalDocumentId").getMapping(idTerminalDocumentField));
+                keys.add(terminalDocumentKey);
+                props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("idTerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(idTerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocument);
 
-            ImportField directoryGroupTerminalField = new ImportField(terminalLM.findProperty("directoryGroupTerminal"));
-            ImportKey<?> groupTerminalKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("GroupTerminal"),
-                    terminalLM.findProperty("groupTerminalDirectory").getMapping(directoryGroupTerminalField));
-            keys.add(groupTerminalKey);
-            props.add(new ImportProperty(directoryGroupTerminalField, terminalLM.findProperty("groupTerminalTerminalDocument").getMapping(terminalDocumentKey),
-                    terminalLM.object(terminalLM.findClass("GroupTerminal")).getMapping(groupTerminalKey)));
-            fields.add(directoryGroupTerminalField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).directoryGroupTerminal);
+                ImportField titleTerminalDocumentField = new ImportField(terminalLM.findProperty("titleTerminalDocument"));
+                props.add(new ImportProperty(titleTerminalDocumentField, terminalLM.findProperty("titleTerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(titleTerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocument);
 
-            ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType1TerminalDocument"));
-            props.add(new ImportProperty(idTerminalHandbookType1TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType1TerminalDocument").getMapping(terminalDocumentKey)));
-            fields.add(idTerminalHandbookType1TerminalDocumentField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalHandbookType1);
+                ImportField directoryGroupTerminalField = new ImportField(terminalLM.findProperty("directoryGroupTerminal"));
+                ImportKey<?> groupTerminalKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("GroupTerminal"),
+                        terminalLM.findProperty("groupTerminalDirectory").getMapping(directoryGroupTerminalField));
+                keys.add(groupTerminalKey);
+                props.add(new ImportProperty(directoryGroupTerminalField, terminalLM.findProperty("groupTerminalTerminalDocument").getMapping(terminalDocumentKey),
+                        terminalLM.object(terminalLM.findClass("GroupTerminal")).getMapping(groupTerminalKey)));
+                fields.add(directoryGroupTerminalField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).directoryGroupTerminal);
 
-            ImportField idTerminalHandbookType2TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType2TerminalDocument"));
-            props.add(new ImportProperty(idTerminalHandbookType2TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType2TerminalDocument").getMapping(terminalDocumentKey)));
-            fields.add(idTerminalHandbookType2TerminalDocumentField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalHandbookType2);
+                ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType1TerminalDocument"));
+                props.add(new ImportProperty(idTerminalHandbookType1TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType1TerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(idTerminalHandbookType1TerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalHandbookType1);
 
-            ImportField idTerminalDocumentTypeField = new ImportField(terminalLM.findProperty("idTerminalDocumentType"));
-            ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentType"),
-                    terminalLM.findProperty("terminalDocumentTypeId").getMapping(idTerminalDocumentTypeField));
-            keys.add(terminalDocumentTypeKey);
-            props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("idTerminalDocumentType").getMapping(terminalDocumentTypeKey)));
-            props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("terminalDocumentTypeTerminalDocument").getMapping(terminalDocumentKey),
-                    terminalLM.object(terminalLM.findClass("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
-            fields.add(idTerminalDocumentTypeField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentType);
-            
-            ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("idTerminalDocumentDetail"));
-            ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentDetail"),
-                    terminalLM.findProperty("terminalDocumentDetailIdTerminalDocumentId").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
-            keys.add(terminalDocumentDetailKey);
-            props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findProperty("idTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-            props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("terminalDocumentTerminalDocumentDetail").getMapping(terminalDocumentDetailKey),
-                    terminalLM.object(terminalLM.findClass("TerminalDocument")).getMapping(terminalDocumentKey)));
-            fields.add(idTerminalDocumentDetailField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentDetail);
+                ImportField idTerminalHandbookType2TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType2TerminalDocument"));
+                props.add(new ImportProperty(idTerminalHandbookType2TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType2TerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(idTerminalHandbookType2TerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalHandbookType2);
 
-            ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("numberTerminalDocumentDetail"));
-            props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findProperty("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-            fields.add(numberTerminalDocumentDetailField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocumentDetail);
+                ImportField idTerminalDocumentTypeField = new ImportField(terminalLM.findProperty("idTerminalDocumentType"));
+                ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentType"),
+                        terminalLM.findProperty("terminalDocumentTypeId").getMapping(idTerminalDocumentTypeField));
+                terminalDocumentTypeKey.skipKey = true;
+                keys.add(terminalDocumentTypeKey);
+                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("idTerminalDocumentType").getMapping(terminalDocumentTypeKey)));
+                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("terminalDocumentTypeTerminalDocument").getMapping(terminalDocumentKey),
+                        terminalLM.object(terminalLM.findClass("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
+                fields.add(idTerminalDocumentTypeField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentType);
 
-            ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("barcodeTerminalDocumentDetail"));
-            props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findProperty("barcodeTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-            fields.add(barcodeTerminalDocumentDetailField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).barcodeTerminalDocumentDetail);
+                ImportField quantityTerminalDocumentField = new ImportField(terminalLM.findProperty("quantityTerminalDocument"));
+                props.add(new ImportProperty(quantityTerminalDocumentField, terminalLM.findProperty("quantityTerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(quantityTerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).quantityTerminalDocument);
 
-            ImportField priceTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("priceTerminalDocumentDetail"));
-            props.add(new ImportProperty(priceTerminalDocumentDetailField, terminalLM.findProperty("priceTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-            fields.add(priceTerminalDocumentDetailField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).priceTerminalDocumentDetail);
+                ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("idTerminalDocumentDetail"));
+                ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentDetail"),
+                        terminalLM.findProperty("terminalDocumentDetailIdTerminalDocumentId").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
+                keys.add(terminalDocumentDetailKey);
+                props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findProperty("idTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("terminalDocumentTerminalDocumentDetail").getMapping(terminalDocumentDetailKey),
+                        terminalLM.object(terminalLM.findClass("TerminalDocument")).getMapping(terminalDocumentKey)));
+                fields.add(idTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentDetail);
 
-            ImportField quantityTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("quantityTerminalDocumentDetail"));
-            props.add(new ImportProperty(quantityTerminalDocumentDetailField, terminalLM.findProperty("quantityTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-            fields.add(quantityTerminalDocumentDetailField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).quantityTerminalDocumentDetail);
+                ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("numberTerminalDocumentDetail"));
+                props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findProperty("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                fields.add(numberTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocumentDetail);
 
-            ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("sumTerminalDocumentDetail"));
-            props.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findProperty("sumTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-            fields.add(sumTerminalDocumentDetailField);
-            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).sumTerminalDocumentDetail);
-            
+                ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("barcodeTerminalDocumentDetail"));
+                props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findProperty("barcodeTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                fields.add(barcodeTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).barcodeTerminalDocumentDetail);
 
-            ImportTable table = new ImportTable(fields, data);
+                ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("nameTerminalDocumentDetail"));
+                props.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findProperty("nameTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                fields.add(nameTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).nameTerminalDocumentDetail);
 
-            DataSession session = getDbManager().createSession();
-            session.pushVolatileStats("ES_TI");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            String result = session.applyMessage(getBusinessLogics());
-            session.popVolatileStats();
-            session.close(); 
-            
-            return result;
+                ImportField priceTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("priceTerminalDocumentDetail"));
+                props.add(new ImportProperty(priceTerminalDocumentDetailField, terminalLM.findProperty("priceTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                fields.add(priceTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).priceTerminalDocumentDetail);
+
+                ImportField quantityTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("quantityTerminalDocumentDetail"));
+                props.add(new ImportProperty(quantityTerminalDocumentDetailField, terminalLM.findProperty("quantityTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                fields.add(quantityTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).quantityTerminalDocumentDetail);
+
+                ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("sumTerminalDocumentDetail"));
+                props.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findProperty("sumTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                fields.add(sumTerminalDocumentDetailField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).sumTerminalDocumentDetail);
+
+                ImportTable table = new ImportTable(fields, data);
+
+                DataSession session = getDbManager().createSession();
+                session.pushVolatileStats("ES_TI");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                String result = session.applyMessage(getBusinessLogics());
+                session.popVolatileStats();
+                session.close();
+
+                return result;
+            } else return null;
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
