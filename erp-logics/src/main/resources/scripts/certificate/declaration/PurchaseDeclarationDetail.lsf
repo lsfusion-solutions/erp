@@ -377,6 +377,15 @@ sumDeclarationInvoiceDetailDeclaration 'Сумма (по позициям дек
                                                                                BY declarationDeclarationInvoiceDetail(d) MINCHARWIDTH 15;
 
 noneVATCustomsExceptionUserInvoiceDetail(d) = OVERRIDE VATCustomsException.none, VATCustomsExceptionUserInvoiceDetail(d);
+
+notPriceBrand 'Не учитывать цену в декларации' = DATA BOOLEAN (Brand);
+
+EXTEND FORM brand
+    PROPERTIES (t) notPriceBrand
+;
+
+overridePriceUserInvoiceDetail(d) = OVERRIDE priceUserInvoiceDetail(d), 1 IF notPriceBrand(brandItem(skuInvoiceDetail(d)));
+
 quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(d)
                                            BY declarationUserInvoiceDetail(d),
                                               nameCustomsUserInvoiceDetail(d),
@@ -384,7 +393,7 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(d)
                                               customsGroupUserInvoiceDetail(d),
                                               noneVATCustomsExceptionUserInvoiceDetail(d),
                                               countrySkuUserInvoiceDetail(d),
-                                              priceUserInvoiceDetail(d); 
+                                              overridePriceUserInvoiceDetail(d); 
 
 sumGroupDeclaration 'Стоимость' = GROUP SUM sumUserInvoiceDetail(d)
                                            BY declarationUserInvoiceDetail(d),
@@ -393,7 +402,7 @@ sumGroupDeclaration 'Стоимость' = GROUP SUM sumUserInvoiceDetail(d)
                                               customsGroupUserInvoiceDetail(d),
                                               noneVATCustomsExceptionUserInvoiceDetail(d),
                                               countrySkuUserInvoiceDetail(d),
-                                              priceUserInvoiceDetail(d); 
+                                              overridePriceUserInvoiceDetail(d); 
                                               
 countNotQuantityDeclaration 'Кол-во строк' = GROUP SUM 1 IF NOT quantityUserInvoiceDetail(d)
     BY declarationUserInvoiceDetail(d);                                                                           
@@ -440,11 +449,12 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
             customsGroupDeclarationInvoiceDetail(dd) <- customsGroup;
             VATCustomsExceptionDeclarationInvoiceDetail(dd) <- IF customsException != VATCustomsException.none THEN customsException ELSE NULL;
             countryDeclarationInvoiceDetail(dd) <- country;
-            priceDeclarationInvoiceDetail(dd) <- price;
+            //priceDeclarationInvoiceDetail(dd) <- price;
     
             // Значения
             quantityDeclarationInvoiceDetail (dd) <- quantity;
             sumDeclarationInvoiceDetail(dd) <- sum;
+            priceDeclarationInvoiceDetail(dd) <- sumDeclarationInvoiceDetail(dd)/quantityDeclarationInvoiceDetail (dd);
     
             // связываем строки накладной и декларации
             declarationInvoiceDetailUserInvoiceDetail(id) <- dd WHERE
@@ -454,7 +464,7 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
                 customsGroupUserInvoiceDetail(id) == customsGroup AND
                 noneVATCustomsExceptionUserInvoiceDetail(id) == customsException AND
                 countrySkuUserInvoiceDetail(id) == country AND
-                priceUserInvoiceDetail(id) == price;
+                overridePriceUserInvoiceDetail(id) == price;
         }
     
         sumNetWeightDeclarationInvoiceDetail(dd) <- [= GROUP SUM sumNetWeightUserInvoiceDetail(d) BY declarationInvoiceDetailUserInvoiceDetail(d)](dd) WHERE declarationDeclarationInvoiceDetail(dd) == declaration;
