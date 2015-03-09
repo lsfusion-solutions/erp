@@ -470,12 +470,23 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
             Connection conn = null;
             try {
+
+                String dir = trim(sqlHostEntry.getKey());
+                String host = trim(sqlHostEntry.getValue());
+                
+                Map<Integer, Integer> cashRegisterGroupCashRegisterMap = new HashMap<Integer, Integer>();
+                for (CashRegisterInfo c : cashRegisterInfoList) {
+                    if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) { //dir.equals(host) - old host format, without dir
+                            cashRegisterGroupCashRegisterMap.put(c.number, c.numberGroup);
+                    }
+                }
+
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
                         sqlHostEntry.getValue(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
+                String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney";// WHERE Taken='1'";
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     String number = rs.getString("Ck_Number");
@@ -483,9 +494,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     Date date = new Date(dateTime.getTime());
                     Time time = new Time(dateTime.getTime());
                     BigDecimal sum = rs.getBigDecimal("Ck_Summa");
-                    Integer numberCashRegister = rs.getInt("CashNumber");
+                    Integer nppMachinery = rs.getInt("CashNumber");
                     if (!cashDocumentSet.contains(number))
-                        result.add(new CashDocument(number, date, time, numberCashRegister, sum));
+                        result.add(new CashDocument(number, date, time, cashRegisterGroupCashRegisterMap.get(nppMachinery), nppMachinery, sum));
                 }
             } catch (SQLException e) {
                 sendSalesLogger.error(e);
@@ -606,6 +617,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
             for (File file : filesList) {
                 try {
+                    if(file.length() == 0) {
+                        //file is empty
+                        file.delete();
+                        continue;
+                    }
                     String fileName = file.getName();
                     sendSalesLogger.info("Kristal: reading " + fileName);
                     if (isFileLocked(file)) {

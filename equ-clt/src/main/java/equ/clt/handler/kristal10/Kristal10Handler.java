@@ -295,10 +295,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Set<String> directorySet = new HashSet<String>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
+            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler")) {
                 directorySet.add(c.directory);
+                if (c.handlerModel != null && c.number != null && c.numberGroup != null) {   
+                    directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+                }
+            }
         }
 
         List<CashDocument> cashDocumentList = new ArrayList<CashDocument>();
@@ -348,7 +354,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 Time timeCashDocument = new Time(dateTimeCashDocument);
 
                                 cashDocumentList.add(new CashDocument(numberCashDocument, dateCashDocument, timeCashDocument,
-                                        numberCashRegister, sumCashDocument));
+                                        directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister, sumCashDocument));
                             }
                             readFiles.add(file.getAbsolutePath());
                         }

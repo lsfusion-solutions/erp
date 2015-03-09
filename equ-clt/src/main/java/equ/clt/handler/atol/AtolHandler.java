@@ -305,11 +305,16 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         try {
-
+            
+            Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
             Set<String> directorySet = new HashSet<String>();
             for (CashRegisterInfo c : cashRegisterInfoList) {
-                if (c.directory != null && c.handlerModel.endsWith("AtolHandler"))
+                if (c.directory != null && c.handlerModel.endsWith("AtolHandler")) {
                     directorySet.add(c.directory);
+                    if (c.handlerModel != null && c.number != null && c.numberGroup != null) {
+                        directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+                    }
+                }
             }
 
             Set<String> cancelCashDocumentSet = new HashSet<String>();
@@ -357,7 +362,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     Time timeReceipt = getTimeValue(entry, 2);
                                     Integer numberCashRegister = getIntValue(entry, 4);
                                     BigDecimal sumCashDocument = isOutputCashDocument ? safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
-                                    currentResult.add(new CashDocument(numberCashDocument, dateReceipt, timeReceipt, numberCashRegister, sumCashDocument));
+                                    currentResult.add(new CashDocument(numberCashDocument, dateReceipt, timeReceipt, 
+                                            directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), 
+                                            numberCashRegister, sumCashDocument));
 
                                 }
                             }
