@@ -1,6 +1,6 @@
 MODULE Range;
 
-REQUIRE Store, Sku, Barcode, PriceListStore, EmployeeSku, PriceListDashboardStore, SaleLedger;
+REQUIRE Store, Sku, Barcode, PriceListStore, EmployeeSku, PriceListDashboardStore, SaleLedger, PurchasePack;
 
 // Уровни ассортимента
 
@@ -8,16 +8,18 @@ CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
 nameRangeLevel 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
 
+quantityShelfLevel 'Количество на полке' = DATA INTEGER (RangeLevel) IN recognize;
+
 FORM rangeLevel 'Уровень ассортимента'
     OBJECTS l = RangeLevel FIXED PANEL
-    PROPERTIES(l) nameRangeLevel
+    PROPERTIES(l) nameRangeLevel, quantityShelfLevel
 
     EDIT RangeLevel OBJECT l
 ;
 
 FORM rangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
-    PROPERTIES(l) READONLY nameRangeLevel
+    PROPERTIES(l) READONLY nameRangeLevel, quantityShelfLevel
     PROPERTIES(l) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
     
     DIALOG RangeLevel OBJECT l
@@ -260,7 +262,7 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(),nameSku, nameUOMSku
+    PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(),nameSku, nameUOMSku, amountPackSku
     PROPERTIES READONLY    nameCompanyALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
                            priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
                            retailPriceASkuDepartmentStoreRangeRev(s, d, v),
@@ -300,20 +302,38 @@ FORM rangeRev 'Версия ассортиментной матрицы'
 DESIGN rangeRev {
     NEW top {
         type = CONTAINERH;
-        ADD s.panel;
-        NEW supplier {
-            caption = 'Поставщик';
-            ADD PROPERTY(nameFilterSupplier());
-        }
-        ADD d.box;
-        ADD pt.box;
-        ADD dates.box {        
-            caption = 'Период реализации';
-            type = CONTAINERH;
-        }
+        fill = 1;
+        NEW top1 { 
+            fill = 1;
+            type = CONTAINERV;
+            ADD v.box;
+            NEW top11 {
+                type = CONTAINERH;
+                ADD s.panel;
+                NEW supplier {
+                    caption = 'Поставщик';
+                    ADD PROPERTY(nameFilterSupplier());
+                }
+                ADD d.box;            
+            } 
+            NEW top12 {
+                type = CONTAINERH;
+                ADD pt.box;
+                ADD dates.box {        
+                    caption = 'Период реализации';
+                    type = CONTAINERH;
+                }                
+            }        
+        }    
+        ADD l.box { 
+            caption = 'Итого по уровням ассортимента';
+            fill = 1;
+            REMOVE l.controls;
+        }      
+
     }
     NEW details {
-        fill = 1;
+        fill = 3;
         type = SPLITV;
         caption = 'Товары';
         ADD s.box {
@@ -330,18 +350,14 @@ DESIGN rangeRev {
             PROPERTY(quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }  
             PROPERTY(sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }          
         }
-        NEW details1 {
+        
+        NEW supplier1 {
             fill = 1;
-            type = SPLITH;
-            ADD l.box { caption = 'Итого по уровням ассортимента';}
-            NEW supplier1 {
-                fill = 2;
-                type = SPLITH;
-                caption = 'Итого по поставщикам';
-                ADD su.box;
-                ADD l2.box;
-            }
+            caption = 'Итого по поставщикам';
+            ADD su.box;
+            REMOVE l2.box;
         }
+        
     }
     ADD functions.box;
 }
@@ -540,14 +556,19 @@ EXTEND FORM rangeRev
 DESIGN rangeRev {
     NEW header BEFORE functions.box {
         type = TABBED;
-        fill = 1;
+        fill = 6;
         ADD details;
         NEW store {
-            caption = 'Магазины';
+            caption = 'Итоги';
             fill = 1;
-            type = SPLITV;
-            ADD t.box;
-            ADD st.box;
+            type = SPLITH;
+            NEW store1 {
+                type = SPLITV;  
+                fill = 1;
+                ADD t.box;
+                ADD st.box;            
+            }
+            ADD supplier1 { fill = 1;}
         }
         
     }
