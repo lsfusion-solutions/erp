@@ -245,9 +245,10 @@ FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
 ;
 reviewSoldStoreSkuDateFromTo (sku, dFrom, dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
 
+TABLE rangeLevelSku (RangeLevel, Sku);
 quantityShelfRangeLevelSku 'Количество на полке' = DATA INTEGER (RangeLevel, Sku);
 
-nameQuantityRangeLevel (rl) = CONCAT ' / ', nameRangeLevel(rl), 'к-во на полке'; 
+nameQuantityRangeLevel (rl) = CONCAT ' / ', '('+nameRangeLevel(rl)+')', 'к-во на полке'; 
 
 FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL
@@ -404,12 +405,78 @@ DESIGN range {
     }
 }
 
+countSkuNotSupplierTypeDepartmentStoreRangeRev 'Кол-во товаров без поставщика' = GROUP SUM 1 IF levelRangeRevSku(v, sku) AND pt IS DataPriceListType AND d IS DepartmentStore 
+    AND NOT companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)) 
+        BY pt, d, v; 
+calcCountSkuNotSupplierTypeDepartmentStoreRangeDate 'Кол-во товаров без поставщика' (pt, d, r, dt) = countSkuNotSupplierTypeDepartmentStoreRangeRev(pt, d , rangeRevRangeDate(r, dt));
+
+countSkuNotSupplierTypeDepartmentStoreRangeDate 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
+
+fillCountSkuNotSupplier 'Обновить' = ACTION (pt, d, dt) {
+    countSkuNotSupplierTypeDepartmentStoreRangeDate(pt, d, r, dt) <- calcCountSkuNotSupplierTypeDepartmentStoreRangeDate(pt, d, r, dt) WHERE r IS Range;   
+}
+createRangeRevRangeDate 'Создать версию' = ACTION (range, date) NEWSESSION {
+    LOCAL rev = RangeRev();
+    rev () <- rangeRevRangeDate(range, date);
+
+    FOR ADDOBJ v = RangeRev DO {
+        rangeRangeRev(v) <- range;
+        levelRangeRevSku(v, s) <- levelRangeRevSku(rev(), s);
+        FORM rangeRev OBJECTS v=v MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
 EXTEND FORM ranges
     OBJECTS vl = RangeLevel FIXED GRID
 
     PROPERTIES READONLY countSkuRangeDate(r, d)
     PROPERTIES READONLY countSkuRangeRangeLevelDate(r, vl, d) TODRAW r COLUMNS (vl) HEADER nameRangeLevel(vl) 
+
+    OBJECTS pt = DataPriceListType FIXED PANEL
+    PROPERTIES(pt) SELECTOR namePriceListType
+
+    OBJECTS ds = DepartmentStore FIXED PANEL
+    PROPERTIES(ds) SELECTOR nameDepartmentStore
+    FILTERS isCompanyStock(ds)
+    
+    OBJECTS r1 = Range
+    PROPERTIES(r1) READONLY nameRange
+    FILTERS inParentRangeSkuGroup(r1, sg) OR NOT countSkuGroupRange(r1)        
+    
+    PROPERTIES READONLY countSkuNotSupplierTypeDepartmentStoreRangeDate(pt,ds,r1,d)
+    PROPERTIES fillCountSkuNotSupplier(pt, ds, d) TODRAW r1 TOOLBAR , createRangeRevRangeDate(r1,d) 
+    
+    FILTERGROUP notSupplier
+        FILTER 'Без поставщиков' countSkuNotSupplierTypeDepartmentStoreRangeDate(pt, ds, r1, d) DEFAULT 
+    
 ;
+
+DESIGN ranges {
+    pane {
+        fill = 1;
+        type = SPLITH;
+        ADD skuTree.tree.box { caption = 'Групы товаров';}
+        NEW tab {
+            caption = 'Список';
+            fill = 2;   
+            type = TABBED;
+            ADD r.box;
+            NEW supplier{
+                caption = 'Без поставщиков';
+                fill = 1;
+                NEW topTab {
+                    type = CONTAINERH;
+                    ADD pt.box;
+                    ADD ds.box;
+                }
+                ADD r1.box;
+            }
+            
+        }        
+    }
+}
+EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccessEmployee(currentUser())) OR countSkuGroupEmployeeRange(currentUser(), r1);
+
 
 @extendFormFilterSkuGroupAccess(ranges, sg);
 
