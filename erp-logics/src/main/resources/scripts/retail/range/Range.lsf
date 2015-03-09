@@ -8,18 +8,17 @@ CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
 nameRangeLevel 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
 
-quantityShelfLevel 'Количество на полке' = DATA INTEGER (RangeLevel) IN recognize;
 
 FORM rangeLevel 'Уровень ассортимента'
     OBJECTS l = RangeLevel FIXED PANEL
-    PROPERTIES(l) nameRangeLevel, quantityShelfLevel
+    PROPERTIES(l) nameRangeLevel
 
     EDIT RangeLevel OBJECT l
 ;
 
 FORM rangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
-    PROPERTIES(l) READONLY nameRangeLevel, quantityShelfLevel
+    PROPERTIES(l) READONLY nameRangeLevel
     PROPERTIES(l) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
     
     DIALOG RangeLevel OBJECT l
@@ -246,6 +245,10 @@ FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
 ;
 reviewSoldStoreSkuDateFromTo (sku, dFrom, dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
 
+quantityShelfRangeLevelSku 'Количество на полке' = DATA INTEGER (RangeLevel, Sku);
+
+nameQuantityRangeLevel (rl) = CONCAT ' / ', nameRangeLevel(rl), 'к-во на полке'; 
+
 FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL
     PROPERTIES(v) dateTimeRangeRev
@@ -261,6 +264,10 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
+    OBJECTS rl = RangeLevel    
+    FILTERS inRangeRevRangeLevel(v, rl)     
+    
+    
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(),nameSku, nameUOMSku, amountPackSku
     PROPERTIES READONLY    nameCompanyALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
@@ -273,6 +280,9 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES READONLY currentBalanceSkuStock(s,d), quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo), sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)
     PROPERTIES currentBalanceDepartmentsSku(s) ON CHANGE reviewCurrentBalanceSku(s), quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo), 
                sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo)
+               
+    PROPERTIES quantityShelfRangeLevelSku(rl,s) COLUMNS (rl) HEADER nameQuantityRangeLevel(rl)          
+               
     FILTERS inChildRangeSkuGroup(rangeRangeRev(v), skuGroupSku(s)),
             (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
                 (s IS Sku AND NOT filterSupplier())
@@ -330,7 +340,7 @@ DESIGN rangeRev {
             fill = 1;
             REMOVE l.controls;
         }      
-
+        REMOVE rl.box;
     }
     NEW details {
         fill = 3;
