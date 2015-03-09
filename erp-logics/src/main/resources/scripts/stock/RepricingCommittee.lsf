@@ -2,6 +2,8 @@ MODULE RepricingCommittee;
 
 REQUIRE EmployeeStock;
 
+numberDisposalStock '№ распоряжения на переоценку' = DATA VARSTRING[30] (Stock);
+
 //--------------------------------Комиссия для переоценки----------------------------------//
 CLASS RepricingCommittee 'Комиссия для переоценки' : Committee;
 
@@ -84,7 +86,7 @@ FORM repricingCommitteeDialog 'Комиссии для переоценки'
 // ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
 
 META defineDocumentHeaderRepricingCommittee(object, stockProp)
-    numberDisposal###object '№ распоряжения на переоценку' (object) = DATA VARSTRING[30] (###object) IN documentPrm;
+    dataNumberDisposal###object '№ распоряжения на переоценку' (object) = DATA VARSTRING[30] (###object) IN documentPrm;
 
     repricingCommittee###object (object) = DATA RepricingCommittee(###object);
     nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
@@ -116,8 +118,15 @@ END
 META defineDocumentInterfaceHeaderRepricingCommittee (object, stockProp)
     @defineDocumentHeaderAbstractRepricingCommittee (object);
     @defineDocumentHeaderRepricingCommittee (user###object, stockProp);
+
+    numberDisposal###user###object '№ распоряжения на переоценку' (object) = OVERRIDE numberDisposalStock(stockProp###object(object)), dataNumberDisposal###user###object(object) IN documentPrm;
+    changeNumberDisposal###user###object = ACTION (object) {
+        REQUEST VARSTRING[30] INPUT;
+        dataNumberDisposal###user###object(object) <- requestedString();        
+    }
+    
     repricingCommittee###object (object) += repricingCommittee###user###object(object);
-    numberDisposal###object (object) += numberDisposal###user###object(object);
+    numberDisposal###object (object) += dataNumberDisposal###user###object(object);    
 END
 
 NAVIGATOR {
