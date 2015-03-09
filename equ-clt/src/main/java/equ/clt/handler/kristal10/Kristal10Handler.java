@@ -54,6 +54,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
         boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
         boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -100,10 +101,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
                     addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
                     addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ( (item.flags & 16) == 0 ) ? "false" : "true");
-                    addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
+                    if(useShopIndices)
+                        addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
                     rootElement.addContent(maxDiscountRestriction);
 
-                    addStringElement(good, "shop-indices", item.idDepartmentStore);
+                    if(useShopIndices)
+                        addStringElement(good, "shop-indices", item.idDepartmentStore);
 
                     addStringElement(good, "name", item.name);
 
