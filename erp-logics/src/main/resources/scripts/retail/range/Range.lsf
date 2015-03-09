@@ -8,9 +8,6 @@ CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
 nameRangeLevel 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
 
-TABLE rangeRangeLevel(Range, RangeLevel);
-inRangeRangeLevel 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
-
 FORM rangeLevel 'Уровень ассортимента'
     OBJECTS l = RangeLevel FIXED PANEL
     PROPERTIES(l) nameRangeLevel
@@ -49,6 +46,9 @@ inParentRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, child) AND isP
 
 inChildRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, parent) AND isParentSkuGroupSkuGroup(child, parent)
                               BY range, child PERSISTENT;
+
+TABLE rangeRangeLevel(Range, RangeLevel);
+inRangeRangeLevel 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
 
 FORM range 'Ассортиментная матрица'
     OBJECTS r = Range FIXED PANEL
@@ -146,18 +146,20 @@ rangeRevRangeDate 'Версия' = GROUP LAST rev
                                        ORDER dateTimeRangeRev(rev), rev
                                        WHERE dateRangeRev(rev) <= (date AS DATE) COMPLEX;
                            
-
 TABLE rangeRevSku(RangeRev, Sku);
 levelRangeRevSku = DATA RangeLevel(RangeRev, Sku);
 nameLevelRangeRevSku 'Уровень' (r, s)= nameRangeLevel(levelRangeRevSku(r, s));
 
 levelRangeSkuDate(r, s, d) = levelRangeRevSku(rangeRevRangeDate(r, d), s);
 
-CONSTRAINT levelRangeRevSku(r, s) AND NOT inRangeRangeLevel(rangeRangeRev(r), levelRangeRevSku(r, s))
+inRangeRevRangeLevel 'Вкл' = inRangeRangeLevel(rangeRangeRev(v), l);
+
+CONSTRAINT levelRangeRevSku(r, s) AND NOT inRangeRevRangeLevel(r, levelRangeRevSku(r, s))
     CHECKED BY levelRangeRevSku 
     MESSAGE 'Уровень ассортимента для товара не соответствует типу ассортимента';
 
 countSkuRangeRev 'Кол-во товаров' = GROUP SUM 1 IF levelRangeRevSku(r, s) BY r; 
+
 countSkuRangeRevRangeLevel 'Кол-во товаров' = GROUP SUM 1 BY r, levelRangeRevSku(r, s);
 
 countRecSkuRangeRevRangeLevel 'Кол-во товаров' = GROUP SUM countSkuRangeRevRangeLevel(r, l) IF l <= (level AS RangeLevel) BY r, level;
@@ -213,11 +215,11 @@ lastAccountPriceSkuStore 'Учетная цена' (sku, store) = priceBLedgerPr
 
 countSkusRangeRevRangeLevel 'Кол-во наименований' = GROUP SUM 1 BY v, levelRangeRevSku(v,sku);
 
-countSkusRangeRevSupplier 'Кол-во наименований (всего)' (v,supplier, pt, d) = GROUP SUM 1 IF companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)) AND levelRangeRevSku(v,sku)
+countSkusRangeRevSupplier 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP SUM 1 IF levelRangeRevSku(v, sku)
     BY v, companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
 
-countSkusRangeRevRangeLevelSupplier 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1 IF companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)) AND levelRangeRevSku(v,sku)
-    BY v, levelRangeRevSku(v,sku), companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
+countSkusRangeRevRangeLevelSupplier 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1
+    BY v, levelRangeRevSku(v, sku), companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
 
 
 FORM currentBalanceSku 'Текущие остатки'
@@ -283,19 +285,16 @@ FORM rangeRev 'Версия ассортиментной матрицы'
         
     OBJECTS l = RangeLevel
     PROPERTIES READONLY nameRangeLevel(l), countSkusRangeRevRangeLevel(v,l)  
-    ORDER BY nameRangeLevel(l)
-    FILTERS countSkusRangeRevRangeLevel(v,l)  
+    FILTERS inRangeRevRangeLevel(v, l)  
    
+    OBJECTS l2 = RangeLevel FIXED GRID
+    FILTERS inRangeRevRangeLevel(v, l2)  
+
     OBJECTS su = LegalEntity
-    PROPERTIES READONLY nameLegalEntity(su), countSkusRangeRevSupplier(v,su,pt,d) 
+    PROPERTIES READONLY nameLegalEntity(su), countSkusRangeRevSupplier(v, su, pt, d), countSkusRangeRevRangeLevelSupplier(v, l2, su, pt, d) COLUMNS (l2) HEADER nameRangeLevel(l2) 
     ORDER BY nameLegalEntity(su)
-    FILTERS countSkusRangeRevSupplier(v,su,pt,d)         
+    FILTERS countSkusRangeRevSupplier(v, su, pt, d)         
           
-    OBJECTS l2 = RangeLevel
-    PROPERTIES READONLY nameRangeLevel(l2), countSkusRangeRevRangeLevelSupplier(v,l2,su,pt,d)  
-    ORDER BY nameRangeLevel(l2)    
-    FILTERS countSkusRangeRevRangeLevelSupplier(v,l2,su,pt,d)         
-         
     EDIT RangeRev OBJECT v
 ;
 DESIGN rangeRev {
@@ -561,7 +560,7 @@ FORM param 'Параметры заполнения ассортиментной
 
     OBJECTS l = RangeLevel
     PROPERTIES(l) nameRangeLevel READONLY, countRangeLevel 
-    FILTERS inRangeRangeLevel(rangeRangeRev(v), l)
+    FILTERS inRangeRevRangeLevel(v, l)
     
     OBJECTS s = Sku
     PROPERTIES READONLY nameSku(s), countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo), 
