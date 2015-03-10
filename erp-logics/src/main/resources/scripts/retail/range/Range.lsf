@@ -584,13 +584,18 @@ countFilterRangeSkuDateFromTo 'Кол-во магазинов' (range, sku, date
 countRangeLevel 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
 countRangeLevelsRange = GROUP SUM  countRangeLevel(l) IF inRangeRangeLevel(r,l) BY r;
 
-indexRangeGroupSkuDateFromTo 'Порядок' (range, sku, dateFrom, dateTo) =
-    PARTITION SUM 1 IF countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo)
-    BY range, dateFrom, dateTo
-    ORDER DESC countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo), sku;
+//indexRangeGroupSkuDateFromTo 'Порядок' (range, sku, dateFrom, dateTo) =
+//    PARTITION SUM 1 IF countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo)
+//    BY range, dateFrom, dateTo
+//    ORDER DESC countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo), sku;
+
+indexRangeGroupSkuDateFromTo 'Порядок' (v, sku, dateFrom, dateTo, pt, stock) =
+    PARTITION SUM 1 IF countFilterRangeSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo) AND companyALedgerPriceListTypeSkuStockDateTime(pt, sku, stock, dateTimeRangeRev(v))
+    BY v, dateFrom, dateTo, pt, stock
+    ORDER DESC countFilterRangeSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo), sku;
 
 countFilterRangeRevSkuDateFromTo 'Кол-во магазинов' (v, sku, dateFrom, dateTo) = countFilterRangeSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo);
-indexRangeRevSkuDateFromTo 'Порядок' (v, sku, dateFrom, dateTo) = indexRangeGroupSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo);                                                         
+indexRangeRevSkuDateFromTo 'Порядок' (v, sku, dateFrom, dateTo, pt, stock) = indexRangeGroupSkuDateFromTo(v, sku, dateFrom, dateTo, pt, stock);                                                         
 
 totalRangeLevel 'Накоплено' (range, level) =
     PARTITION SUM countRangeLevel(level) IF inRangeRangeLevel(range,level)
@@ -598,9 +603,9 @@ totalRangeLevel 'Накоплено' (range, level) =
     ORDER  level;
 total 'Накоплено' = totalRangeLevel(rangeRangeRev(v), level);      
     
-levelSkuRangeDateFromTo (sku, range, dateFrom, dateTo) = 
-    GROUP MIN level IF indexRangeGroupSkuDateFromTo(range, sku, dateFrom, dateTo) <= totalRangeLevel(range, level)
-          BY sku, range, dateFrom, dateTo;
+levelSkuRangeDateFromTo (sku, v, dateFrom, dateTo, pt, stock) = 
+    GROUP MIN level IF indexRangeGroupSkuDateFromTo(v, sku, dateFrom, dateTo, pt, stock) <= totalRangeLevel(rangeRangeRev(v), level)
+          BY sku, v, dateFrom, dateTo, pt, stock;
 
 
 countFilterRangeStoreDateFromTo 'Кол-во с продажей или остатком' (range, store, dateFrom, dateTo) = GROUP SUM 1 IF countFilterRangeSkuStoreDateFromTo(sku, store, dateFrom, dateTo) 
@@ -662,30 +667,33 @@ FORM param 'Параметры заполнения ассортиментной
     PROPERTIES(l) nameRangeLevel READONLY, countRangeLevel 
     FILTERS inRangeRevRangeLevel(v, l)
     
-    OBJECTS s = Sku
-    PROPERTIES READONLY nameSku(s), countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo), 
-                        indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-    FILTERS indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-    ORDER BY indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+//    OBJECTS s = Sku
+//    PROPERTIES READONLY nameSku(s), countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo), 
+//                        indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+//    FILTERS indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+//    ORDER BY indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+//
+//    FILTERS countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+//    ORDER BY countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo)
     
 ;
 DESIGN param {
     
     main {
-        preferredSize = (1024, 768);
+//        preferredSize = (1024, 768);
         ADD v.box;
         ADD dates.box {caption = 'Период продаж';}
         ADD l.box;
-        ADD s.box;
+//        ADD s.box;
         ADD functions.box;
     }
 }
 
-fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, dateTo) {
+fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, dateTo, pt, stock) {
     FORM param OBJECTS v =  rangeRev, dFrom = dateFrom, dTo = dateTo MODAL;
     IF formResult() == FormResult.ok THEN { 
         IF countRangeLevelsRange(rangeRangeRev(rangeRev)) THEN {
-            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDateFromTo (sku, rangeRangeRev(rangeRev), dateFrom, dateTo) WHERE levelSkuRangeDateFromTo (sku, rangeRangeRev(rangeRev), dateFrom, dateTo) ;
+            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDateFromTo (sku, rangeRev, dateFrom, dateTo, pt, stock) WHERE levelSkuRangeDateFromTo (sku, rangeRev, dateFrom, dateTo, pt, stock) ;
         } ELSE {
             MESSAGE 'Не задано количество товара ни для одного уровня ассортиментной матрицы.';
         }
@@ -695,7 +703,7 @@ fillRangeRev 'Заполнить матрицу по остаткам и про�
 
 
 EXTEND FORM rangeRev
-    PROPERTIES (v,dFrom,dTo) fillRangeRev TODRAW s
+    PROPERTIES (v, dFrom, dTo, pt, d) fillRangeRev TODRAW s
 ;
 
 
