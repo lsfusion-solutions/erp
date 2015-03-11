@@ -484,6 +484,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
                         sqlHostEntry.getValue(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                sendSalesLogger.info("SendSales connection: " + url);
+                
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
                 String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
