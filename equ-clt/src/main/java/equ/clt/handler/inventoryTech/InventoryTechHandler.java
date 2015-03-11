@@ -279,8 +279,8 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, ARTICUL, item.idBarcode, append);
-                                putField(dbfWriter, NAME, item.name, append);
+                                putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
+                                putField(dbfWriter, NAME, trim(item.name, 200), append);
                                 putField(dbfWriter, QUAN, String.valueOf(item.quantity == null ? 1 : item.quantity.intValue()), append);
                                 putField(dbfWriter, PRICE, String.valueOf(item.price == null ? 0 : item.price.intValue()), append);
 
@@ -351,8 +351,8 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, ARTICUL, item.idBarcode, append);
-                                putField(dbfWriter, BARCODE, item.idBarcode, append);
+                                putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
+                                putField(dbfWriter, BARCODE, trim(item.idBarcode, 26), append);
                                 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -419,9 +419,8 @@ public class InventoryTechHandler extends TerminalHandler {
 
                     Set<String> usedCodes = new HashSet<String>();
                     putField(dbfWriter, VIDSPR, "10", append);
-                    //int count = 0; //временная мера. На большом кол-ве зависает
                     for (TerminalLegalEntity le : transaction.terminalLegalEntityList) {
-                        if (!Thread.currentThread().isInterrupted()/* && count <= 10*/) {
+                        if (!Thread.currentThread().isInterrupted()) {
                             if (!usedCodes.contains(le.idLegalEntity)) {
                                 Integer recordNumber = null;
                                 if (append) {
@@ -430,8 +429,8 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
                                 
-                                putField(dbfWriter, CODE, le.idLegalEntity, append);
-                                putField(dbfWriter, NAME, le.nameLegalEntity, append);
+                                putField(dbfWriter, CODE, trim(le.idLegalEntity, 15), append);
+                                putField(dbfWriter, NAME, trim(le.nameLegalEntity, 200), append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -512,16 +511,16 @@ public class InventoryTechHandler extends TerminalHandler {
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, CODE, tdt.id, append);
-                                putField(dbfWriter, NAME, tdt.name, append);
+                                putField(dbfWriter, CODE, trim(tdt.id, 15), append);
+                                putField(dbfWriter, NAME, trim(tdt.name, 50), append);
                                 String sprt1 = tdt.analytics1 == null ? "" : tdt.analytics1.equals("ПС") ? "Организация" : tdt.analytics1;
                                 String vidspr1 = tdt.analytics1 == null ? "0" : tdt.analytics1.equals("ПС") ? "10" : tdt.analytics1;
                                 String sprt2 = tdt.analytics2 == null ? "" : tdt.analytics2.equals("ПС") ? "Организация" : tdt.analytics2;
                                 String vidspr2 = tdt.analytics2 == null ? "0" : tdt.analytics2.equals("ПС") ? "10" : tdt.analytics2;
                                 putField(dbfWriter, VIDSPR1, vidspr1, append);
-                                putField(dbfWriter, SPRT1, sprt1, append);
+                                putField(dbfWriter, SPRT1, trim(sprt1, 15), append);
                                 putField(dbfWriter, VIDSPR2, vidspr2, append);
-                                putField(dbfWriter, SPRT2, sprt2, append);
+                                putField(dbfWriter, SPRT2, trim(sprt2, 15), append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -589,5 +588,9 @@ public class InventoryTechHandler extends TerminalHandler {
 
     protected boolean listNotEmpty(List list) {
         return list != null && !list.isEmpty();
+    }
+
+    protected String trim(String input, Integer length) {
+        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 }
