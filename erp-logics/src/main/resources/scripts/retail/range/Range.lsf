@@ -266,18 +266,37 @@ quantityShelfRangeLevelSku 'Количество на полке' = DATA INTEGER
 
 nameQuantityRangeLevel (rl) = CONCAT ' / ', '('+nameRangeLevel(rl)+')', 'к-во на полке'; 
 
+FORM rangeRevSelectSuppliers 'Выбор поставщика'
+    OBJECTS v = RangeRev FIXED PANEL
+    OBJECTS p = PriceListType FIXED PANEL
+    OBJECTS d = DepartmentStore FIXED PANEL
+    
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY nameLegalEntity
+    FILTERS hasSkusRangeRevSupplier(v, l, p, d)
+;
+
+changeNameFilterSupplier = ACTION (v, p, d) {
+    FORM rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        filterSupplier() <- chosenObject('l');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        filterSupplier() <- NULL;
+    }
+}
+
 FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL
     PROPERTIES(v) dateTimeRangeRev
 
-    PROPERTIES() nameFilterSupplier
-    
     OBJECTS pt = DataPriceListType FIXED PANEL
     PROPERTIES(pt) SELECTOR namePriceListType
 
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES(d) SELECTOR nameDepartmentStore
-    
+
+    PROPERTIES() nameFilterSupplier ON CHANGE changeNameFilterSupplier(v, pt, d) 
+
     OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
