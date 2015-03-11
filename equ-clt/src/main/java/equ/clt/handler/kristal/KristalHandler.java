@@ -482,7 +482,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
 
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        sqlHostEntry.getValue(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 sendSalesLogger.info("Kristal SendSales connection: " + url);
                 
@@ -492,13 +492,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     String number = rs.getString("Ck_Number");
+                    String idCashDocument = host + "/" + number;
                     Timestamp dateTime = rs.getTimestamp("Ck_Date");
                     Date date = new Date(dateTime.getTime());
                     Time time = new Time(dateTime.getTime());
                     BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                     Integer nppMachinery = rs.getInt("CashNumber");
-                    if (!cashDocumentSet.contains(number))
-                        result.add(new CashDocument(number, date, time, cashRegisterGroupCashRegisterMap.get(nppMachinery), nppMachinery, sum));
+                    if (!cashDocumentSet.contains(idCashDocument))
+                        result.add(new CashDocument(idCashDocument, date, time, cashRegisterGroupCashRegisterMap.get(nppMachinery), nppMachinery, sum));
                 }
             } catch (SQLException e) {
                 sendSalesLogger.error(e);
