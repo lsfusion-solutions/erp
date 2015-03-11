@@ -20,6 +20,11 @@ FORM rangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
     PROPERTIES(l) READONLY nameRangeLevel
     PROPERTIES(l) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
+;
+
+FORM dialogRangeLevels 'Уровни ассортимента'
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) READONLY nameRangeLevel
     
     DIALOG RangeLevel OBJECT l
 ;
@@ -47,6 +52,8 @@ inParentRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, child) AND isP
 
 inChildRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, parent) AND isParentSkuGroupSkuGroup(child, parent)
                               BY range, child PERSISTENT;
+                              
+inChildRangeSku (range, sku) = inChildRangeSkuGroup(range, skuGroupSku(sku)); 
 
 TABLE rangeRangeLevel(Range, RangeLevel);
 inRangeRangeLevel 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
@@ -219,6 +226,9 @@ countSkusRangeRevRangeLevel 'Кол-во наименований' = GROUP SUM 1
 countSkusRangeRevSupplier 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP SUM 1 IF levelRangeRevSku(v, sku)
     BY v, companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
 
+hasSkusRangeRevSupplier 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP SUM 1 IF inChildRangeSku(rangeRangeRev(v), sku) 
+    BY v, companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
+    
 countSkusRangeRevRangeLevelSupplier 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1
     BY v, levelRangeRevSku(v, sku), companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
 
@@ -289,9 +299,9 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES currentBalanceDepartmentsSku(s) ON CHANGE reviewCurrentBalanceSku(s), quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo), 
                sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo)
                
-    PROPERTIES quantityShelfRangeLevelSku(rl,s) COLUMNS (rl) HEADER nameQuantityRangeLevel(rl)          
-               
-    FILTERS inChildRangeSkuGroup(rangeRangeRev(v), skuGroupSku(s)),
+    PROPERTIES quantityShelfRangeLevelSku(rl,s) COLUMNS (rl) HEADER nameQuantityRangeLevel(rl)
+              
+    FILTERS inChildRangeSku(rangeRangeRev(v), s),
             (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
                 (s IS Sku AND NOT filterSupplier())
     
@@ -598,14 +608,13 @@ NAVIGATOR {
     }
 }
 
-countFilterRangeSkuStoreDateFromTo  = GROUP SUM 1 IF (balanceASkuStockDate(sku,stock,dateTo) > 0 OR quantitySoldSkuStockDateFromTo(sku,stock,dateFrom,dateTo) > 0) 
-    BY sku, storeDepartmentStore(stock), 
-    dateFrom, dateTo;
+countFilterRangeSkuStoreDate  = GROUP SUM 1 IF (currentBalanceSkuStock(sku,stock) OR dateTimeLastMovedSkuStock(sku, stock) > DATETIME(dateFrom AS DATE)) 
+    BY sku, storeDepartmentStore(stock), dateFrom;
 
     
-countFilterRangeSkuDateFromTo 'Кол-во магазинов' (range, sku, dateFrom, dateTo) = GROUP SUM 1 IF countFilterRangeSkuStoreDateFromTo(sku, store, dateFrom, dateTo) 
-    AND inDataRangeSkuGroup(range, group) AND isParentSkuGroupSku(group, sku)
-    BY range, sku, dateFrom, dateTo;
+countFilterRangeSkuDate 'Кол-во магазинов' (range, sku, dateFrom) = GROUP SUM 1 IF countFilterRangeSkuStoreDate(sku, store, dateFrom) 
+    AND inChildRangeSku(range, sku)
+    BY range, sku, dateFrom;
 
 countRangeLevel 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
 countRangeLevelsRange = GROUP SUM  countRangeLevel(l) IF inRangeRangeLevel(r,l) BY r;
@@ -615,13 +624,12 @@ countRangeLevelsRange = GROUP SUM  countRangeLevel(l) IF inRangeRangeLevel(r,l) 
 //    BY range, dateFrom, dateTo
 //    ORDER DESC countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo), sku;
 
-indexRangeGroupSkuDateFromTo 'Порядок' (v, sku, dateFrom, dateTo, pt, stock) =
-    PARTITION SUM 1 IF countFilterRangeSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo) AND companyALedgerPriceListTypeSkuStockDateTime(pt, sku, stock, dateTimeRangeRev(v))
-    BY v, dateFrom, dateTo, pt, stock
-    ORDER DESC countFilterRangeSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo), sku;
+indexRangeGroupSkuDate 'Порядок' (v, sku, dateFrom, pt, stock) =
+    PARTITION SUM 1 IF countFilterRangeSkuDate(rangeRangeRev(v), sku, dateFrom) AND companyALedgerPriceListTypeSkuStockDateTime(pt, sku, stock, dateTimeRangeRev(v))
+    BY v, dateFrom, pt, stock
+    ORDER DESC countFilterRangeSkuDate(rangeRangeRev(v), sku, dateFrom), sku;
 
-countFilterRangeRevSkuDateFromTo 'Кол-во магазинов' (v, sku, dateFrom, dateTo) = countFilterRangeSkuDateFromTo(rangeRangeRev(v), sku, dateFrom, dateTo);
-indexRangeRevSkuDateFromTo 'Порядок' (v, sku, dateFrom, dateTo, pt, stock) = indexRangeGroupSkuDateFromTo(v, sku, dateFrom, dateTo, pt, stock);                                                         
+countFilterRangeRevSkuDate 'Кол-во магазинов' (v, sku, dateFrom) = countFilterRangeSkuDate(rangeRangeRev(v), sku, dateFrom);
 
 totalRangeLevel 'Накоплено' (range, level) =
     PARTITION SUM countRangeLevel(level) IF inRangeRangeLevel(range,level)
@@ -629,36 +637,34 @@ totalRangeLevel 'Накоплено' (range, level) =
     ORDER  level;
 total 'Накоплено' = totalRangeLevel(rangeRangeRev(v), level);      
     
-levelSkuRangeDateFromTo (sku, v, dateFrom, dateTo, pt, stock) = 
-    GROUP MIN level IF indexRangeGroupSkuDateFromTo(v, sku, dateFrom, dateTo, pt, stock) <= totalRangeLevel(rangeRangeRev(v), level)
-          BY sku, v, dateFrom, dateTo, pt, stock;
+levelSkuRangeDate (sku, v, dateFrom, pt, stock) = 
+    GROUP MIN level IF indexRangeGroupSkuDate(v, sku, dateFrom, pt, stock) <= totalRangeLevel(rangeRangeRev(v), level)
+          BY sku, v, dateFrom, pt, stock;
 
 
-countFilterRangeStoreDateFromTo 'Кол-во с продажей или остатком' (range, store, dateFrom, dateTo) = GROUP SUM 1 IF countFilterRangeSkuStoreDateFromTo(sku, store, dateFrom, dateTo) 
-    AND inDataRangeSkuGroup(range, group) AND isParentSkuGroupSku(group, sku)
-        BY range, store, dateFrom, dateTo;
+countFilterRangeStoreDate 'Кол-во с продажей или остатком' (range, store, dateFrom) = GROUP SUM 1 IF countFilterRangeSkuStoreDate(sku, store, dateFrom) 
+    AND inChildRangeSku(range, sku)
+        BY range, store, dateFrom;
 
-countFilterRangeRevStoreDateFromTo 'Кол-во с продажей или остатком' (v, store, dateFrom, dateTo) = countFilterRangeStoreDateFromTo(rangeRangeRev(v),store, dateFrom, dateTo);
+countFilterRangeRevStoreDate 'Кол-во с продажей или остатком' (v, store, dateFrom) = countFilterRangeStoreDate(rangeRangeRev(v), store, dateFrom);
 
-balanceARangeStoreDate 'Остаток (ассортимент)' (range, store,  dateTo) = GROUP SUM balanceASkuStockDate(sku,stock,dateTo)     
-    IF inDataRangeSkuGroup(range, group) AND isParentSkuGroupSku(group, sku)
-        BY range, storeDepartmentStore(stock), dateTo;
+currentBalanceRangeStore 'Остаток (ассортимент)' (range, store) = GROUP SUM currentBalanceSkuStock(sku,stock) IF inChildRangeSku(range, sku)
+        BY range, storeDepartmentStore(stock);
 
-balanceARangeRevStoreDate 'Остаток (ассортимент)' (v, store, dateTo) = balanceARangeStoreDate(rangeRangeRev(v),store, dateTo);
+currentBalanceRangeRevStore 'Остаток (ассортимент)' (v, store) = currentBalanceRangeStore(rangeRangeRev(v),store);
 
 nameLevelRangeRevStoreType 'Уровень' (v,t)= nameLevelRangeStoreTypeDate(rangeRangeRev(v), t, dateRangeRev(v));
 countSkuRangeRevStoreType 'Кол-во наименований' (v,t) = countSkuRangeStoreTypeDate(rangeRangeRev(v), t, dateRangeRev(v));
 
 EXTEND FORM rangeRev
-    PROPERTIES READONLY countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo)
+    PROPERTIES READONLY countFilterRangeRevSkuDate(v, s, dFrom)
     
     OBJECTS t = StoreType FIXED GRID
     PROPERTIES READONLY nameStoreType(t)
     PROPERTIES(v, t) nameLevelRangeRevStoreType, countSkuRangeRevStoreType
     
     OBJECTS st = Store FIXED GRID
-    PROPERTIES READONLY nameStore(st), countFilterRangeRevStoreDateFromTo(v,st,dFrom, dTo), balanceARangeRevStoreDate(v,st,dTo)
-    FILTERS countFilterRangeRevStoreDateFromTo(v,st,dFrom, dTo) OR balanceARangeRevStoreDate(v,st,dTo)
+    PROPERTIES READONLY nameStore(st), countFilterRangeRevStoreDate(v, st, dFrom), currentBalanceRangeRevStore(v, st)
     
     FILTERGROUP type
         FILTER 'По форматам' storeTypeStore(st) == t DEFAULT 
@@ -687,7 +693,7 @@ DESIGN rangeRev {
 FORM param 'Параметры заполнения ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL 
 
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+//    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
 
     OBJECTS l = RangeLevel
     PROPERTIES(l) nameRangeLevel READONLY, countRangeLevel 
@@ -708,18 +714,18 @@ DESIGN param {
     main {
 //        preferredSize = (1024, 768);
         ADD v.box;
-        ADD dates.box {caption = 'Период продаж';}
+//        ADD dates.box {caption = 'Период продаж';}
         ADD l.box;
 //        ADD s.box;
         ADD functions.box;
     }
 }
 
-fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, dateTo, pt, stock) {
-    FORM param OBJECTS v =  rangeRev, dFrom = dateFrom, dTo = dateTo MODAL;
+fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, pt, stock) {
+    FORM param OBJECTS v = rangeRev MODAL;
     IF formResult() == FormResult.ok THEN { 
         IF countRangeLevelsRange(rangeRangeRev(rangeRev)) THEN {
-            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDateFromTo (sku, rangeRev, dateFrom, dateTo, pt, stock) WHERE levelSkuRangeDateFromTo (sku, rangeRev, dateFrom, dateTo, pt, stock) ;
+            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDate (sku, rangeRev, dateFrom, pt, stock) WHERE levelSkuRangeDate (sku, rangeRev, dateFrom, pt, stock) ;
         } ELSE {
             MESSAGE 'Не задано количество товара ни для одного уровня ассортиментной матрицы.';
         }
@@ -729,7 +735,7 @@ fillRangeRev 'Заполнить матрицу по остаткам и про�
 
 
 EXTEND FORM rangeRev
-    PROPERTIES (v, dFrom, dTo, pt, d) fillRangeRev TODRAW s
+    PROPERTIES (v, dFrom, pt, d) fillRangeRev TODRAW s
 ;
 
 
