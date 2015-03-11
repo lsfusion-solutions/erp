@@ -19,6 +19,11 @@ EXTEND FORM attributesItem
     ORDER BY nameWare(ware)
     PROPERTIES replaceWare(ware) TODRAW ware FORCE PANEL TOOLBAR    
     FILTERS isParentWareGroupWare(wareGroup, ware)
+    
+    OBJECTS wareItem = Item
+    PROPERTIES(wareItem) READONLY idBarcodeSku, nameSku, idSku, idSkuGroupSku
+    PROPERTIES(wareItem) nameWareItem, editSku FORCE PANEL
+    FILTERS wareItem(wareItem) == ware    
 
 ;
 
@@ -31,19 +36,30 @@ DESIGN attributesItem{
             ADD treeGroups.tree.box {
                 caption = 'Группы посуды';
             }
-            ADD ware.box {
+            NEW rw {
                 fill = 3;
-                ware.grid {
-                    defaultComponent = TRUE;
+                type = SPLITV;
+                ADD ware.box {                   
+                    ware.grid {
+                        defaultComponent = TRUE;
+                    }
                 }
+                ADD wareItem.box;
             }
         }
     }
 }
 @defineObjectItemAttributeBatch (ware, nameWare, 'Посуда');
+@implementItemAttribute(nameWare, 'Посуда', String, itemBase);
+
+@defineItemDefaultValue(ware, 'Посуда', Ware, nameWare);
+@defineItemFilterValue(ware, 'Посуда', w);
+
+@defineItemExtractObjectAttribute(ware, nameWare, wareName);
 
 inWareItem 'Товар в посуде' (item) = item IS Item AND wareItem(item);
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN wareItem(d) <- wareItem(s);
 }
+
