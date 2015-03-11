@@ -211,6 +211,7 @@ sumSoldStoreSkuDateFromTo 'Продано за интервал (сумма)' (s
         BY storeDepartmentStore(stock), sku, dateFrom, dateTo;
 
 dateTimeLastMovedSkuStore 'Время последнего движения' = GROUP MAX dateTimeLastMovedSkuStock (sku, stock) BY sku, storeDepartmentStore(stock);
+dateLastMovedSkuStore 'Дата последнего движения'= toDate(dateTimeLastMovedSkuStore(s,st));
                                                                                        
 priceBLedgerPriceListTypeSkuStoreDateTime 'Цена' (type, sku, store, dateTime) =
     GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
@@ -238,6 +239,9 @@ lastPurchaseLedgerSkuStore (sku, store) =
         ORDER dateTimePurchaseLedger(ledger), ledger
         WHERE activePurchaseLedger(ledger);
 dateTimePurchaseLedgerSkuStore 'Дата последнего прихода' (sku,store) = dateTimePurchaseLedger(lastPurchaseLedgerSkuStore(sku,store));
+datePurchaseLedgerSkuStore 'Дата последнего прихода'= toDate(dateTimePurchaseLedgerSkuStore(s,st));
+
+nameSupplierPurchaseLedgerSkuStore 'Последний поставщик' (sku,store) = nameSupplierPurchaseLedger(lastPurchaseLedgerSkuStore(sku,store)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 FORM currentBalanceSku 'Текущие остатки'
     OBJECTS s = Sku FIXED PANEL 
@@ -333,6 +337,13 @@ FORM rangeRev 'Версия ассортиментной матрицы'
         FILTER 'Включен' levelRangeRevSku(v, s)  DEFAULT
         FILTER 'Без поставщиков' levelRangeRevSku(v, s) AND NOT companyALedgerPriceListTypeSkuStockDateTime(pt, s, d, dateTimeRangeRev(v))
         
+    OBJECTS store = Store
+    PROPERTIES  READONLY nameStore(store), nameStoreTypeStore(store), currentBalanceSkuStore(s,store), dateLastMovedSkuStore(s,store), 
+                datePurchaseLedgerSkuStore(s,store), nameSupplierPurchaseLedgerSkuStore(s,store), lastAccountPriceSkuStore(s,store),
+                quantitySoldStoreSkuDateFromTo(store,s,dFrom,dTo), sumSoldStoreSkuDateFromTo(store,s,dFrom,dTo)
+    ORDER BY nameStoreTypeStore(store)
+    FILTERS quantitySoldStoreSkuDateFromTo(store,s,dFrom,dTo) OR sumSoldStoreSkuDateFromTo(store,s,dFrom,dTo) OR currentBalanceSkuStore(s,store)         
+          
     OBJECTS l = RangeLevel
     PROPERTIES READONLY nameRangeLevel(l), countSkusRangeRevRangeLevel(v,l)  
     FILTERS inRangeRevRangeLevel(v, l)  
@@ -347,68 +358,6 @@ FORM rangeRev 'Версия ассортиментной матрицы'
           
     EDIT RangeRev OBJECT v
 ;
-DESIGN rangeRev {
-    NEW top {
-        type = CONTAINERH;
-        fill = 1;
-        NEW top1 { 
-            fill = 1;
-            type = CONTAINERV;
-            ADD v.box;
-            NEW top11 {
-                type = CONTAINERH;
-                ADD s.panel;
-                NEW supplier {
-                    caption = 'Поставщик';
-                    ADD PROPERTY(nameFilterSupplier());
-                }
-                ADD d.box;            
-            } 
-            NEW top12 {
-                type = CONTAINERH;
-                ADD pt.box;
-                ADD dates.box {        
-                    caption = 'Период реализации';
-                    type = CONTAINERH;
-                }                
-            }        
-        }    
-        ADD l.box { 
-            caption = 'Итого по уровням ассортимента';
-            fill = 1;
-            REMOVE l.controls;
-        }      
-        REMOVE rl.box;
-    }
-    NEW details {
-        fill = 3;
-        type = SPLITV;
-        caption = 'Товары';
-        ADD s.box {
-            fill = 2;
-            PROPERTY(priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v)) {
-                caption = 'Цена закупки';
-            }  
-            PROPERTY(nameLevelRangeRevSku(v,s)) { background = #CCCCFF; }
-            PROPERTY(currentBalanceSkuStock(s,d)) { background = #F4FFBD; }  
-            PROPERTY(quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
-            PROPERTY(sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
-            
-            PROPERTY(currentBalanceDepartmentsSku(s)) { background = #F4FFBD; }  
-            PROPERTY(quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }  
-            PROPERTY(sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }          
-        }
-        
-        NEW supplier1 {
-            fill = 1;
-            caption = 'Итого по поставщикам';
-            ADD su.box;
-            REMOVE l2.box;
-        }
-        
-    }
-    ADD functions.box;
-}
 
 defaultDepartmentStore = DATA DepartmentStore();
 nameDefaultDepartmentStore 'Отдел магазина для ассортиментных матриц по умолчанию' = nameDepartmentStore(defaultDepartmentStore());
@@ -620,6 +569,7 @@ DESIGN storeRange {
     }
     ADD functions.box;
 }
+@extendFormFilterSkuGroupAccess(storeRange, sg);
 
 NAVIGATOR {
     retailRangeNavigator {
@@ -689,56 +639,107 @@ EXTEND FORM rangeRev
         FILTER 'По форматам' storeTypeStore(st) == t DEFAULT 
 ;
 DESIGN rangeRev {
-    NEW header BEFORE functions.box {
-        type = TABBED;
-        fill = 6;
-        ADD details;
-        NEW store {
-            caption = 'Итоги';
+    NEW rev {
+        type = SPLITV;
+        fill = 1;
+        NEW top {            
+            type = CONTAINERH;
             fill = 1;
-            type = SPLITH;
-            NEW store1 {
-                type = SPLITV;  
+            NEW top1 {                 
+                type = CONTAINERV;
+                ADD v.box;
+                NEW top11 {
+                    type = CONTAINERV;
+                    ADD s.panel;
+                    NEW supplier {
+                        caption = 'Поставщик';
+                        ADD PROPERTY(nameFilterSupplier());
+                    }
+                    ADD d.box;            
+                } 
+                NEW top12 {
+                    type = CONTAINERV;
+                    ADD pt.box;
+                    ADD dates.box {        
+                        caption = 'Период реализации';
+                        type = CONTAINERH;
+                    }                
+                }        
+            }   
+            NEW top2 {
+                type = SPLITH;
                 fill = 1;
-                ADD t.box;
-                ADD st.box;            
+                ADD l.box { 
+                    caption = 'Итого по уровням';
+                    fill = 1;
+                    REMOVE l.controls;
+                }   
+                ADD store.box {
+                    caption = 'Магазин остатки/продажи';
+                    fill = 5;
+                    PROPERTY (nameStore(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    PROPERTY (nameStoreTypeStore(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    REMOVE store.controls;
+                }
             }
-            ADD supplier1 { fill = 1;}
+            REMOVE rl.box;
         }
-        
+        NEW header {
+            type = TABBED;
+            fill = 2.5;
+            NEW details {
+                fill = 3;
+                type = SPLITV;
+                caption = 'Товары';
+                ADD s.box {
+                    fill = 2;
+                    PROPERTY(priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v)) {
+                        caption = 'Цена закупки';
+                    }  
+                    PROPERTY(nameLevelRangeRevSku(v,s)) { background = #CCCCFF; }
+                    PROPERTY(currentBalanceSkuStock(s,d)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    
+                    PROPERTY(currentBalanceDepartmentsSku(s)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }          
+                }
+                
+                NEW supplier1 {
+                    fill = 1;
+                    caption = 'Итого по поставщикам';
+                    ADD su.box;
+                    REMOVE l2.box;
+                }
+                
+            }
+            NEW store {
+                caption = 'Итоги';
+                fill = 1;
+                type = SPLITH;
+                NEW store1 {
+                    type = SPLITV;  
+                    fill = 1;
+                    ADD t.box;
+                    ADD st.box;            
+                }
+                ADD supplier1 { fill = 1;}
+            }            
+        }
     }
+    ADD functions.box;
 }
+
 
 FORM param 'Параметры заполнения ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL 
-
-//    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
 
     OBJECTS l = RangeLevel
     PROPERTIES(l) nameRangeLevel READONLY, countRangeLevel 
     FILTERS inRangeRevRangeLevel(v, l)
     
-//    OBJECTS s = Sku
-//    PROPERTIES READONLY nameSku(s), countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo), 
-//                        indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-//    FILTERS indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-//    ORDER BY indexRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-//
-//    FILTERS countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-//    ORDER BY countFilterRangeRevSkuDateFromTo(v,s,dFrom, dTo)
-    
 ;
-DESIGN param {
-    
-    main {
-//        preferredSize = (1024, 768);
-        ADD v.box;
-//        ADD dates.box {caption = 'Период продаж';}
-        ADD l.box;
-//        ADD s.box;
-        ADD functions.box;
-    }
-}
 
 fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, pt, stock) {
     FORM param OBJECTS v = rangeRev MODAL;
