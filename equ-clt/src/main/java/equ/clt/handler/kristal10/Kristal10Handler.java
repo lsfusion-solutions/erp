@@ -199,9 +199,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         while (!Thread.currentThread().isInterrupted() && file.exists()) {
             try {
                 count++;
-                if(count>=60) {
-                    processTransactionLogger.info(String.format("Kristal: still waiting for deletion of file %s", file.getAbsolutePath()));
-                    count = 0;
+                if(count >= 60) {
+                    throw Throwables.propagate(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", file.getAbsolutePath())));
                 }
                 Thread.sleep(1000);
             } catch (InterruptedException e) {

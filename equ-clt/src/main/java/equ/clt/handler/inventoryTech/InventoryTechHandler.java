@@ -547,8 +547,13 @@ public class InventoryTechHandler extends TerminalHandler {
     private boolean createBasesUpdFile(String path) throws IOException {
         File file = new File(path + "/BASES.UPD");
         if(file.createNewFile()) {
-            while (file.exists()) {
+            int count = 0;
+            while (!Thread.currentThread().isInterrupted() && file.exists()) {
                 try {
+                    count++;
+                    if(count >= 60) {
+                        throw Throwables.propagate(new RuntimeException(String.format("Inventory: file %s has been created but not processed by server", file.getAbsolutePath())));
+                    }
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
