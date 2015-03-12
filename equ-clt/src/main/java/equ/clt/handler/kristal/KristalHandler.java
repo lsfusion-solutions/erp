@@ -474,10 +474,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 String dir = trim(sqlHostEntry.getKey());
                 String host = trim(sqlHostEntry.getValue());
                 
-                Map<Integer, Integer> cashRegisterGroupCashRegisterMap = new HashMap<Integer, Integer>();
+                //Map<Integer, Integer> cashRegisterGroupCashRegisterMap = new HashMap<Integer, Integer>();
+                Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
                 for (CashRegisterInfo c : cashRegisterInfoList) {
-                    if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) { //dir.equals(host) - old host format, without dir
-                            cashRegisterGroupCashRegisterMap.put(c.number, c.numberGroup);
+                    //dir.equals(host) - old host format (without dir) will not work!
+                    if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) { 
+                        //cashRegisterGroupCashRegisterMap.put(c.number, c.numberGroup);
+                        directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
                     }
                 }
 
@@ -499,7 +502,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                     Integer nppMachinery = rs.getInt("CashNumber");
                     if (!cashDocumentSet.contains(idCashDocument))
-                        result.add(new CashDocument(idCashDocument, date, time, cashRegisterGroupCashRegisterMap.get(nppMachinery), nppMachinery, sum));
+                        result.add(new CashDocument(idCashDocument, date, time, 
+                                directoryGroupCashRegisterMap.get(dir + "_" + nppMachinery)/*cashRegisterGroupCashRegisterMap.get(nppMachinery)*/, 
+                                nppMachinery, sum));
                 }
             } catch (SQLException e) {
                 sendSalesLogger.error(e);
