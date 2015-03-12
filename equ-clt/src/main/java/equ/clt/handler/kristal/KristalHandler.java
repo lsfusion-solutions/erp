@@ -287,8 +287,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         try {
                             count++;
                             if(count>=60) {
-                                sendSoftCheckLogger.info(String.format("Kristal: still waiting for deletion of file %s", softFile.getAbsolutePath()));
-                                count = 0;
+                                throw Throwables.propagate(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", softFile.getAbsolutePath())));
                             }
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
