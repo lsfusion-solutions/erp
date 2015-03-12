@@ -50,24 +50,25 @@ public class InventoryTechHandler extends TerminalHandler {
 
         for (String path : directorySet) {
             File directory = new File(path);
-            if (directory.exists() || directory.mkdir()) {
-                try {
-                    Class.forName("org.sqlite.JDBC");
+            if (!directory.exists())
+                directory.mkdir();
+            
+            if (!directory.exists())
+                processTransactionLogger.info("Directory " + directory.getAbsolutePath() + " doesn't exist");
 
-                    createGoodsFile(transaction, path);
-                    createBarcodeFile(transaction, path);
-                    createSpravFile(transaction, path);
-                    createSprDocFile(transaction, path);
-                    
-                    createBasesUpdFile(path);
-                    
-                } catch (Exception e) {
-                    processTransactionLogger.error(e);
-                    throw Throwables.propagate(e);
-                }
-            } else {
-                processTransactionLogger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
-                throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
+            try {
+                Class.forName("org.sqlite.JDBC");
+
+                createGoodsFile(transaction, path);
+                createBarcodeFile(transaction, path);
+                createSpravFile(transaction, path);
+                createSprDocFile(transaction, path);
+                
+                createBasesUpdFile(path);
+                
+            } catch (Exception e) {
+                processTransactionLogger.error(e);
+                throw Throwables.propagate(e);
             }
         }
         return null;
@@ -547,19 +548,19 @@ public class InventoryTechHandler extends TerminalHandler {
     private boolean createBasesUpdFile(String path) throws IOException {
         File file = new File(path + "/BASES.UPD");
         if(file.createNewFile()) {
-            int count = 0;
-            while (!Thread.currentThread().isInterrupted() && file.exists()) {
-                try {
-                    count++;
-                    if(count >= 60) {
-                        throw Throwables.propagate(new RuntimeException(String.format("Inventory: file %s has been created but not processed by server", file.getAbsolutePath())));
-                    }
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    return false;
-                }
-            }
+//            int count = 0;
+//            while (!Thread.currentThread().isInterrupted() && file.exists()) {
+//                try {
+//                    count++;
+//                    if(count >= 60) {
+//                        throw Throwables.propagate(new RuntimeException(String.format("Inventory: file %s has been created but not processed by server", file.getAbsolutePath())));
+//                    }
+//                    Thread.sleep(1000);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                    return false;
+//                }
+//            }
         }
         return true;
     }
