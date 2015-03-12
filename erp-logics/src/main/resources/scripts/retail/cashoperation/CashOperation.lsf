@@ -121,11 +121,25 @@ isIncomeCashOperation (cashOperation) = cashOperation IS IncomeCashOperation;
 
 @defineDocumentHeaderTime(IncomeCashOperation);
 @deriveDocumentHeaderTimePrefix(IncomeCashOperation, );
-@defineDocumentHeaderDepartmentStore(incomeCashOperation);
-@defineDocumentDialogStocks(incomeCashOperation, departmentStore, company, , );
 
 cashRegisterIncomeCashOperation (incomeCashOperation) = DATA CashRegister (IncomeCashOperation);
 numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = nppMachinery(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+departmentStoreIncomeCashOperation = departmentStoreCashRegister(cashRegisterIncomeCashOperation(incomeCashOperation));
+nameDepartmentStoreIncomeCashOperation 'Отдел магазина' (incomeCashOperation) = nameDepartmentStore(departmentStoreIncomeCashOperation(incomeCashOperation)) IN documentHeader
+        MINCHARWIDTH 20 PREFCHARWIDTH 20;
+fullNameDepartmentStoreIncomeCashOperation 'Отдел магазина' (incomeCashOperation) = fullNameDepartmentStore(departmentStoreIncomeCashOperation(incomeCashOperation)) IN documentHeader
+        MINCHARWIDTH 20 PREFCHARWIDTH 20;
+        
+legalEntityStockIncomeCashOperation (incomeCashOperation) = legalEntityDepartmentStore(departmentStoreIncomeCashOperation(incomeCashOperation));
+nameLegalEntityStockIncomeCashOperation 'Компания (Отдел магазина)' (incomeCashOperation) = nameLegalEntity(legalEntityStockIncomeCashOperation (incomeCashOperation));
+fullNameLegalEntityStockIncomeCashOperation 'Компания (Отдел магазина) полное наим-ие' (incomeCashOperation) = fullNameLegalEntity(legalEntityStockIncomeCashOperation (incomeCashOperation));       
+addressLegalEntityStockIncomeCashOperation 'Адрес компании (Отдел магазина)' (incomeCashOperation) = addressLegalEntity(legalEntityStockIncomeCashOperation (incomeCashOperation));
+
+addressStockIncomeCashOperation 'Адрес (Отдел магазина)' (incomeCashOperation) = addressDepartmentStore(departmentStoreIncomeCashOperation(incomeCashOperation));
+
+countryIncomeCashOperation (incomeCashOperation) = countryStock(departmentStoreIncomeCashOperation(incomeCashOperation));
+
 sumCashIncomeCashOperation 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSum;
 basisIncomeCashOperation 'Основание' (incomeCashOperation) =
     'Внесение денег №' + seriesNumberIncomeCashOperation(incomeCashOperation) + ' с кассы ' + numberCashRegisterIncomeCashOperation(incomeCashOperation) + ' от ' + dateIncomeCashOperation(incomeCashOperation) IN documentPrm;
@@ -271,7 +285,7 @@ FORM incomeCashOperation 'Внесение денег'
 
     OBJECTS i = IncomeCashOperation FIXED PANEL
     PROPERTIES(i) numberIncomeCashOperation, seriesIncomeCashOperation, dateIncomeCashOperation, timeIncomeCashOperation, 
-                  nameDepartmentStoreIncomeCashOperation ON CHANGE changeDepartmentStoreCompanyIncomeCashOperation(i),
+                  nameDepartmentStoreIncomeCashOperation ,
                   numberCashRegisterIncomeCashOperation, sumCashIncomeCashOperation, basisIncomeCashOperation
 
     EDIT IncomeCashOperation OBJECT i
@@ -310,7 +324,6 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
         FOR sumCashForIncomeCashOperation(cashRegister) DO {
             FOR ADDOBJ c = IncomeCashOperation DO {
                 cashRegisterIncomeCashOperation(c) <- cashRegister;
-                departmentStoreIncomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
                 sumCashIncomeCashOperation(c) <- sumCashForIncomeCashOperation(cashRegister);
                 generateSeriesNumberIncomeCashOperation(c);
                 IF NOT doNotFiscalisation(cashRegister) THEN {
