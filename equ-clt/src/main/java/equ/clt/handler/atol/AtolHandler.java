@@ -362,7 +362,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     Time timeReceipt = getTimeValue(entry, 2);
                                     Integer numberCashRegister = getIntValue(entry, 4);
                                     BigDecimal sumCashDocument = isOutputCashDocument ? safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
-                                    currentResult.add(new CashDocument(numberCashDocument, dateReceipt, timeReceipt, 
+                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt, 
                                             directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), 
                                             numberCashRegister, sumCashDocument));
 

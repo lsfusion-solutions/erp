@@ -2345,15 +2345,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         collectionLM.findProperty("cashDocumentId").getMapping(idCashDocumentField));
                 keysIncome.add(incomeCashOperationKey);
                 propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("idCashDocument").getMapping(incomeCashOperationKey)));
-                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                //propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(idCashDocumentField);
 
                 ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("OutcomeCashOperation"),
                         collectionLM.findProperty("cashDocumentId").getMapping(idCashDocumentField));
                 keysOutcome.add(outcomeCashOperationKey);
                 propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("idCashDocument").getMapping(outcomeCashOperationKey)));
-                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));                
+                //propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));                
                 fieldsOutcome.add(idCashDocumentField);
+
+                ImportField numberIncomeCashOperationField = new ImportField(collectionLM.findProperty("numberIncomeCashOperation"));
+                propsIncome.add(new ImportProperty(numberIncomeCashOperationField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(numberIncomeCashOperationField);
+
+                ImportField numberOutcomeCashOperationField = new ImportField(collectionLM.findProperty("numberOutcomeCashOperation"));
+                propsOutcome.add(new ImportProperty(numberOutcomeCashOperationField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(numberOutcomeCashOperationField);
                 
                 ImportField dateIncomeCashOperationField = new ImportField(collectionLM.findProperty("dateIncomeCashOperation"));
                 propsIncome.add(new ImportProperty(dateIncomeCashOperationField, collectionLM.findProperty("dateIncomeCashOperation").getMapping(incomeCashOperationKey)));
@@ -2373,7 +2381,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 ImportField nppGroupMachineryField = new ImportField(collectionLM.findProperty("nppGroupMachinery"));
                 ImportField nppMachineryField = new ImportField(collectionLM.findProperty("nppMachinery"));
-                //ImportField sidEquipmentServerField = new ImportField(equLM.findProperty("sidEquipmentServer"));
                 ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) collectionLM.findClass("CashRegister"),
                         zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField/*, sidEquipmentServerField*/));
                 
@@ -2382,15 +2389,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
                 fieldsIncome.add(nppGroupMachineryField);
                 fieldsIncome.add(nppMachineryField);
-                //fieldsIncome.add(sidEquipmentServerField);
                 
                 keysOutcome.add(cashRegisterKey);
                 propsOutcome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegisterOutcomeCashOperation").getMapping(outcomeCashOperationKey),
                         collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));             
                 fieldsOutcome.add(nppGroupMachineryField);
                 fieldsOutcome.add(nppMachineryField);
-                //fieldsOutcome.add(sidEquipmentServerField);                
-
+                
                 ImportField sumCashIncomeCashOperationField = new ImportField(collectionLM.findProperty("sumCashIncomeCashOperation"));
                 propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, collectionLM.findProperty("sumCashIncomeCashOperation").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(sumCashIncomeCashOperationField);
@@ -2402,11 +2407,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (CashDocument cashDocument : cashDocumentList) {
                     if (cashDocument.sumCashDocument != null) {
                         if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
-                            dataIncome.add(Arrays.asList((Object) cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, /*sidEquipmentServer, */cashDocument.sumCashDocument));
+                            dataIncome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument));
                         else
-                            dataOutcome.add(Arrays.asList((Object) cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, /*sidEquipmentServer, */cashDocument.sumCashDocument.negate()));
+                            dataOutcome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate()));
                     }
                 }
                 

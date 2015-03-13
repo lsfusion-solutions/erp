@@ -501,7 +501,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                     Integer nppMachinery = rs.getInt("CashNumber");
                     if (!cashDocumentSet.contains(idCashDocument))
-                        result.add(new CashDocument(idCashDocument, date, time, 
+                        result.add(new CashDocument(idCashDocument, number, date, time, 
                                 directoryGroupCashRegisterMap.get(dir + "_" + nppMachinery)/*cashRegisterGroupCashRegisterMap.get(nppMachinery)*/, 
                                 nppMachinery, sum));
                 }
