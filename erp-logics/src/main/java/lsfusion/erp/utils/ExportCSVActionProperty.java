@@ -65,10 +65,12 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                     File localFile = null;
                     try {
 
+                        ftpClient.setControlEncoding("UTF-8");
                         ftpClient.connect(server, port);
                         ftpClient.login(username, password);
                         ftpClient.enterLocalPassiveMode();
-                        ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                        ftpClient.setFileType(FTP.BINARY_FILE_TYPE, FTP.BINARY_FILE_TYPE);
+                        ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
 
                         localFile = File.createTempFile("tmp", ".csv");
                         exportFile(formEntity, formInstance, localFile.getAbsolutePath(), separator, charset, printHeader);
