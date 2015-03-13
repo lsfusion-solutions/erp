@@ -433,21 +433,24 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     countShipmentScheduleOrderTimeScheduleOrderDOW (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrderScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d);   
     scheduleOrderTimeInScheduleOrderDOW 'Вкл.' (scheduleOrder, dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrderScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d)](scheduleOrder, dow);   
 
+    setScheduleOrderTimeInScheduleOrderDOW = ACTION (scheduleOrder, dow) {
+        IF NOT scheduleOrderTimeInScheduleOrderDOW(scheduleOrder, dow) THEN {
+            FOR ADDOBJ  t = ScheduleOrderTime DO {
+                scheduleOrderScheduleOrderTime(t) <- scheduleOrder;
+                shipmentDOWScheduleOrderTime(t) <- dow; 
+                IF numberDOW(dow) == 0 OR numberDOW(dow) == 1 THEN {
+                    orderDOWScheduleOrderTime(t) <- DOW.friday;   
+                } ELSE {
+                    orderDOWScheduleOrderTime(t) <- DOWNumber(numberDOW(dow)-1);      
+                }                   
+            }
+        }
+    }
+    
     changeScheduleOrderTimeInScheduleOrderDOW = ACTION (scheduleOrder, dow) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            IF NOT scheduleOrderTimeInScheduleOrderDOW(scheduleOrder, dow) THEN {
-                FOR ADDOBJ  t = ScheduleOrderTime DO {
-                    scheduleOrderScheduleOrderTime(t) <- scheduleOrder;
-                    shipmentDOWScheduleOrderTime(t) <- dow; 
-                    IF numberDOW(dow) == 0 OR numberDOW(dow) == 1 THEN {
-                        orderDOWScheduleOrderTime(t) <- DOW.friday;   
-                    } ELSE {
-                        orderDOWScheduleOrderTime(t) <- DOWNumber(numberDOW(dow)-1);      
-                    }                   
-                }
-            }
-
+            setScheduleOrderTimeInScheduleOrderDOW(scheduleOrder, dow) ;
         } ELSE {
             DELETE t WHERE t IS ScheduleOrderTime AND scheduleOrderScheduleOrderTime(t) == scheduleOrder AND shipmentDOWScheduleOrderTime(t) == dow;
         }
