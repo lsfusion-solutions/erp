@@ -898,6 +898,41 @@ createPageListInventory 'Создать страницу описи с оста�
     }
 } CONFIRM;
 
+changeAddDetailInputIdSkuPageInventory = ACTION (idSku, page) {
+    IF skuId(idSku) THEN {  
+        FOR ADDOBJ  d = PageInventoryDetail DO {
+            pageInventoryPageInventoryDetail(d) <- page;   
+            skuPageInventoryDetail(d) <- skuId(idSku);
+        }        
+    } ELSE {
+        MESSAGE 'Код товара не найден.';
+    }
+} 
+changeAddDetailInputPageInventory = ACTION (page) {
+    REQUEST STRING[20] INPUT;
+    EXEC changeAddDetailInputIdSkuPageInventory(requestedString(), page);
+};
+addDetailInputPageInventory 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInventory) TOOLBAR EDITKEY 'F5' 
+                                                                        ON CHANGE changeAddDetailInputPageInventory(page) PREFCHARWIDTH 10;  
+                                                                     
+changeAddDetailInputBarcodePageInventory = ACTION (barcode, page) {
+    IF skuBarcodeIdDate(barcode, dateListInventory(listInventoryPageInventory(page))) THEN {  
+        FOR ADDOBJ  d = PageInventoryDetail DO {
+            pageInventoryPageInventoryDetail(d) <- page;   
+            skuPageInventoryDetail(d) <- skuBarcodeIdDate(barcode, dateListInventory(listInventoryPageInventory(page)));
+        }        
+    } ELSE {
+        MESSAGE 'Штриход товара не найден.';
+    }
+} 
+changeAddDetailInputPageInventoryBarcode = ACTION (page) {
+    REQUEST STRING[15] INPUT;
+    EXEC changeAddDetailInputBarcodePageInventory(requestedString(), page);
+};
+addDetailInputPageInventoryBarcode 'Штрихкод товара:' (page) = DATA LOCAL STRING[15] (PageInventory) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+                                                                        ON CHANGE changeAddDetailInputPageInventoryBarcode(page) PREFCHARWIDTH 15;                                                                          
+                                                                        
+
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory FIXED PANEL
     PROPERTIES (li) nameStockListInventory, nameInventoryListInventory, nameListInventory, noteListInventory,
@@ -910,7 +945,7 @@ FORM listInventory 'Опись'
     FILTERS         listInventoryPageInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
-    PROPERTIES (dp) indexPageInventoryDetail, idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail SHOWIF isBatchListInventory(li), quantityPageInventoryDetail, pricePageInventoryDetail,
+    PROPERTIES (dp) indexPageInventoryDetail, idSkuPageInventoryDetail SHOWIF showIDs(), idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail SHOWIF isBatchListInventory(li), quantityPageInventoryDetail, pricePageInventoryDetail,
                     sumPageInventoryDetail, ADDOBJ SHOWIF countPageInventoryListInventory(li), DELETESESSION
     FILTERS         pageInventoryPageInventoryDetail(dp) == pl
 
@@ -926,6 +961,8 @@ FORM listInventory 'Опись'
     PROPERTIES (bt)    SHOWIF isBatchListInventory(li) idBarcodeSkuBatch, nameSkuBatch, nameBatch
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) quantityPageInventoryDetailListInventoryBatch, pricePageInventoryDetailListInventoryBatch, sumPageInventoryDetailListInventoryBatch
     FILTERS                                            quantityPageInventoryDetailListInventoryBatch(li,bt) > 0
+
+    PROPERTIES (pl) TODRAW dp addDetailInputPageInventoryBarcode, addDetailInputPageInventory  
 
     EDIT ListInventory OBJECT li
 ;
