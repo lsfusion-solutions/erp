@@ -154,6 +154,21 @@ overCostPriceShipmentDetail(detail) += costPriceInvoiceDetail(invoiceDetailInvoi
 // Проставляем НДС розничный, равный НДС входному
 retailVATUserInvoiceDetail (detail) <- VATUserInvoiceDetail(detail) WHEN CHANGED(VATUserInvoiceDetail(detail));
 
+// Добавляем на форму цену розничную (до)
+retailPriceBUserInvoiceDetail 'Розничная цена (до)' (d) = prevRetailPricingPriceBSkuStockDateTime(skuUserInvoiceDetail(d), customerStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
+backgroundRetailPriceBUserInvoiceDetail (d) = CASE 
+    WHEN retailPriceBUserInvoiceDetail(d) > retailPriceUserInvoiceDetail(d) THEN RGB(250,150,150)
+    WHEN retailPriceBUserInvoiceDetail(d) < retailPriceUserInvoiceDetail(d) THEN RGB(150,250,200);
+
+EXTEND FORM userInvoice
+    PROPERTIES(pd) READONLY SHOWIF createPricingUserInvoice(i) balanceBUserInvoiceDetail, retailPriceBUserInvoiceDetail BACKGROUND backgroundRetailPriceBUserInvoiceDetail(pd)
+
+    FILTERGROUP prices 
+        FILTER 'Цена (до) больше' retailPriceBUserInvoiceDetail(pd) > retailPriceUserInvoiceDetail(pd)
+        FILTER 'Цена (до) меньше' retailPriceBUserInvoiceDetail(pd) < retailPriceUserInvoiceDetail(pd)
+        FILTER 'Разные цены' retailPriceBUserInvoiceDetail(pd) != retailPriceUserInvoiceDetail(pd)
+;
+
 // Копирование документа
 overCopyInvoice(s, d) += ACTION (s, d) {
     ASSIGN createPricingUserInvoice(d) <- createPricingUserInvoice(s);

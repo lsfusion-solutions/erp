@@ -334,6 +334,12 @@ purchaseInvoiceStockSumBSkuGroupBatchStockDateTime 'Сумма поставщи�
 purchaseInvoiceStockSumRecBSkuGroupBatchStockDateTime 'Сумма поставщика (на утро)' (group, stock, dateTime) =
     GROUP SUM purchaseInvoiceStockSumBBatchStockDateTime(batch, stock, dateTime) IF isParentGroupBatch(group, batch)
     BY group, stock, dateTime;
+
+// Добавляем на форму остаток до
+balanceBUserInvoiceDetail 'Остаток (до)' (d) = prevBalanceBSkuStockDateTime(skuUserInvoiceDetail(d), customerStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY balanceBUserInvoiceDetail 
+;
     
 //-- Курс обмена
 EXTEND CLASS SystemLedgerPriceListType { rateExchangeStockPriceListType 'Курс обмена (последний по складу)' }
