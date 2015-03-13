@@ -355,7 +355,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 Date dateCashDocument = new Date(dateTimeCashDocument);
                                 Time timeCashDocument = new Time(dateTimeCashDocument);
 
-                                cashDocumentList.add(new CashDocument(numberCashDocument, dateCashDocument, timeCashDocument,
+                                cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
                                         directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister, sumCashDocument));
                             }
                             readFiles.add(file.getAbsolutePath());
