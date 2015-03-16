@@ -274,7 +274,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 String logRecord = "softcheque data: ";
                 for (Map.Entry<String, SoftCheckInvoice> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
                     logRecord += userInvoice.getKey() + ";";
-                    String record = String.format("%s|1|1|1|1|1|1|1|100500|1|1|0", trimLeadingZeroes(userInvoice.getKey()));
+                    String record = String.format("%s|1|1|1|1|1|1|1|99996666|1|1|0", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);
                 }
                 sendSoftCheckLogger.info(logRecord);
