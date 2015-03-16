@@ -511,6 +511,23 @@ lastLevelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(r
 levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
 nameLevelRangeStoreTypeDate 'Уровень' (r, t, d)= nameRangeLevel(levelRangeStoreTypeDate(r, t, d)); 
 
+changeLevelRangeStoreTypeDate (r, t, d)= ACTION (r, t, d) {
+    REQUEST OBJECT l
+        IF levelRangeStoreTypeDate(r, t, d) THEN {
+            FORM dialogRangeLevels OBJECTS l = levelRangeStoreTypeDate(r, t, d) DIALOG SHOWDROP;
+        } ELSE {
+            FORM dialogRangeLevels DIALOG SHOWDROP;
+        }        
+    IF formResult() == FormResult.ok THEN {
+        dataLevelRangeStoreTypeDate (r, t, d) <- requestedObject();
+        excludeLevelRangeStoreTypeDate (r, t, d) <- NULL;
+    } ELSE IF formResult() == FormResult.drop THEN {
+        dataLevelRangeStoreTypeDate (r, t, d) <- NULL;
+        excludeLevelRangeStoreTypeDate (r, t, d) <- TRUE;
+    }
+}
+
+
 countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
 countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
 countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreTypeDate(s, storeTypeDepartmentStore(ds), d); 
@@ -536,7 +553,7 @@ FORM storeRange 'Ассортимент магазинов'
     ORDER BY orderSkuGroup(sg), skuGroupName
     OBJECTS r = Range
     PROPERTIES(r) READONLY nameRange
-    PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND dataLevelRangeStoreTypeDate(r, t, d),
+    PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND dataLevelRangeStoreTypeDate(r, t, d) ON CHANGE changeLevelRangeStoreTypeDate(r, t, d),
                         countSkuRangeStoreTypeDate COLUMNS(t) HEADER nameStoreType(t)
     FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
     
