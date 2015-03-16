@@ -196,7 +196,8 @@ signedQuantitySkuLedger 'Кол-во' (ledger) = MULTI quantityInSkuLedger(ledge
 // -------------------------------------------- Расчет себестоимости -------------------------------------- //
 
 explicitBatchLedgerStock 'Партионный учет' = ABSTRACT BOOLEAN (Stock) PERSISTENT IN bookkeeping;
-CONSTRAINT explicitBatchLedgerStock(stockSkuLedger(l)) AND isPostedSkuLedger(l) AND NOT batchSkuLedger(l)
+skipExplicitBatchSkuLedger 'Разрешить регистр без партии' = ABSTRACT BOOLEAN (SkuLedger);
+CONSTRAINT explicitBatchLedgerStock(stockSkuLedger(l)) AND isPostedSkuLedger(l) AND NOT batchSkuLedger(l) AND NOT skipExplicitBatchSkuLedger(l)
     MESSAGE 'Не выбрана партия для строки движения товара';
 
 orderDataSkuLedger (ledger) = STRUCT(dateTimeDataSkuLedger(ledger), ledger);
@@ -556,8 +557,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     sumB##postfix##SkuStockDateTime 'Сумма (до)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
-                                                                      (-) [= GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn >= dateTime
-                                                                                 BY sku, stock, dateTime](sku, stock, dateTime);
+                                                                     (-) [= GROUP SUM signedSumActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= dateTime
+                                                                                BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTime](sku, stock, dateTime);
 
     sumB##postfix##SkuGroupStockDateTime 'Учетная сумма группы товаров (до)' (group, stock, dateTime) =
         GROUP SUM sumB##postfix##SkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
@@ -569,8 +570,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         
     // с учетом текущей даты/времени
     sumA##postfix##SkuStockDateTime 'Сумма (после)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
-                                                                     (-) [= GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn > dateTime
-                                                                                BY sku, stock, dateTime](sku, stock, dateTime);
+                                                                     (-) [= GROUP SUM signedSumActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > dateTime
+                                                                                BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTime](sku, stock, dateTime);
 
     // суммы для периодов
     sumIn##postfix##SkuStockDateDate 'Сумма товара пришедшего за период' (sku, stock, dateFrom, dateTo) =
