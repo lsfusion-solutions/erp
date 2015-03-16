@@ -8,27 +8,27 @@ addDetailDialogTerminalListInventory 'Заполнить из документа
     FORM terminalDocuments MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL document = TerminalDocument ();
-        ASSIGN document() <- chosenObject('td');
-        ASSIGN usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
+        document() <- chosenObject('td');
+        usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
 
         LOCAL page = PageInventory ();
         LOCAL detailCount = INTEGER();
-        ASSIGN detailCount() <- 0;
+        detailCount() <- 0;
 
         FOR terminalDocumentTerminalDocumentDetail(tdd) == document() DO {
             IF detailCount() == 0 THEN {
                 FOR ADDOBJ pi = PageInventory DO {
-                    ASSIGN listInventoryPageInventory(pi) <- listInventory;
-                    ASSIGN page() <- pi;
+                    listInventoryPageInventory(pi) <- listInventory;
+                    page() <- pi;
                 }
             }
 
             FOR ADDOBJ pid = PageInventoryDetail DO {
-                ASSIGN pageInventoryPageInventoryDetail(pid) <- page();
-                ASSIGN skuPageInventoryDetail(pid) <- skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
-                ASSIGN quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
+                pageInventoryPageInventoryDetail(pid) <- page();
+                skuPageInventoryDetail(pid) <- OVERRIDE skuId(barcodeTerminalDocumentDetail(tdd)), skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
+                quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
 
-                ASSIGN detailCount() <- detailCount() + 1;
+                detailCount() <- detailCount() + 1;
 
                 IF detailCount() >= 20 THEN {
                     ASSIGN detailCount() <- 0;
