@@ -265,8 +265,8 @@ FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
 ;
 reviewSoldStoreSkuDateFromTo (sku, dFrom, dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
 
-TABLE rangeLevelSku (RangeLevel, Sku);
-quantityShelfRangeLevelSku 'Количество на полке' = DATA INTEGER (RangeLevel, Sku);
+TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
+quantityShelfRangeRevRangeLevelSku 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
 
 nameQuantityRangeLevel (rl) = CONCAT ' / ', '('+nameRangeLevel(rl)+')', 'к-во на полке'; 
 
@@ -322,7 +322,7 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES currentBalanceDepartmentsSku(s) ON CHANGE reviewCurrentBalanceSku(s), quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo), 
                sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo)
                
-    PROPERTIES quantityShelfRangeLevelSku(rl,s) COLUMNS (rl) HEADER nameQuantityRangeLevel(rl)
+    PROPERTIES quantityShelfRangeRevRangeLevelSku(v,rl,s) COLUMNS (rl) HEADER nameQuantityRangeLevel(rl)
               
     FILTERS inChildRangeSku(rangeRangeRev(v), s),
             (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
@@ -515,6 +515,11 @@ countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuS
 countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreTypeDate(s, storeTypeDepartmentStore(ds), d); 
 
 countSkuRangeStoreTypeDate 'Кол-во товаров' (r, t, d) = countRecSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), levelRangeStoreTypeDate(r, t, d));
+     
+quantityShelfRangeStoreTypeSkuDate 'Количество на полке'  = GROUP SUM quantityShelfRangeRevRangeLevelSku(rangeRevRangeDate(range, date), levelRangeStoreTypeDate(range, type, date), sku) 
+        BY range, type, sku, date;
+
+quantityShelfRangeStoreSkuDate 'Количество на полке'  (range, store, sku, date) =  quantityShelfRangeStoreTypeSkuDate(range, storeTypeStore(store), sku, date);              
               
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
