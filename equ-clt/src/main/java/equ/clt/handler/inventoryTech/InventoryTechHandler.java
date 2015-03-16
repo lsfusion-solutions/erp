@@ -171,7 +171,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                 
                                 terminalDocumentDetailList.add(new TerminalDocumentDetail(idDoc, title, directory,
                                         idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType, quantityDocument, 
-                                        idDoc + "/" + idBarcode, number, idBarcode, name, price, quantity, sum));
+                                        idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
                             }
 
                         }
