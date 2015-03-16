@@ -497,6 +497,7 @@ useRangeDepartmentStore 'Использовать ассортиментную �
 
 TABLE rangeStoreTypeDate(Range, StoreType, DATE);
 dataLevelRangeStoreTypeDate = DATA RangeLevel (Range, StoreType, DATE);
+excludeLevelRangeStoreTypeDate = DATA BOOLEAN (Range, StoreType, DATE);
 
 CONSTRAINT dataLevelRangeStoreTypeDate(r, t, d) AND NOT inRangeRangeLevel(r, dataLevelRangeStoreTypeDate(r, t, d))
     CHECKED BY dataLevelRangeStoreTypeDate
@@ -505,7 +506,7 @@ CONSTRAINT dataLevelRangeStoreTypeDate(r, t, d) AND NOT inRangeRangeLevel(r, dat
 lastLevelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(range, storeType, dateIn)
                                               BY range, storeType, date
                                               ORDER dateIn
-                                              WHERE dataLevelRangeStoreTypeDate(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
+                                              WHERE (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
 
 levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
 nameLevelRangeStoreTypeDate 'Уровень' (r, t, d)= nameRangeLevel(levelRangeStoreTypeDate(r, t, d)); 
@@ -527,7 +528,6 @@ FORM storeRange 'Ассортимент магазинов'
     PROPERTIES(c) SELECTOR nameChainStores
      
     OBJECTS t = StoreType FIXED GRID
-    PROPERTIES(t) READONLY nameStoreType
     FILTERS chainStoresStoreType(t) == c
     
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
@@ -551,14 +551,8 @@ DESIGN storeRange {
     NEW pane {
         fill = 1;
         type = SPLITH;
-        NEW leftPane {
-            fill = 1;
-            type = SPLITV;
-            ADD t.box;
-            ADD skuTree.tree.box {
-                fill = 2;
-                caption = 'Группы товаров';
-            }
+        ADD skuTree.tree.box {
+            caption = 'Группы товаров';
         }
         NEW rightPane {
             fill = 2;
