@@ -15,6 +15,45 @@ backgroundRetailInvoice 'Цвет' (invoice) = RGB(224, 255, 255) IF invoice IS 
 @defineDocumentAbstractDetailDataSumCustomPrefix(invoiceDetail, retail, ' розничная');
 @defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, pricing, ' (расценено)');
 
+dateBanRetailPriceDepartmentStore 'Дата запрета приемки накладных без розничных цен'  = DATA DATE (DepartmentStore); 
+
+EXTEND FORM options
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES(ds) READONLY idDepartmentStore SHOWIF showIDs(), nameDepartmentStore, nameLegalEntityStock, dateBanRetailPriceDepartmentStore EDITABLE 
+    ORDER BY nameDepartmentStore(ds)
+    
+    FILTERS isParentStockGroupStock(sg, ds) OR (ds IS DepartmentStore AND NOT sg),
+            isCompanyStock(ds)
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ds) 'ctrl F10' DEFAULT     
+    
+;
+DESIGN options {
+    invoices {
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;            
+            
+            ADD stockTree.tree.box {
+                caption = 'Группы складов';
+            }
+            ADD ds.box {
+                fill = 3;
+                ds.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+    }
+}
+
+
+
 META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, captionPost, stockProp, prefix)
 
     // Комиссия
@@ -49,6 +88,9 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     // Розничная
     @defineDocumentInterfaceDetailPricePrefix(invoice, retail, ' розничная');
     extraRetailPriceInvoiceDetail = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
+    
+    CONSTRAINT stockProp###stock###userInvoiceDetail(d) IS DepartmentStore AND dateUserInvoiceDetail(d) >= dateBanRetailPriceDepartmentStore(stockProp###stock###userInvoiceDetail(d)) AND isPostedUserInvoiceDetail(d) AND NOT retailPriceUserInvoiceDetail(d)
+        MESSAGE 'Не задана розничная цена в строке накладной'##sign;
 
     // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
     @changeDocumentDetailMarkupCustomPrefix(userInvoiceDetail, retail, pricing, retail, retail);
