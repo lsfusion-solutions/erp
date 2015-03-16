@@ -503,12 +503,12 @@ CONSTRAINT dataLevelRangeStoreTypeDate(r, t, d) AND NOT inRangeRangeLevel(r, dat
     CHECKED BY dataLevelRangeStoreTypeDate
     MESSAGE 'Уровень ассортимента для формата магазина не соответствует типу ассортимента';
 
-lastLevelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(range, storeType, dateIn)
+levelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(range, storeType, dateIn)
                                               BY range, storeType, date
                                               ORDER dateIn
                                               WHERE (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
 
-levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
+//levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
 nameLevelRangeStoreTypeDate 'Уровень' (r, t, d)= nameRangeLevel(levelRangeStoreTypeDate(r, t, d)); 
 
 changeLevelRangeStoreTypeDate (r, t, d)= ACTION (r, t, d) {
@@ -527,6 +527,7 @@ changeLevelRangeStoreTypeDate (r, t, d)= ACTION (r, t, d) {
     }
 }
 
+backgroundLevelRangeStoreTypeDate(range, storeType, dateIn) = (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn));
 
 countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
 countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
@@ -537,7 +538,41 @@ countSkuRangeStoreTypeDate 'Кол-во товаров' (r, t, d) = countRecSkuR
 quantityShelfRangeStoreTypeSkuDate 'Количество на полке'  = GROUP SUM quantityShelfRangeRevRangeLevelSku(rangeRevRangeDate(range, date), levelRangeStoreTypeDate(range, type, date), sku) 
         BY range, type, sku, date;
 
-quantityShelfRangeStoreSkuDate 'Количество на полке'  (range, store, sku, date) =  quantityShelfRangeStoreTypeSkuDate(range, storeTypeStore(store), sku, date);              
+quantityShelfRangeStoreSkuDate 'Количество на полке'  (range, store, sku, date) =  quantityShelfRangeStoreTypeSkuDate(range, storeTypeStore(store), sku, date);   
+                      
+TABLE rangeStoreDate(Range, Store, DATE);
+dataLevelRangeStoreDate = DATA RangeLevel (Range, Store, DATE);
+excludeLevelRangeStoreDate = DATA BOOLEAN (Range, Store, DATE);
+   
+CONSTRAINT dataLevelRangeStoreDate(r, st, d) AND NOT inRangeRangeLevel(r, dataLevelRangeStoreDate(r, st, d))
+    CHECKED BY dataLevelRangeStoreDate
+    MESSAGE 'Уровень ассортимента для магазина не соответствует типу ассортимента';
+
+levelRangeStoreDate (r, st, d) = GROUP LAST dataLevelRangeStoreDate(range, st, dateIn)
+                                              BY range, st, date
+                                              ORDER dateIn
+                                              WHERE (dataLevelRangeStoreDate(range, st, dateIn) OR excludeLevelRangeStoreDate(range, st, dateIn)) AND dateIn <= (date AS DATE); 
+
+overLevelRangeStoreDate(r, st, d) = OVERRIDE levelRangeStoreTypeDate(r, storeTypeStore(st), d), levelRangeStoreDate(r, st, d);  
+nameOverLevelRangeStoreDate 'Уровень (перегруженный)' (r, st, d)= nameRangeLevel(overLevelRangeStoreDate(r, st, d));               
+nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));               
+ 
+changeLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
+    REQUEST OBJECT l
+        IF levelRangeStoreDate(r, st, d) THEN {
+            FORM dialogRangeLevels OBJECTS l = levelRangeStoreDate(r, st, d) DIALOG SHOWDROP;
+        } ELSE {
+            FORM dialogRangeLevels DIALOG SHOWDROP;
+        }        
+    IF formResult() == FormResult.ok THEN {
+        dataLevelRangeStoreDate (r, st, d) <- requestedObject();
+        excludeLevelRangeStoreDate (r, st, d) <- NULL;
+    } ELSE IF formResult() == FormResult.drop THEN {
+        dataLevelRangeStoreDate (r, st, d) <- NULL;
+        excludeLevelRangeStoreDate (r, st, d) <- TRUE;
+    }
+}              
+backgroundLevelRangeStoreDate(range, store, dateIn) = (dataLevelRangeStoreDate(range, store, dateIn) OR excludeLevelRangeStoreDate(range, store, dateIn));
               
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
@@ -553,14 +588,17 @@ FORM storeRange 'Ассортимент магазинов'
     ORDER BY orderSkuGroup(sg), skuGroupName
     OBJECTS r = Range
     PROPERTIES(r) READONLY nameRange
-    PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND dataLevelRangeStoreTypeDate(r, t, d) ON CHANGE changeLevelRangeStoreTypeDate(r, t, d),
+    PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND backgroundLevelRangeStoreTypeDate(r, t, d) ON CHANGE changeLevelRangeStoreTypeDate(r, t, d),
                         countSkuRangeStoreTypeDate COLUMNS(t) HEADER nameStoreType(t)
     FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
     
-    OBJECTS s = Sku
+    OBJECTS s = Sku FIXED GRID 
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
     PROPERTIES(s, t, d) READONLY countRangeSkuStoreTypeDate COLUMNS (t) HEADER nameStoreType(t)
     FILTERS levelRangeSkuDate(r, s, d) 
+    
+    OBJECTS st = Store FIXED GRID 
+    PROPERTIES nameStore(st) READONLY, nameStoreTypeStore(st) READONLY, nameOverLevelRangeStoreDate(r, st, d), nameLevelRangeStoreDate(r, st, d)  BACKGROUND backgroundLevelRangeStoreDate(r, st, d) ON CHANGE changeLevelRangeStoreDate(r, st, d)
 ;
 
 DESIGN storeRange {
@@ -580,7 +618,12 @@ DESIGN storeRange {
                     background = #FFEEFF;
                 }
             }
-            ADD s.box;
+            NEW rightPane1 {
+                fill = 1;
+                type = TABBED ;                
+                ADD st.box;
+                ADD s.box;
+            }             
         }
     }
     ADD functions.box;
