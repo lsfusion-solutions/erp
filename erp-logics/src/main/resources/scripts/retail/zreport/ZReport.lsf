@@ -748,7 +748,23 @@ editReceiptDetail(d) += ACTION editReceiptSaleDetail(d);
 
 isPostedOpenedZReport (z)= isPostedZReport(z) AND isOpenedZReport(z);
 isDraftOpenedZReport (z)= isDraftZReport(z) AND isOpenedZReport(z);
+
+filterZReportDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFromZreport (z) = dateZReport(z) >= filterZReportDateFrom() OR (z IS ZReport AND NOT filterZReportDateFrom());      
+
+filterZReportDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateToZreport (z) = dateZReport(z) <= filterZReportDateTo() OR (z IS ZReport AND NOT filterZReportDateTo());
+
+filterZReportDepartmentStore  = DATA LOCAL DepartmentStore ();
+nameFilterZReportDepartmentStore 'Отдел магазина' = nameDepartmentStore(filterZReportDepartmentStore()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterDepartmentStoreZReport (z) = departmentStoreZReport(z) == filterZReportDepartmentStore() OR (z IS ZReport AND NOT filterZReportDepartmentStore());
+ 
+filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL INTEGER ();
+filterCashRegisterZReport (z) = numberCashRegisterZReport(z) == filterZReportCashRegister() OR (z IS ZReport AND NOT filterZReportCashRegister()); 
+
 FORM zReports 'Z-отчеты'
+    PROPERTIES ()  filterZReportDateFrom, filterZReportDateTo, nameFilterZReportDepartmentStore, filterZReportCashRegister
+
     OBJECTS z=ZReport LAST
     PROPERTIES (z) READONLY succeededExtraCheckZReport, isClosedZReport, isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
                             numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
@@ -761,6 +777,11 @@ FORM zReports 'Z-отчеты'
 
     PROPERTIES (z) deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftOpenedZReport(z),
                             postZReport SHOWIF isDraftOpenedZReport(z), unpostZReport SHOWIF isPostedOpenedZReport(z)
+    
+    FILTERS filterDateFromZreport(z),
+            filterDateToZreport(z),
+            filterDepartmentStoreZReport(z),
+            filterCashRegisterZReport(z)
 
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameEmployeeReceipt,
@@ -795,8 +816,18 @@ DESIGN zReports {
         NEW firstCase {
             fill = 2;
             type = SPLITV;
-
-            ADD z.box;
+             NEW ZFilters {
+                fill = 1;
+                NEW filters{
+                    caption = 'Фильтры';
+                    type = CONTAINERH;          
+                    ADD PROPERTY(filterZReportDateFrom());
+                    ADD PROPERTY(filterZReportDateTo());
+                    ADD PROPERTY(nameFilterZReportDepartmentStore());
+                    ADD PROPERTY(filterZReportCashRegister());
+                }
+                ADD z.box;   
+             }
             ADD b.box;
         }
 
