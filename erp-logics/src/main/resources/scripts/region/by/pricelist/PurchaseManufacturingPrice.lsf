@@ -165,12 +165,13 @@ overChangePriceUserInvoiceDetail (d) += ACTION (d) {
     }
 }
 
-WHEN SESSION FORMS userInvoice
-    ((CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) AND NOT reverseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) 
+ON SESSION FORMS userInvoice {
+    FOR ((CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) AND NOT reverseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) 
         AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) AND NOT skipChangeManufacturingPriceUserInvoiceDetail(d) DO {
         
         updateManufacturingPriceUserInvoiceDetail(d);
     }   
+}    
  
 calcManufacturingMarkupUserInvoiceDetail(d) =     
     NUMERIC[8,3]((manufacturingPriceUserInvoiceDetail(d) * 100.0 / calcBaseManufacturingPriceUserInvoiceDetail(d)) - 100.0);

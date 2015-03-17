@@ -37,11 +37,6 @@ descriptionStockDocumentLedger 'Название документа' (ledger) = 
 skipStockDocumentLedger 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
 activeStockDocumentLedger (ledger) = isPostedStockDocumentLedger(ledger) AND NOT skipStockDocumentLedger(ledger);
 
-GROUP ledger 'Суммы (всего)' : public;
-sumIncStockDocumentLedger 'Сумма прихода' (ledger) = ABSTRACT NUMERIC[16,2] (IncStockDocumentLedger) PERSISTENT IN ledger;
-sumOutStockDocumentLedger 'Сумма расхода' (ledger) = ABSTRACT NUMERIC[16,2] (OutStockDocumentLedger) PERSISTENT IN ledger;
-sumStockDocumentLedger 'Сумма' (ledger) = MULTI sumIncStockDocumentLedger(ledger), -sumOutStockDocumentLedger(ledger) PERSISTENT;
-
 GROUP ledgerItem 'Суммы по товару' : public;
 sumItemIncStockDocumentLedger 'Сумма прихода, товар' (ledger) = ABSTRACT NUMERIC[16,2] (IncStockDocumentLedger) PERSISTENT IN ledgerItem MINCHARWIDTH 12 PREFCHARWIDTH 12;
 sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[16,2] (OutStockDocumentLedger) PERSISTENT IN ledgerItem MINCHARWIDTH 12 PREFCHARWIDTH 12;
@@ -52,6 +47,10 @@ sumContainerIncStockDocumentLedger 'Сумма прихода, тара' (ledger
 sumContainerOutStockDocumentLedger 'Сумма расхода, тара' (ledger) = ABSTRACT NUMERIC[16,2] (OutStockDocumentLedger) PERSISTENT IN ledgerContainer;
 sumContainerStockDocumentLedger 'Сумма, тара' (ledger) = MULTI sumContainerIncStockDocumentLedger(ledger), -sumContainerOutStockDocumentLedger(ledger) PERSISTENT;
 
+GROUP ledger 'Суммы (всего)' : public;
+sumIncStockDocumentLedger 'Сумма прихода' (ledger) = sumItemIncStockDocumentLedger(ledger)(+) sumContainerIncStockDocumentLedger(ledger) PERSISTENT IN ledger;
+sumOutStockDocumentLedger 'Сумма расхода' (ledger) = sumItemOutStockDocumentLedger(ledger)(+) sumContainerOutStockDocumentLedger(ledger) PERSISTENT IN ledger;
+sumStockDocumentLedger 'Сумма' (ledger) = MULTI sumIncStockDocumentLedger(ledger), -sumOutStockDocumentLedger(ledger) PERSISTENT;
 // -------------------------------------- Агрегированные суммы за интервал --------------------------------------------- //
 
 countIncStockDocumentStockDateInterval 'Количество приходных док-ов' (stock, dtFrom, dtTo)=
