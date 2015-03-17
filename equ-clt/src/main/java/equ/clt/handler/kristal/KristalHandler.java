@@ -365,6 +365,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
         Map<String, Timestamp> result = new HashMap<String, Timestamp>();
+        //result.put("12345", new Timestamp(Calendar.getInstance().getTime().getTime()));
+        //return result;
 
         for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
             Connection conn = null;
@@ -386,6 +388,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     conn.close();
             }
         }
+
+        sendSalesLogger.info("Kristal: requested succeeded SoftCheckInfo (" + result.size() + ")");
+
         return result;
     }
 
