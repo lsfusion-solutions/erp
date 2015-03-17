@@ -371,16 +371,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
             Connection conn = null;
             try {
+
+                String sqlHost = sqlHostEntry.getValue();
+                sendSalesLogger.info("Kristal: connection to " + sqlHost);
+
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        sqlHostEntry.getValue(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
                 String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE PayState='1' AND StatusNotUsed='1'";
                 ResultSet rs = statement.executeQuery(queryString);
+                int count = 0;
                 while (rs.next()) {
                     result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
+                    count++;
                 }
+
+                sendSalesLogger.info("Kristal: found " + count + " SoftCheckInfo");
+
             } catch (SQLException e) {
                 e.printStackTrace();
             } finally {
@@ -388,9 +397,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     conn.close();
             }
         }
-
-        sendSalesLogger.info("Kristal: requested succeeded SoftCheckInfo (" + result.size() + ")");
-
         return result;
     }
 
