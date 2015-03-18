@@ -34,6 +34,7 @@ nameGroupMachineryMachineryPriceTransaction 'Группа оборудовани
 nppGroupMachineryMachineryPriceTransaction 'Номер группы оборудования' (transaction) = nppGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
 
 stockMachineryPriceTransaction (transaction) = stockGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
+nameStockMachineryPriceTransaction 'Склад' (transaction) = nameStock(stockMachineryPriceTransaction(transaction));
 idStockMachineryPriceTransaction (transaction) = idStock(stockMachineryPriceTransaction(transaction));
 
 // Дата/время
@@ -231,7 +232,7 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
     FILTERS isCompanyStock(s)
 
     OBJECTS t = MachineryPriceTransaction
-    PROPERTIES(t) READONLY snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
+    PROPERTIES(t) READONLY snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, nameStockMachineryPriceTransaction, dateMachineryPriceTransaction, 
                            timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, dateTimeProcessingMachineryPriceTransaction, 
                            succeededMachineryPriceTransaction, dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
                            quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(t),
@@ -792,7 +793,7 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(dt) val = OBJVALUE 
 
     OBJECTS tt = MachineryPriceTransaction
-    PROPERTIES(tt) READONLY FORCE GRID snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
+    PROPERTIES(tt) READONLY FORCE GRID snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, nameStockMachineryPriceTransaction, dateMachineryPriceTransaction, 
                             timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, dateTimeProcessingMachineryPriceTransaction, 
                             succeededMachineryPriceTransaction, dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
                             quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(tt),
@@ -803,8 +804,24 @@ EXTEND FORM machineryPriceTransactions
     FILTERGROUP stockFilter
         FILTER 'По складу' stockMachineryPriceTransaction(tt) == s 'F11'      
     FILTERGROUP dateFilter
-        FILTER 'На дату' dateMachineryPriceTransaction(tt) == dt 'F10'    
+        FILTER 'На дату' dateMachineryPriceTransaction(tt) == dt 'F10'  
           
+    OBJECTS bt = Barcode
+    PROPERTIES(bt)    READONLY idBarcode
+    PROPERTIES(tt, bt) READONLY nameMachineryPriceTransactionBarcode, priceMachineryPriceTransactionBarcode
+    
+    FILTERS inMachineryPriceTransactionBarcode(tt, bt)
+    
+    OBJECTS et = MachineryPriceTransactionError LAST
+    PROPERTIES(et)  READONLY dataMachineryPriceTransactionError, dateMachineryPriceTransactionError
+    PROPERTIES(et)  FORCE PANEL  errorTraceMachineryPriceTransactionError
+    FILTERS machineryPriceTransactionMachineryPriceTransactionError(et) == tt    
+      
+    OBJECTS mtt = Machinery FIXED GRID
+    PROPERTIES(mtt) READONLY nppMachinery, descriptionMachinery, objectClassName//, dataDirectoryCashRegister
+    PROPERTIES(tt, mtt) inMachineryPriceTransactionMachinery
+    FILTERS groupMachineryMachinery(mtt) == groupMachineryMachineryPriceTransaction(tt) 
+    PROPERTIES(mtt, tt) succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction          
 //--
     OBJECTS bb = Barcode
     PROPERTIES(bb)    READONLY idBarcode, nameSkuBarcode
@@ -822,8 +839,6 @@ EXTEND FORM machineryPriceTransactions
     ORDER BY dateMachineryPriceTransaction(mt) DESC, timeMachineryPriceTransaction(mt) DESC
     FILTERS stockMachineryPriceTransaction(mt) == s
     FILTERS inMachineryPriceTransactionBarcode(mt, bb)          
-          
-          
 ;
 
 DESIGN machineryPriceTransactions{
@@ -845,8 +860,31 @@ DESIGN machineryPriceTransactions{
         NEW notSucceeded {
             fill = 1;
             caption = 'Незагруженные';
-            ADD dt.box;
-            ADD tt.box;
+            type = SPLITV;
+            NEW dttt {
+                fill = 1;
+                ADD dt.box;
+                ADD tt.box;                       
+            }
+            NEW specContainer2{
+                fill = 1;
+                type = TABBED;
+                ADD bt.box;
+                NEW errorContainer2 {
+                    fill = 1;
+                    caption = 'Сообщения об ошибках';
+                    ADD et.box;
+                    PROPERTY(errorTraceMachineryPriceTransactionError(et)) {
+                        fill = 1;
+                        panelLabelAbove = TRUE;
+                    }
+                }
+                NEW machinery2 {
+                    fill = 1;
+                    caption = 'Оборудование';
+                    ADD mtt.box;
+                } 
+            }
         } 
         NEW barcodeContainer {
             fill = 1;
