@@ -450,7 +450,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, 
-                                passScales, valueVAT, pluNumber, flags, hoursExpiry, labelFormat, description, descriptionNumberCellScales, 
+                                passScales, valueVAT, pluNumber, flags, hoursExpiry, labelFormat, description, descriptionNumberCellScales,
                                 idItemGroup, idUOM, shortNameUOM));
                     }
 
@@ -2584,7 +2584,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             if (equipmentServerObject instanceof DataObject) {
                 Integer delay = (Integer) equLM.findProperty("delayEquipmentServer").read(session, equipmentServerObject);
                 Integer numberAtATime = (Integer) equLM.findProperty("numberAtATimeEquipmentServer").read(session, equipmentServerObject);
-                return new EquipmentServerSettings(delay, numberAtATime);
+                Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelayEquipmentServer").read(session, equipmentServerObject);
+                return new EquipmentServerSettings(delay, numberAtATime, sendSalesDelay);
             } else return null;
         } catch (Exception e) {
             throw Throwables.propagate(e);

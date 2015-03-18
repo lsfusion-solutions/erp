@@ -73,7 +73,9 @@ public class EquipmentServer {
             @Override
             public void run() {
 
-                int millis = 10000;               
+                int millis = 10000;
+                int sendSalesDelay = 0;
+                int sendSalesDelayCounter = 0;
                                
                 while (true) {
 
@@ -104,8 +106,12 @@ public class EquipmentServer {
                                     equipmentServerSettings = remote.readEquipmentServerSettings(sidEquipmentServer);
                                     if (equipmentServerSettings == null) {
                                         logger.error("Equipment Server " + sidEquipmentServer + " not found");
-                                    } else if (equipmentServerSettings.delay != null)
-                                        millis = equipmentServerSettings.delay;
+                                    } else {
+                                        if (equipmentServerSettings.delay != null)
+                                            millis = equipmentServerSettings.delay;
+                                        if(equipmentServerSettings.sendSalesDelay != null)
+                                            sendSalesDelay = equipmentServerSettings.sendSalesDelay;
+                                    }
 
                                     initDaemonThreads(remote, sidEquipmentServer);                                   
                                     
@@ -118,7 +124,14 @@ public class EquipmentServer {
                         if (remote != null) {
                             processTransactionConsumer.scheduleIfNotScheduledYet();    
                             processStopListConsumer.scheduleIfNotScheduledYet();
-                            sendSalesConsumer.scheduleIfNotScheduledYet();                                                       
+
+                            if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay) {
+                                sendSalesConsumer.scheduleIfNotScheduledYet();
+                                sendSalesDelayCounter = 0;
+                            } else {
+                                sendSalesDelayCounter++;
+                            }
+
                             sendSoftCheckConsumer.scheduleIfNotScheduledYet();
                             sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
