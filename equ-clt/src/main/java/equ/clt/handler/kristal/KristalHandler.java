@@ -384,10 +384,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 ResultSet rs = statement.executeQuery(queryString);
                 int count = 0;
                 while (rs.next()) {
-                    String docNumber = fillLeadingZeroes(rs.getString(1));
-                    if(docNumber != null && docNumber.contains("888888")) {
-                        sendSalesLogger.info(docNumber + " found!");
-                    }
                     result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
                     count++;
                 }

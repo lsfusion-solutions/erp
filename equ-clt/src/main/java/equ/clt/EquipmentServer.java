@@ -338,7 +338,7 @@ public class EquipmentServer {
                     
                     Map succeededSoftCheckInfo = ((CashRegisterHandler) clsHandler).requestSucceededSoftCheckInfo(directorySet);
                     if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
-                        sendSalesLogger.info("Sending succeeded SoftCheckInfo");
+                        sendSalesLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
                         String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
                         if (result != null)
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
