@@ -378,6 +378,7 @@ META defineItemAttribute (attribute, caption, group)
     quantityParentWith###attribute##ItemGroup (itemGroup) = GROUP SUM 1 IF userShow###attribute##ItemGroup(parentItemGroup) AND isParentItemGroupItemGroup(itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
 
     show###attribute##ItemGroup caption (itemGroup) = TRUE IF (quantityChildWith###attribute##ItemGroup (itemGroup) (+) quantityParentWith###attribute##ItemGroup (itemGroup)) > 0 PERSISTENT;
+    showAny###attribute##ItemGroup caption (itemGroup) = show###attribute##ItemGroup(itemGroup) OR NOT itemGroup IS ItemGroup;
 
     show###attribute##Item caption (item) = TRUE IF quantityParentWith###attribute##ItemGroup(itemGroupItem(item));
 
@@ -457,7 +458,7 @@ META defineItemAttributeBatch (attribute, formProperty, caption, skuClass)
     show###attribute##Batch caption (batch)= show###attribute##Item(skuBatch(batch));
     attribute##Batch caption (batch) = attribute###skuClass(skuBatch(batch));
 
-    EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID formProperty###Batch SHOWIF show###attribute##ItemGroup(sk);
+    EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID formProperty###Batch SHOWIF showAny###attribute##ItemGroup(sk);
 END
 
 META defineItemAttributeBatchClass (attribute, caption, skuClass)
@@ -774,7 +775,7 @@ META defineItemAttributeForm(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
     
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
+    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showAny###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
     
     background###attribute###item = ABSTRACT COLOR (Item);
 END
@@ -917,7 +918,7 @@ META defineItemFilterValue(object, captionProp, o)
         }
     }    
     EXTEND FORM item PROPERTIES(i) name###object###item SHOWIF show###object##Item(i) BACKGROUND background###object###item(i) ON CHANGE change###object###item(i);
-    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei name###object###item SHOWIF show###object##ItemGroup(g) ON CHANGE change###object###item(i);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei name###object###item SHOWIF showAny###object##ItemGroup(g) ON CHANGE change###object###item(i);
 
 END
 
