@@ -299,6 +299,9 @@ inManyCollationSheetSku 'Вкл в ведомость' = DATA BOOLEAN (ManyColla
 quantityBalanceCollationSheetSku 'Кол-во по остаткам' (collationSheet, sku) = DATA NUMERIC[14,3] (CollationSheet, Sku);
 priceBalanceCollationSheetSku 'Цена по остаткам' (collationSheet, sku) = DATA NUMERIC[14,2] (CollationSheet, Sku);
 sumBalanceCollationSheetSku 'Сумма по остаткам' (collationSheet, sku) = DATA NUMERIC[16,2] (CollationSheet, Sku);
+
+isPriceInventory 'Сумму остатка считать по цене' = DATA BOOLEAN (Inventory);
+
 //---------------------------- Состав сличительной ведомости (Партия) ----------------------------//
 
 TABLE collationSheetBatch (CollationSheet, Batch);
@@ -312,15 +315,22 @@ priceBalanceCollationSheetBatch 'Цена по остаткам' (collationSheet
 GROUP inventoryAction 'Действия' : public;
 
 recalculateBalanceInventory 'Заполнить остатки' (inventory) = ACTION (inventory) {
-    ASSIGN quantityBalanceCollationSheetSku(collationSheet, sku)
+    quantityBalanceCollationSheetSku(collationSheet, sku)
         <- balanceBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
         WHERE inventoryCollationSheet(collationSheet) == inventory;
-    ASSIGN sumBalanceCollationSheetSku(collationSheet, sku)
-        <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))))
-        WHERE inventoryCollationSheet(collationSheet) == inventory;        
-
+    IF NOT isPriceInventory(inventory) THEN {
+        sumBalanceCollationSheetSku(collationSheet, sku)
+            <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))))
+            WHERE inventoryCollationSheet(collationSheet) == inventory;        
+    } ELSE {
+        sumBalanceCollationSheetSku(collationSheet, sku)
+            <- NUMERIC[16,2](roundPriceCurrency(balanceBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))*priceBalanceCollationSheetSku(collationSheet, sku),currencyStock(stockCollationSheet(collationSheet))))
+            WHERE inventoryCollationSheet(collationSheet) == inventory;    
+    }
+//NUMERIC[16,2](roundPriceCurrency((quantityPageInventoryDetail(pageInventoryDetail) * pricePageInventoryDetail(pageInventoryDetail)), currencyPageInventoryDetail(pageInventoryDetail)));    
+    
     IF isBatchInventory (inventory) THEN {
-        ASSIGN quantityBalanceCollationSheetBatch(collationSheet, batch)
+        quantityBalanceCollationSheetBatch(collationSheet, batch)
             <- balanceBBatchStockDateTime(batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
             WHERE inventoryCollationSheet(collationSheet) == inventory;
     }
@@ -328,22 +338,33 @@ recalculateBalanceInventory 'Заполнить остатки' (inventory) = AC
 
 recalculatePriceCollationSheet 'Пересчитать цены в сличительной ведомости' (collationSheet) = ACTION (collationSheet) {
     IF isBatchCollationSheet (collationSheet) THEN {
-        ASSIGN pricePageInventoryDetail(pageInventoryDetail)
+        pricePageInventoryDetail(pageInventoryDetail)
             <- priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchPageInventoryDetail(pageInventoryDetail), stockPageInventoryDetail(pageInventoryDetail), dateTimePageInventoryDetail(pageInventoryDetail))
             WHERE collationSheetPageInventoryDetail(pageInventoryDetail) == collationSheet;
     } ELSE {
-        ASSIGN pricePageInventoryDetail(pageInventoryDetail)
+        pricePageInventoryDetail(pageInventoryDetail)
             <- priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuPageInventoryDetail(pageInventoryDetail), stockPageInventoryDetail(pageInventoryDetail), dateTimePageInventoryDetail(pageInventoryDetail))
             WHERE collationSheetPageInventoryDetail(pageInventoryDetail) == collationSheet;
     }
 
-    ASSIGN priceBalanceCollationSheetSku(collationSheet, sku)
+    priceBalanceCollationSheetSku(collationSheet, sku)
         <- priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
-    ASSIGN sumBalanceCollationSheetSku(collationSheet, sku)
-        <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))));
+
+    IF NOT isPriceInventory(inventoryCollationSheet(collationSheet)) THEN {
+        sumBalanceCollationSheetSku(collationSheet, sku)
+            <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))));
+                
+    } ELSE {
+        sumBalanceCollationSheetSku(collationSheet, sku)
+            <- NUMERIC[16,2](roundPriceCurrency(balanceBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))*priceBalanceCollationSheetSku(collationSheet, sku), currencyStock(stockCollationSheet(collationSheet))));
+           
+    }    
+    
+//    sumBalanceCollationSheetSku(collationSheet, sku)
+//        <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))));
         
     IF isBatchCollationSheet (collationSheet) THEN {
-        ASSIGN priceBalanceCollationSheetBatch(collationSheet, batch)
+        priceBalanceCollationSheetBatch(collationSheet, batch)
             <- priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
     }
 } CONFIRM IN inventoryAction;
@@ -1040,7 +1061,7 @@ dumbPageInventory (p) = ' ' IF p IS PageInventory;
 
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
-    PROPERTIES (in)  isBatchInventory, nameNumeratorInventory, numberInventory, seriesInventory,
+    PROPERTIES (in)  isBatchInventory, isPriceInventory, nameNumeratorInventory, numberInventory, seriesInventory,
                      nameInventory, nameTypeOfAdditionInventory, dateInventory, timeInventory,
                      noteInventory, nameStockInventory ON CHANGE dialogStockInventory(in),
                      recalculatePriceInventory, recalculateBalanceInventory,
@@ -1064,12 +1085,12 @@ FORM inventory 'Инвентаризация'
 
     PROPERTIES(pl)   READONLY countPageInventoryDetailPageInventory, quantityPageInventoryDetailPageInventory, sumPageInventoryDetailPageInventory, dumbPageInventory
 
-    OBJECTS          dp=PageInventoryDetail
+    OBJECTS          dp=PageInventoryDetail FIXED GRID
     PROPERTIES (dp)  READONLY indexPageInventoryDetail, idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail  SHOWIF isBatchListInventory(li),
                               quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
     FILTERS                   inInventoryStockListInventoryPageInventoryPageInventoryDetail(in, ds, li, pl, dp)
 
-    OBJECTS         it=Sku
+    OBJECTS         it=Sku FIXED GRID
     PROPERTIES (li,it) indexListInventorySku
     PROPERTIES (it)    idBarcodeSku, itNameSku = nameSku
     PROPERTIES (li,it) quantityPageInventoryDetailListInventorySku, pricePageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li),
@@ -1077,7 +1098,7 @@ FORM inventory 'Инвентаризация'
     FILTERS            quantityPageInventoryDetailListInventorySku(li,it)
     ORDER BY           itNameSku
 
-    OBJECTS         bt=Batch
+    OBJECTS         bt=Batch FIXED GRID
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) indexListInventoryBatch
     PROPERTIES (bt)    SHOWIF isBatchListInventory(li) idBarcodeSkuBatch, nameSkuBatch, nameBatch
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) quantityPageInventoryDetailListInventoryBatch, pricePageInventoryDetailListInventoryBatch, sumPageInventoryDetailListInventoryBatch
@@ -1100,7 +1121,7 @@ FORM inventory 'Инвентаризация'
     ORDER BY orderSkuGroup(g), nameSkuGroup(g)
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
 
-    OBJECTS          i=Sku
+    OBJECTS          i=Sku FIXED GRID
     PROPERTIES(i) READONLY                      idBarcodeSku, iNameSku = nameSku, idSku
     PROPERTIES(cs, i)                           quantityPageInventoryDetailCollationSheetSku, quantityBalanceCollationSheetSku, quantityShortageCollationSheetSku
     PROPERTIES(cs, i) SHOWIF isSkuInventory(in) pricePageInventoryDetailCollationSheetSku BACKGROUND differentPriceCollationSheetSku(cs, i),
@@ -1151,6 +1172,7 @@ DESIGN inventory {
                     ADD PROPERTY(nameTypeOfAdditionInventory(in));
                     ADD PROPERTY(nameInventory(in));
                     ADD PROPERTY(isBatchInventory(in));
+                    ADD PROPERTY(isPriceInventory(in));
                     ADD PROPERTY(noteInventory(in));
                 }
                 ADD in.inventoryCommittee {
@@ -1449,6 +1471,9 @@ typeOfAdditionOperation  = DATA TypeOfAddition (Operation);
 nameTypeOfAdditionOperation 'Тип инвентаризации' (o) = staticCaption(typeOfAdditionOperation(o));
 
 @deriveDocumentOperationProperty(inventory, typeOfAddition) ;
+
+@defineOperationProperty(isPrice, 'Сумму остатка считать по цене', commonContainer);
+@deriveDocumentOperationProperty(inventory, isPrice) ;
 
 EXTEND FORM operation
     PROPERTIES(o) nameTypeOfAdditionOperation
