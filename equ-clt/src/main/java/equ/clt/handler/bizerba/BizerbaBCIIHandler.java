@@ -130,6 +130,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
 
 
     public void loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
+
+        Integer pluNumber = getPluNumber(item);
+
         String var3 = "";
         String command2;
         String captionItem = item.name.trim();
@@ -200,8 +203,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             priceOverflow = 1;
         }
 
-        if (item.pluNumber == 0 || item.pluNumber > 999999 || item.pluNumber < 0) {
-            throw new RuntimeException("PLU number is invalid. Number is " + item.pluNumber);
+        if (pluNumber == 0 || pluNumber > 999999 || pluNumber < 0) {
+            throw new RuntimeException("PLU number is invalid. Number is " + pluNumber);
         }
 
         //if(department == 0 || department > 999 || department < 0) {
@@ -218,7 +221,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             logError(errors, "PLU expired is invalid. Expired is " + item.daysExpiry);
         }
 
-        String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + item.pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
+        String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
         boolean manualWeight = false;
         if (!manualWeight) {
             if (nonWeight) {
@@ -294,7 +297,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                 if (line.length() > 2000) {
                     line = line.substring(0, 1999);
                 }
-                int messageNumber = item.pluNumber * 10 + count;
+                int messageNumber = getPluNumber(item) * 10 + count;
                 messageMap.put(messageNumber, line);
                 ++count;
             }
@@ -337,7 +340,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         if(splitMessage) {
             return clearMessages(errors, port, scales, new ArrayList<Integer>(getPLUMessage(item).keySet()));
         } else {
-            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + item.pluNumber + endCommand;
+
+            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + getPluNumber(item) + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, command);
             return receiveReply(errors, port);
@@ -359,7 +363,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
         int BIZERBABS_Group = 1;
         String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator
-                + "PNUM" + item.pluNumber + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
+                + "PNUM" + getPluNumber(item) + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
                 + "GPR10" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + item.idBarcode + separator
                 + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX"
                 + endCommand;
@@ -374,5 +378,13 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         sendCommand(errors, port, command);
         Thread.sleep(5000);
         return receiveReply(errors, port);
+    }
+
+    public Integer getPluNumber(ScalesItemInfo itemInfo) {
+        try {
+            return itemInfo.pluNumber == null ? Integer.parseInt(itemInfo.idBarcode) : itemInfo.pluNumber;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }
