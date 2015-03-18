@@ -9,12 +9,12 @@ GROUP rate 'Нормы' : public;
 CLASS NaturalLossGroup 'Группа естественной убыли';
 TABLE naturalLossGroup(NaturalLossGroup);
 
-nameNaturalLossGroup 'Наименование' = DATA VARISTRING[110](NaturalLossGroup);
+nameNaturalLossGroup 'Наименование' = DATA VARISTRING[110](NaturalLossGroup) IN recognize;
 
 CLASS SubNaturalLossGroup 'Группа естественной убыли';
 TABLE subNaturalLossGroup(SubNaturalLossGroup);
 
-nameSubNaturalLossGroup 'Наименование' = DATA VARISTRING[110](SubNaturalLossGroup);
+nameSubNaturalLossGroup 'Наименование' = DATA VARISTRING[110](SubNaturalLossGroup) IN recognize;
 
 CLASS SubNaturalLossGroupDetail 'Строка группы естественной убыли';
 TABLE subNaturalLossGroupDetail(SubNaturalLossGroupDetail);
@@ -22,6 +22,8 @@ TABLE subNaturalLossGroupDetail(SubNaturalLossGroupDetail);
 parentNaturalLossGroup = DATA NaturalLossGroup (SubNaturalLossGroup) AUTOSET;
 nameParentNaturalLossGroup 'Родительская группа' (subNaturalLossGroup) = nameNaturalLossGroup(parentNaturalLossGroup(subNaturalLossGroup));
 codeSubNaturalLossGroup 'Код нормы естественной убыли' = DATA STRING[3] (SubNaturalLossGroup);
+subNaturalLossGroupId (name) = GROUP AGGR subNaturalLossGroup BY codeSubNaturalLossGroup(subNaturalLossGroup) WHERE subNaturalLossGroup IS SubNaturalLossGroup;
+
 
 naturalLossGroupName (name) = GROUP AGGR naturalLossGroup BY nameNaturalLossGroup(naturalLossGroup) WHERE naturalLossGroup IS NaturalLossGroup;
 subNaturalLossGroupSubNaturalLossGroupDetail = DATA SubNaturalLossGroup (SubNaturalLossGroupDetail);
@@ -34,6 +36,7 @@ nameMonthToNaturalLossGroupDetail 'Месяц' = staticCaption(monthToNaturalLos
 percentNaturalLossGroupDetail '% естественной убыли' = DATA NUMERIC[10,5] (SubNaturalLossGroupDetail);
 
 dateToNumber(prm1, prm2) = prm2*32 + prm1;
+dateToNumberIntersect(prm1, prm2) = prm2*32 + (prm1*12);
 inInterval(prm1, prm2, prm3, prm4, prm5, prm6) = (dateToNumber(prm1, prm2) >= dateToNumber(prm3, prm4))
                                                AND (dateToNumber(prm1, prm2) <= dateToNumber(prm5, prm6));
 
@@ -502,6 +505,27 @@ loadDefaultSubNaturalLossGroup 'Добавить нормы естественн
             ASSIGN dayToNaturalLossGroupDetail(d) <- 31;
             ASSIGN monthToNaturalLossGroupDetail(d) <- Month.december;
         }
+    }
+}
+
+//-- Для сезонов
+overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли' = ACTION (idCountry, string, stringOne, stringTwo)  {
+    FOR ADDOBJ g = SubNaturalLossGroup DO {
+        ASSIGN parentNaturalLossGroup(g) <- naturalLossGroupName(string);
+        ASSIGN nameSubNaturalLossGroup(g) <-  stringOne;
+        ASSIGN countrySubNaturalLossGroup(g) <- countrySID(idCountry);
+        ASSIGN codeSubNaturalLossGroup(g) <- stringTwo;
+    }
+}
+
+overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли' = ACTION (id, numeric, dayFrom, monthFrom, dayTo, monthTo)  {
+    FOR ADDOBJ d = SubNaturalLossGroupDetail  DO {
+        ASSIGN subNaturalLossGroupSubNaturalLossGroupDetail(d) <- subNaturalLossGroupId(id);
+        ASSIGN percentNaturalLossGroupDetail(d) <- numeric;
+        ASSIGN dayFromNaturalLossGroupDetail(d) <- dayFrom;
+        ASSIGN monthFromNaturalLossGroupDetail(d) <-monthNumber(monthFrom);
+        ASSIGN dayToNaturalLossGroupDetail(d) <- dayTo;
+        ASSIGN monthToNaturalLossGroupDetail(d) <- monthNumber(monthTo);
     }
 }
 
