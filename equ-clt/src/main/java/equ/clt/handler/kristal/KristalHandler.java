@@ -365,7 +365,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
         Map<String, Timestamp> result = new HashMap<String, Timestamp>();
-        //result.put("12345", new Timestamp(Calendar.getInstance().getTime().getTime()));
+        //result.put("888888", new Timestamp(Calendar.getInstance().getTime().getTime()));
         //return result;
 
         for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
@@ -384,6 +384,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 ResultSet rs = statement.executeQuery(queryString);
                 int count = 0;
                 while (rs.next()) {
+                    String docNumber = fillLeadingZeroes(rs.getString(1));
+                    if(docNumber != null && docNumber.contains("888888")) {
+                        sendSalesLogger.info(docNumber + " found!");
+                    }
                     result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
                     count++;
                 }
