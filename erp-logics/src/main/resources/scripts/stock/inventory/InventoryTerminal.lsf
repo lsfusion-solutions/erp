@@ -4,6 +4,35 @@ REQUIRE Inventory, Terminal;
 
 NAMESPACE Terminal;
 
+addInventoryDetailsTerminalDocumentListInventory = ACTION (td,li){
+
+    LOCAL page = PageInventory ();
+    LOCAL detailCount = INTEGER();
+    detailCount() <- 0;
+
+    FOR terminalDocumentTerminalDocumentDetail(tdd) == td DO {
+        IF detailCount() == 0 THEN {
+            FOR ADDOBJ pi = PageInventory DO {
+                listInventoryPageInventory(pi) <- li;
+                page() <- pi;
+            }
+        }
+
+        FOR ADDOBJ pid = PageInventoryDetail DO {
+            pageInventoryPageInventoryDetail(pid) <- page();
+            skuPageInventoryDetail(pid) <- OVERRIDE skuId(barcodeTerminalDocumentDetail(tdd)), skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(li));
+            quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
+
+            detailCount() <- detailCount() + 1;
+
+            IF detailCount() >= 20 THEN {
+                ASSIGN detailCount() <- 0;
+            }
+        }
+    }
+
+}
+
 addDetailDialogTerminalListInventory 'Заполнить из документа ТСД' (listInventory) = ACTION (listInventory) {
     FORM terminalDocuments MODAL;
     IF formResult() == FormResult.ok THEN {
@@ -11,34 +40,31 @@ addDetailDialogTerminalListInventory 'Заполнить из документа
         document() <- chosenObject('td');
         usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
 
-        LOCAL page = PageInventory ();
-        LOCAL detailCount = INTEGER();
-        detailCount() <- 0;
+        addInventoryDetailsTerminalDocumentListInventory(document(),listInventory);
+    }
+} TOOLBAR;
 
-        FOR terminalDocumentTerminalDocumentDetail(tdd) == document() DO {
-            IF detailCount() == 0 THEN {
-                FOR ADDOBJ pi = PageInventory DO {
-                    listInventoryPageInventory(pi) <- listInventory;
-                    page() <- pi;
-                }
-            }
-
-            FOR ADDOBJ pid = PageInventoryDetail DO {
-                pageInventoryPageInventoryDetail(pid) <- page();
-                skuPageInventoryDetail(pid) <- OVERRIDE skuId(barcodeTerminalDocumentDetail(tdd)), skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
-                quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
-
-                detailCount() <- detailCount() + 1;
-
-                IF detailCount() >= 20 THEN {
-                    ASSIGN detailCount() <- 0;
-                }
-            }
+includeTerminalDocument 'Отм.' = DATA LOCAL BOOLEAN (TerminalDocument);
+EXTEND FORM terminalDocuments PROPERTIES (td) includeTerminalDocument BEFORE idTerminalDocument(td);
+ 
+addListInventoryDialogTerminalStockInventory 'Заполнить из документов ТСД' (stock, inventory) = ACTION (stock, inventory) {
+    FORM terminalDocuments MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR  includeTerminalDocument(td) ADDOBJ  li = ListInventory DO {
+            usedTerminalDocument(td) <- TRUE;
+            stockListInventory(li) <- stock;
+            inventoryListInventory(li) <- inventory;
+            includeTerminalDocument(td) <- NULL;
+            
+            addInventoryDetailsTerminalDocumentListInventory(td,li);
         }
-
     }
 } TOOLBAR;
 
 EXTEND FORM listInventory
     PROPERTIES SHOWIF isSkuListInventory(li) addDetailDialogTerminalListInventory(li) TODRAW dp
+;
+
+EXTEND FORM inventory
+    PROPERTIES(ds, in) addListInventoryDialogTerminalStockInventory
 ;
