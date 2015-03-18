@@ -163,16 +163,16 @@ TABLE priceListLedgerLedgerPriceListTypeStock (PriceListLedger, LedgerPriceListT
 activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
     activePriceListLedger(ledger) AND inPriceListLedgerLedgerPriceListType(ledger, type) AND inPriceListLedgerStock(ledger, stock) PERSISTENT;
 
-pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
+pricePriceListLedgerLedgerPriceListTypeStock 'Цена' (ledger, type, stock) =
     pricePriceListLedgerLedgerPriceListType(ledger, type) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT;
 
 skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
     skuPriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT INDEXED;
 
-fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
+fromDateTimePriceListLedgerLedgerPriceListTypeStock 'Дата/время с' (ledger, type, stock) =
     fromDateTimePriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT;
 
-toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
+toDateTimePriceListLedgerLedgerPriceListTypeStock 'Дата/время по' (ledger, type, stock) =
     toDateTimePriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT;
 
 companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
@@ -669,16 +669,14 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     PROPERTIES(s,st) nameDialogPriceListTypeSkuStock
 
     OBJECTS pp = (t = PriceListType, pl = PriceListLedger)
-    PROPERTIES READONLY namePriceListType(t),  descriptionPriceListLedger(pl), fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
-                        pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
+    PROPERTIES READONLY namePriceListType(t),  descriptionPriceListLedger(pl), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
+                        pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) FORCE GRID
     PROPERTIES(pl) editPriceListLedger                     
-    ORDER BY namePriceListType(t), fromDateTimePriceListLedger(pl)
+    ORDER BY namePriceListType(t), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st)
 
-    FILTERS skuPriceListLedger(pl) == s,
-            activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
-            pricePriceListLedgerLedgerPriceListType(pl,t),
-            isCompanyStock(st),
-            (t IS PriceListType AND NOT dialogPriceListTypeSkuStock(s,st)) OR dialogPriceListTypeSkuStock(s,st)== t
+    FILTERS skuPriceListLedgerLedgerPriceListTypeStock(pl, t, st) == s,
+            activePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
+            (t IS PriceListType AND NOT dialogPriceListTypeSkuStock(s,st)) OR dialogPriceListTypeSkuStock(s,st) == t
 
 ;
 DESIGN movementPriceSkuStock {
@@ -706,15 +704,13 @@ FORM movementPriceSkuStocks 'Изменение цены товара'
     PROPERTIES(s) READONLY nameSku
 
     OBJECTS pp = (t = PriceListType, pl = PriceListLedger, st = Stock)
-    PROPERTIES READONLY namePriceListType(t), nameStock(st), descriptionPriceListLedger(pl),  fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
-                        pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
+    PROPERTIES READONLY namePriceListType(t), nameStock(st), descriptionPriceListLedger(pl),  fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
+                        pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) FORCE GRID
     PROPERTIES(pl) editPriceListLedger                     
-    ORDER BY nameStock(st), namePriceListType(t), fromDateTimePriceListLedger(pl)
+    ORDER BY nameStock(st), namePriceListType(t), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st)
 
-    FILTERS skuPriceListLedger(pl) == s,
-            activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
-            pricePriceListLedgerLedgerPriceListType(pl,t),
-            isCompanyStock(st)
+    FILTERS skuPriceListLedgerLedgerPriceListTypeStock(pl, t, st) == s,
+            activePriceListLedgerLedgerPriceListTypeStock(pl, t, st)
 ;
 DESIGN movementPriceSkuStocks {
     main {
@@ -774,17 +770,16 @@ FORM priceTypeLedgerSkuStock 'Регистр цен'
                nameFilterReportSku()       
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
-    PROPERTIES READONLY namePriceListType(t),  nameStock(st), nameSkuPriceListLedger(pl), descriptionPriceListLedger(pl), fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
-                        pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
+    PROPERTIES READONLY namePriceListType(t),  nameStock(st), nameSkuPriceListLedger(pl), descriptionPriceListLedger(pl), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
+                        pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) FORCE GRID
     PROPERTIES(pl) editPriceListLedger                     
 //    ORDER BY fromDateTimePriceListLedger(pl)
 
-    FILTERS activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
-            toDate(fromDateTimePriceListLedger(pl)) >= dFrom,
-            toDate(fromDateTimePriceListLedger(pl)) <= dTo,                       
-            filterReportStock()==st OR (st IS Stock AND NOT filterReportStock()),
-            filterReportLedgerPriceListType()==t OR (t IS PriceListType AND NOT filterReportLedgerPriceListType()),
-            filterReportSku()==skuPriceListLedger(pl) OR (pl IS PriceListLedger AND NOT filterReportSku())
+    FILTERS toDate(fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st)) >= DATETIME(dFrom),
+            toDate(fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st)) < DATETIME(sumDate(dTo, 1)),                       
+            filterReportStock() == st OR (st IS Stock AND NOT filterReportStock()),
+            filterReportLedgerPriceListType() == t OR (t IS PriceListType AND NOT filterReportLedgerPriceListType()),
+            filterReportSku() == skuPriceListLedgerLedgerPriceListTypeStock(pl, t, st) OR (pl IS PriceListLedger AND NOT filterReportSku())
 ;
 DESIGN priceTypeLedgerSkuStock {
     main {
