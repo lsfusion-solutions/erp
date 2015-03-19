@@ -341,6 +341,83 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCaptionItem"));
             }
 
+            if (showField(userInvoiceDetailsList, "UOMItem")) {
+                ImportField idUOMField = new ImportField(findProperty("idUOM"));
+                ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
+                        findProperty("UOMId").getMapping(idUOMField));
+                keys.add(UOMKey);
+                props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("UOMItem").getMapping(itemKey),
+                        object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                fields.add(idUOMField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("UOMItem"));
+            }
+
+            if (showField(userInvoiceDetailsList, "idManufacturer")) {
+                ImportField idManufacturerField = new ImportField(LM.findProperty("idManufacturer"));
+                ImportKey<?> manufacturerKey = new ImportKey((CustomClass) LM.findClass("Manufacturer"),
+                        LM.findProperty("manufacturerId").getMapping(idManufacturerField));
+                keys.add(manufacturerKey);
+                props.add(new ImportProperty(idManufacturerField, LM.findProperty("idManufacturer").getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
+                props.add(new ImportProperty(idManufacturerField, LM.findProperty("manufacturerItem").getMapping(itemKey),
+                        object(LM.findClass("Manufacturer")).getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
+                fields.add(idManufacturerField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idManufacturer"));
+
+                if (showField(userInvoiceDetailsList, "nameManufacturer")) {
+                    addDataField(props, fields, defaultColumns, LM.findProperty("nameManufacturer"), "nameManufacturer", manufacturerKey);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameManufacturer"));
+                }
+            }
+
+            ImportField sidOrigin2CountryField = new ImportField(LM.findProperty("sidOrigin2Country"));
+            ImportField nameCountryField = new ImportField(LM.findProperty("nameCountry"));
+            ImportField nameOriginCountryField = new ImportField(LM.findProperty("nameOriginCountry"));
+
+            boolean showSidOrigin2Country = showField(userInvoiceDetailsList, "sidOrigin2Country");
+            boolean showNameCountry = showField(userInvoiceDetailsList, "nameCountry");
+            boolean showNameOriginCountry = showField(userInvoiceDetailsList, "nameOriginCountry");
+
+            ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
+                    (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
+            LCP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2") :
+                    (showNameCountry ? LM.findProperty("countryName") : (showNameOriginCountry ? LM.findProperty("countryNameOrigin") : null));
+            String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
+                    (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
+            ImportKey<?> countryKey = countryField == null ? null :
+                    new ImportKey((CustomClass) LM.findClass("Country"), countryAggr.getMapping(countryField));
+
+            if (countryKey != null) {
+                keys.add(countryKey);
+
+                props.add(new ImportProperty(countryField, LM.findProperty("countryItem").getMapping(itemKey),
+                        object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryReplaceField)));
+
+                if (showSidOrigin2Country) {
+                    props.add(new ImportProperty(sidOrigin2CountryField, LM.findProperty("sidOrigin2Country").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "sidOrigin2Country")));
+                    fields.add(sidOrigin2CountryField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("sidOrigin2Country"));
+                }
+                if (showNameCountry) {
+                    props.add(new ImportProperty(nameCountryField, LM.findProperty("nameCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameCountry")));
+                    fields.add(nameCountryField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCountry"));
+                }
+                if (showNameOriginCountry) {
+                    props.add(new ImportProperty(nameOriginCountryField, LM.findProperty("nameOriginCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameOriginCountry")));
+                    fields.add(nameOriginCountryField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameOriginCountry"));
+                }
+            }
+
             if (showField(userInvoiceDetailsList, "idCustomer")) {
                 ImportField idCustomerField = new ImportField(findProperty("idLegalEntity"));
                 ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
