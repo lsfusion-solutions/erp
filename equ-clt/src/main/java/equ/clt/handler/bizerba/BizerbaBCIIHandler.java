@@ -150,14 +150,14 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         String command2;
         String captionItem = item.name.trim();
         if (captionItem.isEmpty())
-            logError(errors, "PLU name is invalid. Name is empty");
+            logError(errors, String.format("PLU name is invalid. Name is empty (item: %s)", item.idItem));
 
         int department = 1;
 
         int var5;
         int i;
         Map<Integer, String> messageMap = getPLUMessage(item);
-        loadPLUMessages(errors, port, scales, messageMap);
+        loadPLUMessages(errors, port, scales, messageMap, item);
         command2 = "TFZU@00@04";
         i = 0;
 
@@ -226,13 +226,13 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         //}
 
         if (price > 999999 || price < 0) {
-            logError(errors, "PLU price is invalid. Price is " + price);
+            logError(errors, String.format("PLU price is invalid. Price is %s (item: %s)", price, item.idItem));
         }
 
         if(item.daysExpiry == null)
             item.daysExpiry = 0;
         if (item.daysExpiry > 999 || item.daysExpiry < 0) {
-            logError(errors, "PLU expired is invalid. Expired is " + item.daysExpiry);
+            logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
         }
 
         String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
@@ -255,9 +255,6 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         }
 
         int BIZERBABS_Group = 1;
-        //Integer barCodePrefix = Integer.parseInt(item.idBarcode.substring(0, 2));
-        //Integer barCodeWithoutPrefix = Integer.parseInt(item.idBarcode.substring(2));
-        //String idBarcode = makeBarCode(barCodePrefix, barCodeWithoutPrefix);
         String idBarcode = item.idBarcode != null && scales.weightCodeGroupScales != null && item.idBarcode.length()==5 ? ("0" + scales.weightCodeGroupScales + item.idBarcode + "00000") : item.idBarcode;
         Integer tareWeight = 0;
         Integer tarePercent = 0;
@@ -273,32 +270,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         sendCommand(errors, port, command1);
         String result = receiveReply(errors, port);
         if (!result.equals("0"))
-            logError(errors, "Result is " + result);
+            logError(errors, String.format("Result is %s, item: %s", result, item.idItem));
     }
-
-    public static byte[] barcodeRational = new byte[]{(byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6, (byte)6};
-
-    /*private String makeBarCode(int barcodePrefix, int barcodeWithoutPrefix) {
-        String var4 = barcodePrefix == 0 ? "1" : "0";
-
-        String var3;
-        for (var3 = (new Integer(barcodePrefix)).toString(); var3.length() < 2; var3 = '0' + var3) {
-            ;
-        }
-
-        var4 = var4 + var3;
-
-        for (var3 = (new Integer(barcodeWithoutPrefix)).toString(); var3.length() < barcodeRational[barcodePrefix]; var3 = '0' + var3) {
-            ;
-        }
-
-        for (var4 = var4 + var3; var4.length() < 13; var4 = var4 + '0') {
-            ;
-        }
-
-        var4 = barcodePrefix == 0 ? var4.substring(0, 12) : var4;
-        return var4;
-    }*/
 
     private Map<Integer, String> getPLUMessage(ScalesItemInfo item) {
         OrderedMap<Integer, String> messageMap = new OrderedMap<Integer, String>();
@@ -321,7 +294,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         return messageMap;
     }
 
-    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap) throws CommunicationException, IOException {
+    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item) throws CommunicationException, IOException {
         Integer messageNumber;
         String result;
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
@@ -332,7 +305,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             sendCommand(errors, port, message);
             result = receiveReply(errors, port);
             if (!result.equals("0")) {
-                logError(errors, "Result is " + result + " [msgNo=" + messageNumber + "]");
+                logError(errors, String.format("Result is %s, item: %s [msgNo=%s]", result, item.idItem, messageNumber));
                 break;
             }
         }
