@@ -2223,7 +2223,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String result = session.applyMessage(getBusinessLogics());
                     
                     if(result == null)
-                        return logCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                        logCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
                     else
                         return result;
                 }
