@@ -50,6 +50,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
+        Map<File, Integer> fileMap = new HashMap<File, Integer>();
+
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
             Exception exception = null;
@@ -196,29 +198,44 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     xmlOutput.output(doc, fw);
                     fw.close();
 
-                    waitForDeletion(new File(filePath));
+                    fileMap.put(new File(filePath), transaction.id);
                 }
             } catch (Exception e) {
                 exception = e;
             }
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
-        return sendTransactionBatchMap;
+
+        return waitForDeletion(fileMap);
     }
 
-    private void waitForDeletion(File file) {
+    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap) {
         int count = 0;
-        while (!Thread.currentThread().isInterrupted() && file.exists()) {
+        Map<Integer, SendTransactionBatch> result = new HashMap<Integer, SendTransactionBatch>();
+        while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
             try {
+                Map<File, Integer> nextFilesMap = new HashMap<File, Integer>();
                 count++;
-                if(count >= 60) {
-                    throw Throwables.propagate(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", file.getAbsolutePath())));
+                if (count >= 60) {
+                    break;
                 }
+                for (Map.Entry<File, Integer> file : filesMap.entrySet()) {
+                    if (file.getKey().exists())
+                        nextFilesMap.put(file.getKey(), file.getValue());
+                    else
+                        result.put(file.getValue(), new SendTransactionBatch(null));
+                }
+                filesMap = nextFilesMap;
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
         }
+
+        for(Map.Entry<File, Integer> file : filesMap.entrySet()) {
+            result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
+        }
+        return result;
     }
     
     private String makeGoodsFilePath() {
