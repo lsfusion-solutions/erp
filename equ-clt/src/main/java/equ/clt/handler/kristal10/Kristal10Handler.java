@@ -48,8 +48,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
-
         Map<File, Integer> fileMap = new HashMap<File, Integer>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
@@ -203,7 +201,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             } catch (Exception e) {
                 exception = e;
             }
-            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
 
         return waitForDeletion(fileMap);
