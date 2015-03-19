@@ -203,8 +203,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             priceOverflow = 1;
         }
 
-        if (pluNumber == 0 || pluNumber > 999999 || pluNumber < 0) {
-            throw new RuntimeException("PLU number is invalid. Number is " + pluNumber);
+        if (pluNumber <= 0 || pluNumber > 999999) {
+            return;
+            //throw new RuntimeException("PLU number is invalid. Number is " + pluNumber);
         }
 
         //if(department == 0 || department > 999 || department < 0) {
