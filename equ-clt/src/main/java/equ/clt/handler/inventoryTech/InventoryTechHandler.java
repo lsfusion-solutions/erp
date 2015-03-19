@@ -123,10 +123,13 @@ public class InventoryTechHandler extends TerminalHandler {
         try {
 
             Set<String> directorySet = new HashSet<String>();
+            Map<String, Integer> groupIds = new HashMap<String, Integer>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
-                if (t.directory != null)
+                if (t.directory != null) {
                     directorySet.add(t.directory);
+                    groupIds.put(t.directory, t.numberGroup);
+                }
             }
 
 
@@ -168,10 +171,11 @@ public class InventoryTechHandler extends TerminalHandler {
                                 BigDecimal price = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
                                 BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
                                 BigDecimal sum = safeMultiply(price, quantity);
+                                Integer numberGroup = groupIds.get(directory);
                                 
-                                terminalDocumentDetailList.add(new TerminalDocumentDetail(idDoc, title, directory,
+                                terminalDocumentDetailList.add(new TerminalDocumentDetail("" + numberGroup + "/" + idDoc, title, directory,
                                         idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType, quantityDocument, 
-                                        idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
+                                        "" + numberGroup + "/" + idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
                             }
 
                         }
