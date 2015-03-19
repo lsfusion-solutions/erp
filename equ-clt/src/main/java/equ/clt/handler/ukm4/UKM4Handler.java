@@ -32,176 +32,183 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        DBFWriter barDBFWriter = null;
-        DBFWriter classifDBFWriter = null;
-        DBFWriter pluCashDBFWriter = null;
-        DBFWriter pluLimDBFWriter = null;
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
-        try {
+        for(TransactionCashRegisterInfo transaction : transactionList) {
 
-            List<String> directoriesList = new ArrayList<String>();
-            for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
-                if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                    directoriesList.add(cashRegisterInfo.port.trim());
-                if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                    directoriesList.add(cashRegisterInfo.directory.trim());
-            }
-
-            for (String directory : directoriesList) {
-                if (!new File(directory.trim()).exists())
-                    throw new RuntimeException("The folder " + directory + " doesn't exist");
-
-                //BAR.DBF
-                OverJDBField[] barFields = {
-                        new OverJDBField("BARCODE", 'C', 15, 0),
-                        new OverJDBField("CARDARTICU", 'C', 30, 0),
-                        new OverJDBField("CARDSIZE", 'C', 10, 0),
-                        new OverJDBField("QUANTITY", 'N', 16, 6)
-                };
-                barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");                                
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if(!Thread.currentThread().isInterrupted()) {
-                        barDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 15), trim(item.idBarcode, 30)/*или что туда надо писать?*/,
-                                "NOSIZE", 1/*без разницы, что писать в количество?*/});
-                    }
-                }
-                barDBFWriter.close();
-
-
-                //CLASSIF.DBF
-                OverJDBField[] classifFields = {
-                        new OverJDBField("GROOP1", 'N', 6, 0),
-                        new OverJDBField("GROOP2", 'N', 6, 0),
-                        new OverJDBField("GROOP3", 'N', 6, 0),
-                        new OverJDBField("GROOP4", 'N', 6, 0),
-                        new OverJDBField("GROOP5", 'N', 6, 0),
-                        new OverJDBField("NAME", 'C', 80, 0)
-                };
-                classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
-                Set<Long> idItemGroups = new HashSet<Long>();
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if (!Thread.currentThread().isInterrupted()) {
-                        List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                        int size = hierarchyItemGroup.size();
-                        Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
-                        Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
-                        Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
-                        Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
-                        Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
-                        String name = trim(item.nameItemGroup, 80);
-                        if (!idItemGroups.contains(group1)) {
-                            idItemGroups.add(group1);
-                            if (size == 5) {
-                                classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, group1, name});
-                                classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
-                                classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
-                                classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, hierarchyItemGroup.get(4).nameItemGroup});
-                            } else if (size == 4) {
-                                classifDBFWriter.addRecord(new Object[]{group4, group3, group2, group1, 0, name});
-                                classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
-                                classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
-                            } else if (size == 3) {
-                                classifDBFWriter.addRecord(new Object[]{group3, group2, group1, 0, 0, name});
-                                classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
-                            } else if (size == 2) {
-                                classifDBFWriter.addRecord(new Object[]{group2, group1, 0, 0, 0, name});
-                                classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                            } else if (size == 1)
-                                classifDBFWriter.addRecord(new Object[]{group1, 0, 0, 0, 0, name});
-                        }
-                    }
-                }
-                classifDBFWriter.close();
-
-
-                //PLUCASH.DBF
-                OverJDBField[] pluCashFields = {
-                        new OverJDBField("ARTICUL", 'C', 30, 0),
-                        new OverJDBField("NAME", 'C', 80, 0),
-                        new OverJDBField("MESURIMENT", 'C', 10, 0),
-                        new OverJDBField("MESPRESISI", 'N', 16, 6),
-                        new OverJDBField("ADD1", 'C', 20, 0),
-                        new OverJDBField("ADD2", 'C', 20, 0),
-                        new OverJDBField("ADD3", 'C', 20, 0),
-                        new OverJDBField("ADDNUM1", 'N', 16, 6),
-                        new OverJDBField("ADDNUM2", 'N', 16, 6),
-                        new OverJDBField("ADDNUM3", 'N', 16, 6),
-                        new OverJDBField("SCALE", 'C', 10, 0),
-                        new OverJDBField("GROOP1", 'N', 6, 0),
-                        new OverJDBField("GROOP2", 'N', 6, 0),
-                        new OverJDBField("GROOP3", 'N', 6, 0),
-                        new OverJDBField("GROOP4", 'N', 6, 0),
-                        new OverJDBField("GROOP5", 'N', 6, 0),
-                        new OverJDBField("PRICERUB", 'N', 16, 2),
-                        new OverJDBField("PRICECUR", 'N', 16, 2),
-                        new OverJDBField("CLIENTINDE", 'N', 6, 0),
-                        new OverJDBField("COMMENTARY", 'C', 80, 0),
-                        new OverJDBField("DELETED", 'N', 6, 0),
-                        new OverJDBField("MODDATE", 'D', 8, 0),
-                        new OverJDBField("MODTIME", 'N', 6, 0),
-                        new OverJDBField("MODPERSONI", 'N', 6, 0)
-                };
-                pluCashDBFWriter = new DBFWriter(directory + "/PLUCASH.DBF", pluCashFields, "CP866");
-                              
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if (!Thread.currentThread().isInterrupted()) {
-                        String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
-                        double mespresisi = item.splitItem ? 0.001 : 1.000;
-                        List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                        int size = hierarchyItemGroup.size();
-                        Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
-                        Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
-                        Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
-                        Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
-                        Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
-
-                        pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null,
-                                null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
-                                item.price.doubleValue(), null, 0, null, 1, transactionInfo.date, null, null});
-                    }
-                }
-                pluCashDBFWriter.close();
-
-
-                //PLULIM.DBF
-                OverJDBField[] pluLimFields = {
-                        new OverJDBField("CARDARTICU", 'C', 30, 0),
-                        new OverJDBField("PERCENT", 'N', 16, 2)
-                };
-                pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if(!Thread.currentThread().isInterrupted()) {
-                        pluLimDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), 0/*откуда брать макс. процент скидки?*/});
-                    }
-                }
-                pluLimDBFWriter.close();                
-                
-                File flagFile = new File(directory + "/cash01." + (transactionInfo.snapshot ? "cng" : "upd"));
-                flagFile.createNewFile();
-                waitForDeletion(flagFile);
-
-            }
-        } catch (JDBFException e) {
-            throw Throwables.propagate(e);
-        } finally {
+            Exception exception = null;
             try {
-                if (barDBFWriter != null)
-                    barDBFWriter.close();
-                if (pluCashDBFWriter != null)
-                    pluCashDBFWriter.close();
-                if (pluLimDBFWriter != null)
-                    pluLimDBFWriter.close();
-                if (classifDBFWriter != null)
-                    classifDBFWriter.close();
-            } catch (JDBFException ignored) {
+
+                DBFWriter barDBFWriter = null;
+                DBFWriter classifDBFWriter = null;
+                DBFWriter pluCashDBFWriter = null;
+                DBFWriter pluLimDBFWriter = null;
+
+                try {
+
+                    List<String> directoriesList = new ArrayList<String>();
+                    for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
+                        if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
+                            directoriesList.add(cashRegisterInfo.port.trim());
+                        if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
+                            directoriesList.add(cashRegisterInfo.directory.trim());
+                    }
+
+                    for (String directory : directoriesList) {
+                        if (!new File(directory.trim()).exists())
+                            throw new RuntimeException("The folder " + directory + " doesn't exist");
+
+                        //BAR.DBF
+                        OverJDBField[] barFields = {
+                                new OverJDBField("BARCODE", 'C', 15, 0),
+                                new OverJDBField("CARDARTICU", 'C', 30, 0),
+                                new OverJDBField("CARDSIZE", 'C', 10, 0),
+                                new OverJDBField("QUANTITY", 'N', 16, 6)
+                        };
+                        barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                barDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 15), trim(item.idBarcode, 30)/*или что туда надо писать?*/,
+                                        "NOSIZE", 1/*без разницы, что писать в количество?*/});
+                            }
+                        }
+                        barDBFWriter.close();
+
+
+                        //CLASSIF.DBF
+                        OverJDBField[] classifFields = {
+                                new OverJDBField("GROOP1", 'N', 6, 0),
+                                new OverJDBField("GROOP2", 'N', 6, 0),
+                                new OverJDBField("GROOP3", 'N', 6, 0),
+                                new OverJDBField("GROOP4", 'N', 6, 0),
+                                new OverJDBField("GROOP5", 'N', 6, 0),
+                                new OverJDBField("NAME", 'C', 80, 0)
+                        };
+                        classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
+                        Set<Long> idItemGroups = new HashSet<Long>();
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                int size = hierarchyItemGroup.size();
+                                Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
+                                Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
+                                Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
+                                Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
+                                Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
+                                String name = trim(item.nameItemGroup, 80);
+                                if (!idItemGroups.contains(group1)) {
+                                    idItemGroups.add(group1);
+                                    if (size == 5) {
+                                        classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, group1, name});
+                                        classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                        classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                                        classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
+                                        classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, hierarchyItemGroup.get(4).nameItemGroup});
+                                    } else if (size == 4) {
+                                        classifDBFWriter.addRecord(new Object[]{group4, group3, group2, group1, 0, name});
+                                        classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                        classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                                        classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
+                                    } else if (size == 3) {
+                                        classifDBFWriter.addRecord(new Object[]{group3, group2, group1, 0, 0, name});
+                                        classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                        classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                                    } else if (size == 2) {
+                                        classifDBFWriter.addRecord(new Object[]{group2, group1, 0, 0, 0, name});
+                                        classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                    } else if (size == 1)
+                                        classifDBFWriter.addRecord(new Object[]{group1, 0, 0, 0, 0, name});
+                                }
+                            }
+                        }
+                        classifDBFWriter.close();
+
+
+                        //PLUCASH.DBF
+                        OverJDBField[] pluCashFields = {
+                                new OverJDBField("ARTICUL", 'C', 30, 0),
+                                new OverJDBField("NAME", 'C', 80, 0),
+                                new OverJDBField("MESURIMENT", 'C', 10, 0),
+                                new OverJDBField("MESPRESISI", 'N', 16, 6),
+                                new OverJDBField("ADD1", 'C', 20, 0),
+                                new OverJDBField("ADD2", 'C', 20, 0),
+                                new OverJDBField("ADD3", 'C', 20, 0),
+                                new OverJDBField("ADDNUM1", 'N', 16, 6),
+                                new OverJDBField("ADDNUM2", 'N', 16, 6),
+                                new OverJDBField("ADDNUM3", 'N', 16, 6),
+                                new OverJDBField("SCALE", 'C', 10, 0),
+                                new OverJDBField("GROOP1", 'N', 6, 0),
+                                new OverJDBField("GROOP2", 'N', 6, 0),
+                                new OverJDBField("GROOP3", 'N', 6, 0),
+                                new OverJDBField("GROOP4", 'N', 6, 0),
+                                new OverJDBField("GROOP5", 'N', 6, 0),
+                                new OverJDBField("PRICERUB", 'N', 16, 2),
+                                new OverJDBField("PRICECUR", 'N', 16, 2),
+                                new OverJDBField("CLIENTINDE", 'N', 6, 0),
+                                new OverJDBField("COMMENTARY", 'C', 80, 0),
+                                new OverJDBField("DELETED", 'N', 6, 0),
+                                new OverJDBField("MODDATE", 'D', 8, 0),
+                                new OverJDBField("MODTIME", 'N', 6, 0),
+                                new OverJDBField("MODPERSONI", 'N', 6, 0)
+                        };
+                        pluCashDBFWriter = new DBFWriter(directory + "/PLUCASH.DBF", pluCashFields, "CP866");
+
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
+                                double mespresisi = item.splitItem ? 0.001 : 1.000;
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                int size = hierarchyItemGroup.size();
+                                Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                                Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                                Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                                Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                                Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
+
+                                pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null,
+                                        null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
+                                        item.price.doubleValue(), null, 0, null, 1, transaction.date, null, null});
+                            }
+                        }
+                        pluCashDBFWriter.close();
+
+
+                        //PLULIM.DBF
+                        OverJDBField[] pluLimFields = {
+                                new OverJDBField("CARDARTICU", 'C', 30, 0),
+                                new OverJDBField("PERCENT", 'N', 16, 2)
+                        };
+                        pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                pluLimDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), 0/*откуда брать макс. процент скидки?*/});
+                            }
+                        }
+                        pluLimDBFWriter.close();
+
+                        File flagFile = new File(directory + "/cash01." + (transaction.snapshot ? "cng" : "upd"));
+                        flagFile.createNewFile();
+                        waitForDeletion(flagFile);
+
+                    }
+                } finally {
+                    if (barDBFWriter != null)
+                        barDBFWriter.close();
+                    if (pluCashDBFWriter != null)
+                        pluCashDBFWriter.close();
+                    if (pluLimDBFWriter != null)
+                        pluLimDBFWriter.close();
+                    if (classifDBFWriter != null)
+                        classifDBFWriter.close();
+                }
+            } catch(Exception e) {
+                exception = e;
             }
+            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
-        return null;
+        return sendTransactionBatchMap;
     }
 
     private void waitForDeletion(File file) {

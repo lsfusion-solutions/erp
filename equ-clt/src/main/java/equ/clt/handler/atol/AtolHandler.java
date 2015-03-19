@@ -29,79 +29,91 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
         return "atol";
     }
-    
+
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-        processTransactionLogger.info("Atol: Send Transaction # " + transactionInfo.id);
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
-        List<String> directoriesList = new ArrayList<String>();
-        for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
-            if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                directoriesList.add(cashRegisterInfo.port.trim());
-            if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                directoriesList.add(cashRegisterInfo.directory.trim());
-        }
+        for(TransactionCashRegisterInfo transaction : transactionInfoList) {
 
-        for (String directory : directoriesList) {
+            Exception exception = null;
+            try {
 
-            String exchangeDirectory = directory + "/IN/";
+                processTransactionLogger.info("Atol: Send Transaction # " + transaction.id);
 
-            File goodsFlagFile = createGoodsFlagFile(exchangeDirectory);
+                List<String> directoriesList = new ArrayList<String>();
+                for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
+                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
+                        directoriesList.add(cashRegisterInfo.port.trim());
+                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
+                        directoriesList.add(cashRegisterInfo.directory.trim());
+                }
 
-            File goodsFile = new File(exchangeDirectory + "goods.txt");
-            PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
+                for (String directory : directoriesList) {
 
-            goodsWriter.println("##@@&&");
-            goodsWriter.println("#");
+                    String exchangeDirectory = directory + "/IN/";
 
-            goodsWriter.println("$$$ADDENTERPRISES");
-            goodsWriter.println(format(transactionInfo.nppGroupMachinery, ";") + ";" + format(transactionInfo.nppGroupMachinery, ";"));
+                    File goodsFlagFile = createGoodsFlagFile(exchangeDirectory);
 
-            if (!transactionInfo.itemsList.isEmpty()) {
-                goodsWriter.println("$$$ADDQUANTITY");
+                    File goodsFile = new File(exchangeDirectory + "goods.txt");
+                    PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
 
-                LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<String, String[]>();
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if(!Thread.currentThread().isInterrupted()) {
-                        List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                        for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
-                            String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
-                            if (!itemGroups.containsKey(idItemGroup)) {
-                                String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
-                                String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
-                                itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
+                    goodsWriter.println("##@@&&");
+                    goodsWriter.println("#");
+
+                    goodsWriter.println("$$$ADDENTERPRISES");
+                    goodsWriter.println(format(transaction.nppGroupMachinery, ";") + ";" + format(transaction.nppGroupMachinery, ";"));
+
+                    if (!transaction.itemsList.isEmpty()) {
+                        goodsWriter.println("$$$ADDQUANTITY");
+
+                        LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<String, String[]>();
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
+                                    String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
+                                    if (!itemGroups.containsKey(idItemGroup)) {
+                                        String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
+                                        String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
+                                        itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
+                                    }
+                                }
+                            }
+                        }
+
+                        for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
+                                        format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
+                                        ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                        (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
+                                goodsWriter.println(itemGroupRecord);
+                            }
+                        }
+
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
+                                String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
+                                        format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
+                                        ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                        (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
+                                goodsWriter.println(record);
                             }
                         }
                     }
-                }
+                    goodsWriter.close();
 
-                for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
-                    if(!Thread.currentThread().isInterrupted()) {
-                        String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
-                                format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
-                                ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                                (transactionInfo.nppGroupMachinery == null ? "1" : transactionInfo.nppGroupMachinery) + ";";
-                        goodsWriter.println(itemGroupRecord);
-                    }
+                    processGoodsFlagFile(goodsFile, goodsFlagFile);
                 }
-
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if(!Thread.currentThread().isInterrupted()) {
-                        String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
-                        String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                                format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
-                                ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                                (transactionInfo.nppGroupMachinery == null ? "1" : transactionInfo.nppGroupMachinery) + ";";
-                        goodsWriter.println(record);
-                    }
-                }
+            } catch (Exception e) {
+                exception = e;
             }
-            goodsWriter.close();
-
-            processGoodsFlagFile(goodsFile, goodsFlagFile);
+            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
-        return null;
+        return sendTransactionBatchMap;
     }
 
     private boolean checkGoodsFile(String path) throws FileNotFoundException {

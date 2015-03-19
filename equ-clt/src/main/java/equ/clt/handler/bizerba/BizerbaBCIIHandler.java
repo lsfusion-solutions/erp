@@ -1,6 +1,7 @@
 package equ.clt.handler.bizerba;
 
 import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
@@ -30,98 +31,110 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     public String getGroupId(TransactionScalesInfo transactionInfo) {
         return "bizerbabcii";
     }
-    
+
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionScalesInfo transaction, List<ScalesInfo> scalesList) throws IOException {
-        
-        List<ScalesInfo> enabledScalesList = new ArrayList<ScalesInfo>();
-        for (ScalesInfo scales : scalesList) {
-            if (scales.enabled)
-                enabledScalesList.add(scales);
-        }
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
-        processTransactionLogger.info("Bizerba: Send Transaction # " + transaction.id);
-        List<MachineryInfo> succeededScalesList = new ArrayList<MachineryInfo>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
-        if (!scalesList.isEmpty()) {
+        for(TransactionScalesInfo transaction : transactionList) {
 
-            Map<String, List<String>> errors = new HashMap<String, List<String>>();
-            Set<String> ips = new HashSet<String>();
+            List<MachineryInfo> succeededScalesList = new ArrayList<MachineryInfo>();
+            Exception exception = null;
+            try {
 
-            processTransactionLogger.info("Bizerba: Starting sending to " + enabledScalesList.size() + " scales...");
+                List<ScalesInfo> enabledScalesList = new ArrayList<ScalesInfo>();
+                for (ScalesInfo scales : transaction.machineryInfoList) {
+                    if (scales.enabled)
+                        enabledScalesList.add(scales);
+                }
 
-            for (ScalesInfo scales : enabledScalesList.isEmpty() ? scalesList : enabledScalesList) {
-                List<String> localErrors = new ArrayList<String>();
+                processTransactionLogger.info("Bizerba: Send Transaction # " + transaction.id);
 
-                TCPPort port = new TCPPort(scales.port, 1025);
+                if (!transaction.machineryInfoList.isEmpty()) {
 
-                String ip = scales.port;
-                if (ip != null) {
-                    ips.add(scales.port);
+                    Map<String, List<String>> errors = new HashMap<String, List<String>>();
+                    Set<String> ips = new HashSet<String>();
 
-                    processTransactionLogger.info("Bizerba: Processing ip: " + ip);
-                    try {
+                    List<ScalesInfo> usingScalesList = enabledScalesList.isEmpty() ? transaction.machineryInfoList : enabledScalesList;
 
-                        processTransactionLogger.info("Bizerba: Connecting..." + ip);
-                        port.open();
-                        if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                            String clear = clearAllPLU(localErrors, port, scales);
-                            if (!clear.equals("0"))
-                                logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
-                            List<Integer> messageList = new ArrayList<Integer>();
-                            for(int i = 1; i <= 5000; i++) {
-                                messageList.add(i);
-                            }
-                            clearMessages(localErrors, port, scales, messageList);
-                        }
+                    processTransactionLogger.info("Bizerba: Starting sending to " + usingScalesList.size() + " scale(s)...");
 
-                        processTransactionLogger.info("Bizerba: Sending items..." + ip);
-                        if (localErrors.isEmpty()) {
-                            for (ScalesItemInfo item : transaction.itemsList) {
-                                if(!Thread.currentThread().isInterrupted()) {
-                                    item.description = item.description == null ? "" : item.description;
-                                    item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
-                                    clearMessage(localErrors, port, scales, item, true);
-                                    loadPLU(localErrors, port, scales, item);
+                    for (ScalesInfo scales : usingScalesList) {
+                        List<String> localErrors = new ArrayList<String>();
+
+                        TCPPort port = new TCPPort(scales.port, 1025);
+
+                        String ip = scales.port;
+                        if (ip != null) {
+                            ips.add(scales.port);
+
+                            processTransactionLogger.info("Bizerba: Processing ip: " + ip);
+                            try {
+
+                                processTransactionLogger.info("Bizerba: Connecting..." + ip);
+                                port.open();
+                                if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
+                                    String clear = clearAllPLU(localErrors, port, scales);
+                                    if (!clear.equals("0"))
+                                        logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
+                                    List<Integer> messageList = new ArrayList<Integer>();
+                                    for (int i = 1; i <= 5000; i++) {
+                                        messageList.add(i);
+                                    }
+                                    clearMessages(localErrors, port, scales, messageList);
+                                }
+
+                                processTransactionLogger.info("Bizerba: Sending items..." + ip);
+                                if (localErrors.isEmpty()) {
+                                    for (ScalesItemInfo item : transaction.itemsList) {
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            item.description = item.description == null ? "" : item.description;
+                                            item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
+                                            clearMessage(localErrors, port, scales, item, true);
+                                            loadPLU(localErrors, port, scales, item);
+                                        }
+                                    }
+                                }
+                                port.close();
+
+                            } catch (Exception e) {
+                                logError(localErrors, "BizerbaHandler error: ", e);
+                            } finally {
+                                processTransactionLogger.info("Bizerba: Finally disconnecting..." + ip);
+                                try {
+                                    port.close();
+                                } catch (CommunicationException e) {
+                                    logError(localErrors, "BizerbaHandler close port error: ", e);
                                 }
                             }
+                            processTransactionLogger.info("Bizerba: Completed ip: " + ip);
                         }
-                        port.close();
-
-                    } catch (Exception e) {
-                        logError(localErrors, "BizerbaHandler error: ", e);
-                    } finally {
-                        processTransactionLogger.info("Bizerba: Finally disconnecting..." + ip);
-                        try {
-                            port.close();
-                        } catch (CommunicationException e) {
-                            logError(localErrors, "BizerbaHandler close port error: ", e);
-                        }
+                        if (localErrors.isEmpty())
+                            succeededScalesList.add(scales);
+                        else
+                            errors.put(ip, localErrors);
                     }
-                    processTransactionLogger.info("Bizerba: Completed ip: " + ip);
+
+                    if (!errors.isEmpty()) {
+                        String message = "";
+                        for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
+                            message += entry.getKey() + ": \n";
+                            for (String error : entry.getValue()) {
+                                message += error + "\n";
+                            }
+                        }
+                        throw new RuntimeException(message);
+                    } else if (ips.isEmpty())
+                        throw new RuntimeException("Bizerba: No IP-addresses defined");
+
                 }
-                if (localErrors.isEmpty())
-                    succeededScalesList.add(scales);
-                else
-                    errors.put(ip, localErrors);
+            } catch (Exception e) {
+                exception = e;
             }
-            
-
-            if (!errors.isEmpty()) {
-                String message = "";
-                for(Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                    message += entry.getKey() + ": \n";
-                    for(String error : entry.getValue()) {
-                        message += error + "\n";
-                    }
-                }
-                throw new RuntimeException(message);
-            } else if (ips.isEmpty())
-                throw new RuntimeException("Bizerba: No IP-addresses defined");
-            
+            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(succeededScalesList, exception));
         }
-            
-        return succeededScalesList;
+        return sendTransactionBatchMap;
     }
 
     @Override

@@ -30,9 +30,4 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
         this.snapshot = snapshot;
         this.departmentNumberGroupCashRegister = departmentNumberGroupCashRegister;
     }
-
-    @Override
-    public List<MachineryInfo> sendTransaction(Object handler, List<CashRegisterInfo> machineryInfoList) throws IOException {
-        return ((CashRegisterHandler)handler).sendTransaction(this, machineryInfoList);
-    }
 }

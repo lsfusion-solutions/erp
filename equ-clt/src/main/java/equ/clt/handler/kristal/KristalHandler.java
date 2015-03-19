@@ -64,167 +64,179 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
         return directoriesList;
     }
-    
+
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-        processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
-        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
-        boolean useIdItem = kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
-        
-        List<String> directoriesList = new ArrayList<String>();
-        for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
-            if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                directoriesList.add(cashRegisterInfo.port.trim());
-            if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                directoriesList.add(cashRegisterInfo.directory.trim());
-        }
+        for(TransactionCashRegisterInfo transactionInfo : transactionInfoList) {
 
-        for (String directory : directoriesList) {
+            Exception exception = null;
+            try {
 
-            String exchangeDirectory = directory.trim() + "/ImpExp/Import/";
+                processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
-            if (!new File(exchangeDirectory).exists())
-                new File(exchangeDirectory).mkdirs();
+                DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+                boolean useIdItem = kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
 
-            //plu.txt
-            File pluFile = new File(exchangeDirectory + "plu.txt");
-            File flagPluFile = new File(exchangeDirectory + "WAITPLU");
-            if (pluFile.exists() && flagPluFile.exists()) {
-                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
-            } else if (flagPluFile.createNewFile()) {
-                processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
-
-                Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
-                
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if(!Thread.currentThread().isInterrupted()) {
-                        String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
-                        boolean isWeightItem = item.passScalesItem && item.splitItem;
-                        Object code = useIdItem ? item.idItem : item.idBarcode;
-                        String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
-                        String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
-                                (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
-                                departmentNumber + "|"/*section*/ + item.price.intValue() + "|" + "0|"/*fixprice*/ +
-                                (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
-                        writer.println(record);
-                    }
+                List<String> directoriesList = new ArrayList<String>();
+                for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
+                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
+                        directoriesList.add(cashRegisterInfo.port.trim());
+                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
+                        directoriesList.add(cashRegisterInfo.directory.trim());
                 }
-                writer.close();
 
-                processTransactionLogger.info(String.format("Kristal: waiting for deletion of PLU file (Transaction #%s)", transactionInfo.id));
-                waitForDeletion(pluFile, flagPluFile);
-            } else {
-                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
-            }
+                for (String directory : directoriesList) {
 
-            //message.txt
-            boolean messageEmpty = true;
-            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                if (item.description != null && !item.description.equals("")) {
-                    messageEmpty = false;
-                    break;
-                }
-            }
-            if (!messageEmpty) {
-                File messageFile = new File(exchangeDirectory + "message.txt");
-                File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
-                if (messageFile.exists() && flagMessageFile.exists()) {
-                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
-                } else if (flagMessageFile.createNewFile()) {
-                    processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
-                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
+                    String exchangeDirectory = directory.trim() + "/ImpExp/Import/";
 
-                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        if(!Thread.currentThread().isInterrupted()) {
-                            if (item.description != null && !item.description.equals("")) {
-                                String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
+                    if (!new File(exchangeDirectory).exists())
+                        new File(exchangeDirectory).mkdirs();
+
+                    //plu.txt
+                    File pluFile = new File(exchangeDirectory + "plu.txt");
+                    File flagPluFile = new File(exchangeDirectory + "WAITPLU");
+                    if (pluFile.exists() && flagPluFile.exists()) {
+                        throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
+                    } else if (flagPluFile.createNewFile()) {
+                        processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
+                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
+
+                        Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
+
+                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
+                                boolean isWeightItem = item.passScalesItem && item.splitItem;
+                                Object code = useIdItem ? item.idItem : item.idBarcode;
+                                String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
+                                        (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
+                                        departmentNumber + "|"/*section*/ + item.price.intValue() + "|" + "0|"/*fixprice*/ +
+                                        (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
                                 writer.println(record);
                             }
                         }
+                        writer.close();
+
+                        processTransactionLogger.info(String.format("Kristal: waiting for deletion of PLU file (Transaction #%s)", transactionInfo.id));
+                        waitForDeletion(pluFile, flagPluFile);
+                    } else {
+                        throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
                     }
-                    writer.close();
-                    processTransactionLogger.info(String.format("Kristal: waiting for deletion of MESSAGE file (Transaction #%s)", transactionInfo.id));
-                    waitForDeletion(messageFile, flagMessageFile);
-                } else {
-                    throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
-                }
-            }
 
-            //scale.txt
-            boolean scalesEmpty = true;
-            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                if (item.passScalesItem) {
-                    scalesEmpty = false;
-                    break;
-                }
-            }
-            if (!scalesEmpty) {
-                File scaleFile = new File(exchangeDirectory + "scales.txt");
-                File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
-                if (scaleFile.exists() && flagScaleFile.exists()) {
-                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
-                } else if (flagScaleFile.createNewFile()) {
-                    processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
-                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
-
+                    //message.txt
+                    boolean messageEmpty = true;
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
-                            String messageNumber = (item.description != null ? item.idBarcode : "0");
-                            Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                            Object code = useIdItem ? item.idItem : item.idBarcode;
-                            String record = "+|" + pluNumber + "|" + code + "|" + "22|" + item.name + "||" +
-                                    (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
-                                    item.price.intValue();
-                            writer.println(record);
+                        if (item.description != null && !item.description.equals("")) {
+                            messageEmpty = false;
+                            break;
                         }
                     }
-                    writer.close();
-                    processTransactionLogger.info(String.format("Kristal: waiting for deletion of SCALES file, (Transaction #%s)", transactionInfo.id));
-                    waitForDeletion(scaleFile, flagScaleFile);
+                    if (!messageEmpty) {
+                        File messageFile = new File(exchangeDirectory + "message.txt");
+                        File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
+                        if (messageFile.exists() && flagMessageFile.exists()) {
+                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
+                        } else if (flagMessageFile.createNewFile()) {
+                            processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
+                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
-                } else {
-                    throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
-                }
-            }
-
-            //groups.txt
-            if (transactionInfo.snapshot) {
-                File groupsFile = new File(exchangeDirectory + "groups.txt");
-                File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
-                if (groupsFile.exists() && flagGroupsFile.exists()) {
-                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
-                } else if (flagGroupsFile.createNewFile()) {
-                    processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
-                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
-
-                    Set<String> numberGroupItems = new HashSet<String>();
-                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        if(!Thread.currentThread().isInterrupted()) {
-                            List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                            hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
-                            for (int i = 0; i < hierarchyItemGroup.size(); i++) {
-                                String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
-                                if (!numberGroupItems.contains(idItemGroup)) {
-                                    String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
-                                    writer.println(record);
-                                    numberGroupItems.add(idItemGroup);
+                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                                if (!Thread.currentThread().isInterrupted()) {
+                                    if (item.description != null && !item.description.equals("")) {
+                                        String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
+                                        writer.println(record);
+                                    }
                                 }
                             }
+                            writer.close();
+                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of MESSAGE file (Transaction #%s)", transactionInfo.id));
+                            waitForDeletion(messageFile, flagMessageFile);
+                        } else {
+                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
                         }
                     }
-                    writer.close();
-                    processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file (Transaction #%s)", transactionInfo.id));
-                    waitForDeletion(groupsFile, flagGroupsFile);
 
-                } else {
-                    throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+                    //scale.txt
+                    boolean scalesEmpty = true;
+                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        if (item.passScalesItem) {
+                            scalesEmpty = false;
+                            break;
+                        }
+                    }
+                    if (!scalesEmpty) {
+                        File scaleFile = new File(exchangeDirectory + "scales.txt");
+                        File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
+                        if (scaleFile.exists() && flagScaleFile.exists()) {
+                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
+                        } else if (flagScaleFile.createNewFile()) {
+                            processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
+                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
+
+                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                                if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
+                                    String messageNumber = (item.description != null ? item.idBarcode : "0");
+                                    Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
+                                    Object code = useIdItem ? item.idItem : item.idBarcode;
+                                    String record = "+|" + pluNumber + "|" + code + "|" + "22|" + item.name + "||" +
+                                            (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
+                                            item.price.intValue();
+                                    writer.println(record);
+                                }
+                            }
+                            writer.close();
+                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of SCALES file, (Transaction #%s)", transactionInfo.id));
+                            waitForDeletion(scaleFile, flagScaleFile);
+
+                        } else {
+                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
+                        }
+                    }
+
+                    //groups.txt
+                    if (transactionInfo.snapshot) {
+                        File groupsFile = new File(exchangeDirectory + "groups.txt");
+                        File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
+                        if (groupsFile.exists() && flagGroupsFile.exists()) {
+                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+                        } else if (flagGroupsFile.createNewFile()) {
+                            processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
+                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
+
+                            Set<String> numberGroupItems = new HashSet<String>();
+                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                                if (!Thread.currentThread().isInterrupted()) {
+                                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
+                                    for (int i = 0; i < hierarchyItemGroup.size(); i++) {
+                                        String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
+                                        if (!numberGroupItems.contains(idItemGroup)) {
+                                            String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
+                                            writer.println(record);
+                                            numberGroupItems.add(idItemGroup);
+                                        }
+                                    }
+                                }
+                            }
+                            writer.close();
+                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file (Transaction #%s)", transactionInfo.id));
+                            waitForDeletion(groupsFile, flagGroupsFile);
+
+                        } else {
+                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+                        }
+                    }
                 }
+            } catch (Exception e) {
+                exception = e;
             }
+            sendTransactionBatchMap.put(transactionInfo.id, new SendTransactionBatch(exception));
         }
-        return null;
+        return sendTransactionBatchMap;
     }
     
     private void waitForDeletion(File file, File flagFile) {

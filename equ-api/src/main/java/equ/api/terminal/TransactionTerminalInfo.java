@@ -38,9 +38,4 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
         this.nppGroupTerminal = nppGroupTerminal;
         this.directoryGroupTerminal = directoryGroupTerminal;
     }
-
-    @Override
-    public List<MachineryInfo> sendTransaction(Object handler, List<TerminalInfo> machineryInfoList) throws IOException {
-        return ((TerminalHandler)handler).sendTransaction(this, machineryInfoList);
-    }
 }

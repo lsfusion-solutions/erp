@@ -46,152 +46,164 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
-        Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
-        boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
-        boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
-        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        
-        List<String> directoriesList = new ArrayList<String>();
-        for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
-            if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                directoriesList.add(cashRegisterInfo.port.trim());
-            if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                directoriesList.add(cashRegisterInfo.directory.trim());
-        }
+        for(TransactionCashRegisterInfo transaction : transactionList) {
 
-        for (String directory : directoriesList) {
+            Exception exception = null;
+            try {
 
-            String exchangeDirectory = directory.trim() + "/products/source/";
-            
-            if(!new File(exchangeDirectory).exists())
-                new File(exchangeDirectory).mkdirs();
-            
-            //catalog-goods.xml
-            processTransactionLogger.info("Kristal: creating catalog-goods file");
+                processTransactionLogger.info("Kristal: Send Transaction # " + transaction.id);
 
-            Element rootElement = new Element("goods-catalog");
-            Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
+                Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
+                boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
+                boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
+                boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+                boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
 
-            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                if (!Thread.currentThread().isInterrupted()) {
-                    String idItem = idItemInMarkingOfTheGood ? item.idItem : item.idBarcode;
-
-                    //parent: rootElement
-                    Element good = new Element("good");
-                    //временное решение для весовых товаров
-                    String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
-                    setAttribute(good, "marking-of-the-good", idItem);
-                    rootElement.addContent(good);
-
-                    //parent: rootElement
-                    Element maxDiscountRestriction = new Element("max-discount-restriction");
-                    setAttribute(maxDiscountRestriction, "id", item.idBarcode);
-                    setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
-                    setAttribute(maxDiscountRestriction, "subject-code", idItem);
-                    setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
-                    setAttribute(maxDiscountRestriction, "value", "0");
-                    addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
-                    addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
-                    addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
-                    addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
-                    addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ( (item.flags & 16) == 0 ) ? "false" : "true");
-                    if(useShopIndices)
-                        addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
-                    rootElement.addContent(maxDiscountRestriction);
-
-                    if(useShopIndices)
-                        addStringElement(good, "shop-indices", item.idDepartmentStore);
-
-                    addStringElement(good, "name", item.name);
-
-                    //parent: good
-                    Element barcode = new Element("bar-code");
-                    setAttribute(barcode, "code", barcodeItem);
-                    addStringElement(barcode, "default-code", "true");
-                    good.addContent(barcode);
-
-                    String productType;
-                    if (item.passScalesItem)
-                        productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
-                    else
-                        productType = "ProductPieceEntity";
-                    addStringElement(good, "product-type", productType);
-
-                    //parent: good
-                    Element priceEntry = new Element("price-entry");
-                    Object price = item.price == null ? null : (item.price.intValue() == 0 ? "0.00" : item.price.intValue());
-                    setAttribute(priceEntry, "price", price);
-                    setAttribute(priceEntry, "deleted", "false");
-                    addStringElement(priceEntry, "begin-date", "2001-01-01T00:00:00");
-                    addStringElement(priceEntry, "number", "1");
-                    good.addContent(priceEntry);
-
-                    addStringElement(good, "vat", "20");
-
-                    //parent: priceEntry
-                    Element department = new Element("department");
-                    setAttribute(department, "number", transactionInfo.nppGroupMachinery);
-                    addStringElement(department, "name", transactionInfo.nameGroupMachinery == null ? "Отдел" : transactionInfo.nameGroupMachinery);
-                    priceEntry.addContent(department);
-
-                    //parent: good
-                    Element group = new Element("group");
-                    setAttribute(group, "id", item.idItemGroup);
-                    addStringElement(group, "name", item.nameItemGroup);
-                    good.addContent(group);
-
-                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                    if (hierarchyItemGroup != null)
-                        addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
-
-                    //parent: good
-                    if (item.idUOM == null || item.shortNameUOM == null) {
-                        String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
-                        processTransactionLogger.error(error);
-                        throw Throwables.propagate(new RuntimeException(error));
-                    }
-                    Element measureType = new Element("measure-type");
-                    setAttribute(measureType, "id", item.idUOM);
-                    addStringElement(measureType, "name", item.shortNameUOM);
-                    good.addContent(measureType);
-
-                    if (brandIsManufacturer) {
-                        //parent: good
-                        Element manufacturer = new Element("manufacturer");
-                        setAttribute(manufacturer, "id", item.idBrand);
-                        addStringElement(manufacturer, "name", item.nameBrand);
-                        good.addContent(manufacturer);
-                    }
-
-                    if (seasonIsCountry) {
-                        //parent: good
-                        Element country = new Element("country");
-                        setAttribute(country, "id", item.idSeason);
-                        addStringElement(country, "name", item.nameSeason);
-                        good.addContent(country);
-                    }
-
-                    addStringElement(good, "delete-from-cash", "false");
-                    
+                List<String> directoriesList = new ArrayList<String>();
+                for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
+                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
+                        directoriesList.add(cashRegisterInfo.port.trim());
+                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
+                        directoriesList.add(cashRegisterInfo.directory.trim());
                 }
-            }
 
-            String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
-            XMLOutputter xmlOutput = new XMLOutputter();
-            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filePath), encoding));
-            xmlOutput.output(doc, fw);
-            fw.close();
-            
-            waitForDeletion(new File(filePath));
+                for (String directory : directoriesList) {
+
+                    String exchangeDirectory = directory.trim() + "/products/source/";
+
+                    if (!new File(exchangeDirectory).exists())
+                        new File(exchangeDirectory).mkdirs();
+
+                    //catalog-goods.xml
+                    processTransactionLogger.info("Kristal: creating catalog-goods file");
+
+                    Element rootElement = new Element("goods-catalog");
+                    Document doc = new Document(rootElement);
+                    doc.setRootElement(rootElement);
+
+                    for (CashRegisterItemInfo item : transaction.itemsList) {
+                        if (!Thread.currentThread().isInterrupted()) {
+                            String idItem = idItemInMarkingOfTheGood ? item.idItem : item.idBarcode;
+
+                            //parent: rootElement
+                            Element good = new Element("good");
+                            //временное решение для весовых товаров
+                            String barcodeItem = item.passScalesItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
+                            setAttribute(good, "marking-of-the-good", idItem);
+                            rootElement.addContent(good);
+
+                            //parent: rootElement
+                            Element maxDiscountRestriction = new Element("max-discount-restriction");
+                            setAttribute(maxDiscountRestriction, "id", item.idBarcode);
+                            setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
+                            setAttribute(maxDiscountRestriction, "subject-code", idItem);
+                            setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
+                            setAttribute(maxDiscountRestriction, "value", "0");
+                            addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
+                            addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
+                            addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
+                            addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
+                            addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
+                            if (useShopIndices)
+                                addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
+                            rootElement.addContent(maxDiscountRestriction);
+
+                            if (useShopIndices)
+                                addStringElement(good, "shop-indices", item.idDepartmentStore);
+
+                            addStringElement(good, "name", item.name);
+
+                            //parent: good
+                            Element barcode = new Element("bar-code");
+                            setAttribute(barcode, "code", barcodeItem);
+                            addStringElement(barcode, "default-code", "true");
+                            good.addContent(barcode);
+
+                            String productType;
+                            if (item.passScalesItem)
+                                productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
+                            else
+                                productType = "ProductPieceEntity";
+                            addStringElement(good, "product-type", productType);
+
+                            //parent: good
+                            Element priceEntry = new Element("price-entry");
+                            Object price = item.price == null ? null : (item.price.intValue() == 0 ? "0.00" : item.price.intValue());
+                            setAttribute(priceEntry, "price", price);
+                            setAttribute(priceEntry, "deleted", "false");
+                            addStringElement(priceEntry, "begin-date", "2001-01-01T00:00:00");
+                            addStringElement(priceEntry, "number", "1");
+                            good.addContent(priceEntry);
+
+                            addStringElement(good, "vat", "20");
+
+                            //parent: priceEntry
+                            Element department = new Element("department");
+                            setAttribute(department, "number", transaction.nppGroupMachinery);
+                            addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
+                            priceEntry.addContent(department);
+
+                            //parent: good
+                            Element group = new Element("group");
+                            setAttribute(group, "id", item.idItemGroup);
+                            addStringElement(group, "name", item.nameItemGroup);
+                            good.addContent(group);
+
+                            List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                            if (hierarchyItemGroup != null)
+                                addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
+
+                            //parent: good
+                            if (item.idUOM == null || item.shortNameUOM == null) {
+                                String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
+                                processTransactionLogger.error(error);
+                                throw Throwables.propagate(new RuntimeException(error));
+                            }
+                            Element measureType = new Element("measure-type");
+                            setAttribute(measureType, "id", item.idUOM);
+                            addStringElement(measureType, "name", item.shortNameUOM);
+                            good.addContent(measureType);
+
+                            if (brandIsManufacturer) {
+                                //parent: good
+                                Element manufacturer = new Element("manufacturer");
+                                setAttribute(manufacturer, "id", item.idBrand);
+                                addStringElement(manufacturer, "name", item.nameBrand);
+                                good.addContent(manufacturer);
+                            }
+
+                            if (seasonIsCountry) {
+                                //parent: good
+                                Element country = new Element("country");
+                                setAttribute(country, "id", item.idSeason);
+                                addStringElement(country, "name", item.nameSeason);
+                                good.addContent(country);
+                            }
+
+                            addStringElement(good, "delete-from-cash", "false");
+
+                        }
+                    }
+
+                    String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
+                    XMLOutputter xmlOutput = new XMLOutputter();
+                    xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filePath), encoding));
+                    xmlOutput.output(doc, fw);
+                    fw.close();
+
+                    waitForDeletion(new File(filePath));
+                }
+            } catch (Exception e) {
+                exception = e;
+            }
+            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
-        return null;
+        return sendTransactionBatchMap;
     }
 
     private void waitForDeletion(File file) {

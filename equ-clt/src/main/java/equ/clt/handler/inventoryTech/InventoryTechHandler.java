@@ -1,7 +1,7 @@
 package equ.clt.handler.inventoryTech;
 
 import com.google.common.base.Throwables;
-import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
@@ -35,43 +35,53 @@ public class InventoryTechHandler extends TerminalHandler {
     }
 
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionInfo transactionInfo, List machineryInfoList) throws IOException {
+    public Map<Integer, SendTransactionBatch> sendTransaction(List transactionList) throws IOException {
 
-        processTransactionLogger.info("InventoryTechTerminal: send Transaction #" + transactionInfo.id);
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
 
-        TransactionTerminalInfo transaction = ((TransactionTerminalInfo) transactionInfo);
+        for(Object transaction : transactionList) {
 
-        Set<String> directorySet = new HashSet<String>();
-        for (Object m : machineryInfoList) {
-            TerminalInfo t = (TerminalInfo) m;
-            if (t.directory != null)
-                directorySet.add(t.directory);
-        }
-
-        for (String path : directorySet) {
-            File directory = new File(path);
-            if (!directory.exists())
-                directory.mkdir();
-            
-            if (!directory.exists())
-                processTransactionLogger.info("Directory " + directory.getAbsolutePath() + " doesn't exist");
-
+            Exception exception = null;
             try {
-                Class.forName("org.sqlite.JDBC");
 
-                createGoodsFile(transaction, path);
-                createBarcodeFile(transaction, path);
-                createSpravFile(transaction, path);
-                createSprDocFile(transaction, path);
-                
-                createBasesUpdFile(path);
-                
-            } catch (Exception e) {
-                processTransactionLogger.error(e);
-                throw Throwables.propagate(e);
+                processTransactionLogger.info("InventoryTechTerminal: send Transaction #" + ((TransactionInfo)transaction).id);
+
+                Set<String> directorySet = new HashSet<String>();
+                for (Object m : ((TransactionInfo) transaction).machineryInfoList) {
+                    TerminalInfo t = (TerminalInfo) m;
+                    if (t.directory != null)
+                        directorySet.add(t.directory);
+                }
+
+                for (String path : directorySet) {
+                    File directory = new File(path);
+                    if (!directory.exists())
+                        directory.mkdir();
+
+                    if (!directory.exists())
+                        processTransactionLogger.info("Directory " + directory.getAbsolutePath() + " doesn't exist");
+
+                    try {
+                        Class.forName("org.sqlite.JDBC");
+
+                        createGoodsFile((TransactionTerminalInfo)transaction, path);
+                        createBarcodeFile((TransactionTerminalInfo)transaction, path);
+                        createSpravFile((TransactionTerminalInfo)transaction, path);
+                        createSprDocFile((TransactionTerminalInfo)transaction, path);
+
+                        createBasesUpdFile(path);
+
+                    } catch (Exception e) {
+                        processTransactionLogger.error(e);
+                        throw Throwables.propagate(e);
+                    }
+                }
+            } catch(Exception e) {
+                exception = e;
             }
+            sendTransactionBatchMap.put(((TransactionInfo) transaction).id, new SendTransactionBatch(exception));
         }
-        return null;
+        return sendTransactionBatchMap;
     }
 
     @Override

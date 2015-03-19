@@ -271,7 +271,7 @@ public class EquipmentServer {
                 String groupId = entry.getKey();
                 List<TransactionInfo> transactionEntry = (List<TransactionInfo>) entry.getValue().get(0);
                 MachineryHandler clsHandler = (MachineryHandler) entry.getValue().get(1);
-                taskList.add(Executors.callable(new SingleTransactionTask(remote, groupId, clsHandler, transactionEntry)));
+                taskList.add(Executors.callable(new SingleTransactionTask(remote, groupId, clsHandler, transactionEntry, sidEquipmentServer)));
             }
             
             try{
@@ -655,54 +655,93 @@ public class EquipmentServer {
         String groupId;
         MachineryHandler clsHandler;
         List<TransactionInfo> transactionEntry;
+        String sidEquipmentServer;
 
-        public SingleTransactionTask(EquipmentServerInterface remote, String groupId, MachineryHandler clsHandler, List<TransactionInfo> transactionEntry) {
+        public SingleTransactionTask(EquipmentServerInterface remote, String groupId, MachineryHandler clsHandler, List<TransactionInfo> transactionEntry, String sidEquipmentServer) {
             this.remote = remote;
             this.groupId = groupId;
             this.clsHandler = clsHandler;
             this.transactionEntry = transactionEntry;
+            this.sidEquipmentServer = sidEquipmentServer;
         }
 
         public void run() {
 
             processTransactionLogger.info(String.format("Sending transaction group %s: start", groupId));
+            //transactions without handler
             if (groupId != null && groupId.equals("No handler")) {
                 for (TransactionInfo transactionInfo : transactionEntry) {
-                    try {
-                        remote.errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
-                    } catch (Exception ignored) {
-                    }
+                    errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
                 }
             } else {
+
+                // actions before sending transactions
                 for (TransactionInfo transactionInfo : transactionEntry) {
-                    boolean noErrors = true;
                     try {
                         if (clsHandler instanceof TerminalHandler)
                             ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
 
                         remote.processingTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
-                        List<MachineryInfo> succeededMachineryInfoList = transactionInfo.sendTransaction(clsHandler, transactionInfo.machineryInfoList);
-                        
-                        if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
-                            noErrors = false;
-                        if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
-                            remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+
                     } catch (Exception e) {
-                        try {
-                            remote.errorTransactionReport(transactionInfo.id, e);
+                        errorTransactionReport(transactionInfo.id, e);
+                    }
+                }
+
+                try {
+                    Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
+
+                    for (TransactionInfo transactionInfo : transactionEntry) {
+                        boolean noErrors = true;
+                        Throwable exception = succeededMachineryInfoMap.get(transactionInfo.id).exception;
+                        if(exception != null) {
                             noErrors = false;
-                        } catch(Exception ignored) {
+                            errorTransactionReport(transactionInfo.id, exception);
+                        } else {
+                            try {
+
+                                List<MachineryInfo> succeededMachineryInfoList = succeededMachineryInfoMap.get(transactionInfo.id).succeededMachineryList;
+                                if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
+                                    noErrors = false;
+                                if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
+                                    remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                            } catch (Exception e) {
+                                noErrors = false;
+                                errorTransactionReport(transactionInfo.id, e);
+                            }
+                        }
+                        if (noErrors) {
+                            succeededTransaction(transactionInfo.id);
                         }
                     }
-                    if (noErrors)
-                        try {
-                            remote.succeedTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
-                        } catch(Exception ignored) {                            
-                        }
+                } catch (IOException e) {
+                    errorEquipmentServerReport(e);
                 }
+
             }
             processTransactionLogger.info(String.format("Sending transaction group %s: finish", groupId));
 
+        }
+
+        private void errorTransactionReport(Integer idTransactionInfo, Throwable e) {
+            try {
+                remote.errorTransactionReport(idTransactionInfo, e);
+            } catch (Exception ignored) {
+            }
+        }
+
+        private void succeededTransaction(Integer idTransactionInfo) {
+            try {
+                remote.succeedTransaction(idTransactionInfo, new Timestamp(Calendar.getInstance().getTime().getTime()));
+            } catch (Exception ignored) {
+            }
+        }
+
+        private void errorEquipmentServerReport(Exception e) {
+            try {
+                remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+            } catch (Exception ignored) {
+            }
         }
     }
 }

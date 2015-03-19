@@ -1,6 +1,5 @@
 package equ.api;
 
-import java.io.IOException;
 import java.sql.Date;
 import java.util.List;
 
@@ -20,10 +19,5 @@ public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInf
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
         this.snapshot = snapshot;
-    }
-
-    @Override
-    public List<MachineryInfo> sendTransaction(Object handler, List<PriceCheckerInfo> machineryInfoList) throws IOException {
-        return ((PriceCheckerHandler)handler).sendTransaction(this, machineryInfoList);
     }
 }

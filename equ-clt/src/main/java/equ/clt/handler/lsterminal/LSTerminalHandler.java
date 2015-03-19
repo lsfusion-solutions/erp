@@ -1,7 +1,7 @@
 package equ.clt.handler.lsterminal;
 
 import com.google.common.base.Throwables;
-import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
@@ -32,32 +32,39 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public List<MachineryInfo> sendTransaction(TransactionInfo transactionInfo, List machineryInfoList) throws IOException {
-        try {
-            Integer nppGroupTerminal = ((TransactionTerminalInfo) transactionInfo).nppGroupTerminal;
-            String directory = ((TransactionTerminalInfo) transactionInfo).directoryGroupTerminal;
-            if (directory != null) {
-                String exchangeDirectory = directory + "/exchange";
-                if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
-                    //copy base to exchange directory                   
-                    FileInputStream fis = new FileInputStream(new File(makeDBPath(directory + dbPath, nppGroupTerminal)));
-                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "/base.zip"));
-                    ZipOutputStream zos = new ZipOutputStream(fos);
-                    zos.putNextEntry(new ZipEntry("tsd.db"));
-                    byte[] buf = new byte[1024];
-                    int len;
-                    while ((len = fis.read(buf)) > 0) {
-                        zos.write(buf, 0, len);
+    public Map<Integer, SendTransactionBatch> sendTransaction(List transactionInfoList) throws IOException {
+
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+
+        for(Object transactionInfo : transactionInfoList) {
+            Exception exception = null;
+            try {
+                Integer nppGroupTerminal = ((TransactionTerminalInfo) transactionInfo).nppGroupTerminal;
+                String directory = ((TransactionTerminalInfo) transactionInfo).directoryGroupTerminal;
+                if (directory != null) {
+                    String exchangeDirectory = directory + "/exchange";
+                    if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
+                        //copy base to exchange directory
+                        FileInputStream fis = new FileInputStream(new File(makeDBPath(directory + dbPath, nppGroupTerminal)));
+                        FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "/base.zip"));
+                        ZipOutputStream zos = new ZipOutputStream(fos);
+                        zos.putNextEntry(new ZipEntry("tsd.db"));
+                        byte[] buf = new byte[1024];
+                        int len;
+                        while ((len = fis.read(buf)) > 0) {
+                            zos.write(buf, 0, len);
+                        }
+                        fis.close();
+                        zos.close();
                     }
-                    fis.close();
-                    zos.close();
                 }
-            }          
-        } catch (Exception e) {
-            processTransactionLogger.error(e);
-            throw Throwables.propagate(e);
+            } catch (Exception e) {
+                processTransactionLogger.error(e);
+                exception = e;
+            }
+            sendTransactionBatchMap.put(((TransactionTerminalInfo) transactionInfo).id, new SendTransactionBatch(exception));
         }
-        return null;
+        return sendTransactionBatchMap;
     }
 
     @Override

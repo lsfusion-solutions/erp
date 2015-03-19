@@ -23,9 +23,4 @@ public class TransactionScalesInfo extends TransactionInfo<ScalesInfo, ScalesIte
         this.machineryInfoList = machineryInfoList;
         this.snapshot = snapshot;
     }
-
-    @Override
-    public List<MachineryInfo> sendTransaction(Object handler, List<ScalesInfo> machineryInfoList) throws IOException {
-        return ((ScalesHandler)handler).sendTransaction(this, machineryInfoList);
-    }
 }
