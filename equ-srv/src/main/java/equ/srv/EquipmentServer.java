@@ -994,6 +994,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
                 query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
                         machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
+                query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
                 for (int i = 0, size = result.size(); i < size; i++) {
 
