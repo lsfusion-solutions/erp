@@ -18,23 +18,26 @@ import java.util.Set;
 
 public interface EquipmentServerInterface extends Remote {
 
+    //sendSoftCheck consumer
+    boolean enabledSoftCheckInfo() throws RemoteException, SQLException;
     List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
-
     void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException;
-    
     String sendSucceededSoftCheckInfo(Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException;
     
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
+    //processStopList consumer
+    boolean enabledStopListInfo() throws RemoteException, SQLException;
     List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-
     void errorStopListReport(String numberStopList, Exception exception) throws RemoteException, SQLException;
-
     void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException;
 
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
+    //sendTerminalDocument consumer
+    boolean enabledTerminalInfo() throws RemoteException, SQLException;
     List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException;
+    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
 
     List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
@@ -69,8 +72,6 @@ public interface EquipmentServerInterface extends Remote {
     EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException;
 
     List<byte[][]> readLabelFormats (List<String> scalesModelsList) throws RemoteException, SQLException;
-
-    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
 
     Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
 

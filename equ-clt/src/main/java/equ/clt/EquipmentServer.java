@@ -123,7 +123,9 @@ public class EquipmentServer {
 
                         if (remote != null) {
                             processTransactionConsumer.scheduleIfNotScheduledYet();    
-                            processStopListConsumer.scheduleIfNotScheduledYet();
+
+                            if(remote.enabledStopListInfo())
+                                processStopListConsumer.scheduleIfNotScheduledYet();
 
                             if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay) {
                                 sendSalesConsumer.scheduleIfNotScheduledYet();
@@ -132,8 +134,12 @@ public class EquipmentServer {
                                 sendSalesDelayCounter++;
                             }
 
-                            sendSoftCheckConsumer.scheduleIfNotScheduledYet();
-                            sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
+                            if(remote.enabledSoftCheckInfo())
+                                sendSoftCheckConsumer.scheduleIfNotScheduledYet();
+
+                            if(remote.enabledTerminalInfo())
+                                sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
+
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
                             
                             if(singleTransactionExecutor.isShutdown())

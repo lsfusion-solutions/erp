@@ -179,6 +179,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public boolean enabledSoftCheckInfo() throws RemoteException, SQLException {
+        return softCheck != null;
+    }
+
+    @Override
     public List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException {
         return softCheck == null ? null : softCheck.readSoftCheckInfo();
     }
@@ -646,7 +651,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
         return discountCardList;
     }
- 
+
+    @Override
+    public boolean enabledStopListInfo() throws RemoteException, SQLException {
+        return cashRegisterLM != null && stopListLM != null;
+    }
+
     @Override
     public List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws RemoteException, SQLException {
 
@@ -1162,6 +1172,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (SQLHandledException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public boolean enabledTerminalInfo() throws RemoteException, SQLException {
+        return terminalLM != null;
     }
 
     @Override
