@@ -35,9 +35,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                     Matcher var10 = var3.matcher(reply);
                     if(var10.find()) {
-                        reply = var10.group(1);
+                        return var10.group(1);
                     }
-                    return reply;
                 }
 
                 Thread.sleep(10L);

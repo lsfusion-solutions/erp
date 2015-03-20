@@ -20,6 +20,9 @@ import java.util.regex.Pattern;
 //Таблица ETST – общие настройки этикеток.
 //Таблица FOST – этикетки BLD.
 
+//Errors
+//4470: memory is full
+
 public class BizerbaBCIIHandler extends BizerbaHandler {
     
     private FileSystemXmlApplicationContext springContext;
@@ -367,7 +370,6 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         String command = "PLST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command);
-        Thread.sleep(5000);
         return receiveReply(errors, port);
     }
 
