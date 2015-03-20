@@ -766,11 +766,13 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 return getSubstring(value, from, (Integer) toSymbol);
             } else {
                 String fromSubstring = (from == null || from < 0 || from > value.length()) ? value : trim(value.substring(Math.min(value.length(), from)));
-                return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
+                Integer indexTo = fromSubstring == null ? -1 : fromSubstring.indexOf((String) toSymbol);
+                return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, indexTo == -1 ? fromSubstring.length() : indexTo) : fromSubstring;
             }
         } else {
             String from = (String) fromSymbol;
-            String fromSubstring = trim(value.substring(Math.min(value.length(), value.indexOf(from) + from.length())));
+            Integer indexFrom = value.indexOf(from);
+            String fromSubstring = trim(value.substring(Math.min(indexFrom == -1 ? 0: value.length(), indexFrom + from.length())));
             return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
         }
     }
