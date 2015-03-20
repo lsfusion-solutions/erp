@@ -8,7 +8,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -42,9 +41,8 @@ import java.util.*;
 
 public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
-    String mainPage = "http://e-dostavka.by/";
-    String mainPage2 = "http://e-dostavka.by";
-    String mainPage3 = "e-dostavka.by";
+    String mainPage = "http://e-dostavka.by";
+    String mainPage2 = "e-dostavka.by";
     String itemGroupPattern = "http:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
     String itemPattern = "http:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
@@ -98,7 +96,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         props.add(new ImportProperty(idBarcodeSkuField, findProperty("idBarcode").getMapping(barcodeKey), true));
 
         ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
-        ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+        ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                 findProperty("itemGroupId").getMapping(idItemGroupField));
         keys.add(itemGroupKey);
         props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey), true));
@@ -144,7 +142,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         fields.add(dataImageItemField);
 
         ImportField idManufacturerField = new ImportField(findProperty("idManufacturer"));
-        ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) findClass("Manufacturer"),
+        ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
                 findProperty("manufacturerId").getMapping(idManufacturerField));
         keys.add(manufacturerKey);
         props.add(new ImportProperty(idManufacturerField, findProperty("idManufacturer").getMapping(manufacturerKey), true));
@@ -268,7 +266,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         List<List<Object>> itemsList = new ArrayList<List<Object>>();
         List<List<Object>> userPriceListsList = new ArrayList<List<Object>>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
-        Set<String> amountPackSkuSet = getAmountPackSkuSet(context);
+        //Set<String> amountPackSkuSet = getAmountPackSkuSet(context);
         try {
 
             NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
@@ -276,6 +274,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             Set<String> itemsSet = useTor ? getItemsSetTor(lowerNetLayer) : getItemsSet();
             int idPriceListDetail = 1;
             for (String item : itemsSet) {
+                ServerLoggers.systemLogger.info("Import Euroopt: parsing item page " + item);
                 Document doc = useTor ? getDocumentTor(lowerNetLayer, item) : getDocument(item);
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("prodImage");
@@ -388,8 +387,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             if (doc != null) {
                 for (Element item : doc.getElementsByTag("a")) {
                     String href = item.attr("href");
-                    if (href != null && href.matches(itemPattern))
+                    if (href != null && href.matches(itemPattern)) {
+                        ServerLoggers.systemLogger.info("Import Euroopt: preparing item page " + href);
                         itemsSet.add(href);
+                    }
                 }
             }
         }
@@ -403,8 +404,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             if (doc != null) {
                 for (Element item : doc.getElementsByTag("a")) {
                     String href = item.attr("href");
-                    if (href != null && href.matches(itemPattern))
-                        itemsSet.add(href.replace(mainPage2, ""));
+                    if (href != null && href.matches(itemPattern)) {
+                        ServerLoggers.systemLogger.info("Import Euroopt: preparing item page " + href);
+                        itemsSet.add(href.replace(mainPage, ""));
+                    }
                 }
             }
         }
@@ -414,12 +417,14 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
     private Set<String> getItemGroupsSet() throws IOException {
         Set<String> itemGroupsSet = new HashSet<String>();
-        Document doc = getDocument(mainPage);
+        Document doc = getDocument(mainPage + "/");
         if(doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
-                if (href != null && href.matches(itemGroupPattern))
+                if (href != null && href.matches(itemGroupPattern)) {
+                    ServerLoggers.systemLogger.info("Import Euroopt: preparing item group page " + href);
                     itemGroupsSet.add(href);
+                }
             }
         }
         return itemGroupsSet;
@@ -431,8 +436,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         if(doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
-                if (href != null && href.matches(itemGroupPattern))
-                    itemGroupsSet.add(href.replace(mainPage2, ""));
+                if (href != null && href.matches(itemGroupPattern)) {
+                    ServerLoggers.systemLogger.info("Import Euroopt: preparing item group page " + href);
+                    itemGroupsSet.add(href.replace(mainPage, ""));
+                }
             }
         }
         return itemGroupsSet;
@@ -487,7 +494,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 Thread.sleep(50);
                 
                 // prepare parameters
-                TcpipNetAddress httpServerNetAddress = new TcpipNetAddress(mainPage3, 80);
+                TcpipNetAddress httpServerNetAddress = new TcpipNetAddress(mainPage2, 80);
                 long timeoutInMs = 5000;
 
                 // do the request and wait for the response
