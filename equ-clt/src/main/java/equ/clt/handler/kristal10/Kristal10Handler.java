@@ -213,7 +213,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             try {
                 Map<File, Integer> nextFilesMap = new HashMap<File, Integer>();
                 count++;
-                if (count >= 60) {
+                if (count >= 120) {
                     break;
                 }
                 for (Map.Entry<File, Integer> file : filesMap.entrySet()) {
