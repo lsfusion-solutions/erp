@@ -32,7 +32,7 @@ public class FiscalVMKCancelReceiptActionProperty extends ScriptingActionPropert
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(4, baudRate, comPort, null));
+                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(4, baudRate, comPort));
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

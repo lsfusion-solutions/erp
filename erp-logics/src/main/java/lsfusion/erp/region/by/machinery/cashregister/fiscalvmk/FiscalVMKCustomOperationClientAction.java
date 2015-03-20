@@ -11,13 +11,17 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
     int type;
     int baudRate;
     int comPort;
-    String zReportTop;
+    String textTop;
 
-    public FiscalVMKCustomOperationClientAction(int type, Integer baudRate, Integer comPort, String zReportTop) {
+    public FiscalVMKCustomOperationClientAction(int type, Integer baudRate, Integer comPort) {
+        this(type, baudRate, comPort, null);
+    }
+
+    public FiscalVMKCustomOperationClientAction(int type, Integer baudRate, Integer comPort, String textTop) {
         this.type = type;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
-        this.zReportTop = zReportTop;
+        this.textTop = textTop;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
@@ -27,11 +31,12 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
             FiscalVMK.openPort(comPort, baudRate);
             switch (type) {
                 case 1:
-                    FiscalVMK.printFiscalText(zReportTop);
+                    FiscalVMK.printFiscalText(textTop);
                     FiscalVMK.xReport();
                     break;
                 case 2:
                     FiscalVMK.opensmIfClose();
+                    FiscalVMK.printFiscalText(textTop);
                     FiscalVMK.zReport();
                     Integer zReportNumber = FiscalVMK.getZReportNumber(true);
                     FiscalVMK.closePort();
