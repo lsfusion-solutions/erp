@@ -1,6 +1,6 @@
 MODULE Range;
 
-REQUIRE Store, Sku, Barcode, PriceListStore, EmployeeSku, PriceListDashboardStore, SaleLedger, PurchasePack, PurchaseLedger;
+REQUIRE Store, Sku, Barcode, PriceListStore, EmployeeSku, PriceListDashboardStore, SaleLedger, PurchasePack;
 
 // Уровни ассортимента
 
@@ -233,22 +233,22 @@ hasSkusRangeRevSupplier 'Кол-во наименований по всему п
 countSkusRangeRevRangeLevelSupplier 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1
     BY v, levelRangeRevSku(v, sku), companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
 
-lastPurchaseLedgerSkuStore (sku, store) = 
-    GROUP LAST ledger
-        BY skuPurchaseLedger(ledger), storeDepartmentStore(stockPurchaseLedger(ledger))
-        ORDER dateTimePurchaseLedger(ledger), ledger
-        WHERE activePurchaseLedger(ledger);
-dateTimePurchaseLedgerSkuStore 'Дата последнего прихода' (sku,store) = dateTimePurchaseLedger(lastPurchaseLedgerSkuStore(sku,store));
-datePurchaseLedgerSkuStore 'Дата последнего прихода'= toDate(dateTimePurchaseLedgerSkuStore(s,st));
+lastOrderBatchSkuStore (sku, store) =
+    GROUP LAST lastOrderBatchSkuStock(sku, stock)
+        BY sku, storeDepartmentStore(stock)
+        ORDER dateTimeLastOrderBatchSkuStock(sku, stock), lastOrderBatchSkuStock(sku, stock)
+        WHERE lastOrderBatchSkuStock(sku, stock);
+dateTimeLastOrderBatchSkuStore 'Дата последнего прихода' (sku,store) = dateTimeBatch(lastOrderBatchSkuStore(sku,store));
+dateLastOrderBatchSkuStore 'Дата последнего прихода'= toDate(dateTimeLastOrderBatchSkuStore(s,st));
 
-nameSupplierPurchaseLedgerSkuStore 'Последний поставщик' (sku,store) = nameSupplierPurchaseLedger(lastPurchaseLedgerSkuStore(sku,store)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+nameSupplierLastBatchSkuStore 'Последний поставщик' (sku,store) = nameSupplierBatch(lastOrderBatchSkuStore(sku,store)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 FORM currentBalanceSku 'Текущие остатки'
     OBJECTS s = Sku FIXED PANEL 
     PROPERTIES nameSku(s) READONLY 
         
     OBJECTS st = Store
-    PROPERTIES  READONLY nameStore(st), currentBalanceSkuStore(s,st), dateTimeLastMovedSkuStore(s,st), dateTimePurchaseLedgerSkuStore(s,st), lastAccountPriceSkuStore(s,st)
+    PROPERTIES  READONLY nameStore(st), currentBalanceSkuStore(s,st), dateTimeLastMovedSkuStore(s,st), dateTimeLastOrderBatchSkuStore(s,st), lastAccountPriceSkuStore(s,st)
     FILTERS currentBalanceSkuStore(s,st)
 ;
 reviewCurrentBalanceSku (sku) = ACTION FORM currentBalanceSku OBJECTS s=sku MODAL;
@@ -339,7 +339,7 @@ FORM rangeRev 'Версия ассортиментной матрицы'
         
     OBJECTS store = Store
     PROPERTIES  READONLY nameStore(store), nameStoreTypeStore(store), currentBalanceSkuStore(s,store), dateLastMovedSkuStore(s,store), 
-                datePurchaseLedgerSkuStore(s,store), nameSupplierPurchaseLedgerSkuStore(s,store), lastAccountPriceSkuStore(s,store),
+                dateLastOrderBatchSkuStore(s,store), nameSupplierLastBatchSkuStore(s,store), lastAccountPriceSkuStore(s,store),
                 quantitySoldStoreSkuDateFromTo(store,s,dFrom,dTo), sumSoldStoreSkuDateFromTo(store,s,dFrom,dTo)
     ORDER BY nameStoreTypeStore(store)
     FILTERS quantitySoldStoreSkuDateFromTo(store,s,dFrom,dTo) OR sumSoldStoreSkuDateFromTo(store,s,dFrom,dTo) OR currentBalanceSkuStore(s,store)         

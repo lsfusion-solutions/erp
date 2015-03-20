@@ -17,6 +17,8 @@ assignAttributeSku = ABSTRACT ACTION (Stock, Operation, DATETIME);
 
 skipManagementPriceListPriceSku = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
+overSetManagementRetailPriceDepartmentStoreDateTime = ABSTRACT ACTION LIST (DepartmentStore, DATETIME);
+
 calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o, dt) {
     
     IF onStockPriceListRepricing() THEN {
@@ -32,6 +34,8 @@ calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o
             IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
         managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     }
+    
+    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
     
     inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
     
@@ -50,6 +54,8 @@ calculateDashboardManagementRepricing 'Рассчитать позиции (уп
             IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
         managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     }
+    
+    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
     
     inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
     
