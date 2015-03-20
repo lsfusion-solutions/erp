@@ -31,6 +31,8 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
@@ -63,7 +65,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
-    String substringPattern = ".*\\^\\((('.*')|((-|\\d)+)),(('.*')|((-|\\d)+))?\\)";
+    String substringPattern = "(.*)\\^\\(((?:'.*')|(?:(?:-|\\d)+)),((?:'.*')|(?:(?:-|\\d)+))?\\)";
     String patternedDateTimePattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
     String columnRowPattern = ":(\\d+)_(\\d+)";
@@ -131,7 +133,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         }
                     }
                 } else if (isSubstringValue(cell)) {
-                    String[] splittedCell = splitCell(cell, "\\^\\(|\\)|,");
+                    String[] splittedCell = splitCellSubstring(cell);
                     value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0]), row, isNumeric, ignoreException), 
                             parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
@@ -256,8 +258,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         }
                     }
                 } else if (isSubstringValue(cell)) {
-                    String[] splittedCell = splitCell(cell, "\\^\\(|\\)|,");          
-                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException), 
+                    String[] splittedCell = splitCellSubstring(cell);
+                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException),
                             parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
@@ -395,7 +397,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         }
                     }
                 } else if (isSubstringValue(cell)) {
-                    String[] splittedCell = splitCell(cell, "\\^\\(|\\)|,");
+                    String[] splittedCell = splitCellSubstring(cell);
                     value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]),
                             isDate, defaultValue, isNumeric, ignoreException), parseSubstring(splittedCell, 1), parseSubstring(splittedCell, 2));
                 }  else if (isPatternedDateTimeValue(cell)) {
@@ -538,7 +540,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         }
                     }
                 } else if (isSubstringValue(column)) {
-                    String[] splittedField = splitCell(column, "\\^\\(|\\)|,");
+                    String[] splittedField = splitCellSubstring(column);
                     value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0]),
                             row, charset, null, isNumeric, ignoreException), parseSubstring(splittedField, 1), parseSubstring(splittedField, 2));
                 } else if (isPatternedDateTimeValue(column)) {
@@ -659,7 +661,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         }
                     }
                 } else if (isSubstringValue(column)) {
-                    String[] splittedField = splitCell(column, "\\^\\(|\\)|,");
+                    String[] splittedField = splitCellSubstring(column);
                     value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0]),
                             row, defaultValue, isNumeric, zeroIsNull, ignoreException), parseSubstring(splittedField, 1), parseSubstring(splittedField, 2));
                 } else if (isPatternedDateTimeValue(column)) {
@@ -911,12 +913,18 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return value1 + value2;
         }
     }
-    
+
     private String[] splitCell(String cell, String pattern) {
         String[] splittedCell = cell.split(pattern);
         for(int i = 0; i<splittedCell.length; i++)
             splittedCell[i] = trim(splittedCell[i]);
         return splittedCell;
+    }
+
+    private String[] splitCellSubstring(String cell) {
+        Pattern p = Pattern.compile(substringPattern);
+        Matcher m = p.matcher(cell);
+        return (m.find()) ? new String[]{m.group(1), m.group(2), m.group(3)} : new String[]{};
     }
     
     protected String formatValue(Object value) {
