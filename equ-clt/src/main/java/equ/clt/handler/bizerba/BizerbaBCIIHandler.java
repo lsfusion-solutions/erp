@@ -300,13 +300,15 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             messageNumber = entry.getKey();
             String messageText = entry.getValue();//prepareRusText(messageText)
-            String message = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
-            clearReceiveBuffer(port);
-            sendCommand(errors, port, message);
-            result = receiveReply(errors, port);
-            if (!result.equals("0")) {
-                logError(errors, String.format("Result is %s, item: %s [msgNo=%s]", result, item.idItem, messageNumber));
-                break;
+            if(messageText != null && !messageText.isEmpty()) {
+                String message = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
+                clearReceiveBuffer(port);
+                sendCommand(errors, port, message);
+                result = receiveReply(errors, port);
+                if (!result.equals("0")) {
+                    logError(errors, String.format("Result is %s, item: %s [msgNo=%s]", result, item.idItem, messageNumber));
+                    break;
+                }
             }
         }
     }
