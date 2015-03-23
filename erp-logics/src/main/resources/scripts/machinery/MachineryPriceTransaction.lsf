@@ -731,6 +731,13 @@ createSelectedSkuPriceTransactionDocumentStock 'Загрузить в обору
     }
 } TOOLBAR ;
 
+createApplySelectedSkuPriceTransactionDocumentStock 'Загрузить в оборудование' = ACTION (stock) {
+    APPLY NESTED selectSku {};
+    IF NOT canceled() THEN {
+        createSelectedSkuPriceTransactionDocumentStock(stock);
+    }
+}
+
 createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION NESTED selectSkuStock, createMachineryPriceTransactionSnapshot, createMachineryPriceTransactionSku {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) DO {
