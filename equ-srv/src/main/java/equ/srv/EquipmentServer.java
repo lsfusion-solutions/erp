@@ -741,11 +741,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
         QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<Object, Object>(cashRegisterKeys);
 
-        String[] groupCashRegisterNames = new String[] {"handlerModelGroupMachinery", "idStockGroupMachinery", "overDirectoryMachinery"};
-        LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("handlerModelGroupMachinery", "idStockGroupMachinery", "overDirectoryMachinery");
+        String[] groupCashRegisterNames = new String[] {"handlerModelGroupMachinery", "idStockGroupMachinery"};
+        LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("handlerModelGroupMachinery", "idStockGroupMachinery");
         for (int i = 0; i < groupCashRegisterProperties.length; i++) {
             cashRegisterQuery.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
         }
+        cashRegisterQuery.addProperty("overDirectoryMachinery", cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr));
         
         cashRegisterQuery.and(cashRegisterLM.findProperty("handlerModelGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
         cashRegisterQuery.and(cashRegisterLM.findProperty("idStockGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
