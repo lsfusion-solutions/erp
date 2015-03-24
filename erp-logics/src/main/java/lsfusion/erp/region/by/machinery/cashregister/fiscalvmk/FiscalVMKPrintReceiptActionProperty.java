@@ -45,6 +45,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             String fiscalVMKReceiptBottom = (String) findProperty("fiscalVMKReceiptBottom").read(context, receiptObject);
             
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
+            ScriptingLogicsModule zReportNlibLM = context.getBL().getModule("ZReportNlib");
 
             boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context, receiptObject) != null;
             if (skipReceipt) {
@@ -112,6 +113,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 receiptDetailQuery.addProperty("numberVATReceiptDetail", findProperty("numberVATReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.addProperty("typeReceiptDetail", findProperty("typeReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.addProperty("skuReceiptDetail", findProperty("skuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
+                if(zReportNlibLM != null)
+                    receiptDetailQuery.addProperty("shortNameSkuReceiptDetail", zReportNlibLM.findProperty("shortNameSkuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -131,7 +134,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     String barcode = (String) receiptDetailValues.get("idBarcodeReceiptDetail");
                     if(barcode == null)
                         barcode = String.valueOf(receiptDetailValues.get("skuReceiptDetail"));
-                    String name = (String) receiptDetailValues.get("nameSkuReceiptDetail");
+                    String shortName = zReportNlibLM == null ? null : (String) receiptDetailValues.get("shortNameSkuReceiptDetail");
+                    String name = shortName != null ? shortName : (String) receiptDetailValues.get("nameSkuReceiptDetail");
                     name = name == null ? "" : name.trim();
                     BigDecimal sumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
                     long sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.longValue();
