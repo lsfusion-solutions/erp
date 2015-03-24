@@ -527,6 +527,28 @@ NAVIGATOR {
     }
 }
 
+
+skipStockDocumentLedgerWriteOff 'Не проводить по товарному отчету'  = ABSTRACT BOOLEAN (WriteOff.WriteOff);
+skipStockDocumentLedgerUserWriteOff 'Не проводить по товарному отчету'  = DATA BOOLEAN (WriteOff.UserWriteOff) IN documentPrm;
+skipStockDocumentLedgerWriteOff(w) += skipStockDocumentLedgerUserWriteOff(w);
+
+EXTEND FORM userWriteOff
+    PROPERTIES (w) skipStockDocumentLedgerUserWriteOff
+;
+
+skipStockDocumentLedgerOperation 'Не проводить по товарному отчету' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+     PROPERTIES(o) skipStockDocumentLedgerOperation
+ ;
+DESIGN operation {
+    showContainer {
+        ADD PROPERTY(skipStockDocumentLedgerOperation(o));
+    }
+}
+    
+@deriveDocumentOperationProperty(UserWriteOff, skipStockDocumentLedger);
+
 // Товарный отчет
 @implementStockDocumentLedgerOut(WriteOff, stock);
 typeStockDocumentLedger(l) += 'Списание' IF l IS WriteOff;
@@ -537,6 +559,8 @@ legalEntityStockDocumentLedger(ledger) += contactWriteOff(ledger);
 
 operationStockDocumentLedger(ledger) += operationWriteOff(ledger);
 editStockDocumentLedger(l) += ACTION editWriteOff(l);
+skipStockDocumentLedger(l) += skipStockDocumentLedgerWriteOff(l);
+
 
 // Проводим по регистру
 @implementSkuLedgerOutFIFO(WriteOffDetail, sku, stock);
@@ -553,3 +577,28 @@ editUserWriteOffDetail(d) = ACTION (d) NEWSESSION {
 }
 editWriteOffDetail(d) += ACTION editUserWriteOffDetail(d);
 editSkuLedger(d) += ACTION editWriteOffDetail(d);
+
+skipWriteOff 'Не учитывать'  = ABSTRACT BOOLEAN (WriteOff.WriteOff);
+skipUserWriteOff 'Не учитывать'  = DATA BOOLEAN (WriteOff.UserWriteOff) IN documentPrm;
+skipWriteOff(w) += skipUserWriteOff(w);
+
+EXTEND FORM userWriteOff
+    PROPERTIES (w) skipUserWriteOff
+;
+EXTEND FORM writeOffs
+    PROPERTIES (w) READONLY skipWriteOff
+;
+
+skipOperation 'Не учитывать' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+     PROPERTIES(o) skipOperation
+ ;
+DESIGN operation {
+    showContainer {
+        ADD PROPERTY(skipOperation(o));
+    }
+}
+    
+@deriveDocumentOperationProperty(UserWriteOff, skip);
+
