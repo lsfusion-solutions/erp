@@ -464,6 +464,24 @@ FORM writeOffDetails 'Списание'
     DIALOG WriteOffDetail OBJECT d
 ;
 
+isStockWriteOffs 'Запретить ввод списания без склада ' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() isStockWriteOffs
+;
+
+DESIGN options {
+    pane {        
+        NEW writeOff {
+            caption = 'Списание';
+            ADD PROPERTY(isStockWriteOffs());   
+        }
+    }
+}
+
+CONSTRAINT isPostedUserWriteOff(i) AND isStockWriteOffs() AND NOT  stockUserWriteOff(i) 
+    MESSAGE 'Для списания должен быть задан склад'; 
+
 //----------------------------------------------- Операции -----------------------------------------------------//
 @defineDocumentInterfaceOperation (writeOff, WriteOff, );
 

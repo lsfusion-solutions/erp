@@ -191,6 +191,25 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     @defineDocumentInterfacePosted(invoice);
     Invoice.isPostedInvoice (invoice) += isPostedInvoice(invoice);
     
+    isStockInvoices 'Запретить ввод накладной'##sign##' без склада ' = DATA BOOLEAN ();
+    
+    
+    EXTEND FORM options
+        PROPERTIES() NS###isStockInvoices = isStockInvoices
+    ;
+    
+    DESIGN options {
+        invoices {
+            NEW invoice##NS {
+                caption = 'Накладная'##sign;
+                ADD PROPERTY(NS###isStockInvoices);
+            } 
+        }
+    }
+
+    CONSTRAINT isPostedUserInvoice(i) AND isStockInvoices() AND NOT  stockProp###stock###userInvoice(i) 
+        MESSAGE 'Для накладной'##sign##' должен быть задан склад';         
+    
     @defineDocumentInterfaceClosed(invoice);
     Invoice.isClosedInvoice (invoice) += isClosedInvoice(invoice);    
 
@@ -259,12 +278,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
         PROPERTIES() NS###equalSkuVATInvoices = equalSkuVATInvoices
     ;
     
-    DESIGN options {
-        invoices {
-            NEW invoice##NS {
-                caption = 'Накладная'##sign;
-                ADD PROPERTY(NS###equalSkuVATInvoices);
-            }            
+    DESIGN options {        
+        invoice##NS {
+            ADD PROPERTY(NS###equalSkuVATInvoices);
         }
     }
     CONSTRAINT equalSkuVATInvoices() AND VATUserInvoiceDetail(d) AND isPostedUserInvoiceDetail(d) AND NOT VATSkuCountry(skuUserInvoiceDetail(d), countryStock(customerStockUserInvoiceDetail(d))) == VATUserInvoiceDetail(d)
