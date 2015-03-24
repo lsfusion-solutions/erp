@@ -9,6 +9,42 @@ retailPricingPriceBarcodeStock 'Текущая цена на ценниках' (
                                                  st,
                                                  currentDateTime());
 
+FORM priceLabelTransactionDetails 'Цена на ценниках' 
+    
+    OBJECTS s = Sku FIXED PANEL 
+    PROPERTIES READONLY nameSku(s)
+    OBJECTS st = Stock FIXED PANEL     
+    
+    OBJECTS d = LabelTransactionDetail FIXED GRID
+    PROPERTIES READONLY dateLabelTransactionDetail(d), timeLabelTransactionDetail(d), nameLabelTypeLabelTransactionDetail(d), priceLabelTransactionDetail(d)
+    ORDER BY dateLabelTransactionDetail(d), timeLabelTransactionDetail(d)
+    FILTERS skuLabelTransactionDetail(d) == s,
+            departmentStoreLabelTransactionDetail(d) == st
+;
+showPriceLabelTransactionDetailSkuStock 'Показать изменение цены' (sku, stock) = ACTION FORM priceLabelTransactionDetails OBJECTS s = sku, st = stock MODAL SHORTCUT retailPricingPriceBarcodeStock;
+
+FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании' 
+    
+    OBJECTS b = Barcode FIXED PANEL 
+    PROPERTIES READONLY nameSkuBarcode(b)
+    OBJECTS st = Stock FIXED PANEL     
+    
+    OBJECTS t= MachineryPriceTransaction FIXED GRID
+    PROPERTIES READONLY dateMachineryPriceTransaction(t), timeMachineryPriceTransaction(t), nameGroupMachineryMachineryPriceTransaction(t), nameMachineryPriceTransactionBarcode(t,b), priceMachineryPriceTransactionBarcode(t,b)
+    ORDER BY dateMachineryPriceTransaction(t), timeMachineryPriceTransaction(t)
+    
+    FILTERS stockGroupMachinery(groupMachineryMachineryPriceTransaction(t)) == st,
+            inMachineryPriceTransactionBarcode(t,b),
+            NOT canceledMachineryPriceTransaction(t)
+;
+showPriceMachineryPriceTransactionSkuStock 'Показать изменение цены' (sku, stock) = ACTION FORM priceMachineryPriceTransactionBarcode OBJECTS b = barcodeSku(sku), st = stock MODAL SHORTCUT transactionPriceSkuStock;
+
+
+showMovementPriceSkuSkuStocks 'Показать изменение цены товара' (sku, stock) = ACTION (sku, stock)  {
+    dialogPriceListTypeSkuStock(sku, stock) <- SystemLedgerPriceListType.retailPricingPriceListType;
+    FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
+} SHORTCUT retailPricingPriceASkuStock;
+
 FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES(d) nameDepartmentStore SELECTOR
