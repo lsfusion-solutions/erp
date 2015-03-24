@@ -197,6 +197,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     xmlOutput.output(doc, fw);
                     fw.close();
 
+                    //чит для избежания ситуации, совпадения имён у двух файлов (в основе имени - текущее время с точностью до секунд)
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) {
+                    }
+
                     fileMap.put(new File(filePath), transaction.id);
                 }
             } catch (Exception e) {
