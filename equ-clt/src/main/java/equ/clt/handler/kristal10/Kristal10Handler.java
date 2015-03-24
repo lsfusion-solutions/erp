@@ -49,10 +49,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
         Map<File, Integer> fileMap = new HashMap<File, Integer>();
+        Map<Integer, Exception> failedTransactionMap = new HashMap<Integer, Exception>();
+
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
-            Exception exception = null;
             try {
 
                 processTransactionLogger.info("Kristal: Send Transaction # " + transaction.id);
@@ -199,14 +200,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     fileMap.put(new File(filePath), transaction.id);
                 }
             } catch (Exception e) {
-                exception = e;
+                failedTransactionMap.put(transaction.id, e);
             }
         }
 
-        return waitForDeletion(fileMap);
+        return waitForDeletion(fileMap, failedTransactionMap);
     }
 
-    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap) {
+    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap) {
         int count = 0;
         Map<Integer, SendTransactionBatch> result = new HashMap<Integer, SendTransactionBatch>();
         while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
@@ -216,11 +217,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 if (count >= 120) {
                     break;
                 }
-                for (Map.Entry<File, Integer> file : filesMap.entrySet()) {
-                    if (file.getKey().exists())
-                        nextFilesMap.put(file.getKey(), file.getValue());
+                for (Map.Entry<File, Integer> entry : filesMap.entrySet()) {
+                    File file = entry.getKey();
+                    Integer idTransaction = entry.getValue();
+                    if (file.exists())
+                        nextFilesMap.put(file, idTransaction);
                     else
-                        result.put(file.getValue(), new SendTransactionBatch(null));
+                        result.put(idTransaction, new SendTransactionBatch(failedTransactionMap.get(idTransaction)));
                 }
                 filesMap = nextFilesMap;
                 Thread.sleep(1000);
@@ -413,6 +416,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
+        Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+
         for (String directory : directorySet) {
 
             String exchangeDirectory = directory.trim() + "/products/source/";
@@ -451,6 +457,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom));
                 addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo));
                 addStringElement(saleDeniedRestriction, "deleted", stopListInfo.exclude ? "true" : "false");
+                if (useShopIndices) {
+                    String shopIndices = "";
+                    for(String shopIndex : stopListInfo.idStockSet)
+                        shopIndices += shopIndex + " ";
+                    shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
+                    addStringElement(saleDeniedRestriction, "shop-indices", shopIndices);
+                }
 
             }
 
