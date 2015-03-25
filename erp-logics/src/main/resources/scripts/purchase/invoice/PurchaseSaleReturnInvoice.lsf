@@ -103,6 +103,8 @@ invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) P
 invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail);
 invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
 
+setPropertiesPurchaseReturnInvoiceDetailSaleReturnInvoiceDetail = ABSTRACT ACTION LIST (SaleReturn.UserInvoiceDetail, InvoiceDetail);
+
 fillInvoiceUserInvoice 'Заполнить на основе накладной (закупка-возврат)' =  ACTION (userInvoice) {
     FORM invoiceInvoices OBJECTS s = SaleReturn.supplierUserInvoice(userInvoice), c = SaleReturn.customerUserInvoice(userInvoice),
                                    ss = SaleReturn.supplierStockUserInvoice(userInvoice), cs = SaleReturn.customerStockUserInvoice(userInvoice),
@@ -114,20 +116,22 @@ fillInvoiceUserInvoice 'Заполнить на основе накладной 
         FOR invoiceInvoiceDetail(invoiceDetail) == saleReturnInvoice() ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
             ASSIGN SaleReturn.userInvoiceUserInvoiceDetail(d) <- userInvoice;
             ASSIGN invoiceDetailUserInvoiceDetail(d) <- invoiceDetail;
-            
-            ASSIGN SaleReturn.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.VATUserInvoiceDetail(d) <- VATInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.valueVATUserInvoiceDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
-            ASSIGN SaleReturn.invoicePriceUserInvoiceDetail(d) <- invoicePriceInvoiceDetail(invoiceDetail);
         }
     }
 } IN SaleReturn.invoice;
+
+setPropertiesPurchaseReturnInvoiceDetailSaleReturnInvoiceDetail(d, invoiceDetail) += ACTION (d, invoiceDetail) {
+    SaleReturn.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
+    SaleReturn.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
+    SaleReturn.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
+    SaleReturn.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
+    SaleReturn.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
+    SaleReturn.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(invoiceDetail);
+    SaleReturn.VATUserInvoiceDetail(d) <- VATInvoiceDetail(invoiceDetail);
+    SaleReturn.valueVATUserInvoiceDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
+    SaleReturn.priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
+    SaleReturn.invoicePriceUserInvoiceDetail(d) <- invoicePriceInvoiceDetail(invoiceDetail);    
+}
 
 //----------------------------------------------------------------------------//
 

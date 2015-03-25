@@ -103,6 +103,8 @@ invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PER
 invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
 invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
 
+setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail = ABSTRACT ACTION LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
+
 fillInvoiceUserInvoice 'Заполнить на основе накладной' =  ACTION (userInvoice) {
     FORM invoiceInvoices OBJECTS s = Purchase.supplierUserInvoice(userInvoice), c = Purchase.customerUserInvoice(userInvoice),
                                    ss = Purchase.supplierStockUserInvoice(userInvoice), cs = Purchase.customerStockUserInvoice(userInvoice),
@@ -112,22 +114,25 @@ fillInvoiceUserInvoice 'Заполнить на основе накладной'
         ASSIGN saleInvoice() <- chosenObject('o');
 
         FOR invoiceInvoiceDetail(invoiceDetail) == saleInvoice() ADDOBJ d = Purchase.UserInvoiceDetail DO {
-            ASSIGN Purchase.userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            ASSIGN invoiceDetailUserInvoiceDetail(d) <- invoiceDetail;
-            ASSIGN Purchase.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.VATUserInvoiceDetail(d) <- VATInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.valueVATUserInvoiceDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
-            ASSIGN Purchase.invoicePriceUserInvoiceDetail(d) <- invoicePriceInvoiceDetail(invoiceDetail);
+            Purchase.userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            invoiceDetailUserInvoiceDetail(d) <- invoiceDetail;
+            setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail(d, invoiceDetail); 
         }
     }
 } IN Purchase.invoice;
 
+setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail(d, invoiceDetail) += ACTION (d, invoiceDetail) {
+            Purchase.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
+            Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
+            Purchase.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
+            Purchase.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
+            Purchase.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
+            Purchase.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(invoiceDetail);
+            Purchase.VATUserInvoiceDetail(d) <- VATInvoiceDetail(invoiceDetail);
+            Purchase.valueVATUserInvoiceDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
+            Purchase.priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
+            Purchase.invoicePriceUserInvoiceDetail(d) <- invoicePriceInvoiceDetail(invoiceDetail);    
+}
 //----------------------------------------------------------------------------//
 
 GROUP invoice 'Информация о накладной' : base;
