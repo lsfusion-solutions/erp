@@ -120,8 +120,26 @@ FORM costCardOrderBy 'Калькуляционная карта'
 ;
 printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 
-batchComponentDetail= DATA Batch (ComponentDetail);
+batchComponentDetail = DATA Batch (ComponentDetail);
 nameBatchComponentDetail 'Партия' (d) = nameBatch(batchComponentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+changeBatchComponentDetail = ACTION (d) {
+    FORM dialogBatchStock OBJECTS st = componentsStockComponentDetail(d),
+                             t = dateTimeComponentDetail(d),
+                             sk = skuComponentDetail(d) DIALOG SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        batchComponentDetail(d) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        batchComponentDetail(d) <- NULL;
+    }
+}
+EXTEND FORM order
+    PROPERTIES (cd) nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd) AFTER bruttoNameSkuComponentDetail(cd)
+;
+EXTEND FORM orders
+    PROPERTIES (cd) READONLY nameBatchComponentDetail AFTER bruttoNameSkuComponentDetail(cd)
+;
 
 calcBatchComponentDetail(d) = prevLastOrderBatchSkuStock(skuComponentDetail(d), componentsStockComponentDetail(d));
 
@@ -149,9 +167,6 @@ costBatchOrder (batch, order) <- calcCostBatchStock(batch, componentsStockOrder(
 overCalcPriceComponentDetail(detail) += dataBruttoPriceBatchOrder(batchComponentDetail(detail), orderComponentDetail(detail));
 overCalcCostComponentDetail(detail) += costBatchOrder(batchComponentDetail(detail), orderComponentDetail(detail));
 
-EXTEND FORM order
-    PROPERTIES (cd) nameBatchComponentDetail AFTER bruttoNameSkuComponentDetail(cd)
-;
 WHEN SESSION FORMS order 
     CHANGED(skuComponentDetail(cd)) OR CHANGED (componentsStockComponentDetail(cd)) DO {
         batchComponentDetail (cd) <- calcBatchComponentDetail(cd);
