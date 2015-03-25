@@ -1,0 +1,12 @@
+MODULE PricingSaleTax;
+
+REQUIRE PricingSale, SkuLedgerTax;
+
+NAMESPACE Sale;
+
+overSetValueRetailVATUserInvoiceDetail(detail) += valueVATBatch(batchUserInvoiceDetail(detail));
+
+// todo : временное решение, пока нету последовательности выполнения событий
+WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
+    valueRetailVATUserInvoiceDetail(d) <- valueVATBatch(batchUserInvoiceDetail(d)) WHERE valueVATBatch(batchUserInvoiceDetail(d)); 
+}
