@@ -39,8 +39,12 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
 
-                String name = (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject);
-                name = name == null ? "" : name.trim();
+                String name = null;
+                ScriptingLogicsModule zReportNlibLM = context.getBL().getModule("ZReportNlib");
+                if(zReportNlibLM != null)
+                    name = (String) zReportNlibLM.findProperty("shortNameSkuReceiptDetail").read(session, receiptDetailObject);
+                name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
+
                 String barcode = (String) findProperty("idBarcodeReceiptDetail").read(session, receiptDetailObject);
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
@@ -62,5 +66,9 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
         }
 
 
+    }
+
+    protected String trim(String input) {
+        return input == null ? null : input.trim();
     }
 }

@@ -37,8 +37,11 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
                 Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister").read(context);
                 Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister").read(context);
 
-                String name = (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject);
-                name = name == null ? "" : name.trim();
+                String name = null;
+                ScriptingLogicsModule zReportNlibLM = context.getBL().getModule("ZReportNlib");
+                if(zReportNlibLM != null)
+                    name = (String) zReportNlibLM.findProperty("shortNameSkuReceiptDetail").read(session, receiptDetailObject);
+                name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
                 BigDecimal priceValue = (BigDecimal) findProperty("priceReceiptDetail").read(session, receiptDetailObject);
@@ -75,5 +78,9 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
     private static String toStr(double value) {
         boolean isInt = (value - (int) value) == 0;
         return isInt ? String.valueOf((int) value) : String.valueOf(value);
+    }
+
+    protected String trim(String input) {
+        return input == null ? null : input.trim();
     }
 }
