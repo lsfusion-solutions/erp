@@ -34,6 +34,8 @@ timeBatch 'Время' (batch) = toTime(dateTimeBatch(batch));
 
 isPostedBatch 'Проведен' (batch) = ABSTRACT BOOLEAN (Batch) PERSISTENT;
 
+isClosedBatch 'Закрыт' (batch) = ABSTRACT BOOLEAN (Batch);
+
 skuBatch (batch) = ABSTRACT Sku (Batch) PERSISTENT INDEXED;
 nameSkuBatch 'Наименование' (batch) = nameSku(skuBatch(batch)) IN recognize;
 
@@ -133,6 +135,8 @@ dateDataSkuLedger 'Дата' (ledger) = toDate(dateTimeDataSkuLedger(ledger)) PE
 
 isPostedDataSkuLedger 'Проведен' = ABSTRACT BOOLEAN (DataSkuLedger) PERSISTENT;
 
+isClosedDataSkuLedger 'Закрыт' = ABSTRACT BOOLEAN (SkuLedger);
+
 skuDataSkuLedger = ABSTRACT Sku (DataSkuLedger) PERSISTENT INDEXED;
 
 stockDataSkuLedger = ABSTRACT Stock(DataSkuLedger) PERSISTENT INDEXED;
@@ -147,6 +151,8 @@ dateTimeSkuLedger 'Дата/время' (ledger) = MULTI dateTimeDataSkuLedger (
 dateSkuLedger 'Дата' (ledger) = toDate(dateTimeSkuLedger(ledger)) PERSISTENT INDEXED;
 
 isPostedSkuLedger 'Проведен' (ledger) = MULTI isPostedDataSkuLedger (ledger), isPostedBatch (ledger) PERSISTENT;
+
+isClosedSkuLedger 'Закрыт' (ledger) = MULTI isClosedDataSkuLedger (ledger), isClosedBatch (ledger);
 
 skuSkuLedger (ledger) = MULTI skuDataSkuLedger (ledger), skuBatch (ledger) PERSISTENT INDEXED;
 nameSkuSkuLedger 'SKU' (ledger) = nameSku(skuSkuLedger(ledger)) IN recognize;
@@ -617,7 +623,12 @@ DESIGN options {
 CONSTRAINT currentBalanceSkuStock(sk, st) < 0.0 AND banNegativeSku()
     MESSAGE 'Текущий остаток должен быть больше нуля';
 
+allowedEditSkuLedgerCustomUser 'Разрешить редактирование закрытых документов' = DATA BOOLEAN (CustomUser);
+EXTEND FORM customUser
+    PROPERTIES (u) allowedEditSkuLedgerCustomUser
+;
 
+allowedEditSkuLeadger (d) = NOT isClosedSkuLedger(d) OR allowedEditSkuLedgerCustomUser(currentUser());
 // -------------------------------------- Последнее движение ---------------------------------- //
 
 dateTimeLastMovedSkuStock 'Время последнего движения' (sku, stock) =
@@ -717,7 +728,7 @@ FORM batches 'Партии'
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, idBatch SHOWIF showIDs(), 
                                nameBatch, nameStockBatch, shippedQuantityBatch, costBatch, expiryDateBatch, currentBalanceBatch
-    PROPERTIES(bt)    editSkuLedger
+    PROPERTIES(bt)    editSkuLedger SHOWIF allowedEditSkuLeadger(bt)
     FILTERS           isParentSkuGroupBatch(sk, bt)
     ORDER BY          dateTimeBatch(bt)
 
@@ -791,7 +802,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
     PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
                              quantitySkuLedger, costedSkuLedger, sumSkuLedger
     PROPERTIES(bil)          resetCostDataSkuLedger FORCE GRID
-    PROPERTIES(bil)          editSkuLedger
+    PROPERTIES(bil)          editSkuLedger SHOWIF allowedEditSkuLeadger(bil)
     FILTERS isSkuLedger(bil)
     ORDER BY dateTimeSkuLedger(bil)
 
@@ -1329,7 +1340,7 @@ FORM skuLedger 'Регистр движений'
     OBJECTS s = SkuLedger
     PROPERTIES(s) READONLY dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
                            signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, costSumSkuLedger
-    PROPERTIES(s) editSkuLedger
+    PROPERTIES(s) editSkuLedger SHOWIF allowedEditSkuLeadger(s)
     FILTERS isPostedSkuLedger(s)
 
     FILTERS dateSkuLedger(s) >= dFrom, dateSkuLedger(s) <= dTo
@@ -1392,6 +1403,7 @@ nameSkuGroup5Batch 'Субгруппа' (batch) = nameSkuGroup(skuGroup5Batch(ba
 META implementSkuLedger(object, skuProp, stockProp)
     dateTimeDataSkuLedger (ledger) += dateTime###object(ledger);
     isPostedDataSkuLedger (ledger) += isPosted###object(ledger);
+    isClosedDataSkuLedger (ledger) += isClosed###object(ledger);
     skuDataSkuLedger (ledger) += skuProp###object(ledger);
     stockDataSkuLedger (ledger) += stockProp###object(ledger);
     descriptionDataSkuLedger (ledger) += description###object(ledger);
@@ -1400,6 +1412,7 @@ END
 META defineSkuLedgerAggregation(primObject, aggrObject, skuProp, stockProp)
     dateTime###aggrObject (batch) = dateTime###primObject(primObject###aggrObject(batch));
     isPosted###aggrObject (batch) = isPosted###primObject(primObject###aggrObject(batch));
+    isClosed###aggrObject (batch) = isClosed###primObject(primObject###aggrObject(batch));
     sku###aggrObject (batch) = sku###primObject(primObject###aggrObject(batch));
     stock###aggrObject (batch) = stockProp###primObject(primObject###aggrObject(batch));
     description###aggrObject (batch) = description###primObject(primObject###aggrObject(batch));
@@ -1460,6 +1473,7 @@ END
 META implementBatchCustom(object, skuProp, stockProp, costProp)
     dateTimeBatch (batch) += dateTime###object(batch);
     isPostedBatch (batch) += isPosted###object(batch);
+    isClosedBatch (batch) += isClosed###object(batch);
     skuBatch (batch) += skuProp###object(batch);
     stockBatch (batch) += stockProp###object(batch);
     descriptionBatch (batch) += description###object(batch);
