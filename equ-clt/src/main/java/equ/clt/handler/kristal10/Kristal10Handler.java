@@ -441,10 +441,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 String idBarcode = entry.getKey();
                 String idItem = entry.getValue();
                 //parent: rootElement
+                String id = idItemInMarkingOfTheGood ? idItem : idBarcode;
                 Element saleDeniedRestriction = new Element("sale-denied-restriction");
-                setAttribute(saleDeniedRestriction, "id", idItemInMarkingOfTheGood ? idItem : idBarcode);
+                setAttribute(saleDeniedRestriction, "id", id);
                 setAttribute(saleDeniedRestriction, "subject-type", "GOOD");
-                setAttribute(saleDeniedRestriction, "subject-code", idBarcode);
+                setAttribute(saleDeniedRestriction, "subject-code", id);
                 setAttribute(saleDeniedRestriction, "type", "SALE_DENIED");
                 setAttribute(saleDeniedRestriction, "value", true);
                 rootElement.addContent(saleDeniedRestriction);
