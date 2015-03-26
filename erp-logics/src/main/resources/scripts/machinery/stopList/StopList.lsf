@@ -54,6 +54,19 @@ CONSTRAINT  inStockStopList(stock, stopList) AND NOT isCompanyStock(stock)
 succeededStockStopList 'Загружен в кассу' = DATA BOOLEAN (Stock, StopList);
 notSucceededStockStopList 'Не загружен в кассу' (stock, stopList) = stock IS Stock AND stopList IS StopList AND NOT succeededStockStopList(stock, stopList);   
 
+countSucceededStocksStopList  = GROUP SUM 1 IF inStockStopList(stock, list) AND succeededStockStopList(stock, list) BY list;
+countStocksStopList  = GROUP SUM 1 IF inStockStopList(stock, list)  BY list;
+
+statusSucceededStocksStopList 'Статус загрузки' = CASE 
+    WHEN countSucceededStocksStopList(l) == countStocksStopList(l) AND isPostedStopList(l) THEN 'Успешно загружен'
+    WHEN countSucceededStocksStopList(l) < countStocksStopList(l)  AND isPostedStopList(l) THEN 'Частично загружен'
+    WHEN  l IS StopList THEN 'Не загружался' MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    
+backgroundStatusSucceededStocksStopList = CASE 
+    WHEN countSucceededStocksStopList(l) == countStocksStopList(l) AND isPostedStopList(l)  THEN RGB(212,255,212)
+    WHEN countSucceededStocksStopList(l) < countStocksStopList(l) AND isPostedStopList(l) THEN RGB(255,238,165)    
+    WHEN l IS StopList THEN RGB(255,255,255);
+
 stopListNumber (number) = GROUP AGGR stopList BY numberStopList(stopList);
 
 //--------------------Сообщения об ошибках при загрузке в кассы--------------------//
@@ -230,10 +243,11 @@ DESIGN stopList {
 FORM stopLists 'Запреты продаж по кассе'
 
     OBJECTS sl=StopList
+    PROPERTIES (sl) READONLY statusSucceededStocksStopList BACKGROUND backgroundStatusSucceededStocksStopList(sl)
     PROPERTIES (sl) READONLYIF isReadonly() isClosedStopList, isPostedStopList, excludeStopList, numberStopList, seriesStopList, dateStopList, timeStopList
     PROPERTIES(sl)  READONLY fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList, countStopListDetailStopList
     PROPERTIES (sl) READONLYIF isReadonly() noteStopList
-    PROPERTIES (sl) READONLY quantityStopListErrorStopList
+    PROPERTIES (sl) READONLY quantityStopListErrorStopList, stocksStopList
 
     PROPERTIES(sl)  READONLY FORCE PANEL createdNameUserStopList, createdTimeStopList, createdHostnameComputerStopList, 
                                           postedNameUserStopList, postedTimeStopList, postedHostnameComputerStopList
@@ -251,6 +265,11 @@ FORM stopLists 'Запреты продаж по кассе'
     OBJECTS e=StopListError
     PROPERTIES(e)   READONLY dataStopListError, dateStopListError, errorTraceStopListError
     FILTERS         stopListStopListError(e) == sl
+    
+    OBJECTS st = Stock FIXED GRID
+    PROPERTIES (st) READONLY nameStock, idStock SHOWIF showIDs()
+    PROPERTIES READONLY inStockStopList(st,sl), succeededStockStopList(st,sl)
+    FILTERS inStockStopList(st,sl) 
 ;
 
 DESIGN stopLists {
@@ -280,6 +299,7 @@ DESIGN stopLists {
                     caption = 'Ошибки';                    
                     ADD e.box;
                 }
+                ADD st.box;
                 NEW printTab {
                     caption = 'Печатные формы';
                     NEW printContainer {
