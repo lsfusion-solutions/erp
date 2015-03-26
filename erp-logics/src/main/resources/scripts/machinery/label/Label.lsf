@@ -880,45 +880,37 @@ EXTEND  FORM currentBalanceSkuStock
 // Инкрементная загрузка
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
 
-priceALabelTransactionDetailSkuStockDateTime 'Цена' (sku, stock, dateTimeIn) =
+priceLabelTransactionDetailSkuDepartmentStore 'Текущая цена на ценниках' (sku, stock) =
     GROUP LAST priceLabelTransactionDetail(ledger)
-          BY skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger), dateTimeIn
+          BY skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger)
           ORDER dateTimeLabelTransactionDetail(ledger), ledger
-          WHERE priceLabelTransactionDetail(ledger) AND dateTimeLabelTransactionDetail(ledger) <= dateTimeIn COMPLEX;
+          WHERE ledger IS LabelTransactionDetail PERSISTENT;
 
-needLabelTransactionPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = 
-    prevPriceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) == priceALabelTransactionDetailSkuStockDateTime(sku, stock, dateTime); 
-
-needLabelTransactionStockDateTime (stock, dateTime) = GROUP SUM 1 IF needLabelTransactionPriceListTypeSkuStockDateTime (priceListTypeLabelType(labelType), sku, stock, dateTime) 
-                                                                  AND inLabelTypeSkuDepartmentStore(labelType, sku, stock)
-                                                            BY stock, dateTime;
+needLabelTransactionPriceListTypeSkuDepartmentStore (type, sku, stock) = 
+    prevPriceAPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime()) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, currentDateTime()) == priceLabelTransactionDetailSkuDepartmentStore(sku, stock); 
 
 createAllLabelTransactionDepartmentStore 'Все товары' = ACTION (stock) {
-    IF needLabelTransactionStockDateTime(stock, currentDateTime()) THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) 
-                    AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
-        
-        createLabelTransactionDepartmentStore(stock);
+    selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuDepartmentStore(priceListTypeLabelType(labelType), sku, stock) 
+                AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+    
+    createLabelTransactionDepartmentStore(stock);
 
-        apply();
-        IF canceled() THEN {
-            cancel();
-        }        
-    }
+    apply();
+    IF canceled() THEN {
+        cancel();
+    }        
 } IN incrementMachineryLabel;
 
 createBalanceLabelTransactionDepartmentStore 'Остатки' = ACTION (stock) {
-    IF needLabelTransactionStockDateTime(stock, currentDateTime()) THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) 
-                    AND inLabelTypeSkuDepartmentStore(labelType, sku, stock) AND balanceASkuStockDateTime(sku, stock, currentDateTime());   
-                    
-        createLabelTransactionDepartmentStore(stock);
+    selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuDepartmentStore(priceListTypeLabelType(labelType), sku, stock) 
+                AND inLabelTypeSkuDepartmentStore(labelType, sku, stock) AND balanceASkuStockDateTime(sku, stock, currentDateTime());   
+                
+    createLabelTransactionDepartmentStore(stock);
 
-        apply();
-        IF canceled() THEN {
-            cancel();
-        }        
-    }
+    apply();
+    IF canceled() THEN {
+        cancel();
+    }        
 } IN incrementMachineryLabel;
 
 

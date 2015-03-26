@@ -94,17 +94,27 @@ changeValueSkuStopList = ACTION (sku, stopList) {
 }
 
 
-inStockStopListDetail (stock, detail) = inStockStopList(stock, stopListStopListDetail(detail)) PERSISTENT;
+activeStockStopListDetail(stock, detail) = inStockStopList(stock, stopListStopListDetail(detail)) AND isPostedStopListDetail(detail) PERSISTENT;
+skuStockStopListDetail(stock, detail) = skuStopListDetail(detail) IF activeStockStopListDetail(stock, detail) PERSISTENT INDEXED; 
+includeStockStopListDetail(stock, detail) = activeStockStopListDetail(stock, detail) AND NOT excludeStopListDetail(detail) PERSISTENT;
+fromDateTimeStockStopListDetail(stock, detail) = fromDateTimeStopListDetail(detail) IF activeStockStopListDetail(stock, detail) PERSISTENT; 
+toDateTimeStockStopListDetail(stock, detail) = toDateTimeStopListDetail(detail) IF activeStockStopListDetail(stock, detail) PERSISTENT; 
    
-lastStopListDetailSkuStockDateTime (sku, stock, dateTime) =
-    GROUP LAST detail IF NOT excludeStopListDetail(detail)
-          BY   skuStopListDetail(detail), stock, dateTimeIn
-          ORDER fromDateTimeStopListDetail(detail) , detail 
-          WHERE inStockStopListDetail(stock, detail)
-                AND isPostedStopListDetail(detail) AND dateTimeIn >= fromDateTimeStopListDetail(detail) 
-                AND NOT dateTimeIn >  toDateTimeStopListDetail(detail) COMPLEX;        
+inStopListSkuStockDateTime (sku, stock, dateTime) =
+    GROUP LAST includeStockStopListDetail(stock, detail)
+          BY   skuStockStopListDetail(stock, detail), stock, dateTimeIn
+          ORDER fromDateTimeStockStopListDetail(stock, detail) , detail 
+          WHERE dateTimeIn >= fromDateTimeStockStopListDetail(stock, detail) 
+                AND NOT dateTimeIn >  toDateTimeStockStopListDetail(stock, detail) COMPLEX;        
 
-skipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime) += TRUE IF lastStopListDetailSkuStockDateTime(sku, stock, dateTime); 
+lastStopListDetailSkuStockDateTime (sku, stock, dateTime) =
+    GROUP LAST detail IF includeStockStopListDetail(stock, detail)
+          BY   skuStockStopListDetail(stock, detail), stock, dateTimeIn
+          ORDER fromDateTimeStockStopListDetail(stock, detail) , detail 
+          WHERE dateTimeIn >= fromDateTimeStockStopListDetail(stock, detail) 
+                AND NOT dateTimeIn >  toDateTimeStockStopListDetail(stock, detail) COMPLEX;        
+
+skipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime) += inStopListSkuStockDateTime(sku, stock, dateTime); 
 
 FORM stopList 'Запрет продаж по кассе'
 
