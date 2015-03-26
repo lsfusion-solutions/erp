@@ -424,6 +424,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
         boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
 
         for (String directory : directorySet) {
 
@@ -436,11 +437,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             Document doc = new Document(rootElement);
             doc.setRootElement(rootElement);
 
-            for (String idBarcode : stopListInfo.stopListItemMap.keySet()) {
-                
+            for (Map.Entry<String, String> entry : stopListInfo.stopListItemMap.entrySet()) {
+                String idBarcode = entry.getKey();
+                String idItem = entry.getValue();
                 //parent: rootElement
                 Element saleDeniedRestriction = new Element("sale-denied-restriction");
-                setAttribute(saleDeniedRestriction, "id", stopListInfo.number + idBarcode);
+                setAttribute(saleDeniedRestriction, "id", idItemInMarkingOfTheGood ? idItem : idBarcode);
                 setAttribute(saleDeniedRestriction, "subject-type", "GOOD");
                 setAttribute(saleDeniedRestriction, "subject-code", idBarcode);
                 setAttribute(saleDeniedRestriction, "type", "SALE_DENIED");
