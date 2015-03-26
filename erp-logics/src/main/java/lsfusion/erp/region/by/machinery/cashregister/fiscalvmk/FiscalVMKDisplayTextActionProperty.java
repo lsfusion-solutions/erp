@@ -44,6 +44,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 if(zReportNlibLM != null)
                     name = (String) zReportNlibLM.findProperty("shortNameSkuReceiptDetail").read(session, receiptDetailObject);
                 name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
+                name = name == null ? "" : name;
 
                 String barcode = (String) findProperty("idBarcodeReceiptDetail").read(session, receiptDetailObject);
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
