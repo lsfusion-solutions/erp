@@ -18,32 +18,41 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected static String charset = "UTF-8";
     protected static char separator = '\u001b';
     protected static String endCommand = separator + "BLK " + separator;
-    
+
     protected String receiveReply(List<String> errors, TCPPort port) throws CommunicationException {
+        return receiveReply(errors, port, false);
+    }
+
+    protected String receiveReply(List<String> errors, TCPPort port, boolean ignoreTimeout) throws CommunicationException {
         String reply;
-        Pattern var3 = Pattern.compile("QUIT(\\d+)");
+        Pattern pattern = Pattern.compile("QUIT(\\d+)");
         byte[] var4 = new byte[500];
 
         try {
-            long var5 = (new Date()).getTime();
+            long startTime = new Date().getTime();
 
-            long var7;
+            long time;
             do {
                 if(port.getBisStream().available() != 0) {
                     port.getBisStream().read(var4);
                     reply = new String(var4, charset);
 
-                    Matcher var10 = var3.matcher(reply);
-                    if(var10.find()) {
-                        return var10.group(1);
+                    Matcher matcher = pattern.matcher(reply);
+                    if(matcher.find()) {
+                        return matcher.group(1);
                     }
                 }
 
                 Thread.sleep(10L);
-                var7 = (new Date()).getTime();
-            } while(var7 - var5 <= 10000L);
+                time = (new Date()).getTime();
+            } while(time - startTime <= 10000L);
 
-            logError(errors, "Scales reply timeout");
+            if (ignoreTimeout)
+                return "0";
+            else {
+                logError(errors, "Scales reply timeout");
+                return "-1";
+            }
         } catch (Exception e) {
             logError(errors, "Receive Reply Error", e);
         }

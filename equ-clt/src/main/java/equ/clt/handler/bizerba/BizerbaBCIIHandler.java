@@ -81,11 +81,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                                     String clear = clearAllPLU(localErrors, port, scales);
                                     if (!clear.equals("0"))
                                         logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
-                                    List<Integer> messageList = new ArrayList<Integer>();
-                                    for (int i = 1; i <= 5000; i++) {
-                                        messageList.add(i);
-                                    }
-                                    clearMessages(localErrors, port, scales, messageList);
+                                    clear = clearAllMessages(localErrors, port, scales);
+                                    if (!clear.equals("0"))
+                                        logError(localErrors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
                                 }
 
                                 processTransactionLogger.info("Bizerba: Sending items..." + ip);
@@ -94,8 +92,12 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                                         if (!Thread.currentThread().isInterrupted()) {
                                             item.description = item.description == null ? "" : item.description;
                                             item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
-                                            clearMessage(localErrors, port, scales, item, true);
-                                            loadPLU(localErrors, port, scales, item);
+                                            String clear = clearMessage(localErrors, port, scales, item, true);
+                                            if(clear.equals("0")) {
+                                                loadPLU(localErrors, port, scales, item);
+                                            } else
+                                                logError(localErrors, String.format("Bizerba: ClearMessage, Error %s", clear));
+
                                         }
                                     }
                                 }
@@ -280,14 +282,21 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         OrderedMap<Integer, String> messageMap = new OrderedMap<Integer, String>();
         if(item.description != null) {
             int count = 0;
-            String[] splittedMessage = item.description.split("\n");
+            List<String> splittedMessage = new ArrayList<String>();
+            for(String line : item.description.split("\n")) {
+                while(line.length() > 255) {
+                    splittedMessage.add(line.substring(0, 255));
+                    line = line.substring(255);
+                }
+                splittedMessage.add(line);
+            }
 
-            boolean isDouble = splittedMessage.length > 4;
-            for (int i = 0; i < splittedMessage.length; i = i + (isDouble ? 2 : 1)) {
-                String line = splittedMessage[i] + (isDouble && (i+1 < splittedMessage.length) ? (" " + splittedMessage[i+1]) : "");
+            boolean isDouble = splittedMessage.size() > 4;
+            for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
+                String line = splittedMessage.get(i) + (isDouble && (i+1 < splittedMessage.size()) ? (" " + splittedMessage.get(i+1)) : "");
                 line = line.replace('@', 'a');
-                if (line.length() > 2000) {
-                    line = line.substring(0, 1999);
+                if (line.length() >= 255) {
+                    line = line.substring(0, 255);
                 }
                 int messageNumber = getPluNumber(item) * 10 + count;
                 messageMap.put(messageNumber, line);
@@ -332,26 +341,26 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
 
     public String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean splitMessage) throws CommunicationException, IOException {
         if(splitMessage) {
-            return clearMessages(errors, port, scales, new ArrayList<Integer>(getPLUMessage(item).keySet()));
+            return clearMessages(errors, port, scales, item);
         } else {
 
-            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + getPluNumber(item) + endCommand;
+            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + getPluNumber(item) * 10 + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, command);
             return receiveReply(errors, port);
         }
     }
-    
-    public String clearMessages(List<String> errors, TCPPort port, ScalesInfo scales, List<Integer> messageList) throws CommunicationException, IOException {
-        if(messageList != null) {
-            for(int i = 0; i < messageList.size(); ++i) {
-                String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + messageList.get(i) + endCommand;
-                clearReceiveBuffer(port);
-                sendCommand(errors, port, command);
-                return receiveReply(errors, port);
-            }
+
+    public String clearMessages(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
+        for (int i = 0; i <= 9; i++) {
+            String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + (getPluNumber(item) * 10 + i) + endCommand;
+            clearReceiveBuffer(port);
+            sendCommand(errors, port, command);
+            String result = receiveReply(errors, port);
+            if (!result.equals("0"))
+                return result;
         }
-        return null;
+        return "0";
     }
 
     public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
@@ -370,7 +379,14 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         String command = "PLST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command);
-        return receiveReply(errors, port);
+        return receiveReply(errors, port, true);
+    }
+
+    public String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales) throws CommunicationException, InterruptedException, IOException {
+        String command = "ATST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, command);
+        return receiveReply(errors, port, true);
     }
 
     public Integer getPluNumber(ScalesItemInfo itemInfo) {
