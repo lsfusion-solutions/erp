@@ -1269,11 +1269,8 @@ EXTEND FORM options
 ;
 
 DESIGN options { 
-    pane { 
-        NEW history {
-            caption = 'История';
-            ADD PROPERTY(disableDocumentLog());
-        }        
+    log { 
+        ADD PROPERTY(disableDocumentLog()) FIRST;   
     } 
 }
 
@@ -1395,6 +1392,83 @@ WHEN x==[= GROUP SUM 1 IF DROPPED(d IS DocumentDetail) BY PREV(documentDocumentD
     }
 }
 
+
+CLASS DocumentDetailLog 'Запись лога строк документов';
+TABLE DocumentDetailLog(DocumentDetailLog);
+
+documentDocumentDetailLog = DATA Document (DocumentDetailLog);
+
+indexDocumentDetailLog 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
+
+numberDocumentDocumentDetailLog 'Номер документа' = DATA STRING[18] (DocumentDetailLog);
+seriesDocumentDocumentDetailLog 'Серия документа' = DATA STRING[2] (DocumentDetailLog);
+dateDocumentDocumentDetailLog 'Дата документа' = DATA DATE(DocumentDetailLog);
+typeDocumentDocumentDetailLog 'Тип документа' = DATA ISTRING[100] (DocumentDetailLog); 
+
+skuDocumentDetailLog = DATA Sku (DocumentDetailLog);
+idSkuDocumentDetailLog 'Код' (l) = idSku(skuDocumentDetailLog(l));
+nameSkuDocumentDetailLog 'Наименование' (l) = nameSku(skuDocumentDetailLog(l));
+
+quantityDocumentDetailLog 'Кол-во' = DATA NUMERIC[14,3] (DocumentDetailLog);
+
+priceDocumentDetailLog 'Цена' = DATA NUMERIC[14,2] (DocumentDetailLog);
+
+nameUserDocumentDetailLog = DATA VARSTRING[100] (DocumentDetailLog);
+
+dateTimeDocumentDetailLog 'Дата/время изменения' = DATA DATETIME (DocumentDetailLog);
+
+noteDocumentDetailLog 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
+
+@defineLog (DocumentDetailLog, 'строк документов', log, dateTime);
+
+WHEN  SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+    FOR ADDOBJ l = DocumentDetailLog DO{
+        documentDocumentDetailLog(l) <- documentDocumentDetail(d);
+        indexDocumentDetailLog(l) <- indexDocumentDetail(d);
+        numberDocumentDocumentDetailLog(l) <- numberDocument(documentDocumentDetail(d));
+        seriesDocumentDocumentDetailLog(l) <- seriesDocument(documentDocumentDetail(d));
+        dateDocumentDocumentDetailLog(l) <- dateDocument(documentDocumentDetail(d));
+        typeDocumentDocumentDetailLog(l) <- objectClassName(documentDocumentDetail(d));
+        skuDocumentDetailLog(l) <- skuDocumentDetail(d);
+        quantityDocumentDetailLog(l) <- quantityDocumentDetail(d);
+        priceDocumentDetailLog(l) <- priceDocumentDetail(d);
+        nameUserDocumentDetailLog(l) <- nameUser(currentUser());
+        dateTimeDocumentDetailLog(l) <- currentDateTime();
+        noteDocumentDetailLog(l) <- 'Добавление';
+    }
+
+WHEN (CHANGED(priceDocumentDetail(d)) OR CHANGED(quantityDocumentDetail(d)) OR CHANGED(skuDocumentDetail(d))) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+    FOR ADDOBJ l = DocumentDetailLog DO{
+        documentDocumentDetailLog(l) <- documentDocumentDetail(d);
+        indexDocumentDetailLog(l) <- indexDocumentDetail(d);
+        numberDocumentDocumentDetailLog(l) <- numberDocument(documentDocumentDetail(d));
+        seriesDocumentDocumentDetailLog(l) <- seriesDocument(documentDocumentDetail(d));
+        dateDocumentDocumentDetailLog(l) <- dateDocument(documentDocumentDetail(d));
+        typeDocumentDocumentDetailLog(l) <- objectClassName(documentDocumentDetail(d));
+        skuDocumentDetailLog(l) <- skuDocumentDetail(d);
+        quantityDocumentDetailLog(l) <- quantityDocumentDetail(d);
+        priceDocumentDetailLog(l) <- priceDocumentDetail(d);
+        nameUserDocumentDetailLog(l) <- nameUser(currentUser());
+        dateTimeDocumentDetailLog(l) <- currentDateTime();
+        noteDocumentDetailLog(l) <- 'Изменение';
+    }
+    
+WHEN DROPPED(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+    FOR ADDOBJ l = DocumentDetailLog DO{
+        documentDocumentDetailLog(l) <- PREV(documentDocumentDetail(d));
+        indexDocumentDetailLog(l) <- PREV(indexDocumentDetail(d));
+        numberDocumentDocumentDetailLog(l) <- PREV(numberDocument(documentDocumentDetail(d)));
+        seriesDocumentDocumentDetailLog(l) <- PREV(seriesDocument(documentDocumentDetail(d)));
+        dateDocumentDocumentDetailLog(l) <- PREV(dateDocument(documentDocumentDetail(d)));
+        typeDocumentDocumentDetailLog(l) <- PREV(objectClassName(documentDocumentDetail(d)));
+        skuDocumentDetailLog(l) <- PREV(skuDocumentDetail(d));
+        quantityDocumentDetailLog(l) <- PREV(quantityDocumentDetail(d));
+        priceDocumentDetailLog(l) <- PREV(priceDocumentDetail(d));
+        nameUserDocumentDetailLog(l) <- nameUser(currentUser());
+        dateTimeDocumentDetailLog(l) <- currentDateTime();
+        noteDocumentDetailLog(l) <- 'Удаление';
+}    
+
 META defineDocumentLogForm(form, concrete)
     EXTEND FORM form
         OBJECTS dLog=DocumentLog FIXED GRID
@@ -1402,10 +1476,28 @@ META defineDocumentLogForm(form, concrete)
                       hostnameComputerDocumentLog, userLoginDocumentLog, nameContactDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
                       noteDocumentLog   
         FILTERS documentDocumentLog(dLog) == concrete
+
+        OBJECTS ddLog = DocumentDetailLog FIXED GRID
+        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY indexDocumentDetailLog, idSkuDocumentDetailLog, nameSkuDocumentDetailLog, quantityDocumentDetailLog,
+                       priceDocumentDetailLog, nameUserDocumentDetailLog, dateTimeDocumentDetailLog, noteDocumentDetailLog
+        FILTERS documentDocumentDetailLog(ddLog) == concrete
     ;
+    
     DESIGN form {
-        documentHistory {
-            ADD dLog.box;
+        documentHistory { 
+            NEW historyTabs {
+                 fill = 1;
+                 type = TABBED;
+                 NEW historyLog{
+                    caption = 'По документу';
+                    type = CONTAINERV;
+                    ADD dLog.box;
+                 }
+                 NEW detailLog{
+                     caption = 'По строкам';
+                     ADD ddLog.box;
+                 }
+            }
         }    
     }   
 END
@@ -1415,11 +1507,20 @@ FORM documentLogs 'Журнал изменения документов'
     PROPERTIES(d) READONLY numberDocumentDocumentLog, seriesDocumentDocumentLog, dateDocumentDocumentLog, typeDocumentDocumentLog,
                   hostnameComputerDocumentLog, userLoginDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
                   noteDocumentLog
+                  
+    OBJECTS l = DocumentDetailLog
+    PROPERTIES (l) READONLY seriesDocumentDocumentDetailLog, numberDocumentDocumentDetailLog, dateDocumentDocumentDetailLog,typeDocumentDocumentDetailLog, 
+                   indexDocumentDetailLog, idSkuDocumentDetailLog, nameSkuDocumentDetailLog, quantityDocumentDetailLog, priceDocumentDetailLog, 
+                   nameUserDocumentDetailLog, dateTimeDocumentDetailLog, noteDocumentDetailLog
+    FILTERGROUP documents
+        FILTER 'Фильтр по документу' documentDocumentLog(d) == documentDocumentDetailLog(l) 'F10' DEFAULT
+        FILTER 'Фильтр по номеру документа' numberDocumentDocumentLog(d) == numberDocumentDocumentDetailLog(l) 'F11'
 ;
 
 DESIGN documentLogs {
     main {
         ADD d.box;
+        ADD l.box;
         ADD functions.box;        
     }
 }
