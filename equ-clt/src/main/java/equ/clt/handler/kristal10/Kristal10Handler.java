@@ -457,9 +457,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     throw Throwables.propagate(new RuntimeException(error));
                 }
                 if(stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
-                    String error = "Kristal: Error! End DateTime not specified for stopList " + stopListInfo.number;
-                    processStopListLogger.error(error);
-                    throw Throwables.propagate(new RuntimeException(error));
+                    stopListInfo.dateTo = new Date(2040 - 1900, 0, 1);
+                    stopListInfo.timeTo = new Time(0, 0, 0);
+//                    String error = "Kristal: Error! End DateTime not specified for stopList " + stopListInfo.number;
+//                    processStopListLogger.error(error);
+//                    throw Throwables.propagate(new RuntimeException(error));
                 }
                 addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom));
                 addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo));
