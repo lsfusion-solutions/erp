@@ -42,6 +42,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
                 if(zReportNlibLM != null)
                     name = (String) zReportNlibLM.findProperty("shortNameSkuReceiptDetail").read(session, receiptDetailObject);
                 name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
+                name = name == null ? "" : name;
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
                 BigDecimal priceValue = (BigDecimal) findProperty("priceReceiptDetail").read(session, receiptDetailObject);
