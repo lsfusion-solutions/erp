@@ -128,8 +128,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             if (item.passScalesItem)
                                 productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
                             else
-                                productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceEntity";
+                                productType = "ProductPieceEntity";
                             addStringElement(good, "product-type", productType);
+
+                            if(item.splitItem && !item.passScalesItem) {
+                                Element pluginProperty = new Element("plugin-property");
+                                setAttribute(pluginProperty, "key", "precision");
+                                setAttribute(pluginProperty, "value", "0.001");
+                                good.addContent(pluginProperty);
+                            }
 
                             //parent: good
                             Element priceEntry = new Element("price-entry");
