@@ -793,13 +793,14 @@ fillPriceProductsOrder 'Заполнить цены для изделий' = ACT
     }
 } TOOLBAR;
 
-calcQuantutyComponentsProductDetail 'Кол-во компонентов' (productDetail) = [ = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d)](BOMProduct(productProductDetail(productDetail)), orderProductDetail(productDetail));
+calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityProductDetail(d) BY BOMProduct(productProductDetail(d)), orderProductDetail(d);
+calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProduct(productProductDetail(detail)), orderProductDetail(detail));
             
-calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantutyComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
+calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantityComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
     / ((quantityProductDetail(productDetail) IF quantityProductDetail(productDetail)!=0)*100);  
      
 calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[8,5]) * quantityProductDetail(productDetail)*100 
-    /(calcQuantutyComponentsProductDetail(productDetail) IF calcQuantutyComponentsProductDetail(productDetail)!= 0);     
+    /(calcQuantityComponentsProductDetail(productDetail) IF calcQuantityComponentsProductDetail(productDetail)!= 0);     
     
 changePriceCoeffProductDetail = ACTION (detail) {
     REQUEST NUMERIC[8,5] INPUT;
