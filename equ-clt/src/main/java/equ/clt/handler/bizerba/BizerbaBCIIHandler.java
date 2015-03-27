@@ -5,6 +5,7 @@ import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesSettings;
 import equ.api.scales.TransactionScalesInfo;
 import lsfusion.base.OrderedMap;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -32,7 +33,16 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "bizerbabcii";
+
+        ScalesSettings bizerbaSettings = (ScalesSettings) springContext.getBean("bizerbaSettings");
+        boolean allowParallel = bizerbaSettings == null || bizerbaSettings.isAllowParallel();
+        if (allowParallel) {
+            String groupId = "";
+            for (MachineryInfo scales : transactionInfo.machineryInfoList) {
+                groupId += scales.port + ";";
+            }
+            return "bizerbabcii" + groupId;
+        } else return "bizerbabcii";
     }
 
     @Override
