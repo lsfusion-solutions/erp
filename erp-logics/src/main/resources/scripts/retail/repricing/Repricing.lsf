@@ -601,7 +601,19 @@ editRepricing(p) += ACTION editUserRepricing(p);
 
 isUserOpenedRepricing(p)=  isOpenedRepricing(p) AND isUserRepricing(p);
 
+filterRepricingDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFromRepricing (i) = dateRepricing(i) >= filterRepricingDateFrom() OR (i IS Repricing AND NOT filterRepricingDateFrom());      
+
+filterRepricingDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateToRepricing (i) = dateRepricing(i) <= filterRepricingDateTo() OR (i IS Repricing AND NOT filterRepricingDateTo());      
+
+filterRepricingStore = DATA LOCAL Store ();
+nameFilterRepricingStore 'Магазин' = nameStore(filterRepricingStore()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterStoreRepricing (i) = storeDepartmentStore(departmentStoreRepricing(i)) == filterRepricingStore() OR (i IS Repricing AND NOT filterRepricingStore());      
+
 FORM repricings 'Акты переоценки' 
+    PROPERTIES() filterRepricingDateFrom, filterRepricingDateTo, nameFilterRepricingStore
+
     OBJECTS p = Repricing LAST
     PROPERTIES (p) READONLYIF isReadonly() isClosedRepricing, isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
                nameDepartmentStoreRepricing
@@ -636,6 +648,9 @@ FORM repricings 'Акты переоценки'
                retailPriceRepricingDetail, retailSumRepricingDetail
 
     FILTERS repricingRepricingDetail(d) == p
+    FILTERS filterDateFromRepricing(p), 
+            filterDateToRepricing(p),
+            filterStoreRepricing(p)
 
     DIALOG Repricing OBJECT p
 ;
@@ -645,10 +660,20 @@ DESIGN repricings {
     NEW pane {
         fill = 1;
         type = SPLITV;
-
-        ADD p.box {
+        NEW filtersBox {                       
             fill = 2;
-        }
+            NEW topFilters {
+                caption = 'Фильтры';
+                type = CONTAINERH;          
+                ADD PROPERTY(filterRepricingDateFrom());
+                ADD PROPERTY(filterRepricingDateTo());
+                ADD PROPERTY(nameFilterRepricingStore());
+                
+            }
+            ADD p.box {
+                fill = 1;
+            }
+        } 
 
         NEW documentDetail {
             fill = 1;
