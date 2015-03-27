@@ -119,61 +119,7 @@ FORM costCardOrderBy 'Калькуляционная карта'
     FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
 ;
 printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
-
-batchComponentDetail = DATA Batch (ComponentDetail);
-nameBatchComponentDetail 'Партия' (d) = nameBatch(batchComponentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-
-changeBatchComponentDetail = ACTION (d) {
-    FORM dialogBatchStock OBJECTS st = componentsStockComponentDetail(d),
-                             t = dateTimeComponentDetail(d),
-                             sk = skuComponentDetail(d) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        batchComponentDetail(d) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        batchComponentDetail(d) <- NULL;
-    }
-}
-EXTEND FORM order
-    PROPERTIES (cd) nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd) AFTER bruttoNameSkuComponentDetail(cd)
-;
-EXTEND FORM orders
-    PROPERTIES (cd) READONLY nameBatchComponentDetail AFTER bruttoNameSkuComponentDetail(cd)
-;
-
-calcBatchComponentDetail(d) = prevLastOrderBatchSkuStock(skuComponentDetail(d), componentsStockComponentDetail(d));
-
-TABLE batchOrder(Batch, Order);
-// цены по партии
-dataBruttoPriceBatchOrder 'Цена' = DATA NUMERIC[14,2] (Batch, Order);
-costBatchOrder 'Себестоимость' = DATA NUMERIC[14,2] (Batch, Order);
-
-quantityComponentDetailBatchOrder 'Кол-во (всего) (компонент)' (batch, order) = 
-    GROUP SUM quantityComponentDetail(idetail) BY batchComponentDetail(idetail), orderComponentDetail(idetail) IN documentSum PERSISTENT;
-
-dataBruttoPriceBatchOrder (batch, order) <- prevPriceBPriceListTypeBatchStockDateTime(priceListTypeOrder(order),
-                                                                                batch,
-                                                                                componentsStockOrder(order),
-                                                                                dateTimeOrder(order)) IF quantityComponentDetailBatchOrder(batch, order)
-    WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) 
-      OR CHANGED(quantityComponentDetailBatchOrder(batch, order));
-
-calcCostBatchStock 'Себестоимость' (batch, stock) = costBatch(batch)*currentBalanceBatchStock(batch,stock) /
-    (currentBalanceBatchStock(batch, stock) IF currentBalanceBatchStock(batch, stock) != 0);   
-
-costBatchOrder (batch, order) <- calcCostBatchStock(batch, componentsStockOrder(order)) IF quantityComponentDetailBatchOrder(batch, order)
-    WHEN CHANGED (quantityComponentDetailSkuOrder(skuBatch(batch), order)) OR CHANGED (componentsStockOrder(order)) OR CHANGED(quantityComponentDetailBatchOrder(batch, order)); 
-
-overCalcPriceComponentDetail(detail) += dataBruttoPriceBatchOrder(batchComponentDetail(detail), orderComponentDetail(detail));
-overCalcCostComponentDetail(detail) += costBatchOrder(batchComponentDetail(detail), orderComponentDetail(detail));
-
-WHEN SESSION FORMS order 
-    CHANGED(skuComponentDetail(cd)) OR CHANGED (componentsStockComponentDetail(cd)) DO {
-        batchComponentDetail (cd) <- calcBatchComponentDetail(cd);
-    }
-CONSTRAINT skuBatch(batchComponentDetail(cd)) != skuComponentDetail(cd) CHECKED BY batchComponentDetail
-    MESSAGE 'Товар партии строки компонента должен соответствовать SKU строки строки компонента для производственного заказа';    
-   
+  
 seriesNumberBatchComponentDetail 'Серия/номер накладной' (b) = Purchase.seriesNumberInvoiceDetail(invoiceDetailBatch(batchComponentDetail(b)));
 dateBatchComponentDetail 'Дата накладной' (b) = Purchase.dateInvoiceDetail(invoiceDetailBatch(batchComponentDetail(b)));
 fullNameSupplierBatchComponentDetail 'Поставщик' (b) = fullNameSupplierBatch(batchComponentDetail(b));

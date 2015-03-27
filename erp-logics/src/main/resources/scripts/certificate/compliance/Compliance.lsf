@@ -142,10 +142,38 @@ DESIGN compliance {
     }
 }
 
+overCompliance = ABSTRACT ACTION LIST (Compliance, Compliance);
+overCopyComplianceDetail = ABSTRACT ACTION LIST (ExtraPageComplianceDetail, ExtraPageComplianceDetail);
+    
+copyCompliance 'Копировать' = ACTION (compliance) NEWSESSION {
+    FOR ADDOBJ c = Compliance DO {
+        fromDateCompliance(c) <- fromDateCompliance(compliance);
+        toDateCompliance(c) <- toDateCompliance(compliance);
+        legalEntityCompliance(c) <- legalEntityCompliance(compliance);
+        textCompliance(c) <- textCompliance(compliance);
+        imageCompliance(c) <- imageCompliance(compliance);
+        
+        overCompliance(compliance, c);
+
+        FOR complianceExtraPageComplianceDetail(detail) == compliance DO {
+            FOR ADDOBJ d=ExtraPageComplianceDetail DO {
+                complianceExtraPageComplianceDetail(d) <- c;
+                imageExtraPageComplianceDetail(d) <- imageExtraPageComplianceDetail(detail);
+
+                
+                overCopyComplianceDetail(d, detail);
+            }
+        }
+
+        FORM compliance OBJECTS c = c MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
 FORM compliances 'Сертификаты соответствия'
     OBJECTS c = Compliance
     PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
                            nameLegalEntityCompliance
+    PROPERTIES(c) copyCompliance
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Compliance OBJECT c
