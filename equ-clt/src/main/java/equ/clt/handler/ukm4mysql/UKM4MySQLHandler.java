@@ -4,6 +4,8 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
 import org.apache.commons.lang.time.DateUtils;
+import org.apache.log4j.Logger;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
@@ -18,9 +20,13 @@ import java.util.*;
 
 public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     String defaultCharset = "Cp1251";
 
-    public UKM4MySQLHandler() {
+    private FileSystemXmlApplicationContext springContext;
+
+    public UKM4MySQLHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
@@ -36,39 +42,46 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
             Class.forName("com.mysql.jdbc.Driver");
 
-            for (TransactionCashRegisterInfo transaction : transactionList) {
+            UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/import"
+            String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
+            String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
-                String user = "luxsoft";
-                String pass = "123456";
+            if(connectionString == null) {
+                processTransactionLogger.info("No ukm4MySQLSettings found");
+            } else {
 
-                Connection conn = DriverManager.getConnection("jdbc:mysql://172.16.0.35/import", user, pass);
+                for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                Exception exception = null;
-                try {
+                    Connection conn = DriverManager.getConnection(connectionString, user, password);
 
-                    int version = getVersion(conn);
+                    Exception exception = null;
+                    try {
 
-                    exportClassif(conn, transaction, version);
+                        int version = getVersion(conn);
 
-                    exportItems(conn, transaction, version);
+                        exportClassif(conn, transaction, version);
 
-                    exportPriceList(conn, transaction, version);
+                        exportItems(conn, transaction, version);
 
-                    exportPriceListItems(conn, transaction, version);
+                        exportPriceList(conn, transaction, version);
 
-                    exportPriceListVar(conn, transaction, version);
+                        exportPriceListItems(conn, transaction, version);
 
-                    exportVar(conn, transaction, version);
+                        exportPriceListVar(conn, transaction, version);
 
-                    exportSignals(conn, transaction, version);
+                        exportVar(conn, transaction, version);
 
-                } catch (Exception e) {
-                    exception = e;
-                } finally {
-                    if (conn != null)
-                        conn.close();
+                        exportSignals(conn, transaction, version);
+
+                    } catch (Exception e) {
+                        exception = e;
+                    } finally {
+                        if (conn != null)
+                            conn.close();
+                    }
+                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                 }
-                sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
             }
         } catch (ClassNotFoundException e) {
             throw Throwables.propagate(e);
