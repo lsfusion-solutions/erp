@@ -163,7 +163,12 @@ overShipmentPriceUserInvoiceDetail(detail) += WHEN customerStockUserInvoiceDetai
 overCostPriceShipmentDetail(detail) += costPriceInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail)) IF customerStockShipmentDetail(detail) IS DepartmentStore AND NOT costLedgerDepartmentStore(customerStockShipmentDetail(detail)); 
 
 // Проставляем НДС розничный, равный НДС входному
-retailVATUserInvoiceDetail (detail) <- VATUserInvoiceDetail(detail) WHEN CHANGED(VATUserInvoiceDetail(detail));
+WHEN SESSION CHANGED(VATUserInvoiceDetail(detail)) OR CHANGED(valueVATUserInvoiceDetail(detail)) DO {
+    retailVATUserInvoiceDetail(detail) <- IF valueVATUserInvoiceDetail(detail) == 0 THEN
+                                               OVERRIDE VATSkuCountry (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail))),
+                                                        overVATUserInvoiceDetail(detail)
+                                          ELSE VATUserInvoiceDetail(detail);
+}
 
 // Добавляем на форму цену розничную (до)
 retailPriceBUserInvoiceDetail 'Розничная цена (до)' (d) = prevRetailPricingPriceBSkuStockDateTime(skuUserInvoiceDetail(d), customerStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
