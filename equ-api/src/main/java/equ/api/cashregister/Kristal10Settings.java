@@ -16,28 +16,28 @@ public class Kristal10Settings implements Serializable{
         this.brandIsManufacturer = brandIsManufacturer;
     }
 
-    public boolean getBrandIsManufacturer() {
-        return brandIsManufacturer != null && brandIsManufacturer;
+    public Boolean getBrandIsManufacturer() {
+        return brandIsManufacturer;
     }
 
     public void setSeasonIsCountry(Boolean seasonIsCountry) {
         this.seasonIsCountry = seasonIsCountry;
     }
 
-    public boolean getSeasonIsCountry() {
-        return seasonIsCountry != null && seasonIsCountry;
+    public Boolean getSeasonIsCountry() {
+        return seasonIsCountry;
     }
 
-    public boolean isIdItemInMarkingOfTheGood() {
-        return idItemInMarkingOfTheGood != null && idItemInMarkingOfTheGood;
+    public Boolean isIdItemInMarkingOfTheGood() {
+        return idItemInMarkingOfTheGood;
     }
 
     public void setIdItemInMarkingOfTheGood(Boolean idItemInMarkingOfTheGood) {
         this.idItemInMarkingOfTheGood = idItemInMarkingOfTheGood;
     }
 
-    public boolean getUseShopIndices() {
-        return useShopIndices != null && useShopIndices;
+    public Boolean getUseShopIndices() {
+        return useShopIndices;
     }
 
     public void setUseShopIndices(Boolean useShopIndices) {
