@@ -58,11 +58,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                 processTransactionLogger.info("Kristal: Send Transaction # " + transaction.id);
 
-                Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
-                boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
-                boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
-                boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-                boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+                boolean brandIsManufacturer = kristalSettings != null && kristalSettings.getBrandIsManufacturer();
+                boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry();
+                boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood();
+                boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices();
 
                 List<String> directoriesList = new ArrayList<String>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -422,9 +422,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
-        Kristal10Settings kristalSettings = (Kristal10Settings) springContext.getBean("kristal10Settings");
-        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices();
+        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood();
 
         for (String directory : directorySet) {
 

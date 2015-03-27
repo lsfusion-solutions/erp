@@ -77,8 +77,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
-                DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
-                boolean useIdItem = kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
+                DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+                boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem();
 
                 List<String> directoriesList = new ArrayList<String>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
@@ -374,39 +374,43 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         sendSalesLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
-        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
 
         Map<String, Timestamp> result = new HashMap<String, Timestamp>();
         //result.put("888888", new Timestamp(Calendar.getInstance().getTime().getTime()));
         //return result;
 
-        for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
-            Connection conn = null;
-            try {
+        if(kristalSettings == null) {
+            sendSalesLogger.error("No kristalSettings found");
+        } else {
+            for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
+                Connection conn = null;
+                try {
 
-                String sqlHost = sqlHostEntry.getValue();
-                sendSalesLogger.info("Kristal: connection to " + sqlHost);
+                    String sqlHost = sqlHostEntry.getValue();
+                    sendSalesLogger.info("Kristal: connection to " + sqlHost);
 
-                String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                conn = DriverManager.getConnection(url);
-                Statement statement = conn.createStatement();
-                String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE PayState='1' AND StatusNotUsed='1'";
-                ResultSet rs = statement.executeQuery(queryString);
-                int count = 0;
-                while (rs.next()) {
-                    result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
-                    count++;
+                    String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                            sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    conn = DriverManager.getConnection(url);
+                    Statement statement = conn.createStatement();
+                    String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE PayState='1' AND StatusNotUsed='1'";
+                    ResultSet rs = statement.executeQuery(queryString);
+                    int count = 0;
+                    while (rs.next()) {
+                        result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
+                        count++;
+                    }
+
+                    sendSalesLogger.info("Kristal: found " + count + " SoftCheckInfo");
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (conn != null)
+                        conn.close();
                 }
-
-                sendSalesLogger.info("Kristal: found " + count + " SoftCheckInfo");
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
-                if (conn != null)
-                    conn.close();
             }
         }
         return result;
@@ -416,60 +420,64 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
         List<List<Object>> result = new ArrayList<List<Object>>();
         
-        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        if(kristalSettings == null) {
+            requestExchangeLogger.error("No kristalSettings found");
+        } else {
 
-        for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
-            String dir = trim(sqlHostEntry.getKey());
-            String host = trim(sqlHostEntry.getValue());
-            
-            Connection conn = null;
-            try {
+            for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
+                String dir = trim(sqlHostEntry.getKey());
+                String host = trim(sqlHostEntry.getValue());
 
-                String nppCashRegisters = "";
-                for (List<Object> cashRegisterEntry : cashRegisterList) {
-                    Integer nppCashRegister = cashRegisterEntry.size() >= 1 ? (Integer) cashRegisterEntry.get(0) : null;
-                    String directory = cashRegisterEntry.size() >= 2 ? (String) cashRegisterEntry.get(1) : null;
-                    if (directory != null && directory.contains(dir) || dir.equals(host)) //dir.equals(host) - old host format, without dir
-                        nppCashRegisters += nppCashRegister + ",";
-                }
-                nppCashRegisters = nppCashRegisters.isEmpty() ? nppCashRegisters : nppCashRegisters.substring(0, nppCashRegisters.length() - 1);
-                if (!nppCashRegisters.isEmpty()) {
-                    requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + nppCashRegisters);
+                Connection conn = null;
+                try {
 
-                    String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                            host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                    conn = DriverManager.getConnection(url);
-                    Statement statement = conn.createStatement();
-                    String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + nppCashRegisters + ")";
-                    ResultSet rs = statement.executeQuery(queryString);
-                    while (rs.next()) {
-                        String numberZReport = String.valueOf(rs.getInt(1));
-                        Integer nppCashRegister = rs.getInt(2);
-                        String key = numberZReport + "/" + nppCashRegister;
-                        if (zReportSumMap.containsKey(key)) {
-                            List<Object> fusionEntry = zReportSumMap.get(key);
-                            BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
-                            Date fusionDate = (Date) fusionEntry.get(1);
-                            double kristalSum = rs.getDouble(3);
-                            Date kristalDate = rs.getDate(4);
-                            if (fusionSum == null || fusionSum.doubleValue() != kristalSum) {
-                                if(kristalDate.compareTo(fusionDate) == 0) {
-                                    result.add(Arrays.asList((Object) nppCashRegister,
-                                            String.format("ZReport %s (%s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, kristalDate, fusionSum, kristalSum)));
-                                    requestExchangeLogger.error(String.format("%s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nppCashRegister, numberZReport, fusionSum, kristalSum));
-                                } else {
-                                    requestExchangeLogger.error(String.format("Not equal dates for CashRegister %s, ZReport %s (%s(fusion) and %s (kristal);", nppCashRegister, numberZReport, fusionDate, kristalDate));
+                    String nppCashRegisters = "";
+                    for (List<Object> cashRegisterEntry : cashRegisterList) {
+                        Integer nppCashRegister = cashRegisterEntry.size() >= 1 ? (Integer) cashRegisterEntry.get(0) : null;
+                        String directory = cashRegisterEntry.size() >= 2 ? (String) cashRegisterEntry.get(1) : null;
+                        if (directory != null && directory.contains(dir) || dir.equals(host)) //dir.equals(host) - old host format, without dir
+                            nppCashRegisters += nppCashRegister + ",";
+                    }
+                    nppCashRegisters = nppCashRegisters.isEmpty() ? nppCashRegisters : nppCashRegisters.substring(0, nppCashRegisters.length() - 1);
+                    if (!nppCashRegisters.isEmpty()) {
+                        requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + nppCashRegisters);
+
+                        String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                                host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                        conn = DriverManager.getConnection(url);
+                        Statement statement = conn.createStatement();
+                        String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + nppCashRegisters + ")";
+                        ResultSet rs = statement.executeQuery(queryString);
+                        while (rs.next()) {
+                            String numberZReport = String.valueOf(rs.getInt(1));
+                            Integer nppCashRegister = rs.getInt(2);
+                            String key = numberZReport + "/" + nppCashRegister;
+                            if (zReportSumMap.containsKey(key)) {
+                                List<Object> fusionEntry = zReportSumMap.get(key);
+                                BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
+                                Date fusionDate = (Date) fusionEntry.get(1);
+                                double kristalSum = rs.getDouble(3);
+                                Date kristalDate = rs.getDate(4);
+                                if (fusionSum == null || fusionSum.doubleValue() != kristalSum) {
+                                    if (kristalDate.compareTo(fusionDate) == 0) {
+                                        result.add(Arrays.asList((Object) nppCashRegister,
+                                                String.format("ZReport %s (%s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, kristalDate, fusionSum, kristalSum)));
+                                        requestExchangeLogger.error(String.format("%s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nppCashRegister, numberZReport, fusionSum, kristalSum));
+                                    } else {
+                                        requestExchangeLogger.error(String.format("Not equal dates for CashRegister %s, ZReport %s (%s(fusion) and %s (kristal);", nppCashRegister, numberZReport, fusionDate, kristalDate));
+                                    }
                                 }
                             }
                         }
                     }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (conn != null)
+                        conn.close();
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
-                if (conn != null)
-                    conn.close();
             }
         }
         if(result.isEmpty())
@@ -485,64 +493,68 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
-        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
-        
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+
         List<CashDocument> result = new ArrayList<CashDocument>();
 
-        for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
-            Connection conn = null;
-            try {
-
-                String dir = trim(sqlHostEntry.getKey());
-                String host = trim(sqlHostEntry.getValue());
-                
-                //Map<Integer, Integer> cashRegisterGroupCashRegisterMap = new HashMap<Integer, Integer>();
-                Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-                for (CashRegisterInfo c : cashRegisterInfoList) {
-                    //dir.equals(host) - old host format (without dir) will not work!
-                    if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) { 
-                        //cashRegisterGroupCashRegisterMap.put(c.number, c.numberGroup);
-                        directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
-                    }
-                }
-
-                String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                sendSalesLogger.info("Kristal SendSales connection: " + url);
-                
-                conn = DriverManager.getConnection(url);
-                Statement statement = conn.createStatement();
-                String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
-                ResultSet rs = statement.executeQuery(queryString);
-                while (rs.next()) {
-                    String number = rs.getString("Ck_Number");
-                    String idCashDocument = host + "/" + number;
-                    Timestamp dateTime = rs.getTimestamp("Ck_Date");
-                    Date date = new Date(dateTime.getTime());
-                    Time time = new Time(dateTime.getTime());
-                    BigDecimal sum = rs.getBigDecimal("Ck_Summa");
-                    Integer nppMachinery = rs.getInt("CashNumber");
-                    if (!cashDocumentSet.contains(idCashDocument))
-                        result.add(new CashDocument(idCashDocument, number, date, time, 
-                                directoryGroupCashRegisterMap.get(dir + "_" + nppMachinery)/*cashRegisterGroupCashRegisterMap.get(nppMachinery)*/, 
-                                nppMachinery, sum));
-                }
-            } catch (SQLException e) {
-                sendSalesLogger.error(e);
-            } finally {
+        if (kristalSettings == null) {
+            sendSalesLogger.info("No kristalSettings found");
+        } else {
+            for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
+                Connection conn = null;
                 try {
-                    if (conn != null)
-                        conn.close();
+
+                    String dir = trim(sqlHostEntry.getKey());
+                    String host = trim(sqlHostEntry.getValue());
+
+                    //Map<Integer, Integer> cashRegisterGroupCashRegisterMap = new HashMap<Integer, Integer>();
+                    Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+                    for (CashRegisterInfo c : cashRegisterInfoList) {
+                        //dir.equals(host) - old host format (without dir) will not work!
+                        if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) {
+                            //cashRegisterGroupCashRegisterMap.put(c.number, c.numberGroup);
+                            directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+                        }
+                    }
+
+                    String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                            host, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    sendSalesLogger.info("Kristal SendSales connection: " + url);
+
+                    conn = DriverManager.getConnection(url);
+                    Statement statement = conn.createStatement();
+                    String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
+                    ResultSet rs = statement.executeQuery(queryString);
+                    while (rs.next()) {
+                        String number = rs.getString("Ck_Number");
+                        String idCashDocument = host + "/" + number;
+                        Timestamp dateTime = rs.getTimestamp("Ck_Date");
+                        Date date = new Date(dateTime.getTime());
+                        Time time = new Time(dateTime.getTime());
+                        BigDecimal sum = rs.getBigDecimal("Ck_Summa");
+                        Integer nppMachinery = rs.getInt("CashNumber");
+                        if (!cashDocumentSet.contains(idCashDocument))
+                            result.add(new CashDocument(idCashDocument, number, date, time,
+                                    directoryGroupCashRegisterMap.get(dir + "_" + nppMachinery)/*cashRegisterGroupCashRegisterMap.get(nppMachinery)*/,
+                                    nppMachinery, sum));
+                    }
                 } catch (SQLException e) {
                     sendSalesLogger.error(e);
+                } finally {
+                    try {
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException e) {
+                        sendSalesLogger.error(e);
+                    }
                 }
             }
+            if (result.size() == 0)
+                sendSalesLogger.info("Kristal: no CashDocuments found");
+            else
+                sendSalesLogger.info(String.format("Kristal: found %s CashDocument(s)", result.size()));
         }
-        if (result.size() == 0)
-            sendSalesLogger.info("Kristal: no CashDocuments found");
-        else
-            sendSalesLogger.info(String.format("Kristal: found %s CashDocument(s)", result.size()));
         return new CashDocumentBatch(result, null);
     }
 
@@ -555,8 +567,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
-        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
-        boolean useIdItem = kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        boolean useIdItem = kristalSettings == null || kristalSettings.getUseIdItem();
 
         for (String directory : directorySet) {
 

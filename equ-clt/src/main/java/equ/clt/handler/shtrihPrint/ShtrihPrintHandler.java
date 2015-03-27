@@ -30,7 +30,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
         
-        ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
+        ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : null;
         boolean allowParallel = shtrihSettings == null || shtrihSettings.isAllowParallel();
         // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error   
         if (allowParallel) {
@@ -57,7 +57,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
             try {
 
                 processTransactionLogger.info("Shtrih: Reading settings...");
-                ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
+                ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : null;
                 boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.isUsePLUNumberInMessage();
                 boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.isNewLineNoSubstring();
                 boolean useSockets = shtrihSettings == null || shtrihSettings.isUseSockets();

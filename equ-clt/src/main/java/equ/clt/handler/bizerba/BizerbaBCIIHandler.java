@@ -34,7 +34,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
 
-        ScalesSettings bizerbaSettings = (ScalesSettings) springContext.getBean("bizerbaSettings");
+        ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
         boolean allowParallel = bizerbaSettings == null || bizerbaSettings.isAllowParallel();
         if (allowParallel) {
             String groupId = "";
