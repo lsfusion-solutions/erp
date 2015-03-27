@@ -48,7 +48,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
             if(connectionString == null) {
-                processTransactionLogger.info("No ukm4MySQLSettings found");
+                processTransactionLogger.error("No ukm4MySQLSettings found");
             } else {
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
