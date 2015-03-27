@@ -78,7 +78,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
                 DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
-                boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem();
+                boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
 
                 List<String> directoriesList = new ArrayList<String>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
@@ -568,7 +568,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
-        boolean useIdItem = kristalSettings == null || kristalSettings.getUseIdItem();
+        boolean useIdItem = kristalSettings == null || kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
 
         for (String directory : directorySet) {
 
