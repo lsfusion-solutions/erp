@@ -14,6 +14,49 @@ TABLE stockGroupStockGroup(StockGroup, StockGroup);
 
 @defineHierarchyPlain(stockGroup);
 
+FORM stockGroups 'Группы складов'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS g = StockGroup
+    PROPERTIES(g) READONLY nameStockGroup
+    ORDER BY nameStockGroup(g)
+    FILTERS isParentStockGroupStockGroup(g, sg) OR (g IS StockGroup AND NOT sg)
+
+    DIALOG StockGroup OBJECT g
+;
+
+DESIGN stockGroups {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD g.box {
+                fill = 2;
+                g.grid {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(nameStockGroup(g)){
+                    minimumCharWidth = 35;
+                    preferredCharWidth = 35;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+
 CLASS ABSTRACT Stock 'Склад';
 TABLE stock(Stock);
 TABLE stockDate(Stock, DATE);

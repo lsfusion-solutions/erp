@@ -153,7 +153,12 @@ fullNameStock(stock) += (OVERRIDE nameDepartmentStore(stock), fullNameDepartment
 
 storeDepartmentStore = DATA Store (DepartmentStore) INDEXED AUTOSET NOT NULL DELETE;
 nameStoreDepartmentStore 'Магазин' (departmentStore) = nameStore(storeDepartmentStore(departmentStore)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
-stockGroupStock (departmentStore) += storeDepartmentStore(departmentStore);
+dataStockGroupDepartmentStore = DATA StockGroup (DepartmentStore);
+nameDataStockGroupDepartmentStore = nameStockGroup(dataStockGroupDepartmentStore(d));
+stockGroupDepartmentStore = OVERRIDE storeDepartmentStore(departmentStore), dataStockGroupDepartmentStore(departmentStore);
+nameStockGroupDepartmentStore 'Группа складов' = nameStockGroup(stockGroupDepartmentStore(d)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+stockGroupStock (departmentStore) += OVERRIDE storeDepartmentStore(departmentStore), dataStockGroupDepartmentStore(departmentStore);
 
 inStoreDepartment(store, departmentStore) = storeDepartmentStore(departmentStore) == store;
 
@@ -220,7 +225,7 @@ CONSTRAINT chairmanStore(store) AND NOT inStoreEmployee(store, chairmanStore(sto
 
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDep=nameDepartmentStore, fullNameDepartmentStore, nameStoreDepartmentStore, tradingSquareDepartmentStore,
+    PROPERTIES(d) nameDep=nameDepartmentStore, fullNameDepartmentStore, nameStoreDepartmentStore, nameStockGroupDepartmentStore, tradingSquareDepartmentStore,
                   numberCashAccountDepartmentStore SHOWIF isCompanyStock(d), quantityDaysCloseDepartmentStore SHOWIF isCompanyStock(d),
                   idDepartmentStore SHOWIF showIDs(), inactiveDepartmentStore
 
@@ -246,6 +251,7 @@ DESIGN departmentStore {
                     ADD PROPERTY(fullNameDepartmentStore(d));
                     ADD PROPERTY(idDepartmentStore(d));
                     ADD PROPERTY(nameStoreDepartmentStore(d));
+                    ADD PROPERTY(nameStockGroupDepartmentStore(d));
                     ADD PROPERTY(tradingSquareDepartmentStore(d));
                     ADD PROPERTY(inactiveDepartmentStore(d)); 
                 }
