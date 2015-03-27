@@ -32,7 +32,7 @@ public class DBSettings implements Serializable{
         this.useIdItem = useIdItem;
     }
 
-    public boolean getUseIdItem() {
-        return useIdItem != null && useIdItem;
+    public Boolean getUseIdItem() {
+        return useIdItem;
     }
 }
