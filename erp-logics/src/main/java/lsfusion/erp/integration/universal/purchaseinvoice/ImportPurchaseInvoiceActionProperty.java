@@ -66,13 +66,14 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             ObjectValue importTypeObject = findProperty("importTypeUserInvoice").readClasses(session, userInvoiceObject);
 
-            if (!(importTypeObject instanceof NullValue)) {
+            if (importTypeObject instanceof DataObject) {
 
                 ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = findProperty("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = findProperty("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerObject = findProperty("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = findProperty("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
+                boolean checkInvoiceExistence = findProperty("autoImportCheckInvoiceExistenceImportType").read(session, (DataObject) importTypeObject) != null;
 
                 String staticCaptionImportType = trim((String) findProperty("staticCaptionImportTypeDetailImportType").read(session, importTypeObject));
                 String nameFieldImportType = trim((String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject));
@@ -80,7 +81,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 String staticNameImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
                 List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
-                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, false);
+                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
 
                 ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = importSettings.getFileExtension();
@@ -95,7 +96,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         for (byte[] file : fileList) {
 
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
-                                    userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, false,
+                                    userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, checkInvoiceExistence,
                                     file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
 
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1)
@@ -740,7 +741,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                         primaryList.add(purchaseInvoiceDetail);
                     else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
-                        primaryList.add(purchaseInvoiceDetail);
+                        secondaryList.add(purchaseInvoiceDetail);
                 }
             }
             currentTimestamp = null;
