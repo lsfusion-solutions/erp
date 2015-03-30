@@ -6,10 +6,8 @@ import equ.api.SalesInfo;
 import java.util.List;
 
 public class UKM4MySQLSalesBatch extends SalesBatch {
-    public List<String> readFiles;
 
-    public UKM4MySQLSalesBatch(List<SalesInfo> salesInfoList, List<String> readFiles) {
+    public UKM4MySQLSalesBatch(List<SalesInfo> salesInfoList) {
         this.salesInfoList = salesInfoList;
-        this.readFiles = readFiles;
     }
 }

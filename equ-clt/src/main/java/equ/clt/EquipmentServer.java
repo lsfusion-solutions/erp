@@ -733,6 +733,7 @@ public class EquipmentServer {
             try {
                 remote.errorTransactionReport(idTransactionInfo, e);
             } catch (Exception ignored) {
+                errorEquipmentServerReport(ignored);
             }
         }
 
