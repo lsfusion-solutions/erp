@@ -4,19 +4,28 @@ import java.io.Serializable;
 
 public class UKM4MySQLSettings implements Serializable{
 
-    private String connectionString;
+    private String importConnectionString;
+    private String exportConnectionString;
     private String user;
     private String password;
 
     public UKM4MySQLSettings() {
     }
 
-    public String getConnectionString() {
-        return connectionString;
+    public String getImportConnectionString() {
+        return importConnectionString;
     }
 
-    public void setConnectionString(String connectionString) {
-        this.connectionString = connectionString;
+    public void setImportConnectionString(String importConnectionString) {
+        this.importConnectionString = importConnectionString;
+    }
+
+    public String getExportConnectionString() {
+        return exportConnectionString;
+    }
+
+    public void setExportConnectionString(String exportConnectionString) {
+        this.exportConnectionString = exportConnectionString;
     }
 
     public String getUser() {

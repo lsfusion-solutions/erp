@@ -344,7 +344,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
                     Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberGroupCashRegister").read(session, groupMachineryObject);
                     String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idDepartmentStoreGroupCashRegister").read(session, groupMachineryObject);
-                    
+                    String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCodeGroupCashRegister").read(session, groupMachineryObject);
+                    String weightCodeGroupCashRegister = (String) cashRegisterLM.findProperty("weightCodeGroupCashRegister").read(session, groupMachineryObject);
+
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
                     KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
                     ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
@@ -370,7 +372,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery, 
                                 handlerModelGroupMachinery, portMachinery, directoryCashRegister, startDateGroupCashRegister, 
-                                overDepartmentNumberGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister));
+                                overDepartmentNumberGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister,
+                                pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
@@ -1173,7 +1176,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryMachinery"), null, (Integer) row.get("overDepartmentNumberGroupCashRegister"), false, null));
+                            (String) row.get("overDirectoryMachinery"), null, (Integer) row.get("overDepartmentNumberGroupCashRegister"), false, null, null, null));
                 }
             }
             return cashRegisterInfoList;

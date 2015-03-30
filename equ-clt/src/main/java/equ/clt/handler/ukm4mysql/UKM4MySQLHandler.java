@@ -38,7 +38,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             Class.forName("com.mysql.jdbc.Driver");
 
             UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/import"
+            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
             String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
@@ -48,6 +48,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
+                    //временно, пока не появится groupMachineryInfo для transaction
+                    String weightCode = transaction.machineryInfoList.isEmpty() ? null : transaction.machineryInfoList.get(0).weightCodeGroupCashRegister;
+
                     Connection conn = DriverManager.getConnection(connectionString, user, password);
 
                     Exception exception = null;
@@ -55,23 +58,35 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                         int version = getVersion(conn);
 
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
                         exportClassif(conn, transaction, version);
 
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
                         exportItems(conn, transaction, version);
 
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
                         exportItemsStocks(conn, transaction, version);
 
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
                         exportPriceList(conn, transaction, version);
 
-                        exportPriceListItems(conn, transaction, version);
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
+                        exportPriceListVar(conn, transaction, weightCode, version);
 
-                        exportPriceListVar(conn, transaction, version);
-
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
                         exportPriceTypeStorePriceList(conn, transaction, version);
 
-                        exportVar(conn, transaction, version);
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
+                        exportVar(conn, transaction, weightCode, version);
 
-                        exportSignals(conn, transaction, version);
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                        exportSignals(conn, transaction, version, true);
+
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
+                        exportPriceListItems(conn, transaction, version + 1);
+
+                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                        exportSignals(conn, transaction, version + 1, false);
 
                     } catch (Exception e) {
                         exception = e;
@@ -259,16 +274,17 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         }
     }
 
-    private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version) throws SQLException {
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
         try {
             ps = conn.prepareStatement(
                     "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
             for (CashRegisterItemInfo item : transaction.itemsList) {
-                if(item.idBarcode != null) {
+                String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
+                if(barcode != null) {
                     ps.setInt(1, transaction.nppGroupMachinery); //pricelist
-                    ps.setString(2, trim(item.idBarcode, 40)); //var
+                    ps.setString(2, trim(barcode, 40)); //var
                     ps.setBigDecimal(3, item.price); //price
                     ps.setInt(4, version); //version
                     ps.setInt(5, 0); //deleted
@@ -309,7 +325,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         }
     }
 
-    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version) throws SQLException {
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
         try {
@@ -317,8 +333,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                             "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
             for (CashRegisterItemInfo item : transaction.itemsList) {
-                if(item.idBarcode != null && item.idItem != null) {
-                    ps.setString(1, trim(item.idBarcode, 40)); //id
+                String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
+                if(barcode != null && item.idItem != null) {
+                    ps.setString(1, trim(barcode, 40)); //id
                     ps.setString(2, trim(item.idItem, 40)); //item
                     ps.setInt(3, 1); //quantity
                     ps.setInt(4, 1); //stock
@@ -337,14 +354,14 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         }
     }
 
-    private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot) throws SQLException {
         conn.setAutoCommit(true);
         Statement statement = null;
         try {
             statement = conn.createStatement();
 
             String sql = String.format("INSERT INTO `signal` (`signal`, version) VALUES('%s', '%s') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);",
-                    transaction.snapshot ? "cumm" : "incr", version);
+                    (transaction.snapshot && !ignoreSnapshot) ? "cumm" : "incr", version);
             statement.executeUpdate(sql);
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -352,6 +369,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             if (statement != null)
                 statement.close();
         }
+    }
+
+    private String makeBarcode(String idBarcode, boolean passScalesItem, String weightCode) {
+        return idBarcode != null && idBarcode.length() == 5 && passScalesItem && weightCode != null ? (weightCode + idBarcode) : idBarcode;
     }
 
     @Override
@@ -375,14 +396,14 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
-        List<SalesInfo> salesInfoList = null;
+        /*List<SalesInfo> salesInfoList = null;
 
-        /*try {
+        try {
 
             Class.forName("com.mysql.jdbc.Driver");
 
             UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getConnectionString(); //"jdbc:mysql://172.16.0.35/import"
+            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
             String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
@@ -402,12 +423,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         conn.close();
                 }
             }
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
             throw Throwables.propagate(e);
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }*/
-        return null;//new UKM4MySQLSalesBatch(salesInfoList);
+        }
+        return new UKM4MySQLSalesBatch(salesInfoList);*/
+        return null;
 
 
 
@@ -432,10 +452,6 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 int recordDiscCount = importDiscFile.getRecordCount();
                 for (int i = 0; i < recordDiscCount; i++) {
                     importDiscFile.read();
-
-                    String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
-                    BigDecimal tempSum = discountMap.get(sid);
-                    discountMap.put(sid, safeAdd(discountSum, tempSum));
                 }
                 importDiscFile.close();
             }
@@ -447,9 +463,6 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 int recordCardCount = importCardFile.getRecordCount();
                 for (int i = 0; i < recordCardCount; i++) {
                     importCardFile.read();
-
-                    String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber;
-                    discountCardMap.put(sid, cardNumber);
                 }
                 importCardFile.close();
             }
@@ -466,10 +479,6 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                     Integer operation = getDBFIntegerFieldValue(importSailFile, "OPERATION", defaultCharset);
                     //0 - возврат cash, 1 - продажа cash, 2,4 - возврат card, 3,5 - продажа card
-
-                    BigDecimal[] tempSumReceipt = receiptNumberSumReceipt.get(receiptNumber);
-                    BigDecimal tempSum1 = tempSumReceipt != null ? tempSumReceipt[0] : null;
-                    BigDecimal tempSum2 = tempSumReceipt != null ? tempSumReceipt[1] : null;
                     receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1, (operation <= 1 ? sumReceiptDetail : null)),
                             safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
 
@@ -506,35 +515,23 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select store, cash_number, cash_id, id, global_number, local_number, type, stock_id, stock_name, " +
-                    "client, login, shift_open, date, pos, invoice_number, link_receipt, link_cash_id, amount, items_count, " +
-                    "result, footer_date, client_card_code, ext_processed from receipt";
+            String query = "select cash_id, id, global_number, local_number, type, stock_id, stock_name, " +
+                    "client, login, shift_open, date, pos from trm_out_receipt_header";
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
-                String store = rs.getString(1);
-                Integer cash_number = rs.getInt(2);
-                Integer cash_id = rs.getInt(3);
-                Integer id = rs.getInt(4);
-                Integer numberReceipt = rs.getInt(5); //global_number
-                Integer local_number = rs.getInt(6);
-                Integer receiptType = rs.getInt(7); //type
-                Integer stock_id = rs.getInt(8);
-                String stock_name = rs.getString(9);
-                String client = rs.getString(10);
-                Integer login = rs.getInt(11); //login
+                Integer cash_id = rs.getInt(1);
+                Integer id = rs.getInt(2);
+                Integer numberReceipt = rs.getInt(3); //global_number
+                Integer local_number = rs.getInt(4);
+                Integer receiptType = rs.getInt(5); //type
+                Integer stock_id = rs.getInt(6);
+                String stock_name = rs.getString(7);
+                String client = rs.getString(8);
+                Integer login = rs.getInt(9); //login
                 String idEmployee = loginMap.get(login);
-                String numberZReport = String.valueOf(rs.getInt(12)); //shift_open
-                Date date = rs.getDate(13);
-                Integer pos = rs.getInt(14);
-                String invoice_number = rs.getString(15);
-                Integer link_receipt = rs.getInt(16);
-                Integer link_cash_id = rs.getInt(17);
-                BigDecimal amount = rs.getBigDecimal(18);
-                Integer items_count = rs.getInt(19);
-                Integer result = rs.getInt(20);
-                Date footer_date = rs.getDate(21);
-                String client_card_code = rs.getString(22);
-                Integer ext_processed = rs.getInt(23);
+                String numberZReport = String.valueOf(rs.getInt(10)); //shift_open
+                Date date = rs.getDate(11);
+                Integer pos = rs.getInt(12);
 
                 Date dateReceipt = new Date(date.getTime());
                 Time timeReceipt = new Time(date.getTime());
@@ -557,11 +554,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select id, user_id from login";
+            String query = "select id, user_id from trm_out_login";
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
                 Integer id = rs.getInt(1);
-                String idEmployee = String.valueOf(rs.getInt(3));
+                String idEmployee = String.valueOf(rs.getInt(2));
 
                 loginMap.put(id, idEmployee);
             }
@@ -577,7 +574,6 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     private Map<Integer, Map<Integer, BigDecimal>> readPaymentMap(Connection conn) throws SQLException {
 
         Map<Integer, Map<Integer, BigDecimal>> paymentMap = new HashMap<Integer, Map<Integer, BigDecimal>>();
-        Map<Integer, List<Object>> loginMap = new HashMap<Integer, List<Object>>();
 
         Statement statement = null;
         try {
