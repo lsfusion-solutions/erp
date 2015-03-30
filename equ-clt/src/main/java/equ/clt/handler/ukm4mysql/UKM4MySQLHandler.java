@@ -127,7 +127,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         usedGroups.add(itemGroup.idItemGroup);
                         ps.setLong(1, parseGroup(itemGroup.idItemGroup)); //id
                         ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
-                        ps.setString(3, trim(item.nameItemGroup, 80, "")); //name
+                        ps.setString(3, trim(itemGroup.nameItemGroup, 80, "")); //name
                         ps.setInt(4, version); //version
                         ps.setInt(5, 0); //deleted
                         ps.addBatch();
@@ -159,7 +159,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 ps.setString(2, trim(item.name, 40, "")); //name
                 ps.setString(3, trim(item.description, 80, "")); //descr
                 ps.setString(4, trim(item.shortNameUOM, 40, "")); //measure
-                ps.setInt(5, 2); //measprec
+                ps.setInt(5, item.passScalesItem ? 3 : 0); //measprec
                 ps.setLong(6, parseGroup(item.idItemGroup)); //classif
                 ps.setInt(7, 1); //prop - признак товара ?
                 ps.setString(8, item.description); //summary
@@ -548,11 +548,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
             while(rs.next()) {
 
-                String store = rs.getString(1);
-                Integer cash_number = rs.getInt(2);
+                Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //store
+                Integer nppMachinery = rs.getInt(2); //cash_number
                 Integer cash_id = rs.getInt(3);
                 Integer id = 	rs.getInt(4);
-                Integer receipt_header = rs.getInt(5);
+                Integer idReceipt = rs.getInt(5); //receipt_header
                 String var = rs.getString(6);
                 String item = rs.getString(7);
                 String name = rs.getString(8);
@@ -561,24 +561,34 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 BigDecimal total_quantity = rs.getBigDecimal(11);
                 BigDecimal price = rs.getBigDecimal(12);
                 BigDecimal min_price = 	rs.getBigDecimal(13);
-                Integer blocked_discount = 	rs.getInt(14);
+                Integer blocked_discount = rs.getInt(14);
                 BigDecimal total = rs.getBigDecimal(15);
-                Integer stock_id = 	rs.getInt(16);
+                Integer stock_id = rs.getInt(16);
                 String stock_name = rs.getString(17);
                 String measurement = rs.getString(18);
                 Integer measurement_precision = rs.getInt(19);
-                Integer classif = 	rs.getInt(20);
+                Integer classif = rs.getInt(20);
                 Integer type = 	rs.getInt(21);
                 Integer input = 	rs.getInt(22);
                 Integer tax = 	rs.getInt(23);
                 Integer position = 	rs.getInt(24);
                 BigDecimal remain = rs.getBigDecimal(25);
-                Integer pricelist = 	rs.getInt(26);
+                Integer pricelist = rs.getInt(26);
                 BigDecimal real_amount = rs.getBigDecimal(27);
 
 
-                /*salesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), Integer.parseInt(numberCashRegister), zNumber,
-                        receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
+                /*List<Object> receiptEntry = receiptMap.get(idReceipt);
+                String numberZReport = receiptEntry == null ? null : (String) receiptEntry.get(0);
+                Integer numberReceipt = receiptEntry == null ? null : (Integer) receiptEntry.get(1);
+                Date dateReceipt = receiptEntry == null ? null : (Date) receiptEntry.get(2);
+                Time timeReceipt = receiptEntry == null ? null : (Time) receiptEntry.get(3);
+                String idEmployee = receiptEntry == null ? null : (String) receiptEntry.get(4);
+                String firstNameContact = receiptEntry == null ? null : (String) receiptEntry.get(5);
+                String lastNameContact = receiptEntry == null ? null : (String) receiptEntry.get(6);*/
+
+                /*salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport,
+                        numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact,
+                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
                         null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                         priceReceiptDetail,
                         operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
