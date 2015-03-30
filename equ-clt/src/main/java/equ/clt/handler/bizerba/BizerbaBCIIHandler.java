@@ -100,14 +100,15 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                                 if (localErrors.isEmpty()) {
                                     for (ScalesItemInfo item : transaction.itemsList) {
                                         if (!Thread.currentThread().isInterrupted()) {
-                                            item.description = item.description == null ? "" : item.description;
-                                            item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
-                                            String clear = clearMessage(localErrors, port, scales, item, true);
-                                            if(clear.equals("0")) {
-                                                loadPLU(localErrors, port, scales, item);
-                                            } else
-                                                logError(localErrors, String.format("Bizerba: ClearMessage, Error %s", clear));
-
+                                            if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                                item.description = item.description == null ? "" : item.description;
+                                                item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
+                                                String clear = clearMessage(localErrors, port, scales, item, true);
+                                                if (clear.equals("0")) {
+                                                    loadPLU(localErrors, port, scales, item);
+                                                } else
+                                                    logError(localErrors, String.format("Bizerba: ClearMessage, Error %s", clear));
+                                            }
                                         }
                                     }
                                 }
