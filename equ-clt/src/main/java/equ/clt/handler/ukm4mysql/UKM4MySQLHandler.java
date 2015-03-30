@@ -407,7 +407,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }*/
-        return new UKM4MySQLSalesBatch(salesInfoList);
+        return null;//new UKM4MySQLSalesBatch(salesInfoList);
 
 
 
