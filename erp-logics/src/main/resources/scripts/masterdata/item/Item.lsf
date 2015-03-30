@@ -795,11 +795,9 @@ META defineObjectItemAttribute(attribute, attributeClass, identity, caption, gro
     @defineItemAttributeForm(attribute, identity, caption, group);
 END
 
-autoSetGroupAttribute 'Автоматически проставлять привязки атрибутов к группам' = DATA BOOLEAN ();
-EXTEND FORM options PROPERTIES() autoSetGroupAttribute;
+autoSetGroupAttributeUserRole 'Автоматически проставлять привязки атрибутов к группам' = DATA BOOLEAN (UserRole);
+EXTEND FORM userRole PROPERTIES(ur) autoSetGroupAttributeUserRole;
  
-DESIGN options { items { ADD PROPERTY(autoSetGroupAttribute()); } }
-
 META defineItemFilterValue(object, captionProp, o)
     TABLE object##ItemGroup (###object, ItemGroup);
       
@@ -834,7 +832,7 @@ META defineItemFilterValue(object, captionProp, o)
     countData##ItemGroup###object 'Кол-во групп' (object) = GROUP SUM 1 IF 
         dataIn###object##ItemGroup(object, itemGroup) BY object PERSISTENT;            
 
-    WHEN autoSetGroupAttribute() AND CHANGED(object##Item(item)) AND countData##ItemGroup###object(object##Item(item)) AND NOT countRec###object##ItemGroup(object##Item(item), itemGroupItem(item)) DO {
+    WHEN autoSetGroupAttributeUserRole(mainRoleCustomUser(currentUser())) AND CHANGED(object##Item(item)) AND countData##ItemGroup###object(object##Item(item)) AND NOT countRec###object##ItemGroup(object##Item(item), itemGroupItem(item)) DO {
         dataIn###object##ItemGroup(o, g) <- TRUE WHERE o == object##Item(item) AND g == itemGroupItem(item);
     }
 
