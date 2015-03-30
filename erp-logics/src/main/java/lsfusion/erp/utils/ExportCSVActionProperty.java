@@ -110,13 +110,24 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
             throw Throwables.propagate(e);
         } catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     private void exportFile(FormEntity formEntity, FormInstance formInstance, String filePath, String separator, String charset, boolean printHeader)
-            throws FileNotFoundException, UnsupportedEncodingException, SQLException, SQLHandledException {
+            throws IOException, SQLException, SQLHandledException {
         File exportFile = new File(filePath);
-        PrintWriter bw = new PrintWriter(exportFile, charset);
+
+        OutputStream os = new FileOutputStream(exportFile);
+        if (charset != null && charset.equals("UTF-8-BOM")) {
+            os.write(239);
+            os.write(187);
+            os.write(191);
+            charset = "UTF-8";
+        }
+
+        PrintWriter bw = new PrintWriter(new OutputStreamWriter(os, charset));
 
         FormData formData = formInstance.getFormData(0);
 
