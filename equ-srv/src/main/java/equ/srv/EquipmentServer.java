@@ -74,6 +74,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule legalEntityLM;
     private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
+    private ScriptingLogicsModule machineryPriceTransactionSectionLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
@@ -140,6 +141,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         legalEntityLM = getBusinessLogics().getModule("LegalEntity");
         machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
+        machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
@@ -324,6 +326,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                 }
 
+                if(machineryPriceTransactionSectionLM != null) {
+                    skuQuery.addProperty("sectionMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionSectionLM.findProperty("sectionMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                }
+
                 skuQuery.and(equLM.findProperty("inMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
@@ -391,10 +398,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
-                        
+                        String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
+
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, itemObject, description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, idBrand, nameBrand, idSeason, 
-                                nameSeason, idDepartmentStoreGroupCashRegister));
+                                nameSeason, idDepartmentStoreGroupCashRegister, section));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
@@ -716,7 +724,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     if(!handlerDirectoryMap.isEmpty()) {
                         Map<String, String> stopListItemMap = getStopListItemMap(session, stopListObject);
-                        stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo, 
+                        stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
                                 idStockSet, stopListItemMap, handlerDirectoryMap));
                     }
                     for(StopListInfo stopList : stopListInfoMap.values())

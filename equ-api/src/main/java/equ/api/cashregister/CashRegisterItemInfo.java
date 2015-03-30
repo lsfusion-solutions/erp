@@ -16,11 +16,13 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String idSeason;
     public String nameSeason;
     public String idDepartmentStore;
+    public String section;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, Integer idItemObject,
                                 String description, String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,  
-                                String idBrand, String nameBrand, String idSeason, String nameSeason, String idDepartmentStore) {
+                                String idBrand, String nameBrand, String idSeason, String nameSeason, String idDepartmentStore,
+                                String section) {
         super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags);
         this.idItemObject = idItemObject;
         this.description = description;
@@ -33,5 +35,6 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.idSeason = idSeason;
         this.nameSeason = nameSeason;
         this.idDepartmentStore = idDepartmentStore;
+        this.section = section;
     }
 }

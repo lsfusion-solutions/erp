@@ -59,6 +59,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                         exportItems(conn, transaction, version);
 
+                        exportItemsStocks(conn, transaction, version);
+
                         exportPriceList(conn, transaction, version);
 
                         exportPriceListItems(conn, transaction, version);
@@ -165,6 +167,37 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 ps.setInt(10, version); //version
                 ps.setInt(11, 0); //deleted
                 ps.addBatch();
+            }
+
+            ps.executeBatch();
+            conn.commit();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (ps != null)
+                ps.close();
+        }
+    }
+
+    private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+        conn.setAutoCommit(false);
+        PreparedStatement ps = null;
+        try {
+            ps = conn.prepareStatement(
+                    "INSERT INTO items_stocks (store, item, stock, version, deleted) VALUES (?, ?, ?, ?, ?)" +
+                            "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
+
+            for (CashRegisterItemInfo item : transaction.itemsList) {
+                if(item.section != null) {
+                    for (String stock : item.section.split(",")) {
+                        ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                        ps.setString(2, trim(item.idItem, 40, "")); //item
+                        ps.setInt(3, Integer.parseInt(stock)); //stock
+                        ps.setInt(4, version); //version
+                        ps.setInt(5, 0); //deleted
+                        ps.addBatch();
+                    }
+                }
             }
 
             ps.executeBatch();
