@@ -624,10 +624,12 @@ bruttoSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quanti
 bruttoSumComponentsBOMOrder =  GROUP SUM bruttoSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
 //premiumSumComponentsBOMSkuOrder 'Сума с надбавкой' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * premiumPriceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
+coeffbruttoSumComponentsProductDetail = overNettoNetWeightProductBOM(BOMProduct(productProductDetail(detail)))/overNettoNetWeightComponentBOM(BOMProduct(productProductDetail(detail))); 
+
 calcComponentsPriceProductDetail'Цена расчетная с/с' (productDetail)= [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order)/ 
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
     quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail);
+    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);
                     
 bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
@@ -994,7 +996,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(pd) indexProductDetail, nameSkuProductDetail,  idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
                    shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, quantityProductDetail,
                    calcComponentsPriceProductDetail READONLY, componentsPriceProductDetail ON CHANGE changeComponentsPriceProductDetail(pd),
-                   costPriceProductDetail
+                   costPriceProductDetail, coeffbruttoSumComponentsProductDetail
     PROPERTIES(pd) markupProductDetail ON CHANGE changeMarkupProductDetail(pd) BACKGROUND backgroundMarkupProductDetail(pd),
                    pricePercentProductDetail SHOWIF isPricePercentOrder(o) ON CHANGE changePricePercentProductDetail(pd), 
                    calcPriceCoeffProductDetail SHOWIF isPriceCoeffOrder(o) ON CHANGE changePriceCoeffProductDetail(pd),                   
@@ -1284,7 +1286,7 @@ FORM orders 'Производственные заказы'
                    shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, quantityProductDetail, 
                    calcComponentsPriceProductDetail, componentsPriceProductDetail, 
                    costPriceProductDetail, markupProductDetail, pricePercentProductDetail SHOWIF isPricePercentOrder(o), calcPriceCoeffProductDetail SHOWIF isPriceCoeffOrder(o),
-                   priceProductDetail, sumProductDetail
+                   priceProductDetail, sumProductDetail 
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
