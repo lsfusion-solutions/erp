@@ -1,0 +1,169 @@
+MODULE ExtraPurchaseOrderInvoiceDashboard;
+
+REQUIRE PurchaseOrderInvoiceDashboard;
+
+NAMESPACE Purchase;
+
+orderDetailInvoiceDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT;
+orderDetailUserInvoiceDetail = DATA OrderDetail (UserInvoiceDetail);
+orderDetailInvoiceDetail(d) += orderDetailUserInvoiceDetail(d);
+
+countInvoiceDetailsOrderDetail = GROUP SUM 1 BY orderDetailInvoiceDetail(id);
+backgroundInvoiceDetailsOrderDetail = RGB (212,255,212) IF d IS OrderDetail AND countInvoiceDetailsOrderDetail(d);
+performUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
+
+
+performOrderDetailUserInvoice 'Принять' = ACTION (od, invoice) {
+    FOR ADDOBJ d = UserInvoiceDetail DO {    
+        
+        userInvoiceUserInvoiceDetail(d) <- invoice;  
+        orderDetailUserInvoiceDetail(d) <- od; 
+
+        orderUserInvoiceDetail(d) <- orderOrderDetail(od);
+        skuUserInvoiceDetail(d) <- skuOrderDetail(od);
+        quantityUserInvoiceDetail (d) <- toInvoiceOrderDetail(od);
+                                
+        fillUserInvoiceDetailOrderDetail(d, od);
+        overFillUserInvoiceDetailOrderDetail(d, od);        
+        performUserInvoiceDetailOrderDetail (d,od);
+    }   
+} TOOLBAR EDITKEY 'BACK_SPACE';
+
+priceLocalOrderDetail 'Цена' = DATA LOCAL NUMERIC[14,2] (OrderDetail);
+quantityLocalOrderDetail 'Количество' = DATA LOCAL NUMERIC[14,3](OrderDetail);
+
+FORM quantityPrice 'Цена и количество'
+    OBJECTS od = OrderDetail FIXED PANEL
+    PROPERTIES (od) READONLY nameSkuOrderDetail
+    PROPERTIES (od) quantityLocalOrderDetail    
+    PROPERTIES (od) priceLocalOrderDetail
+        
+;
+DESIGN quantityPrice {
+    main {
+        ADD od.box {
+            type = CONTAINERV;
+            caption = '';
+            NEW row1 {
+                ADD PROPERTY (nameSkuOrderDetail(od)) {caption = 'Товар'; focusable = FALSE; font = 'bold 22';}
+            }
+            NEW row2 {
+                type = CONTAINERH;
+                ADD PROPERTY (quantityLocalOrderDetail(od)) {font = 'bold 22';}
+                ADD PROPERTY (priceLocalOrderDetail(od)) {font = 'bold 22';}
+            }
+        }
+        ADD functions.box;
+    }
+}
+ 
+
+correctUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
+correctLocalUserOrderDetail = ABSTRACT ACTION LIST (OrderDetail);
+
+correctOrderDetailUserInvoice 'Корректировать' = ACTION (od, invoice) {
+    quantityLocalOrderDetail(od) <- quantityOrderDetail(od);
+    priceLocalOrderDetail(od) <- priceOrderDetail(od);
+    correctLocalUserOrderDetail(od);
+    FORM quantityPrice OBJECTS od = od MODAL;
+
+    FOR ADDOBJ d = UserInvoiceDetail DO {    
+        
+        userInvoiceUserInvoiceDetail(d) <- invoice;  
+        orderDetailUserInvoiceDetail(d) <- od; 
+
+        orderUserInvoiceDetail(d) <- orderOrderDetail(od);
+        skuUserInvoiceDetail(d) <- skuOrderDetail(od);
+        quantityUserInvoiceDetail (d) <- OVERRIDE toInvoiceOrderDetail(od), quantityLocalOrderDetail(od);
+                                
+//        fillUserInvoiceDetailOrderDetail(d, od);
+        VATUserInvoiceDetail(d) <- VATOrderDetail(od);
+        valueVATUserInvoiceDetail(d) <- valueVATOrderDetail(od);
+        priceListTypeUserInvoiceDetail(d) <- priceListTypeOrderDetail(od);
+        IF NOT notFillPriceInvoiceOrderOperation(operationOrderDetail(od)) THEN {
+            priceUserInvoiceDetail(d) <- OVERRIDE priceOrderDetail(od), priceLocalOrderDetail(od);
+            invoicePriceUserInvoiceDetail (d) <- priceUserInvoiceDetail (d) * (100 + calcValueVATUserInvoiceDetail(d)) / 100;
+
+        }
+        dataCustomerStockUserInvoiceDetail(d) <- dataCustomerStockOrderDetail(od);
+
+        overFillUserInvoiceDetailOrderDetail(d, od);
+        correctUserInvoiceDetailOrderDetail (d,od);
+    }   
+} TOOLBAR EDITKEY 'F9';
+
+EXTEND FORM userInvoice
+    OBJECTS od = OrderDetail FIXED GRID
+    PROPERTIES READONLY SHOWIF countIncludeOrdersInvoice(i) BACKGROUND backgroundInvoiceDetailsOrderDetail(od) indexOrderDetail(od), idBarcodeSkuOrderDetail(od), nameSkuOrderDetail(od), shortNameUOMSkuOrderDetail(od),
+               quantityOrderDetail(od), priceOrderDetail(od), sumOrderDetail(od), invoiceSumOrderDetail(od) 
+    PROPERTIES SHOWIF countIncludeOrdersInvoice(i) performOrderDetailUserInvoice(od,i), correctOrderDetailUserInvoice(od,i)               
+               
+    ORDER BY  indexOrderDetail(od)          
+    FILTERS  includeOrderUserInvoice(orderOrderDetail(od), i)         
+    FILTERGROUP orderFilter
+        FILTER 'Без выписки' NOT countInvoiceDetailsOrderDetail(od) DEFAULT 
+              
+    OBJECTS oid = UserInvoiceDetail FIXED GRID
+    PROPERTIES (oid) SHOWIF countIncludeOrdersInvoice(i) indexUserInvoiceDetail
+    PROPERTIES (oid) SHOWIF countIncludeOrdersInvoice(i) ON EDIT editSkuUserInvoiceDetail(oid) BACKGROUND backgroundSkuUserInvoiceDetail(oid) idBarcodeSkuUserInvoiceDetail, 
+                   nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail
+    PROPERTIES (oid) SHOWIF countIncludeOrdersInvoice(i) quantityUserInvoiceDetail,//SHOWIF showQuantityInvoice(i) 
+                   namePriceListTypeUserInvoiceDetail,
+                   priceUserInvoiceDetail ON CHANGE changePriceUserInvoiceDetail(oid), sumUserInvoiceDetail,
+                   numberVATUserInvoiceDetail ON CHANGE changeNumberVATUserInvoiceDetail(oid) BACKGROUND backgroundVATUserInvoiceDetail(oid),
+                   valueVATUserInvoiceDetail ON CHANGE changeValueVATUserInvoiceDetail(oid) BACKGROUND backgroundVATUserInvoiceDetail(oid),
+                   invoicePriceUserInvoiceDetail ON CHANGE changeInvoicePriceUserInvoiceDetail(oid),
+                   VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, ADDOBJ, deleteoid=DELETESESSION            
+    FILTERS  userInvoiceUserInvoiceDetail(oid) == i         
+;
+
+DESIGN userInvoice {
+    itemBox {
+        type = TABBED;
+        NEW orders{
+            fill = 1;
+            type = SPLITH;
+            caption = 'По строкам заказа';
+
+            ADD od.box;
+            ADD oid.box;
+        }
+        NEW itemBox1 {
+            type = SPLITH;
+            fill = 1;
+            caption ='По товарам';
+            ADD skuTree.tree.box;
+            ADD skuMainPane;
+
+        }
+    }    
+}
+
+
+
+extraCreateMultiUserInvoiceOrder 'Создать накладную (без строк)'= ACTION (order) {
+    IF order IS Order THEN {
+        FOR ADDOBJ i = UserInvoice DO {
+
+            fillHeaderUserInvoiceOrder(i, order);               
+            includeOrderUserInvoice(order,i)<- TRUE;
+                          
+            FORM userInvoice OBJECTS i = i DOCKEDMODAL;
+            IF formResult() == FormResult.ok THEN {
+                apply();
+            } ELSE {
+                FOR userInvoiceUserInvoiceDetail(d)==i DO {
+                    DELETE d;   
+                }
+                DELETE i;
+            }
+        }
+    }
+}
+
+
+
+EXTEND FORM orderInvoiceDashboard
+PROPERTIES(o) extraCreateMultiUserInvoiceOrder FORCE PANEL TOOLBAR 
+                       
+;
