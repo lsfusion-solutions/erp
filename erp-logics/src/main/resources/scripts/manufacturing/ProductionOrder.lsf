@@ -120,7 +120,7 @@ countProductDetailSkuOrder 'Кол-во строк изделий в докум�
     GROUP SUM 1 BY  skuProductDetail(idetail), orderProductDetail(idetail);  
     
 //Процент и коэффициент цены
-pricePercentProductDetail 'Удельный вес цены,%' = DATA NUMERIC[15,4] (ProductDetail);
+pricePercentProductDetail 'Удельный вес цены,%' = DATA NUMERIC[16,5] (ProductDetail);
 
 isPricePercentOrder 'Удельный вес цены,%' = DATA BOOLEAN (Order);
 isPriceCoeffOrder 'Коэффициент цены' = DATA BOOLEAN (Order);
@@ -636,7 +636,7 @@ bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM qu
 calcCostProductDetail 'Себестоимость расчетная' (productDetail)= [ = GROUP SUM (bruttoCostSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) / 
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
     quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail);
+    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);
         
 //-- Подсчет цены изделия с учетом замен
 //recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
@@ -747,7 +747,7 @@ WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
 calcPriceVATProductDetail 'Цена НДС' (productDetail)= [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) *(valueVATSkuOrder(sku, order)/(100+valueVATSkuOrder(sku, order)))/ 
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
     quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail);   
+    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);   
               
 calcValueVATProductDetail 'НДС, %' (productDetail)= [= 100*X/(Y-X)](
     calcPriceVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail));
@@ -756,7 +756,7 @@ calcValueVATProductDetail 'НДС, %' (productDetail)= [= 100*X/(Y-X)](
 calcPriceIsVATProductDetail 'Цена НДС' (productDetail) = [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) *(valueVATSkuOrder(sku, order)/100)/ 
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
     quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail);       
+    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);       
    
 calcValueIsVATProductDetail 'НДС, %' (productDetail)= [= 100*X/Y](
     calcPriceIsVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail) IF calcComponentsPriceProductDetail(productDetail)!= 0);    
@@ -807,14 +807,14 @@ calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[
 changePriceCoeffProductDetail = ACTION (detail) {
     REQUEST NUMERIC[8,5] INPUT;
     IF requestedNumeric() THEN {        
-        pricePercentProductDetail(detail) <- NUMERIC[14,3](calcPricePercentProductDetailNumeric(detail, requestedNumeric()));
+        pricePercentProductDetail(detail) <- NUMERIC[16,5](calcPricePercentProductDetailNumeric(detail, requestedNumeric()));
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
         costPriceProductDetail(detail) <- calcCostProductDetail(detail);
         changeValueMarkupProductDetail(detail);
     }
 }
 changePricePercentProductDetail = ACTION (detail) {
-    REQUEST NUMERIC[14,3] INPUT;
+    REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {
         pricePercentProductDetail(detail) <- requestedNumeric(); 
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
