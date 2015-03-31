@@ -202,6 +202,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                 keys.add(countryKey);
                 props.add(new ImportProperty(countryField, LM.findProperty("countryArticle").getMapping(articleKey),
                         object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryReplaceField)));
+                fields.add(countryField);
             }
 
         }
