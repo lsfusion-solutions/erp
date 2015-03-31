@@ -81,6 +81,7 @@ backgroundRetailOrder 'Цвет' (order) = RGB(224, 255, 255) IF order IS Order;
 //-- Свойства для агрегированных производств/расценок
 
 componentsSumProductDetail 'Сумма компонентов произведенного изделия' (productDetail) = NUMERIC[16,2](roundPriceCurrency((componentsPriceProductDetail(productDetail)*outputQuantityProductDetail(productDetail)),currencyProductDetail(productDetail)));
+costSumProductDetail 'Сумма себестоимости произведенного изделия' (productDetail) = NUMERIC[16,2](roundPriceCurrency((costPriceProductDetail(productDetail)*outputQuantityProductDetail(productDetail)),currencyProductDetail(productDetail)));
 VATMarkupSumProductDetail 'НДС и надбавка' (productDetail) =  NUMERIC[16,2](outputProductsSumProductDetail(productDetail) (-) componentsSumProductDetail(productDetail));
 retailVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([= X*Y/(100+Y)](VATMarkupSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
 retailMarkupSumProductDetail 'Сумма надбавки' (productDetail) = NUMERIC[16,2](VATMarkupSumProductDetail(productDetail) (-) retailVATSumProductDetail(productDetail));
@@ -99,8 +100,34 @@ pricingCommitteeOutput(output) += pricingCommitteeOrder(orderOrderOutput(output)
 createPricingOutput(output) += createPricingOrder(orderOrderOutput(output));
 pricingOperationOutput(output) += pricingOperationOrder(orderOrderOutput(output));
 
-supplierPriceOutputDetail(outputDetail) += componentsPriceProductDetail(productDetailOrderOutputDetail(outputDetail));
-supplierSumOutputDetail(outputDetail) += componentsSumProductDetail(productDetailOrderOutputDetail(outputDetail));
+
+//переопределение цены поставщика по производственному заказу
+@defineOperationProperty(componentsPriceSupplierPriceLedger, 'Цена пост. из цены компонентов' , showContainer);
+
+componentsPriceSupplierPriceLedgerOrder 'Цена пост. из цены компонентов' = DATA BOOLEAN (Order);
+componentsPriceSupplierPriceLedgerOutputDetail = componentsPriceSupplierPriceLedgerOrder(orderProductDetail(productDetailOrderOutputDetail(outputDetail)));
+
+@deriveDocumentOperationProperty(order, componentsPriceSupplierPriceLedger);
+
+EXTEND FORM order
+    PROPERTIES (o) componentsPriceSupplierPriceLedgerOrder
+;    
+
+DESIGN order {
+    headerExtraParams {
+        ADD PROPERTY(componentsPriceSupplierPriceLedgerOrder(o));
+    }    
+}
+
+supplierPriceOutputDetail(outputDetail) += 
+    IF componentsPriceSupplierPriceLedgerOutputDetail(outputDetail) 
+        THEN componentsPriceProductDetail(productDetailOrderOutputDetail(outputDetail))
+        ELSE costPriceProductDetail(productDetailOrderOutputDetail(outputDetail));
+        
+supplierSumOutputDetail(outputDetail) += 
+    IF componentsPriceSupplierPriceLedgerOutputDetail(outputDetail) 
+        THEN componentsSumProductDetail(productDetailOrderOutputDetail(outputDetail))
+        ELSE costSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 
 valueRetailVATOutputDetail(outputDetail) += valueVATProductDetail(productDetailOrderOutputDetail(outputDetail));
 retailMarkupOutputDetail(outputDetail) += overMarkupProductDetail(productDetailOrderOutputDetail(outputDetail));
