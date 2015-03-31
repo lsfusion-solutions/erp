@@ -322,6 +322,7 @@ retailPriceLabelTransactionDetail 'Цена до'  = DATA NUMERIC[14,2] (LabelTr
 overRetailPriceLabelTransactionDetail = ABSTRACT NUMERIC[14,2] (LabelTransactionDetail);
 operationLabelTransactionDetail = ABSTRACT Operation.Operation (LabelTransactionDetail);
 nameOperationLabelTransactionDetail 'Операция' = nameOperation(operationLabelTransactionDetail(detail));
+discountSumTransactionDetail 'Скидка' (d) = retailPriceLabelTransactionDetail(d) - priceLabelTransactionDetail(d);
 
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
@@ -332,7 +333,7 @@ FORM printLabelTransaction 'Печать ценников'
     
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
-                           quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail
+                           quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail, discountSumTransactionDetail
     FILTERS labelTransactionLabelTransactionDetail(d) == l
     REPORTFILES l fileTemplateLabelTransaction(l), TOP topFileTemplateLabelTransaction(l)
 ;
@@ -350,7 +351,7 @@ FORM customLabelTransaction 'Печать ценников'
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail READONLY, nameSkuLabelTransactionDetail READONLY, nameBatchLabelTransactionDetail,
                   nameOperationLabelTransactionDetail, quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail,
-                  DELETESESSION
+                  discountSumTransactionDetail, DELETESESSION
     FILTERS labelTransactionLabelTransactionDetail(d) == l
     
     PROPERTIES(l) TODRAW d deleteNotSelectedLabelTransactionDetail                      
@@ -403,7 +404,7 @@ FORM labelTransactions 'Печать ценников'
 
     OBJECTS dt = LabelTransactionDetail
     PROPERTIES(dt) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
-                            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail 
+                            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail, discountSumTransactionDetail 
     FILTERS labelTransactionLabelTransactionDetail(dt) == l
 ;
 
