@@ -208,7 +208,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameOriginCountry"));
                 } else if(showNameCountry) {
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("showNameCountry"));
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCountry"));
                 } else if(showSidOrigin2Country) {
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("sidOrigin2Country"));
