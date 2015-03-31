@@ -203,6 +203,16 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                 props.add(new ImportProperty(countryField, LM.findProperty("countryArticle").getMapping(articleKey),
                         object(LM.findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryReplaceField)));
                 fields.add(countryField);
+                if(showNameOriginCountry) {
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameOriginCountry"));
+                } else if(showNameCountry) {
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("showNameCountry"));
+                } else if(showSidOrigin2Country) {
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("sidOrigin2Country"));
+                }
             }
 
         }
