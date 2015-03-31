@@ -427,76 +427,76 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
-        processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
-
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-
-        for (String directory : directorySet) {
-
-            String exchangeDirectory = directory.trim() + "/products/source/";
-
-            if(!new File(exchangeDirectory).exists())
-                new File(exchangeDirectory).mkdirs();
-
-            Element rootElement = new Element("goods-catalog");
-            Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
-
-            for (Map.Entry<String, String> entry : stopListInfo.stopListItemMap.entrySet()) {
-                String idBarcode = entry.getKey();
-                String idItem = entry.getValue();
-                //parent: rootElement
-                String id = idItemInMarkingOfTheGood ? idItem : idBarcode;
-                Element saleDeniedRestriction = new Element("sale-denied-restriction");
-                setAttribute(saleDeniedRestriction, "id", id);
-                setAttribute(saleDeniedRestriction, "subject-type", "GOOD");
-                setAttribute(saleDeniedRestriction, "subject-code", id);
-                setAttribute(saleDeniedRestriction, "type", "SALE_DENIED");
-                setAttribute(saleDeniedRestriction, "value", true);
-                rootElement.addContent(saleDeniedRestriction);
-                
-                //parent: saleDeniedRestriction
-                if(stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
-                    String error = "Kristal: Error! Start DateTime not specified for stopList " + stopListInfo.number;
-                    processStopListLogger.error(error);
-                    throw Throwables.propagate(new RuntimeException(error));
-                }
-                if(stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
-                    stopListInfo.dateTo = new Date(2040 - 1900, 0, 1);
-                    stopListInfo.timeTo = new Time(0, 0, 0);
-//                    String error = "Kristal: Error! End DateTime not specified for stopList " + stopListInfo.number;
+//        processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
+//
+//        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+//        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+//        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+//
+//        for (String directory : directorySet) {
+//
+//            String exchangeDirectory = directory.trim() + "/products/source/";
+//
+//            if(!new File(exchangeDirectory).exists())
+//                new File(exchangeDirectory).mkdirs();
+//
+//            Element rootElement = new Element("goods-catalog");
+//            Document doc = new Document(rootElement);
+//            doc.setRootElement(rootElement);
+//
+//            for (Map.Entry<String, String> entry : stopListInfo.stopListItemMap.entrySet()) {
+//                String idBarcode = entry.getKey();
+//                String idItem = entry.getValue();
+//                //parent: rootElement
+//                String id = idItemInMarkingOfTheGood ? idItem : idBarcode;
+//                Element saleDeniedRestriction = new Element("sale-denied-restriction");
+//                setAttribute(saleDeniedRestriction, "id", id);
+//                setAttribute(saleDeniedRestriction, "subject-type", "GOOD");
+//                setAttribute(saleDeniedRestriction, "subject-code", id);
+//                setAttribute(saleDeniedRestriction, "type", "SALE_DENIED");
+//                setAttribute(saleDeniedRestriction, "value", true);
+//                rootElement.addContent(saleDeniedRestriction);
+//                
+//                //parent: saleDeniedRestriction
+//                if(stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
+//                    String error = "Kristal: Error! Start DateTime not specified for stopList " + stopListInfo.number;
 //                    processStopListLogger.error(error);
 //                    throw Throwables.propagate(new RuntimeException(error));
-                }
-                addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom));
-                addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo));
-                addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom));
-                addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo));
-                addStringElement(saleDeniedRestriction, "deleted", stopListInfo.exclude ? "true" : "false");
-                if (useShopIndices) {
-                    String shopIndices = "";
-                    for(String shopIndex : stopListInfo.idStockSet)
-                        shopIndices += shopIndex + " ";
-                    shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
-                    addStringElement(saleDeniedRestriction, "shop-indices", shopIndices);
-                }
-
-            }
-
-            XMLOutputter xmlOutput = new XMLOutputter();
-            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
-            xmlOutput.output(doc, fw);
-            fw.close();
-            
-            //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ignored) {
-            }
-        }
+//                }
+//                if(stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
+//                    stopListInfo.dateTo = new Date(2040 - 1900, 0, 1);
+//                    stopListInfo.timeTo = new Time(0, 0, 0);
+////                    String error = "Kristal: Error! End DateTime not specified for stopList " + stopListInfo.number;
+////                    processStopListLogger.error(error);
+////                    throw Throwables.propagate(new RuntimeException(error));
+//                }
+//                addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom));
+//                addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo));
+//                addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom));
+//                addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo));
+//                addStringElement(saleDeniedRestriction, "deleted", stopListInfo.exclude ? "true" : "false");
+//                if (useShopIndices) {
+//                    String shopIndices = "";
+//                    for(String shopIndex : stopListInfo.idStockSet)
+//                        shopIndices += shopIndex + " ";
+//                    shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
+//                    addStringElement(saleDeniedRestriction, "shop-indices", shopIndices);
+//                }
+//
+//            }
+//
+//            XMLOutputter xmlOutput = new XMLOutputter();
+//            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+//            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
+//            xmlOutput.output(doc, fw);
+//            fw.close();
+//            
+//            //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException ignored) {
+//            }
+//        }
     }
 
     @Override
