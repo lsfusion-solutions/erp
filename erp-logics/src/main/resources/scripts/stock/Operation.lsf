@@ -201,6 +201,24 @@ END
 META defineDocumentOperationContainer(object, char)
     @defineDocumentOperationContainer(object, char, isPosted###object, nameCurrency, first);
 END
+
+META defineDocumentOperationConstraint(object, contProp, caption, NS)
+    dateOperation###object 'Дата, начиная с которой у документа '###caption###' должна быть задана операция' = DATA DATE ();
+    CONSTRAINT isPosted###object(o) AND dateOperation###object() AND (date###object(o)>=dateOperation###object() AND NOT operation###object(o))
+        MESSAGE 'У документа '###caption###' должна быть задана операция';        
+        
+        
+    EXTEND FORM options
+        PROPERTIES() NS###dateOperation###object = dateOperation###object
+    ;
+    
+    DESIGN options {
+        contProp {
+            ADD PROPERTY(NS###dateOperation###object);    
+        }
+    }
+END
+
 // -------------------------------------- Организации ---------------------------------- //
 
 META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)

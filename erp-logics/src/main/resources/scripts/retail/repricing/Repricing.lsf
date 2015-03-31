@@ -546,9 +546,29 @@ EXTEND FORM userRepricing
         FILTER 'В документе ' quantityUserRepricingDetailSkuUserRepricing(ks, p) 'F9'
 ;
 
-//----------------------------------------------- Операции -----------------------------------------------------//
+
+isStockRepricings 'Разрешить ввод акта переоценки без склада ' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() isStockRepricings
+;
+
+DESIGN options {
+    pane {        
+        NEW repricings {
+            caption = 'Акты переоценки';
+            ADD PROPERTY(isStockRepricings());   
+        }
+    }
+}
+
+CONSTRAINT isPostedUserRepricing(i) AND NOT isStockRepricings() AND NOT  departmentStoreUserRepricing(i) 
+    MESSAGE 'Для акта переоценки должен быть задан склад'; 
+
+//----------------------------------------------- Операции ------------------------+----------------------------//
 
 @defineDocumentInterfaceOperation (repricing, Repricing, );
+@defineDocumentOperationConstraint(repricing, repricings, 'акт переоценки', Repricing);
 
 @defineDocumentOperationRolePrefix(userRepricing, );
 
@@ -723,24 +743,6 @@ NAVIGATOR {
         ADD operations;
     }
 }
-
-isStockRepricings 'Разрешить ввод акта переоценки без склада ' = DATA BOOLEAN ();
-
-EXTEND FORM options
-    PROPERTIES() isStockRepricings
-;
-
-DESIGN options {
-    pane {        
-        NEW repricing {
-            caption = 'Акты переоценки';
-            ADD PROPERTY(isStockRepricings());   
-        }
-    }
-}
-
-CONSTRAINT isPostedUserRepricing(i) AND NOT isStockRepricings() AND NOT  departmentStoreUserRepricing(i) 
-    MESSAGE 'Для акта переоценки должен быть задан склад'; 
 
 // ---------------------------- Создание PriceList ----------------------------------- //
 
