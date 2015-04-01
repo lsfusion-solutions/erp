@@ -491,8 +491,8 @@ sumInCashPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF paymentMean
 
 changePaymentReceipt 'Сдача' (receipt) = sumPaymentReceipt(receipt) - sumReceiptDetailReceipt(receipt);
 
-sumCashPaymentReceipt (receipt) = sumInCashPaymentReceipt(receipt) - changePaymentReceipt(receipt);
-sumCardPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansCard BY receiptPayment(payment);
+sumCashPaymentReceipt 'Сумма продажа (наличные)' (receipt) = sumInCashPaymentReceipt(receipt) - changePaymentReceipt(receipt);
+sumCardPaymentReceipt 'Сумма продажа (карточка)' (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansCard BY receiptPayment(payment);
 
 sumPositiveCashPaymentReceipt 'Сумма продажа (наличные)' (receipt) =  sumCashPaymentReceipt (receipt) IF sumCashPaymentReceipt (receipt) >= 0.0 IN documentSum;
 sumNegativeCashPaymentReceipt 'Сумма возврата (наличные)' (receipt) =  sumCashPaymentReceipt (receipt) IF sumCashPaymentReceipt (receipt) < 0.0 IN documentSum;
@@ -588,7 +588,7 @@ FORM zReport 'Z-отчет'
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameEmployeeReceipt,
                   sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
                   discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
-                  ADDOBJ, DELETESESSION
+                  sumCashPaymentReceipt, sumCardPaymentReceipt, ADDOBJ, DELETESESSION
     FILTERS zReportReceipt(b)==z
 
     PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt
@@ -787,7 +787,8 @@ FORM zReports 'Z-отчеты'
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameEmployeeReceipt,
                             sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
-                            discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
+                            discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
+                            sumCashPaymentReceipt, sumCardPaymentReceipt
 
     FILTERS zReportReceipt(b)==z
     ORDER BY                numberReceipt(b)
