@@ -370,8 +370,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String directoryCashRegister = (String) row.get("overDirectoryMachinery");
                         Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededMachineryMachineryPriceTransaction") != null;
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
-                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery, 
-                                handlerModelGroupMachinery, portMachinery, directoryCashRegister, startDateGroupCashRegister, 
+                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery,
+                                handlerModelGroupMachinery, portMachinery, directoryCashRegister, startDateGroupCashRegister,
                                 overDepartmentNumberGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister,
                                 pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
                     }
@@ -409,9 +409,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
-                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, 
-                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList, 
-                            cashRegisterInfoList, snapshotTransaction, overDepartmentNumberGroupCashRegister));
+                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
+                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
+                            cashRegisterInfoList, snapshotTransaction, overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();
@@ -436,7 +436,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String portMachinery = (String) values.get("portMachinery");
                         Integer nppMachinery = (Integer) values.get("nppMachinery");
                         boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
-                        scalesInfoList.add(new ScalesInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery, handlerModelGroupMachinery, 
+                        scalesInfoList.add(new ScalesInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery, handlerModelGroupMachinery,
                                 portMachinery, directory, pieceCodeGroupScales, weightCodeGroupScales));
                     }
 
@@ -471,7 +471,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode, 
-                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, 
+                            date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction));
 
                 } else if (isPriceCheckerPriceTransaction) {
@@ -510,7 +510,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags));
                     }
                     
-                    transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(), dateTimeCode, 
+                    transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
                             snapshotTransaction));
@@ -538,7 +538,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     for (ImMap<Object, Object> row : terminalResult.valueIt()) {
                         terminalInfoList.add(new TerminalInfo(true, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                nameModelGroupMachinery, handlerModelGroupMachinery, getRowValue(row, "portMachinery"), 
+                                nameModelGroupMachinery, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
                                 directoryGroupTerminal, idPriceListType));
                     }
 
@@ -567,8 +567,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
-                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, 
-                            terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList, 
+                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction,
+                            terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
                             nppGroupTerminal, directoryGroupTerminal));
                 }
             }
@@ -1160,8 +1160,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
 
-                String[] groupCashRegisterNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery", "overDepartmentNumberGroupCashRegister"};
-                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery", "overDepartmentNumberGroupCashRegister");
+                String[] groupCashRegisterNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
+                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister"};
+                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
+                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
@@ -1176,7 +1178,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryMachinery"), null, (Integer) row.get("overDepartmentNumberGroupCashRegister"), false, null, null, null));
+                            (String) row.get("overDirectoryMachinery"), null, (Integer) row.get("overDepartmentNumberGroupCashRegister"),
+                            false, null, (String) row.get("pieceCodeGroupCashRegister"), (String) row.get("weightCodeGroupCashRegister")));
                 }
             }
             return cashRegisterInfoList;
@@ -1230,7 +1233,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    terminalInfoList.add(new TerminalInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelGroupMachinery"), 
+                    terminalInfoList.add(new TerminalInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelGroupMachinery"),
                             (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"), (String) row.get("directoryGroupTerminal"),
                             (String) row.get("idPriceListTypeGroupMachinery")));
                 }
@@ -1639,6 +1642,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReportId").getMapping(idZReportField));
                     ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField));
+                    cashRegisterKey.skipKey = true;
                     ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receiptId").getMapping(idReceiptField));
                     ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
                     ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employeeId").getMapping(idEmployeeField));
@@ -1972,6 +1976,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"),
                             zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField));
+                    cashRegisterKey.skipKey = true;
                     commonKeys.add(cashRegisterKey);
 
                     ImportField idZReportField = new ImportField(zReportLM.findProperty("idZReport"));

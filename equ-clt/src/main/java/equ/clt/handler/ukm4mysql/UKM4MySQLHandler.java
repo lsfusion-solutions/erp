@@ -3,6 +3,7 @@ package equ.clt.handler.ukm4mysql;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import lsfusion.base.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -16,7 +17,6 @@ import java.util.*;
 public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    String defaultCharset = "Cp1251";
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -48,8 +48,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                    //временно, пока не появится groupMachineryInfo для transaction
-                    String weightCode = transaction.machineryInfoList.isEmpty() ? null : transaction.machineryInfoList.get(0).weightCodeGroupCashRegister;
+                    String weightCode = transaction.weightCodeGroupCashRegister;
 
                     Connection conn = DriverManager.getConnection(connectionString, user, password);
 
@@ -396,14 +395,14 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
-        /*List<SalesInfo> salesInfoList = null;
+/*        UKM4MySQLSalesBatch salesBatch = null;
 
         try {
 
             Class.forName("com.mysql.jdbc.Driver");
 
             UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
+            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
             String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
@@ -416,7 +415,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 try {
                     conn = DriverManager.getConnection(connectionString, user, password);
 
-                    salesInfoList = readReceiptItemTable(conn);
+                    salesBatch = readSalesInfoFromSQL(conn);
 
                 } finally {
                     if (conn != null)
@@ -426,117 +425,32 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
-        return new UKM4MySQLSalesBatch(salesInfoList);*/
+        return salesBatch;*/
         return null;
-
-
-
-
-        /*Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (cashRegister.number != null && cashRegister.numberGroup != null)
-                directoryGroupCashRegisterMap.put(cashRegister.directory + "_" + cashRegister.number, cashRegister.numberGroup);
-        }
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
-        List<String> readFiles = new ArrayList<String>();
-        DBF importSailFile = null;
-        DBF importDiscFile = null;
-        DBF importCardFile = null;
-        Map<String, BigDecimal> discountMap = new HashMap<String, BigDecimal>();
-        Map<String, String> discountCardMap = new HashMap<String, String>();
-        try {
-            String fileDiscPath = directory + "/sail/CASHDISC.DBF";
-            if (new File(fileDiscPath).exists()) {
-                importDiscFile = new DBF(fileDiscPath);
-                readFiles.add(fileDiscPath);
-                int recordDiscCount = importDiscFile.getRecordCount();
-                for (int i = 0; i < recordDiscCount; i++) {
-                    importDiscFile.read();
-                }
-                importDiscFile.close();
-            }
-
-            String fileCardPath = directory + "/sail/CASHDCRD.DBF";
-            if (new File(fileCardPath).exists()) {
-                importCardFile = new DBF(fileCardPath);
-                readFiles.add(fileCardPath);
-                int recordCardCount = importCardFile.getRecordCount();
-                for (int i = 0; i < recordCardCount; i++) {
-                    importCardFile.read();
-                }
-                importCardFile.close();
-            }
-
-            String fileSailPath = directory + "/sail/CASHSAIL.DBF";
-            if (new File(fileSailPath).exists()) {
-                importSailFile = new DBF(fileSailPath);
-                readFiles.add(fileSailPath);
-                int recordSailCount = importSailFile.getRecordCount();
-                Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<Integer, BigDecimal[]>();
-
-                for (int i = 0; i < recordSailCount; i++) {
-                    importSailFile.read();
-
-                    Integer operation = getDBFIntegerFieldValue(importSailFile, "OPERATION", defaultCharset);
-                    //0 - возврат cash, 1 - продажа cash, 2,4 - возврат card, 3,5 - продажа card
-                    receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1, (operation <= 1 ? sumReceiptDetail : null)),
-                            safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
-
-                    salesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), Integer.parseInt(numberCashRegister), zNumber,
-                            receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
-                            null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
-                            priceReceiptDetail,
-                            operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
-                            discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null));
-                }
-                for (SalesInfo salesInfo : salesInfoList) {
-                    salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
-                    salesInfo.sumCard = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[1];
-                }
-            }
-
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e.toString(), e.getCause());
-        } finally {
-            if (importSailFile != null)
-                importSailFile.close();
-            if (importCardFile != null)
-                importCardFile.close();
-            if (importDiscFile != null)
-                importDiscFile.close();
-        }
-        return new UKM4MySQLSalesBatch(salesInfoList, readFiles);*/
     }
 
-    private Map<Integer, List<Object>> readReceiptMap(Connection conn, Map<Integer, String> loginMap) throws SQLException {
+    private List<Object> readReceiptTable(Connection conn, Map<Integer, String> loginMap) throws SQLException {
 
         Map<Integer, List<Object>> receiptMap = new HashMap<Integer, List<Object>>();
-
+        Set<Pair<Integer, Integer>> receiptSet = new HashSet<Pair<Integer, Integer>>();
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select cash_id, id, global_number, local_number, type, stock_id, stock_name, " +
-                    "client, login, shift_open, date, pos from trm_out_receipt_header";
+            String query = "select cash_id, id, global_number, type, login, shift_open, date from receipt";
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
                 Integer cash_id = rs.getInt(1);
                 Integer id = rs.getInt(2);
                 Integer numberReceipt = rs.getInt(3); //global_number
-                Integer local_number = rs.getInt(4);
-                Integer receiptType = rs.getInt(5); //type
-                Integer stock_id = rs.getInt(6);
-                String stock_name = rs.getString(7);
-                String client = rs.getString(8);
-                Integer login = rs.getInt(9); //login
+                Integer receiptType = rs.getInt(4); //type
+                Integer login = rs.getInt(5); //login
                 String idEmployee = loginMap.get(login);
-                String numberZReport = String.valueOf(rs.getInt(10)); //shift_open
-                Date date = rs.getDate(11);
-                Integer pos = rs.getInt(12);
+                String numberZReport = String.valueOf(rs.getInt(6)); //shift_open
+                Date date = rs.getDate(7);
+                Time time = rs.getTime(7);
 
-                Date dateReceipt = new Date(date.getTime());
-                Time timeReceipt = new Time(date.getTime());
-
-                receiptMap.put(id, Arrays.asList((Object) receiptType, numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null));
+                receiptMap.put(id, Arrays.asList((Object) receiptType, numberZReport, numberReceipt, date, time, idEmployee, null, null));
+                receiptSet.add(Pair.create(cash_id, id));
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -544,7 +458,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             if (statement != null)
                 statement.close();
         }
-        return receiptMap;
+        return Arrays.asList(receiptMap, receiptSet);
     }
 
     private Map<Integer, String> readLoginMap(Connection conn) throws SQLException {
@@ -554,7 +468,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select id, user_id from trm_out_login";
+            String query = "select id, user_id from login";
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
                 Integer id = rs.getInt(1);
@@ -571,23 +485,27 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         return loginMap;
     }
 
-    private Map<Integer, Map<Integer, BigDecimal>> readPaymentMap(Connection conn) throws SQLException {
+    private Map<String, Map<Integer, BigDecimal>> readPaymentMap(Connection conn) throws SQLException {
 
-        Map<Integer, Map<Integer, BigDecimal>> paymentMap = new HashMap<Integer, Map<Integer, BigDecimal>>();
+        Map<String, Map<Integer, BigDecimal>> paymentMap = new HashMap<String, Map<Integer, BigDecimal>>();
 
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select receipt_header, payment_id, amount from receipt_payment";
+            String query = "select cash_id, receipt_header, payment_id, amount from receipt_payment";
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
-                Integer idReceipt = rs.getInt(1); //receipt_header
-                Integer paymentType = rs.getInt(2); //payment_id
-                BigDecimal amount = rs.getBigDecimal(3);
+                Integer cash_id = rs.getInt(1); //cash_id
+                Integer idReceipt = rs.getInt(2); //receipt_header
+                String key = String.valueOf(cash_id) + "/" + String.valueOf(idReceipt);
+                Integer paymentType = rs.getInt(3); //payment_id
+                if(paymentType.equals(3))
+                    paymentType = 1; //1 и 3 - безнал
+                BigDecimal amount = rs.getBigDecimal(4);
 
-                Map<Integer, BigDecimal> paymentEntry = paymentMap.containsKey(idReceipt) ? paymentMap.get(idReceipt) : new HashMap<Integer, BigDecimal>();
+                Map<Integer, BigDecimal> paymentEntry = paymentMap.containsKey(key) ? paymentMap.get(key) : new HashMap<Integer, BigDecimal>();
                 paymentEntry.put(paymentType, amount);
-                paymentMap.put(idReceipt, paymentEntry);
+                paymentMap.put(key, paymentEntry);
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -598,93 +516,81 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         return paymentMap;
     }
 
-    private List<SalesInfo> readReceiptItemTable(Connection conn) throws SQLException {
+    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
 
         Map<Integer, String> loginMap = readLoginMap(conn);
-        Map<Integer, List<Object>> receiptMap = readReceiptMap(conn, loginMap);
-        Map<Integer, Map<Integer, BigDecimal>> paymentMap = readPaymentMap(conn);
+        List<Object> receiptTable = readReceiptTable(conn, loginMap);
+        Map<Integer, List<Object>> receiptMap = (Map<Integer, List<Object>>) receiptTable.get(0);
+        Set<Pair<Integer, Integer>> receiptSet = (Set<Pair<Integer, Integer>>) receiptTable.get(1);
+        Map<String, Map<Integer, BigDecimal>> paymentMap = readPaymentMap(conn);
 
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
-            String query = "select store, cash_number, cash_id, id, receipt_header, var, item, name, var_quantity," +
-                    " quantity, total_quantity, price, min_price, blocked_discount, total, stock_id, stock_name," +
-                    " measurement, measurement_precision, classif, type, input, tax, position, remain, pricelist," +
-                    " real_amount from receipt";
-            ResultSet rs = statement.executeQuery(query);
+        Set<Pair<Integer, Integer>> receiptItemSet = new HashSet<Pair<Integer, Integer>>();
+        if(receiptMap != null && receiptSet != null && paymentMap != null) {
+            Statement statement = null;
+            try {
+                statement = conn.createStatement();
+                String query = "select store, cash_number, cash_id, id, receipt_header, var, item, total_quantity, price, total," +
+                        " position, real_amount from receipt_item";
+                ResultSet rs = statement.executeQuery(query);
 
-            while(rs.next()) {
+                while (rs.next()) {
 
-                Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //store
-                Integer nppMachinery = rs.getInt(2); //cash_number
-                Integer cash_id = rs.getInt(3);
-                Integer id = rs.getInt(4);
-                Integer idReceipt = rs.getInt(5); //receipt_header
-                String idBarcode = rs.getString(6);
-                String idItem = rs.getString(7);
-                String name = rs.getString(8);
-                BigDecimal var_quantity = rs.getBigDecimal(9);
-                BigDecimal quantity = rs.getBigDecimal(10);
-                BigDecimal totalQuantity = rs.getBigDecimal(11); //total_quantity
-                BigDecimal price = rs.getBigDecimal(12);
-                BigDecimal min_price = rs.getBigDecimal(13);
-                Integer blocked_discount = rs.getInt(14);
-                BigDecimal sum = rs.getBigDecimal(15); //total //или с учётом скидки? (real_amount)
-                Integer stock_id = rs.getInt(16);
-                String stock_name = rs.getString(17);
-                String measurement = rs.getString(18);
-                Integer measurement_precision = rs.getInt(19);
-                Integer classif = rs.getInt(20);
-                Integer type = rs.getInt(21);
-                Integer input = rs.getInt(22);
-                Integer tax = rs.getInt(23);
-                Integer position = rs.getInt(24);
-                BigDecimal remain = rs.getBigDecimal(25);
-                Integer pricelist = rs.getInt(26);
-                BigDecimal realAmount = rs.getBigDecimal(27); //real_amount
+                    Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //store
+                    Integer nppMachinery = rs.getInt(2); //cash_number
+                    Integer cash_id = rs.getInt(3); //cash_id
+                    Integer id = rs.getInt(4); //cash_id
+                    Integer idReceipt = rs.getInt(5); //receipt_header
+                    String idBarcode = rs.getString(6); //var
+                    String idItem = rs.getString(7); //item
+                    BigDecimal totalQuantity = rs.getBigDecimal(8); //total_quantity
+                    BigDecimal price = rs.getBigDecimal(9);
+                    BigDecimal sum = rs.getBigDecimal(10); //total
+                    Integer position = rs.getInt(11) + 1;
+                    BigDecimal realAmount = rs.getBigDecimal(12); //real_amount
 
+                    List<Object> receiptEntry = receiptMap.get(idReceipt);
+                    Map<Integer, BigDecimal> paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
+                    if (receiptEntry != null && paymentEntry != null && totalQuantity != null) {
+                        Integer receiptType = (Integer) receiptEntry.get(0);
+                        boolean isSale = receiptType != null && (receiptType == 0 || receiptType == 8);
+                        boolean isReturn = receiptType != null && (receiptType == 1 || receiptType == 4 || receiptType == 9);
+                        String numberZReport = (String) receiptEntry.get(1);
+                        Integer numberReceipt = (Integer) receiptEntry.get(2);
+                        Date dateReceipt = (Date) receiptEntry.get(3);
+                        Time timeReceipt = (Time) receiptEntry.get(4);
+                        String idEmployee = (String) receiptEntry.get(5);
+                        String firstNameContact = (String) receiptEntry.get(6);
+                        String lastNameContact = (String) receiptEntry.get(7);
 
-                List<Object> receiptEntry = receiptMap.get(idReceipt);
-                Integer receiptType =  receiptEntry == null ? null : (Integer) receiptEntry.get(0);
-                boolean isSale = receiptType != null && (receiptType == 0 || receiptType == 8);
-                boolean isReturn = receiptType != null && (receiptType == 1 || receiptType == 4 || receiptType == 9);
-                String numberZReport = receiptEntry == null ? null : (String) receiptEntry.get(1);
-                Integer numberReceipt = receiptEntry == null ? null : (Integer) receiptEntry.get(2);
-                Date dateReceipt = receiptEntry == null ? null : (Date) receiptEntry.get(3);
-                Time timeReceipt = receiptEntry == null ? null : (Time) receiptEntry.get(4);
-                String idEmployee = receiptEntry == null ? null : (String) receiptEntry.get(5);
-                String firstNameContact = receiptEntry == null ? null : (String) receiptEntry.get(6);
-                String lastNameContact = receiptEntry == null ? null : (String) receiptEntry.get(7);
+                        BigDecimal sumCash = paymentEntry.get(0);
+                        BigDecimal sumCard = paymentEntry.get(1);
+                        BigDecimal sumGiftCard = paymentEntry.get(2);
 
-                Map<Integer, BigDecimal> paymentEntry = paymentMap.get(idReceipt);
-                BigDecimal sumCard = paymentEntry == null ? null : paymentEntry.get(1);
-                BigDecimal sumCash = paymentEntry == null ? null : paymentEntry.get(2);
-                BigDecimal sumGiftCard = paymentEntry == null ? null : paymentEntry.get(3);
+                        //if(idBarcode == null) {
+                        //    idBarcode = barcodeMap.get(idItem);
+                        //}
 
-                //if(idBarcode == null) {
-                //    idBarcode = barcodeMap.get(idItem);
-                //}
+                        totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
+                        BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
+                        if (dateReceipt.getYear() == 115 && dateReceipt.getMonth() == 2 && dateReceipt.getDate() > 25 && nppGroupMachinery == 2)
+                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport,
+                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact,
+                                    sumCard, sumCash, sumGiftCard, idBarcode, null, totalQuantity, price,
+                                    isSale ? sum : sum.negate(), discountSumReceiptDetail, null, null, position, null));
+                        receiptItemSet.add(Pair.create(cash_id, id));
+                    }
 
-                totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
-                BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
-
-                if(totalQuantity != null) {
-                    salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport,
-                            numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact,
-                            sumCard, sumCash, sumGiftCard, idBarcode, null, totalQuantity, price,
-                            isSale ? sum : sum.negate(), discountSumReceiptDetail, null, null, position, null));
                 }
-
+            } catch (SQLException e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (statement != null)
+                    statement.close();
             }
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
-        return salesInfoList;
+        return new UKM4MySQLSalesBatch(salesInfoList, receiptSet, receiptItemSet);
     }
 
     @Override
@@ -703,6 +609,53 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(UKM4MySQLSalesBatch salesBatch) {
+
+        /*UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+        String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
+        String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
+        String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
+
+        if (connectionString != null) {
+
+            Connection conn = null;
+
+            try {
+                conn = DriverManager.getConnection(connectionString, user, password);
+
+                conn.setAutoCommit(false);
+                PreparedStatement ps = null;
+                ps = conn.prepareStatement("INSERT INTO receipt (ext_lsf_imported, id, cash_id VALUES (?, ?, ?)" +
+                        " ON DUPLICATE KEY UPDATE ext_lsf_imported=VALUES(ext_lsf_imported)");
+                for (Pair<Integer, Integer> receiptEntry : salesBatch.receiptSet) {
+                    ps.setInt(1, 1); //ext_lsf_imported
+                    ps.setInt(2, receiptEntry.first); //id
+                    ps.setInt(3, receiptEntry.second); //cash_id
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+                conn.commit();
+
+                ps = conn.prepareStatement("INSERT INTO receipt_item (ext_lsf_imported, id, cash_id) VALUES (?, ?, ?)" +
+                        " ON DUPLICATE KEY UPDATE ext_lsf_imported=VALUES(ext_lsf_imported)");
+                for (Pair<Integer, Integer> receiptItemEntry : salesBatch.receiptItemSet) {
+                    ps.setInt(1, 1); //ext_lsf_imported
+                    ps.setInt(2, receiptItemEntry.first); //id
+                    ps.setInt(3, receiptItemEntry.second); //cash_id
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+                conn.commit();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (conn != null)
+                        conn.close();
+                } catch (SQLException ignored) {
+                }
+            }
+        }*/
     }
 
     @Override

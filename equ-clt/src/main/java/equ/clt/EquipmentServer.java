@@ -400,7 +400,11 @@ public class EquipmentServer {
                                     reportEquipmentServerError(remote, sidEquipmentServer, result);
                                 } else {
                                     sendSalesLogger.info("Finish Reading starts");
-                                    ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                                    try {
+                                        ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                                    } catch (Exception e) {
+                                        reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
+                                    }
                                 }
                             }
                         }
