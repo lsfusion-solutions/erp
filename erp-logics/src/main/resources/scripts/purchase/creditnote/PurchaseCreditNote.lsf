@@ -66,3 +66,41 @@ NAVIGATOR {
         ADD creditNotes;
     }
 }
+
+//------------------- Печатные формы ----------------------//
+
+quantityInvoiceDetailCreditNoteDetail 'Кол-во по накладной' (detail) = quantityInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
+sumInvoiceDetailCreditNoteDetail 'Сумма по накладной' (detail) = invoiceSumInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
+shipmentQuantityInvoiceDetailCreditNoteDetail 'Поставленное кол-во' (detail) = shipmentQuantityInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
+shipmentSumInvoiceDetailCreditNoteDetail 'Поставленная сумма' (detail) = shipmentSumInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
+
+FORM creditNotePrint 'Акт расхождений'
+    OBJECTS c = CreditNote FIXED PANEL 
+    PROPERTIES (c) READONLY seriesNumberCreditNote, dateCreditNote, fullNameSupplierCreditNote, nameSupplierStockCreditNote, 
+                            fullNameCustomerCreditNote, addressCustomerCreditNote, nameCustomerStockCreditNote, addressCustomerStockCreditNote,
+                            seriesNumberContractSkuCreditNote, quantityCreditNoteDetailCreditNote, sumCreditNoteDetailCreditNote,
+                            VATSumCreditNoteDetailCreditNote, invoiceSumCreditNoteDetailCreditNote, noteCreditNote
+
+    OBJECTS d = CreditNoteDetail
+    PROPERTIES (d) READONLY idBarcodeSkuCreditNoteDetail, nameSkuCreditNoteDetail, shortNameUOMSkuCreditNoteDetail,
+                            quantityCreditNoteDetail, priceCreditNoteDetail, sumCreditNoteDetail, numberVATCreditNoteDetail, 
+                            valueVATCreditNoteDetail, VATSumCreditNoteDetail, invoiceSumCreditNoteDetail,
+                            quantityInvoiceDetailCreditNoteDetail, sumInvoiceDetailCreditNoteDetail,
+                            shipmentQuantityInvoiceDetailCreditNoteDetail, shipmentSumInvoiceDetailCreditNoteDetail
+    FILTERS creditNoteCreditNoteDetail(d) == c
+;        
+
+printCreditNote 'Акт расхождения' (creditNote) = ACTION FORM creditNotePrint OBJECTS c = creditNote PRINT IMAGE 'print.png';
+EXTEND FORM creditNotes 
+    PROPERTIES(c) printCreditNote FORCE PANEL 
+;
+DESIGN creditNotes {
+    printContainer{
+        ADD PROPERTY(printCreditNote(c));
+    }    
+}
+
+printCreditNoteInvoice 'Акт расхождения' (invoice) = ACTION printCreditNote(invoiceCreditNoteInvoice(invoice)) IMAGE 'print.png' IN print; 
+EXTEND FORM invoices
+    PROPERTIES(i) FORCE PANEL printCreditNoteInvoice SHOWIF invoiceCreditNoteInvoice(i)
+;
