@@ -491,16 +491,18 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     }
                 }
 
-                XMLOutputter xmlOutput = new XMLOutputter();
-                xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-                PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
-                xmlOutput.output(doc, fw);
-                fw.close();
+                if (!stopListInfo.stopListItemMap.isEmpty()) {
+                    XMLOutputter xmlOutput = new XMLOutputter();
+                    xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
+                    xmlOutput.output(doc, fw);
+                    fw.close();
 
-                //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ignored) {
+                    //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) {
+                    }
                 }
             }
         }
