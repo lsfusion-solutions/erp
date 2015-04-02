@@ -7,21 +7,18 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.ScalesSettings;
 import equ.api.scales.TransactionScalesInfo;
-import lsfusion.base.OrderedMap;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-public class BizerbaBCIIHandler extends BizerbaHandler {
-    
+public class BizerbaBSHandler extends BizerbaHandler {
+
     private FileSystemXmlApplicationContext springContext;
     protected static String charset = "cp866";
 
-    public BizerbaBCIIHandler(FileSystemXmlApplicationContext springContext) {
+    public BizerbaBSHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
     }
 
@@ -34,8 +31,8 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
             for (MachineryInfo scales : transactionInfo.machineryInfoList) {
                 groupId += scales.port + ";";
             }
-            return "bizerbabcii" + groupId;
-        } else return "bizerbabcii";
+            return "bizerbabs" + groupId;
+        } else return "bizerbabs";
     }
 
     @Override
@@ -81,10 +78,10 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                                 processTransactionLogger.info("Bizerba: Connecting..." + ip);
                                 port.open();
                                 if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                    String clear = clearAllPLU(localErrors, port, scales, charset, false);
+                                    String clear = clearAllPLU(localErrors, port, scales, charset, true);
                                     if (!clear.equals("0"))
                                         logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
-                                    clear = clearAllMessages(localErrors, port, scales, charset, false);
+                                    clear = clearAllMessages(localErrors, port, scales, charset, true);
                                     if (!clear.equals("0"))
                                         logError(localErrors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
                                 }
@@ -96,9 +93,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                                             if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                                 item.description = item.description == null ? "" : item.description;
                                                 item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
-                                                String clear = clearMessage(localErrors, port, scales, item, true, charset, false);
+                                                String clear = clearMessage(localErrors, port, scales, item, true, charset, true);
                                                 if (clear.equals("0")) {
-                                                    loadPLU(localErrors, port, scales, item, charset, false);
+                                                    loadPLU(localErrors, port, scales, item, charset, true);
                                                 } else
                                                     logError(localErrors, String.format("Bizerba: ClearMessage, Error %s", clear));
                                             }
