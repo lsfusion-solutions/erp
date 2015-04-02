@@ -524,16 +524,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     conn = DriverManager.getConnection(url);
                     Statement statement = conn.createStatement();
-                    String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
+                    String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber, Ck_NSmena FROM OperGangMoney WHERE Taken='1'";
                     ResultSet rs = statement.executeQuery(queryString);
                     while (rs.next()) {
                         String number = rs.getString("Ck_Number");
-                        String idCashDocument = host + "/" + number;
+                        Integer ckNSmena = rs.getInt("Ck_NSmena");
                         Timestamp dateTime = rs.getTimestamp("Ck_Date");
                         Date date = new Date(dateTime.getTime());
                         Time time = new Time(dateTime.getTime());
                         BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                         Integer nppMachinery = rs.getInt("CashNumber");
+                        String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
                         if (!cashDocumentSet.contains(idCashDocument))
                             result.add(new CashDocument(idCashDocument, number, date, time,
                                     directoryGroupCashRegisterMap.get(dir + "_" + nppMachinery)/*cashRegisterGroupCashRegisterMap.get(nppMachinery)*/,
