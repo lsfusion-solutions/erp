@@ -81,9 +81,9 @@ public class BizerbaBSHandler extends BizerbaHandler {
                                     String clear = clearAllPLU(localErrors, port, scales, charset, true);
                                     if (!clear.equals("0"))
                                         logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
-                                    clear = clearAllMessages(localErrors, port, scales, charset, true);
-                                    if (!clear.equals("0"))
-                                        logError(localErrors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
+                                    //clear = clearAllMessages(localErrors, port, scales, charset, true);
+                                    //if (!clear.equals("0"))
+                                    //    logError(localErrors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
                                 }
 
                                 processTransactionLogger.info("Bizerba: Sending items..." + ip);
