@@ -39,10 +39,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
 
-                String name = null;
-                ScriptingLogicsModule zReportNlibLM = context.getBL().getModule("ZReportNlib");
-                if(zReportNlibLM != null)
-                    name = (String) zReportNlibLM.findProperty("shortNameSkuReceiptDetail").read(session, receiptDetailObject);
+                String name = (String) findProperty("boardNameSkuReceiptDetail").read(session, receiptDetailObject);
                 name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
                 name = name == null ? "" : name;
 

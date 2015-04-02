@@ -37,10 +37,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
                 Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister").read(context);
                 Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister").read(context);
 
-                String name = null;
-                ScriptingLogicsModule zReportNlibLM = context.getBL().getModule("ZReportNlib");
-                if(zReportNlibLM != null)
-                    name = (String) zReportNlibLM.findProperty("shortNameSkuReceiptDetail").read(session, receiptDetailObject);
+                String name = (String) findProperty("boardNameSkuReceiptDetail").read(session, receiptDetailObject);
                 name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
                 name = name == null ? "" : name;
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
