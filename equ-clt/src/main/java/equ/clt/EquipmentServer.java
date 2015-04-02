@@ -75,7 +75,7 @@ public class EquipmentServer {
 
                 int millis = 10000;
                 int sendSalesDelay = 0;
-                int sendSalesDelayCounter = 0;
+                int sendSalesDelayCounter = -1;
                                
                 while (true) {
 
@@ -127,7 +127,7 @@ public class EquipmentServer {
                             if(remote.enabledStopListInfo())
                                 processStopListConsumer.scheduleIfNotScheduledYet();
 
-                            if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay) {
+                            if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay || sendSalesDelayCounter == -1) {
                                 sendSalesConsumer.scheduleIfNotScheduledYet();
                                 sendSalesDelayCounter = 0;
                             } else {
