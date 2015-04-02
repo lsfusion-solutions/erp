@@ -43,7 +43,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
             if(connectionString == null) {
-                processTransactionLogger.error("No ukm4MySQLSettings found");
+                processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
             } else {
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -395,7 +395,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
-/*        UKM4MySQLSalesBatch salesBatch = null;
+        UKM4MySQLSalesBatch salesBatch = null;
 
         try {
 
@@ -407,7 +407,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
             if(connectionString == null) {
-                processTransactionLogger.error("No ukm4MySQLSettings found");
+                processTransactionLogger.error("No exportConnectionString in ukm4MySQLSettings found");
             } else {
 
                 Connection conn = null;
@@ -425,8 +425,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
-        return salesBatch;*/
-        return null;
+        return salesBatch;
     }
 
     private List<Object> readReceiptTable(Connection conn, Map<Integer, String> loginMap) throws SQLException {
@@ -499,8 +498,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 Integer idReceipt = rs.getInt(2); //receipt_header
                 String key = String.valueOf(cash_id) + "/" + String.valueOf(idReceipt);
                 Integer paymentType = rs.getInt(3); //payment_id
-                if(paymentType.equals(3))
-                    paymentType = 1; //1 и 3 - безнал
+                if(paymentType.equals(2) || paymentType.equals(3))
+                    paymentType = 1; //1, 2 и 3 - безнал
                 BigDecimal amount = rs.getBigDecimal(4);
 
                 Map<Integer, BigDecimal> paymentEntry = paymentMap.containsKey(key) ? paymentMap.get(key) : new HashMap<Integer, BigDecimal>();
@@ -568,17 +567,12 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         BigDecimal sumCard = paymentEntry.get(1);
                         BigDecimal sumGiftCard = paymentEntry.get(2);
 
-                        //if(idBarcode == null) {
-                        //    idBarcode = barcodeMap.get(idItem);
-                        //}
-
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                         BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
-                        if (dateReceipt.getYear() == 115 && dateReceipt.getMonth() == 2 && dateReceipt.getDate() > 25 && nppGroupMachinery == 2)
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport,
-                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact,
-                                    sumCard, sumCash, sumGiftCard, idBarcode, null, totalQuantity, price,
-                                    isSale ? sum : sum.negate(), discountSumReceiptDetail, null, null, position, null));
+                        salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport,
+                                numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact,
+                                sumCard, sumCash, sumGiftCard, idBarcode, null, totalQuantity, price,
+                                isSale ? sum : sum.negate(), discountSumReceiptDetail, null, null, position, null));
                         receiptItemSet.add(Pair.create(cash_id, id));
                     }
 
@@ -610,7 +604,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     @Override
     public void finishReadingSalesInfo(UKM4MySQLSalesBatch salesBatch) {
 
-        /*UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
         String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
         String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
         String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
@@ -618,29 +612,25 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         if (connectionString != null) {
 
             Connection conn = null;
+            PreparedStatement ps = null;
 
             try {
                 conn = DriverManager.getConnection(connectionString, user, password);
 
                 conn.setAutoCommit(false);
-                PreparedStatement ps = null;
-                ps = conn.prepareStatement("INSERT INTO receipt (ext_lsf_imported, id, cash_id VALUES (?, ?, ?)" +
-                        " ON DUPLICATE KEY UPDATE ext_lsf_imported=VALUES(ext_lsf_imported)");
+                ps = conn.prepareStatement("DELETE FROM receipt WHERE cash_id = ? AND id = ?");
                 for (Pair<Integer, Integer> receiptEntry : salesBatch.receiptSet) {
-                    ps.setInt(1, 1); //ext_lsf_imported
-                    ps.setInt(2, receiptEntry.first); //id
-                    ps.setInt(3, receiptEntry.second); //cash_id
+                    ps.setInt(1, receiptEntry.first); //id
+                    ps.setInt(2, receiptEntry.second); //cash_id
                     ps.addBatch();
                 }
                 ps.executeBatch();
                 conn.commit();
 
-                ps = conn.prepareStatement("INSERT INTO receipt_item (ext_lsf_imported, id, cash_id) VALUES (?, ?, ?)" +
-                        " ON DUPLICATE KEY UPDATE ext_lsf_imported=VALUES(ext_lsf_imported)");
+                ps = conn.prepareStatement("DELETE FROM receipt_item WHERE cash_id = ? AND id = ?");
                 for (Pair<Integer, Integer> receiptItemEntry : salesBatch.receiptItemSet) {
-                    ps.setInt(1, 1); //ext_lsf_imported
-                    ps.setInt(2, receiptItemEntry.first); //id
-                    ps.setInt(3, receiptItemEntry.second); //cash_id
+                    ps.setInt(1, receiptItemEntry.first); //id
+                    ps.setInt(2, receiptItemEntry.second); //cash_id
                     ps.addBatch();
                 }
                 ps.executeBatch();
@@ -650,12 +640,14 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 e.printStackTrace();
             } finally {
                 try {
+                    if(ps != null)
+                        ps.close();
                     if (conn != null)
                         conn.close();
                 } catch (SQLException ignored) {
                 }
             }
-        }*/
+        }
     }
 
     @Override
@@ -687,12 +679,6 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         } catch (Exception e) {
             return (long) 0;
         }
-    }
-
-    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
-            return null;
-        else return operand1.multiply(operand2);
     }
 
     protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
