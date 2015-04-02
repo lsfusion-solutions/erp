@@ -730,9 +730,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
                                 idStockSet, stopListItemMap, handlerDirectoryMap));
                     }
-                    for(StopListInfo stopList : stopListInfoMap.values())
-                        stopListInfoList.add(stopList);
-                    
+                }
+
+                for(StopListInfo stopList : stopListInfoMap.values()) {
+                    stopListInfoList.add(stopList);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 throw Throwables.propagate(e);
