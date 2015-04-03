@@ -173,7 +173,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 ps.setString(2, trim(item.name, 40, "")); //name
                 ps.setString(3, item.description == null ? "" : item.description); //descr
                 ps.setString(4, trim(item.shortNameUOM, 40, "")); //measure
-                ps.setInt(5, item.passScalesItem ? 3 : 0); //measprec
+                ps.setInt(5, item.passScalesItem ? 3 : item.splitItem ? 2 : 0); //measprec
                 ps.setLong(6, parseGroup(item.idItemGroup)); //classif
                 ps.setInt(7, 1); //prop - признак товара ?
                 ps.setString(8, trim(item.description, 100, "")); //summary
