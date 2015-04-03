@@ -183,11 +183,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return "-1";
     }
 
-    private String zeroedInt(int var1, int var2) {
-        String var3;
-        for (var3 = (new Integer(var1)).toString(); var3.length() < var2; var3 = "0" + var3) {
-        }
-        return var3.substring(var3.length() - 2);
+    private String zeroedInt(int value, int len) {
+        String result = String.valueOf(value);
+        while (result.length() < len)
+            result = "0" + result;
+        return result;
     }
 
     private void clearReceiveBuffer(TCPPort port) {
@@ -390,68 +390,33 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
         Integer pluNumber = getPluNumber(item);
 
-        String var3 = "";
-        String command2;
-        String captionItem = item.name.trim();
+        String command2 = "TFZU@00@04";
+        String captionItem = trim(item.name, "").replace('@', 'a');
         if (captionItem.isEmpty())
             logError(errors, String.format("PLU name is invalid. Name is empty (item: %s)", item.idItem));
 
         int department = 1;
+        boolean manualWeight = false;
+        boolean nonWeight = false;
 
-        int count;
-        int i;
         Map<Integer, String> messageMap = getMessageMap(item);
         loadPLUMessages(errors, port, scales, messageMap, item, charset, encode);
-        command2 = "TFZU@00@04";
-        i = 0;
 
-        for (Iterator messageMapIterator = messageMap.keySet().iterator(); messageMapIterator.hasNext(); ++i) {
-            Integer var9 = (Integer) messageMapIterator.next();
-            count = i + 1;
+        int i = 0;
+        String altCommand = "";
+        for (Integer messageNumber : messageMap.keySet()) {
             if (i < 4) {
-                var3 = var3 + "ALT" + count + var9 + separator;
+                altCommand += "ALT" + (i + 1) + messageNumber + separator;
             }
-
             if (i < 10) {
-                command2 = command2 + "@" + makeString(var9);
+                command2 += "@" + makeString(messageNumber);
             }
+            i++;
         }
 
-        for (count = i; count < 10; ++count) {
-            command2 = command2 + "@00@00@00@00";
+        for (int count = i; count < 10; count++) {
+            command2 += "@00@00@00@00";
         }
-
-        boolean nonWeight = false;
-        //if(Configuration.isNonWeightPrefix(var1.barCodePrefix)) {
-        //    nonWeight = true;
-        //}
-
-            /*if(Configuration.BIZERBABS_AddExpiredToName && var1.expired > 0) {
-                if(var1.expiredType == null) {
-                    throw new ScalesException("PLU expired type is invalid. Expired type is null");
-                }
-
-                String var17 = " Срок годн. ";
-                switch(BizerbaBCII.SyntheticClass_1.$SwitchMap$ru$crystalservice$scales$PLU$ExpiredType[var1.expiredType.ordinal()]) {
-                    case 1:
-                        var17 = var17 + var1.expired + " час.";
-                        break;
-                    case 2:
-                        var17 = var17 + var1.expired + " сут.";
-                }
-
-                var15 = var15 + var17;
-            }*/
-
-            /*switch(Configuration.BIZERBABCII_PriceDecimal) {
-                case 0:
-                    var1.price /= 100;
-                    var1.exPrice /= 100;
-                    break;
-                case 1:
-                    var1.price /= 10;
-                    var1.exPrice /= 10;
-            }*/
 
         byte priceOverflow = 0;
         int price = item.price.intValue();
@@ -465,10 +430,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
             //throw new RuntimeException("PLU number is invalid. Number is " + pluNumber);
         }
 
-        //if(department == 0 || department > 999 || department < 0) {
-        //    logError(errors, "PLU department is invalid. Department is " + department);
-        //}
-
         if (price > 999999 || price < 0) {
             logError(errors, String.format("PLU price is invalid. Price is %s (item: %s)", price, item.idItem));
         }
@@ -480,7 +441,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
 
         String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
-        boolean manualWeight = false;
         if (!manualWeight) {
             if (nonWeight) {
                 command1 = command1 + "KLAR1\u001b";
@@ -491,7 +451,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
             command1 = command1 + "KLAR4\u001b";
         }
 
-        captionItem = captionItem.replace('@', 'a');
         command1 = command1 + "GPR1" + price + separator;
         Integer exPrice = price;
         if (exPrice > 0) {
@@ -504,7 +463,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         Integer tarePercent = 0;
         command1 = command1 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + separator + "ECO1" + idBarcode
                 + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
-                + separator + "KLGE" + priceOverflow + separator + var3 + "PLTE" + captionItem + separator;
+                + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
         if (!command2.isEmpty()) {
             command1 = command1 + command2 + separator;
         }
@@ -524,6 +483,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected void logError(List<String> errors, String errorText, Throwable t) {
         errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + t.toString())));
         processTransactionLogger.error(errorText, t);
+    }
+
+    protected String trim(String input, String defaultValue) {
+        return input == null ? defaultValue : input.trim();
     }
     
 }
