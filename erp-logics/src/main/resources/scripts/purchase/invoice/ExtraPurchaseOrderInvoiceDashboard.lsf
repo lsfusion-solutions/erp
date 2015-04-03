@@ -139,22 +139,14 @@ DESIGN userInvoice {
     }    
 }
 
-extraCreateMultiUserInvoiceOrder 'Создать накладную (без строк)'= ACTION (order) {
+extraCreateMultiUserInvoiceOrder 'Создать накладную (без строк)'= ACTION (order) NEWSESSION {
     IF order IS Order THEN {
         FOR ADDOBJ i = UserInvoice DO {
 
             fillHeaderUserInvoiceOrder(i, order);               
-            includeOrderUserInvoice(order,i)<- TRUE;
+            includeOrderUserInvoice(order, i)<- TRUE;
                           
-            FORM userInvoice OBJECTS i = i DOCKEDMODAL;
-            IF formResult() == FormResult.ok THEN {
-                apply();
-            } ELSE {
-                FOR userInvoiceUserInvoiceDetail(d)==i DO {
-                    DELETE d;   
-                }
-                DELETE i;
-            }
+            FORM userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     }
 }
