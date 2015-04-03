@@ -48,17 +48,22 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     reply = new String(var4, charset);
 
                     Matcher matcher = pattern.matcher(reply);
-                    if(matcher.find()) {
+                    if (matcher.find()) {
+                        if (ignoreTimeout)
+                            processTransactionLogger.info("Bizerba action finished: " + reply);
                         return matcher.group(1);
-                    }
+                    } else if (ignoreTimeout)
+                        processTransactionLogger.info("Bizerba action continues: " + reply);
                 }
 
                 Thread.sleep(10L);
                 time = (new Date()).getTime();
-            } while(time - startTime <= 10000L);
+            } while(time - startTime <= 600000L);
 
-            if (ignoreTimeout)
+            if (ignoreTimeout) {
+                processTransactionLogger.info("Scales reply timeout");
                 return "0";
+            }
             else {
                 logError(errors, "Scales reply timeout");
                 return "-1";
@@ -164,14 +169,25 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    protected String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    protected void clearAll(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws InterruptedException, IOException, CommunicationException {
+        processTransactionLogger.info("Bizerba: ClearAllPLU");
+        String clear = clearAllPLU(errors, port, scales, charset, encode);
+        if (!clear.equals("0"))
+            logError(errors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
+        processTransactionLogger.info("Bizerba: ClearAllMessages");
+        clear = clearAllMessages(errors, port, scales, charset, encode);
+        if (!clear.equals("0"))
+            logError(errors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
+    }
+
+    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
         String command = "ATST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, encode);
         return receiveReply(errors, port, charset, true);
     }
 
-    protected String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
         String command = "PLST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, encode);
@@ -203,31 +219,29 @@ public abstract class BizerbaHandler extends ScalesHandler {
     }
 
     private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
-        Integer messageNumber;
-        String result;
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
-            messageNumber = entry.getKey();
+            Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();//prepareRusText(messageText)
-            if(messageText != null && !messageText.isEmpty()) {
-                String message = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
-                clearReceiveBuffer(port);
-                sendCommand(errors, port, message, charset, encode);
-                result = receiveReply(errors, port, charset);
-                if (!result.equals("0")) {
-                    logError(errors, String.format("Result is %s, item: %s [msgNo=%s]", result, item.idItem, messageNumber));
-                    break;
-                }
+            messageText = messageText == null ? "" : messageText;
+            String message = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
+            clearReceiveBuffer(port);
+            sendCommand(errors, port, message, charset, encode);
+            String result = receiveReply(errors, port, charset);
+            if (!result.equals("0")) {
+                logError(errors, String.format("Result is %s, item: %s [msgNo=%s]", result, item.idItem, messageNumber));
+                break;
             }
         }
     }
 
-    private Map<Integer, String> getPLUMessage(ScalesItemInfo item) {
+    private Map<Integer, String> getMessageMap(ScalesItemInfo item) {
         OrderedMap<Integer, String> messageMap = new OrderedMap<Integer, String>();
-        if(item.description != null) {
+        Integer pluNumber = getPluNumber(item);
+        if (item.description != null) {
             int count = 0;
             List<String> splittedMessage = new ArrayList<String>();
-            for(String line : item.description.split("\n")) {
-                while(line.length() > 255) {
+            for (String line : item.description.split("\\\\n")) {
+                while (line.length() > 255) {
                     splittedMessage.add(line.substring(0, 255));
                     line = line.substring(255);
                 }
@@ -236,12 +250,12 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
             boolean isDouble = splittedMessage.size() > 4;
             for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
-                String line = splittedMessage.get(i) + (isDouble && (i+1 < splittedMessage.size()) ? (" " + splittedMessage.get(i+1)) : "");
+                String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
                 line = line.replace('@', 'a');
                 if (line.length() >= 255) {
                     line = line.substring(0, 255);
                 }
-                int messageNumber = getPluNumber(item) * 10 + count;
+                int messageNumber = pluNumber * 10 + count;
                 messageMap.put(messageNumber, line);
                 ++count;
             }
@@ -261,18 +275,18 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
         int department = 1;
 
-        int var5;
+        int count;
         int i;
-        Map<Integer, String> messageMap = getPLUMessage(item);
+        Map<Integer, String> messageMap = getMessageMap(item);
         loadPLUMessages(errors, port, scales, messageMap, item, charset, encode);
         command2 = "TFZU@00@04";
         i = 0;
 
         for (Iterator messageMapIterator = messageMap.keySet().iterator(); messageMapIterator.hasNext(); ++i) {
             Integer var9 = (Integer) messageMapIterator.next();
-            var5 = i + 1;
+            count = i + 1;
             if (i < 4) {
-                var3 = var3 + "ALT" + var5 + var9 + separator;
+                var3 = var3 + "ALT" + count + var9 + separator;
             }
 
             if (i < 10) {
@@ -280,7 +294,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
         }
 
-        for (var5 = i; var5 < 10; ++var5) {
+        for (count = i; count < 10; ++count) {
             command2 = command2 + "@00@00@00@00";
         }
 
@@ -378,6 +392,17 @@ public abstract class BizerbaHandler extends ScalesHandler {
         String result = receiveReply(errors, port, charset);
         if (!result.equals("0"))
             logError(errors, String.format("Result is %s, item: %s", result, item.idItem));
+    }
+
+    protected String formatErrorMessage(Map<String, List<String>> errors) {
+        String message = "";
+        for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
+            message += entry.getKey() + ": \n";
+            for (String error : entry.getValue()) {
+                message += error + "\n";
+            }
+        }
+        return message;
     }
 
     protected void logError(List<String> errors, String errorText) {

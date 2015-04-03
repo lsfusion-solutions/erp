@@ -81,29 +81,22 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                                 processTransactionLogger.info("Bizerba: Connecting..." + ip);
                                 port.open();
                                 if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                    String clear = clearAllPLU(localErrors, port, scales, charset, false);
-                                    if (!clear.equals("0"))
-                                        logError(localErrors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
-                                    clear = clearAllMessages(localErrors, port, scales, charset, false);
-                                    if (!clear.equals("0"))
-                                        logError(localErrors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
+                                    clearAll(localErrors, port, scales, charset, false);
                                 }
 
                                 processTransactionLogger.info("Bizerba: Sending items..." + ip);
                                 if (localErrors.isEmpty()) {
                                     int count = 0;
                                     for (ScalesItemInfo item : transaction.itemsList) {
+                                        count++;
                                         if (!Thread.currentThread().isInterrupted()) {
-                                            processTransactionLogger.info(String.format("Bizerba: Transaction  #%s, sending item #%s of %s", transaction.id, count, transaction.itemsList.size()));
+                                            processTransactionLogger.info(String.format("Bizerba: Transaction #%s, sending item #%s of %s", transaction.id, count, transaction.itemsList.size()));
                                             if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                                 item.description = item.description == null ? "" : item.description;
                                                 item.descriptionNumber = item.descriptionNumber == null ? 1 : item.descriptionNumber;
-                                                String clear = clearMessage(localErrors, port, scales, item, true, charset, false);
-                                                if (clear.equals("0")) {
-                                                    loadPLU(localErrors, port, scales, item, charset, false);
-                                                    count++;
-                                                } else
-                                                    logError(localErrors, String.format("Bizerba: ClearMessage, Error %s", clear));
+                                                loadPLU(localErrors, port, scales, item, charset, false);
+                                            } else {
+                                                processTransactionLogger.info(String.format("Bizerba: Transaction #%s, item #%s: incorrect barcode %s", transaction.id, count, item.idBarcode));
                                             }
                                         }
                                         count++;
@@ -130,14 +123,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
                     }
 
                     if (!errors.isEmpty()) {
-                        String message = "";
-                        for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                            message += entry.getKey() + ": \n";
-                            for (String error : entry.getValue()) {
-                                message += error + "\n";
-                            }
-                        }
-                        throw new RuntimeException(message);
+                        throw new RuntimeException(formatErrorMessage(errors));
                     } else if (ips.isEmpty())
                         throw new RuntimeException("Bizerba: No IP-addresses defined");
 
