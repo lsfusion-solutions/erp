@@ -19,7 +19,7 @@ DESIGN options {
 
 debtDefaultCurrencyInContractLedgerDate 'Долг по документу (основная валюта)'= 
     IF currencyContract(contractInContractLedger(ledger)) != defaultCurrency() THEN
-        roundPriceRoundCondition(debtInContractLedgerDate(ledger, date) / rateOnTypeExchangeCurrencyDate(defaultTypeExchangePaymentInstallments(), defaultCurrency(), date), defaultRoundConditionPaymentInstallments())
+        roundPriceRoundCondition(debtInContractLedgerDate(ledger, date) * rateOnTypeExchangeCurrencyDate(defaultTypeExchangeRepaymentInstallments(), currencyContract(contractInContractLedger(ledger)), date), defaultRoundConditionPaymentInstallments())
     ELSE
         debtInContractLedgerDate(ledger, date);
 
@@ -27,7 +27,8 @@ balanceACurrencyPaymentInstallmentsLegalEntityDate 'Задолженность �
     GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity AND currencyContract(contract) == defaultCurrencyPaymentInstallments()
     BY legalEntity, date;
 balanceADefaultCurrencyCurrencyPaymentInstallmentsLegalEntityDate 'Задолженность по рассрочке(основная валюта)' = 
-    roundPriceRoundCondition(balanceACurrencyPaymentInstallmentsLegalEntityDate(legalEntity, date) / rateOnTypeExchangeCurrencyDate(defaultTypeExchangePaymentInstallments(), defaultCurrency(), date), defaultRoundConditionPaymentInstallments());
+    GROUP SUM debtDefaultCurrencyInContractLedgerDate(ledger, date)
+    BY partyBContractInContractLedger(ledger), date;
 
 balanceADefaultCurrencyLegalEntityDate 'Задолженность по предоплате' = 
     GROUP SUM balanceAContractDate(contract, date) IF partyBContract(contract) == legalEntity AND currencyContract(contract) == defaultCurrency()

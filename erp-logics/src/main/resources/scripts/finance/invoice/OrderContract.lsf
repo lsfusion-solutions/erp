@@ -1,0 +1,31 @@
+MODULE OrderContract;
+
+REQUIRE StockContract, Order;
+
+META defineOrderPaymentCondition (sign)
+
+    paymentConditionOrder 'Условия оплаты' = ABSTRACT PaymentCondition (Order) PERSISTENT;
+    paymentConditionUserOrder 'Условия оплаты' = DATA PaymentCondition (UserOrder);
+    paymentConditionOrder(prop) += paymentConditionUserOrder(prop);
+    OrderContract.paymentConditionOrder(prop) += paymentConditionOrder(prop);
+    descriptionPaymentConditionOrder 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionOrder(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    descriptionPaymentConditionUserOrder 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionUserOrder(i)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+    paymentConditionUserOrder(prop) <- OVERRIDE paymentConditionAgreement(agreementUserOrder(prop)), paymentConditionContract(contractSkuUserOrder(prop))
+        WHEN CHANGED(agreementUserOrder(prop)) OR
+             CHANGED(contractSkuUserOrder(prop));
+
+    EXTEND FORM userOrder
+        PROPERTIES(o) descriptionPaymentConditionUserOrder
+    ;
+
+    DESIGN userOrder{
+        o.documentPrm{
+            ADD PROPERTY(descriptionPaymentConditionUserOrder(o));
+        }
+    }
+
+END
+
+paymentConditionOrder 'Условия оплаты' = ABSTRACT PaymentCondition (Order) PERSISTENT;
+descriptionPaymentConditionOrder 'Условия оплаты' (o) = descriptionPaymentCondition(paymentConditionOrder(o)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;

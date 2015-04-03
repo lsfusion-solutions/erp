@@ -1,0 +1,120 @@
+MODULE InvoiceOrder;
+
+REQUIRE Order, Invoice;
+
+NAMESPACE Invoice;
+
+META defineInvoiceOrder(sign, NS)
+
+    @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
+    invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
+    @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
+
+    showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
+    
+    
+    EXTEND FORM userOrder
+        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
+
+        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+        PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+    ;
+    DESIGN userOrder {
+        headerCreateDocuments {
+            NEW headerInvoice {
+                type = CONTAINERH;
+                caption = 'Накладная';
+                ADD PROPERTY(createInvoiceUserOrder(o));
+                ADD PROPERTY(seriesNumberContractSkuUserOrder(o));
+                ADD PROPERTY(isCommissionUserOrder(o));
+            }
+        }
+    }
+
+    EXTEND FORM orders
+        PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreementOrder(o) BACKGROUND backgroundInvoiceOrder(o) isCommissionOrder, seriesNumberContractSkuOrder
+
+        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityOrderDetail(d) SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+        PROPERTIES(d) invoiceQuantityOrderDetail AFTER quantityOrderDetail(d) SHOWIF createInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+    ;
+    EXTEND FORM invoiceOrders
+        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoiceOrderDetail
+    ;
+
+    CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;
+    CLASS OrderInvoiceDetail 'Строка накладной на основе заказа'###sign : InvoiceDetail;
+
+    @defineDocumentTables(orderInvoice);
+
+    @defineDocumentAggregation(order, orderInvoice, createInvoice);
+
+    invoiceInvoiceDetail(detail) += orderInvoiceOrderInvoiceDetail(detail);
+
+    //@defineDocumentDetailIndex(orderInvoice);
+
+    dateInvoice(invoice) += dateOrderInvoice(invoice);
+    timeInvoice(invoice) += timeOrderInvoice(invoice);
+
+    @defineDocumentAggregationStockPrefix(order, orderInvoice, supplier, 'Склад поставщика', , );
+    supplierStockInvoice(invoice) += supplierStockOrderInvoice(invoice);
+    dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    @defineDocumentAggregationStockPrefix(order, orderInvoice, customer, 'Склад покупателя', , );
+    customerStockInvoice(invoice) += customerStockOrderInvoice(invoice);
+    dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+
+    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, supplier, 'Поставщик', , );
+    supplierInvoice(invoice) += supplierOrderInvoice(invoice);
+    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, customer, 'Покупатель', , );
+    customerInvoice(invoice) += customerOrderInvoice(invoice);
+
+    @defineDocumentAggregationPosted(order, orderInvoice);
+    isPostedInvoice(invoice) += isPostedOrderInvoice(invoice);
+    
+    @defineDocumentAggregationClosed(order, orderInvoice);
+    isClosedInvoice(invoice) += isClosedOrderInvoice(invoice);    
+
+    numberOrderInvoice 'Номер документа' (orderInvoice) = numberOrder(orderOrderInvoice(orderInvoice));
+    numberInvoice(invoice) += numberOrderInvoice(invoice);
+
+    seriesOrderInvoice 'Серия документа' (orderInvoice) = seriesOrder(orderOrderInvoice(orderInvoice));
+    seriesInvoice(invoice) += seriesOrderInvoice(invoice);
+
+    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = seriesNumberOrder(orderOrderInvoice(orderInvoice));
+
+    noteInvoiceOrderInvoice 'Примечание' (orderInvoice) = noteOrder(orderOrderInvoice(orderInvoice));
+    noteInvoice(invoice) += noteInvoiceOrderInvoice(invoice);
+
+    currencyOrderInvoice  (orderInvoice) = currencyOrder(orderOrderInvoice(orderInvoice));
+    currencyInvoice (invoice) += currencyOrderInvoice(invoice);
+
+    priceListTypeInvoice(invoice) += priceListTypeOrder(orderOrderInvoice(invoice));
+    agreementInvoice(invoice) += agreementOrder(orderOrderInvoice(invoice));
+    contractSkuInvoice(invoice) += contractSkuOrder(orderOrderInvoice(invoice));
+    paymentConditionInvoice(invoice) += paymentConditionOrder(orderOrderInvoice(invoice));
+    isCommissionInvoice (invoice) += isCommissionOrder(orderOrderInvoice(invoice));
+
+    descriptionOrderInvoice 'Название документа' (o) =
+        'Накладная на основе заказа (продажа)' + ' № ' + seriesNumberOrderInvoice(o) + ' от ' + dateOrderInvoice(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    description##NS##OrderInvoiceDetail 'Название документа' (d) = descriptionOrderInvoice(orderInvoiceOrderInvoiceDetail(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    descriptionIndexOrderInvoiceDetail 'Название документа' (d) = description##NS##OrderInvoiceDetail(d) + ', позиция ' + indexOrderInvoiceDetail(d) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN base;
+    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);
+
+    @defineDocumentAggregationDetailSku(order, orderInvoice, sku);
+    skuInvoiceDetail(invoiceDetail) +=  skuOrderInvoiceDetail(invoiceDetail);
+
+    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
+
+
+    quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    sumInvoiceDetail(invoiceDetail) += sumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+
+    orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+
+    editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
+END
