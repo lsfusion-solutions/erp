@@ -494,6 +494,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        Integer lastDaysCashDocument = kristalSettings != null ? kristalSettings.getLastDaysCashDocument() : null;
 
         List<CashDocument> result = new ArrayList<CashDocument>();
 
@@ -525,6 +526,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     conn = DriverManager.getConnection(url);
                     Statement statement = conn.createStatement();
                     String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber, Ck_NSmena FROM OperGangMoney WHERE Taken='1'";
+                    if(lastDaysCashDocument != null) {
+                        Calendar c = Calendar.getInstance();
+                        c.add(Calendar.DATE, -lastDaysCashDocument);
+                        queryString += " AND Ck_Date >=" + new SimpleDateFormat("yyyyMMdd").format(c.getTime());
+                    }
                     ResultSet rs = statement.executeQuery(queryString);
                     while (rs.next()) {
                         String number = rs.getString("Ck_Number");

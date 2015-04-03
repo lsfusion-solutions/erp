@@ -12,6 +12,7 @@ public class DBSettings implements Serializable{
     public String sqlPort;
     public String sqlDBName;
     private Boolean useIdItem;
+    private Integer lastDaysCashDocument;
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -34,5 +35,13 @@ public class DBSettings implements Serializable{
 
     public Boolean getUseIdItem() {
         return useIdItem;
+    }
+
+    public Integer getLastDaysCashDocument() {
+        return lastDaysCashDocument;
+    }
+
+    public void setLastDaysCashDocument(Integer lastDaysCashDocument) {
+        this.lastDaysCashDocument = lastDaysCashDocument;
     }
 }
