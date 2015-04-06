@@ -40,8 +40,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
             DataObject zReportObject = (DataObject) findProperty("zReportReceipt").readClasses(context, receiptObject);
-            
-            String fiscalVMKReceiptTop = (String) findProperty("fiscalVMKReceiptTop").read(context);
+
+            String fiscalVMKReceiptTop = (String) findProperty("fiscalVMKReceiptTop").read(context, receiptObject);
             String fiscalVMKReceiptBottom = (String) findProperty("fiscalVMKReceiptBottom").read(context, receiptObject);
             
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
