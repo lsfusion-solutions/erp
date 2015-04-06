@@ -102,6 +102,14 @@ conversionFactorStatisticGroup 'Коэффициент перевода' (statis
 
 idGroup(g) += VARSTRING[100](sidStatisticGroup(g)) IF g IS StatisticGroup; 
 
+sortStatisticGroup = OVERRIDE nameStatisticGroup(g), lpad(VARSTRING[250](sidStatisticGroup(g)), 20, '0');  
+
+orderSortStatisticGroup 'Порядок (внутри группы)' (g) = PARTITION SUM 1 BY groupTypeStatisticGroup(g), parentStatisticGroup(g) ORDER sortStatisticGroup(g);
+canonicalOrderSortStatisticGroup 'Порядок (полный)' (g) = VARSTRING[250]([ = GROUP CONCAT lpad(VARSTRING[3](orderSortStatisticGroup(parent)), 3, '0') , '.' BY child ORDER DESC levelStatisticGroupStatisticGroup(child, parent)](g));
+nameLevel4StatisticGroup 'Наименование (со сдвигом)' (g) = VARSTRING[100](repeat('    ', INTEGER(levelStatisticGroup(g))-1)) + nameStatisticGroup(g);
+
+
+
 FORM statisticGroup 'Статистическая группа'
     OBJECTS g=StatisticGroup FIXED PANEL
     PROPERTIES(g)   nameGroupTypeStatisticGroup, nameStat=nameStatisticGroup, nameParentStatisticGroup, sidParentStatisticGroup,
@@ -1233,14 +1241,29 @@ FORM statisticalStockReport 'Статистический отчет по скл
                                           totalSumSoldByStatisticGroupStockDateFromTo, totalSumResidentSoldByStatisticGroupStockDateFromTo
     PROPERTIES(g, s, dTo) READONLY valueByStatisticGroupDateTo, valueResidentByStatisticGroupDateTo,
                                    sumBalanceAByStatisticGroupStockDate, sumResidentBalanceAByStatisticGroupStockDate
+                                   
+                                   
+OBJECTS gg=StatisticGroup                                   
+    PROPERTIES READONLY nameLevel4StatisticGroup(gg), sidStatisticGroup(gg), nameUOMStatisticGroup(gg)    
+       
+    PROPERTIES(gg, s, dFrom) READONLY valueByStatisticGroupStockDateFrom, valueResidentByStatisticGroupStockDateFrom,
+                                     sumBalanceBByStatisticGroupStockDate, sumResidentBalanceBByStatisticGroupStockDate
+    PROPERTIES(gg, s, dFrom, dTo) READONLY valueByStatisticGroupDateFromTo, valueResidentByStatisticGroupDateFromTo,
+                                          totalSumSoldByStatisticGroupStockDateFromTo, totalSumResidentSoldByStatisticGroupStockDateFromTo
+    PROPERTIES(gg, s, dTo) READONLY valueByStatisticGroupDateTo, valueResidentByStatisticGroupDateTo,
+                                   sumBalanceAByStatisticGroupStockDate, sumResidentBalanceAByStatisticGroupStockDate  
+    PROPERTIES READONLY canonicalOrderSortStatisticGroup(gg)                                          
+    ORDER BY canonicalOrderSortStatisticGroup(gg)                                                                    
+    FILTERS groupTypeStatisticGroup(gg) == c                                                                   
+                                  
 ;
 
 DESIGN statisticalStockReport {
     main{
-        NEW firstCase BEFORE treeGroups.tree.box {
+        NEW firstCase {
             caption = 'Параметры отчета';
             type = CONTAINERV;
-            NEW row {
+            NEW top {
                 type = CONTAINERH;
                 ADD c.box;
                 NEW dateCase {
@@ -1251,6 +1274,14 @@ DESIGN statisticalStockReport {
                 }             
             }
             ADD s.box;
+        }
+        NEW row {
+            fill = 1;
+            type = TABBED;
+            ADD treeGroups.tree.box;
+            ADD  gg.box {
+                caption = 'Таблица';    
+            }
         }
         ADD functions.box;
     }
