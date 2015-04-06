@@ -1,4 +1,4 @@
-MODULE SalePurchaseInvoiceShipmentTax;
+MODULE SaleInvoiceTax;
 
 REQUIRE SaleInvoice, SkuLedgerTax;
 
@@ -11,3 +11,6 @@ overSetValueVATUserInvoiceDetail(detail) += valueVATBatch(batchUserInvoiceDetail
 WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
     valueVATUserInvoiceDetail(d) <- valueVATBatch(batchUserInvoiceDetail(d)) WHERE valueVATBatch(batchUserInvoiceDetail(d)); 
 }
+
+lastValueVATUserInvoiceDetail(d) = lastValueVATSkuStockDateTime(skuUserInvoiceDetail(d), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));  
+overDeriveValueVATUserInvoiceDetail (d) += OVERRIDE lastValueVATUserInvoiceDetail(d), valueVATBatch(batchUserInvoiceDetail(d));
