@@ -1,6 +1,6 @@
 MODULE SalePurchaseConsignmentRetailBy;
 
-REQUIRE PricingSalePurchase, ConsignmentBy;
+REQUIRE PricingSalePurchase, ConsignmentBy, PricingSale;
 
 NAMESPACE Sale;
 
@@ -24,8 +24,7 @@ DESIGN operation {
 @deriveDocumentOperationProperty(UserInvoice, useVAT);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF createPurchasePricingUserInvoice(i) BACKGROUND backgroundPurchaseRetailInvoice(i)
-                  useRetailPriceUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundPurchaseRetailInvoice(i) useRetailPriceUserInvoice
     PROPERTIES(i) SHOWIF useRetailPriceUserInvoice(i) BACKGROUND backgroundPurchaseRetailInvoice(i)
                   useVATUserInvoice                 
 ;
@@ -35,23 +34,50 @@ DESIGN userInvoice {
         ADD PROPERTY(useVATUserInvoice(i));
     }
 }
-
-overPriceConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
-    THEN    
-        IF useVATInvoiceDetail(d) THEN NUMERIC[14,2]((purchaseRetailPriceInvoiceDetail(d) (-) purchaseRetailVATSumInvoiceDetail(d)/quantityConsignmentDetail(d))) 
-        ELSE purchaseRetailPriceInvoiceDetail(d);         
+         
+overPriceConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d)
+    THEN 
+        IF createPurchasePricingInvoice(invoiceInvoiceDetail(d)) 
+            THEN
+                IF useVATInvoiceDetail(d) THEN NUMERIC[14,2](round0((purchaseRetailPriceInvoiceDetail(d) (-) purchaseRetailVATSumInvoiceDetail(d)/quantityConsignmentDetail(d)))) 
+                ELSE purchaseRetailPriceInvoiceDetail(d)
+            ELSE
+                IF useVATInvoiceDetail(d) THEN NUMERIC[14,2](round0((retailPriceInvoiceDetail(d) (-) retailVATSumInvoiceDetail(d)/quantityConsignmentDetail(d)))) 
+                ELSE retailPriceInvoiceDetail(d);
+                         
 overSumConsignmentDetail(d) += WHEN  useRetailPriceInvoiceDetail(d)
     THEN 
-        IF useVATInvoiceDetail(d) THEN NUMERIC[16,2](round0(overPriceConsignmentDetail(d)) * purchasePricingQuantityInvoiceDetail(d))
-        ELSE purchaseRetailSumInvoiceDetail(d);          
+        IF createPurchasePricingInvoice(invoiceInvoiceDetail(d)) 
+            THEN
+                IF useVATInvoiceDetail(d) THEN NUMERIC[16,2](round0(overPriceConsignmentDetail(d)) * purchasePricingQuantityInvoiceDetail(d))
+                ELSE purchaseRetailSumInvoiceDetail(d)
+            ELSE
+                IF useVATInvoiceDetail(d) THEN NUMERIC[16,2](round0(overPriceConsignmentDetail(d)) * pricingQuantityInvoiceDetail(d))
+                ELSE retailSumInvoiceDetail(d);    
+                      
 overVatConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
     THEN 
-        IF useVATInvoiceDetail(d) THEN valuePurchaseRetailVATInvoiceDetail(d)
-        ELSE  0.0 IF d IS InvoiceDetail;
+        IF createPurchasePricingInvoice(invoiceInvoiceDetail(d)) 
+            THEN
+                IF useVATInvoiceDetail(d) THEN valuePurchaseRetailVATInvoiceDetail(d)
+                ELSE  0.0 IF d IS InvoiceDetail
+            ELSE
+                IF useVATInvoiceDetail(d) THEN valueRetailVATInvoiceDetail(d)
+                ELSE  0.0 IF d IS InvoiceDetail;
+                
 overSumVATConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
     THEN 
-        IF useVATInvoiceDetail(d) THEN purchaseRetailSumInvoiceDetail(d) (-) overSumConsignmentDetail(d)  
-        ELSE 0.0 IF d IS InvoiceDetail; 
+        IF createPurchasePricingInvoice(invoiceInvoiceDetail(d)) 
+            THEN
+                IF useVATInvoiceDetail(d) THEN purchaseRetailSumInvoiceDetail(d) (-) overSumConsignmentDetail(d)  
+                ELSE 0.0 IF d IS InvoiceDetail
+            ELSE
+                IF useVATInvoiceDetail(d) THEN retailSumInvoiceDetail(d) (-) overSumConsignmentDetail(d)  
+                ELSE 0.0 IF d IS InvoiceDetail;
+        
 overSumInvoiceConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
-    THEN purchaseRetailSumInvoiceDetail(d);
+        THEN 
+            IF createPurchasePricingInvoice(invoiceInvoiceDetail(d)) 
+                THEN purchaseRetailSumInvoiceDetail(d)
+                ELSE retailSumInvoiceDetail(d);
 
