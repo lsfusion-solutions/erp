@@ -726,7 +726,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     if(!handlerDirectoryMap.isEmpty()) {
-                        Map<String, String> stopListItemMap = getStopListItemMap(session, stopListObject);
+                        Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject);
                         stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
                                 idStockSet, stopListItemMap, handlerDirectoryMap));
                     }
@@ -779,19 +779,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return stockMap;
     }
     
-    private Map<String, String> getStopListItemMap(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, String> stopListItemList = new HashMap<String, String>();
+    private Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, ItemInfo> stopListItemList = new HashMap<String, ItemInfo>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<Object, Object>(sldKeys);
         sldQuery.addProperty("idBarcodeSkuStopListDetail", stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr));
         sldQuery.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSkuStopListDetail").getExpr(sldExpr));
+        sldQuery.addProperty("nameSkuStopListDetail", stopListLM.findProperty("nameSkuStopListDetail").getExpr(sldExpr));
         sldQuery.and(stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> sldResult = sldQuery.execute(session);
         for (ImMap<Object, Object> sldEntry : sldResult.values()) {
-            stopListItemList.put(trim((String) sldEntry.get("idBarcodeSkuStopListDetail")), trim((String) sldEntry.get("idSkuStopListDetail")));
+            String idBarcode = trim((String) sldEntry.get("idBarcodeSkuStopListDetail"));
+            String idItem = trim((String) sldEntry.get("idSkuStopListDetail"));
+            String nameItem = trim((String) sldEntry.get("nameSkuStopListDetail"));
+            stopListItemList.put(idBarcode, new ItemInfo(idItem, idBarcode, nameItem, null, false, null, null, false, null, null, null));
         }
         return stopListItemList;
     }

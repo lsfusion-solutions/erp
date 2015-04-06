@@ -8,6 +8,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean seasonIsCountry;
     private Boolean idItemInMarkingOfTheGood;
     private Boolean useShopIndices;
+    private Boolean transformUPCBarcode;
 
     public Kristal10Settings() {
     }
@@ -42,5 +43,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseShopIndices(Boolean useShopIndices) {
         this.useShopIndices = useShopIndices;
+    }
+
+    public Boolean isTransformUPCBarcode() {
+        return transformUPCBarcode;
+    }
+
+    public void setTransformUPCBarcode(Boolean transformUPCBarcode) {
+        this.transformUPCBarcode = transformUPCBarcode;
     }
 }

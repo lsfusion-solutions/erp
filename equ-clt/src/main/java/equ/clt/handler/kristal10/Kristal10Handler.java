@@ -62,6 +62,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
                 boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
                 List<String> directoriesList = new ArrayList<String>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -89,18 +90,19 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
-                            String idItem = idItemInMarkingOfTheGood ? item.idItem : item.idBarcode;
 
                             //parent: rootElement
                             Element good = new Element("good");
-                            //временное решение для весовых товаров
-                            String barcodeItem = item.passScalesItem && item.idBarcode.length() <= 6 ? (weightCode + item.idBarcode) : item.idBarcode;
+
+                            String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, transformUPCBarcode);
+                            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
+
                             setAttribute(good, "marking-of-the-good", idItem);
                             rootElement.addContent(good);
 
                             //parent: rootElement
                             Element maxDiscountRestriction = new Element("max-discount-restriction");
-                            setAttribute(maxDiscountRestriction, "id", item.idBarcode);
+                            setAttribute(maxDiscountRestriction, "id", barcodeItem);
                             setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
                             setAttribute(maxDiscountRestriction, "subject-code", idItem);
                             setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
@@ -428,13 +430,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
 
-        //новая схема
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
         for (String directory : directorySet) {
 
@@ -448,14 +450,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             doc.setRootElement(rootElement);
 
             if (!stopListInfo.exclude) {
-                for (Map.Entry<String, String> entry : stopListInfo.stopListItemMap.entrySet()) {
+                for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
                     String idBarcode = entry.getKey();
-                    String idItem = entry.getValue();
+                    ItemInfo item = entry.getValue();
 
                     //parent: rootElement
                     Element good = new Element("good");
-                    //временное решение для весовых товаров
-                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? idItem : idBarcode);
+                    idBarcode = transformBarcode(idBarcode, null, false, transformUPCBarcode);
+                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+                    addStringElement(good, "name", item.name);
                     rootElement.addContent(good);
 
                     if (useShopIndices) {
@@ -542,6 +545,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     directoryWeightCodeMap.put(c.directory + "_" + c.number, c.weightCodeGroupCashRegister);
             }
         }
+
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         List<String> filePathList = new ArrayList<String>();
@@ -650,6 +656,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 for (Object positionEntryNode : positionEntryList) {
 
                                     String barcode = readStringXMLAttribute(positionEntryNode, "barCode");
+                                    if(barcode.length() == 12 && transformUPCBarcode)
+                                        barcode = "0" + barcode;
 
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
@@ -793,6 +801,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         else
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
+    }
+
+    private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem, boolean transformUPCBarcode) {
+        //временное решение для весовых товаров
+        String barcodeItem = passScalesItem && idBarcode.length() <= 6 ? (weightCode + idBarcode) : idBarcode;
+        barcodeItem = barcodeItem.length() == 13 && barcodeItem.startsWith("0") && transformUPCBarcode ? barcodeItem.substring(1) : barcodeItem;
+        return barcodeItem;
     }
 
     private String readStringXMLValue(Object element, String field) {

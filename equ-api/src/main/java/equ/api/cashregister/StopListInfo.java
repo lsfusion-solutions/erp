@@ -1,5 +1,7 @@
 package equ.api.cashregister;
 
+import equ.api.ItemInfo;
+
 import java.io.Serializable;
 import java.sql.Date;
 import java.sql.Time;
@@ -14,11 +16,11 @@ public class StopListInfo implements Serializable {
     public Date dateTo;
     public Time timeTo;
     public Set<String> idStockSet;
-    public Map<String, String> stopListItemMap;
+    public Map<String, ItemInfo> stopListItemMap;
     public Map<String, Set<String>> handlerDirectoryMap;
 
     public StopListInfo(boolean exclude, String number, Date dateFrom, Time timeFrom, Date dateTo, Time timeTo, Set<String> idStockSet,
-                        Map<String, String> stopListItemMap, Map<String, Set<String>> handlerDirectoryMap) {
+                        Map<String, ItemInfo> stopListItemMap, Map<String, Set<String>> handlerDirectoryMap) {
         this.exclude = exclude;
         this.number = number;
         this.dateFrom = dateFrom;

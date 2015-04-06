@@ -593,8 +593,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 processStopListLogger.info("Kristal: creating STOPLIST file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
 
-                for (Map.Entry<String, String> item : stopListInfo.stopListItemMap.entrySet()) {
-                    Object code = useIdItem ? item.getValue() : item.getKey();
+                for (Map.Entry<String, ItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
+                    Object code = useIdItem ? item.getValue().idItem : item.getKey();
                     String record = code + "|" + (stopListInfo.exclude ? "1" : "0");
                     writer.println(record);
                 }
