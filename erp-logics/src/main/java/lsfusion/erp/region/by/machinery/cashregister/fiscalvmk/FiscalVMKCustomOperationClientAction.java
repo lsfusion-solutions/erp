@@ -47,6 +47,8 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
                 case 4:
                     FiscalVMK.cancelReceipt();
                     break;
+                case 5:
+                    return FiscalVMK.getCashSum(true);
                 default:
                     break;
             }

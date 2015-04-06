@@ -335,6 +335,15 @@ public class FiscalVMK {
         String result = Native.toString(buffer, "cp1251");
         return Integer.parseInt(result.split(",")[1]);
     }
+
+    public static long getCashSum(Boolean throwException) {
+        byte[] buffer = new byte[50];
+        logAction("vmk_ksainfo");
+        if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
+            checkErrors(throwException);
+        String result = Native.toString(buffer, "cp1251");
+        return Long.parseLong(result.split(",")[2]);
+    }
     
     private static void logAction(Object... actionParams) {
         String pattern = "";
