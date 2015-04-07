@@ -338,6 +338,16 @@ FORM printLabelTransaction 'Печать ценников'
     REPORTFILES l fileTemplateLabelTransaction(l), TOP topFileTemplateLabelTransaction(l)
 ;
 
+needCustomPrintLabelTransaction = ABSTRACT BOOLEAN (LabelTransaction);
+customPrintLabelTransaction = ABSTRACT ACTION (LabelTransaction);
+
+printLabelTransaction(t) = ACTION {
+    IF needCustomPrintLabelTransaction(t) THEN
+        customPrintLabelTransaction(t)
+    ELSE
+        FORM printLabelTransaction OBJECTS l = t PRINT;
+}
+
 selectedLabelTransactionDetail 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
 deleteNotSelectedLabelTransactionDetail 'Удалить кроме отмеченных' = ACTION (t) {
     DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT selectedLabelTransactionDetail(d);
@@ -379,14 +389,14 @@ addLabelTransactionDepartmentStore 'Добавить' = ACTION (dep) NEWSESSION 
         ASSIGN departmentStoreLabelTransaction(l) <- dep;
         FORM customLabelTransaction OBJECTS l=l DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN { 
-                FORM printLabelTransaction OBJECTS l = l PRINT;
+                printLabelTransaction(l);
             apply();
         }            
     }
 } TOOLBAR IMAGE 'add.png';
 
 printToLabelTransaction 'Печать ценников' (labelTransaction) = ACTION (labelTransaction) {
-        FORM printLabelTransaction OBJECTS l = labelTransaction PRINT;
+        printLabelTransaction(labelTransaction);
 } IMAGE 'print.png' IN print;
 
 FORM labelTransactions 'Печать ценников'
@@ -650,8 +660,8 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                         priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
                         retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d); 
                     }
-                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND (NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d)); 
-                    FORM printLabelTransaction OBJECTS l = t PRINT;
+                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND (NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d));
+                    printLabelTransaction(t);
             }
             printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
         }
@@ -687,7 +697,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                 }
                 FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
                 IF formResult() == FormResult.ok THEN {
-                        FORM printLabelTransaction OBJECTS l = t PRINT;                
+                        printLabelTransaction(t);                
                 }
             }            
         }            
@@ -780,7 +790,7 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
             retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
         } 
         // вызываем печатную форму для каждого из них        
-        FORM printLabelTransaction OBJECTS l = t PRINT;                 
+        printLabelTransaction(t);                 
     }
 } TOOLBAR;
 
@@ -801,7 +811,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         
         FORM customLabelTransaction OBJECTS l = t MODAL;
         IF formResult() == FormResult.ok THEN {    
-            FORM printLabelTransaction OBJECTS l = t PRINT;
+            printLabelTransaction(t);
         } ELSE {
             cancel();
         }      
