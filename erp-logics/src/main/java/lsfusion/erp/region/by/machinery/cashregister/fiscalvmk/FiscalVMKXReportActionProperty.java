@@ -21,9 +21,9 @@ public class FiscalVMKXReportActionProperty extends ScriptingActionProperty {
         try {
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
-            String fiscalVMKZReportTop = (String) findProperty("fiscalVMKReceiptTop").read(context);
+            String fiscalVMKZReportTitle = (String) findProperty("fiscalVMKReceiptTitle").read(context);
             
-            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(1, baudRate, comPort, fiscalVMKZReportTop));
+            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(1, baudRate, comPort, fiscalVMKZReportTitle));
             if (result == null) {
                 context.apply();
             }
