@@ -142,7 +142,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return receiveReply(errors, port, charset, false);
     }
 
-    private String receiveReply(List<String> errors, TCPPort port, String charset, boolean ignoreTimeout) throws CommunicationException {
+    private String receiveReply(List<String> errors, TCPPort port, String charset, boolean longAction) throws CommunicationException {
         String reply;
         Pattern pattern = Pattern.compile("QUIT(\\d+)");
         byte[] var4 = new byte[500];
@@ -158,18 +158,18 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                     Matcher matcher = pattern.matcher(reply);
                     if (matcher.find()) {
-                        if (ignoreTimeout)
+                        if (longAction)
                             processTransactionLogger.info("Bizerba action finished: " + reply);
                         return matcher.group(1);
-                    } else if (ignoreTimeout)
+                    } else if (longAction)
                         processTransactionLogger.info("Bizerba action continues: " + reply);
                 }
 
                 Thread.sleep(10L);
                 time = (new Date()).getTime();
-            } while(time - startTime <= 600000L);
+            } while(time - startTime <= (longAction ? 600000L : 10000L));
 
-            if (ignoreTimeout) {
+            if (longAction) {
                 processTransactionLogger.info("Scales reply timeout");
                 return "0";
             }
