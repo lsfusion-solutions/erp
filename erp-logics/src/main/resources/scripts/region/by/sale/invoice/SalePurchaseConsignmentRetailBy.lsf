@@ -7,6 +7,7 @@ NAMESPACE Sale;
 
 useRetailPriceOperation 'Использовать розничные цены в ТТН (отгрузка на магазин)' = DATA BOOLEAN (Operation);
 useVATOperation 'Печатать НДС в ТТН (отгрузка на магазин)' = DATA BOOLEAN (Operation);
+useEmptyVATOperation 'Печатать пустой НДС в ТТН (отгрузка на магазин)' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
     PROPERTIES(o) useRetailPriceOperation
@@ -23,15 +24,19 @@ DESIGN operation {
 @defineDocumentInterfaceProperty (invoice, useVAT, 'Печатать НДС в ТТН');
 @deriveDocumentOperationProperty(UserInvoice, useVAT);
 
+@defineDocumentInterfaceProperty (invoice, useEmptyVAT, 'Печатать пустой НДС в ТТН');
+@deriveDocumentOperationProperty(UserInvoice, useEmptyVAT);
+
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundPurchaseRetailInvoice(i) useRetailPriceUserInvoice
     PROPERTIES(i) SHOWIF useRetailPriceUserInvoice(i) BACKGROUND backgroundPurchaseRetailInvoice(i)
-                  useVATUserInvoice                 
+                  useVATUserInvoice, useEmptyVATInvoice                 
 ;
 DESIGN userInvoice {
     headerCreateSalePricing  {
         MOVE PROPERTY(useRetailPriceUserInvoice(i));
         MOVE PROPERTY(useVATUserInvoice(i));
+        MOVE PROPERTY(useEmptyVATInvoice(i));
     }
 }
          
@@ -53,8 +58,10 @@ overSumConsignmentDetail(d) += WHEN  useRetailPriceInvoiceDetail(d)
                 ELSE purchaseRetailSumInvoiceDetail(d)
             ELSE
                 IF useVATInvoiceDetail(d) THEN NUMERIC[16,2](round0(overPriceConsignmentDetail(d)) * pricingQuantityInvoiceDetail(d))
-                ELSE retailSumInvoiceDetail(d);    
-                      
+                ELSE retailSumInvoiceDetail(d);  
+                  
+useEmptyVATConsignmentDetail (d) += WHEN useRetailPriceInvoiceDetail(d) THEN  useEmptyVATInvoiceDetail(d);
+                     
 overVatConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
     THEN 
         IF createPurchasePricingInvoice(invoiceInvoiceDetail(d)) 

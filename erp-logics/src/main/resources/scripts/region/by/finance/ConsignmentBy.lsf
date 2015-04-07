@@ -284,7 +284,11 @@ overSumConsignmentDetail 'Стоимость' (d) = ABSTRACT CASE NUMERIC[16,2] 
 sumConsignmentDetail 'Стоимость' (d) = OVERRIDE dataSumConsignmentDetail(d),
                                                                 overSumConsignmentDetail(d);
 
-notVatConsignmentDetail 'Не надо проставлять ставку' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);                                                                
+notVatConsignmentDetail 'Не надо проставлять ставку' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);  
+useEmptyVATConsignmentDetail 'Печатать пустой строку с НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
+                                                                                                                       
+useEmptyVATConsignmentDetailConsignment = GROUP SUM 1 IF useEmptyVATConsignmentDetail(d) BY consignmentConsignmentDetail(d);                                                                                                                       
+                                                              
 dataVatConsignmentDetail 'НДС, %' (d) = ABSTRACT NUMERIC[10,5] (ConsignmentDetail);
 overVatConsignmentDetail 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
 vatConsignmentDetail 'НДС, %' (d) = (OVERRIDE dataVatConsignmentDetail(d),
@@ -419,12 +423,12 @@ META defineConsignmentFormSimple(form, caption)
                        UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment,
                        fullNameSupplierConsignment, fullNameCustomerConsignment, numberConsignment, seriesConsignment, seriesNumberConsignment, countConsignmentDetailConsignment,
                        isWareConsignment, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
-                       noteConsignment, documentNameCurrencyConsignment, countPagesConsignment
+                       noteConsignment, documentNameCurrencyConsignment, countPagesConsignment, useEmptyVATConsignmentDetailConsignment
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
         PROPERTIES(d) indexConsignmentDetail, nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
-                      sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
+                      sumConsignmentDetail, vatConsignmentDetail, useEmptyVATConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                       noteConsignmentDetail, extraDescriptionConsignmentDetail
         ORDER BY indexConsignmentDetail(d)
         FILTERS consignmentConsignmentDetail(d) == c,
@@ -488,7 +492,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##isCustomsFlowConsignment=isCustomsFlowConsignment, 
                        prefix##isCurrencyConsignment=isCurrencyConsignment, prefix##shortNameCurrencyConsignment=shortNameCurrencyConsignment,
                        prefix##noteConsignment=noteConsignment, prefix##documentNameCurrencyConsignment=documentNameCurrencyConsignment,    
-                       prefix##countPagesConsignment=countPagesConsignment 
+                       prefix##countPagesConsignment=countPagesConsignment, prefix##useEmptyVATConsignmentDetailConsignment = useEmptyVATConsignmentDetailConsignment 
         PROPERTIES()   TODRAW prefix prefix##countRowsVerticalA=countRowsVerticalA, prefix##countRowsVerticalAB=countRowsVerticalAB, 
                        prefix##countRowsHorizontal=countRowsHorizontal
  
@@ -497,7 +501,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
 
         PROPERTIES(prefix##d) prefix##indexConsignmentDetail=indexConsignmentDetail, prefix##nameSkuConsignmentDetail=nameSkuConsignmentDetail, prefix##shortNameUOMConsignmentDetail=shortNameUOMConsignmentDetail, 
                       prefix##quantityConsignmentDetail=quantityConsignmentDetail, prefix##priceConsignmentDetail=priceConsignmentDetail,
-                      prefix##sumConsignmentDetail=sumConsignmentDetail, prefix##vatConsignmentDetail=vatConsignmentDetail, 
+                      prefix##sumConsignmentDetail=sumConsignmentDetail, prefix##vatConsignmentDetail=vatConsignmentDetail, prefix##useEmptyVATConsignmentDetail=useEmptyVATConsignmentDetail,
                       prefix##sumVATConsignmentDetail=sumVATConsignmentDetail, prefix##sumInvoiceConsignmentDetail=sumInvoiceConsignmentDetail,
                       prefix##packQuantityConsignmentDetail=packQuantityConsignmentDetail, prefix##grossWeightTonConsignmentDetail=grossWeightTonConsignmentDetail,
                       prefix##grossWeightConsignmentDetail=grossWeightConsignmentDetail,prefix##noteConsignmentDetail=noteConsignmentDetail, 
