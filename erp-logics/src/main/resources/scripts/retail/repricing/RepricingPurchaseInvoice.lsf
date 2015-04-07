@@ -72,14 +72,16 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
         positiveInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE positiveInvoiceDetail(detail);
-        positiveInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department)  AND positiveInvoiceDetail(detail);                     
+        positiveInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND positiveInvoiceDetail(detail);                     
+        positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);                     
     
         LOCAL negativeInvoiceDetail =  BOOLEAN (InvoiceDetail);    
         negativeInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoiceInvoiceDetail(detail), department, timeFrom);
         negativeInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetail(detail) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE negativeInvoiceDetail(detail);
-        negativeInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department)  AND negativeInvoiceDetail(detail);         
+        negativeInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND negativeInvoiceDetail(detail);         
+        negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);                     
                 
         IF [ = GROUP SUM 1 IF positiveInvoiceDetail(detail) OR negativeInvoiceDetail(detail) ]() THEN {
             FOR ADDOBJ r = UserRepricing DO {
