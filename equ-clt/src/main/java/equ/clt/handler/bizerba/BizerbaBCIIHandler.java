@@ -12,7 +12,7 @@ import java.util.Map;
 public class BizerbaBCIIHandler extends BizerbaHandler {
     
     private FileSystemXmlApplicationContext springContext;
-    protected String charset = "cp866";
+    protected String charset = "utf-8";
     protected boolean encode = false;
 
     public BizerbaBCIIHandler(FileSystemXmlApplicationContext springContext) {
