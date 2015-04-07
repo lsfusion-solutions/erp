@@ -89,7 +89,16 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineDocumentDialogSupplierCustomerStock(userCreditNote, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerStockDetail(userCreditNoteDetail, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerLegalEntity(userCreditNote, supplierFilter, customerFilter);       
-
+    
+    @defineDocumentInterfaceDetailQuantityCustomPrefix (creditNoteDetail, document, ' по накладной');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, document, ' по накладной');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentVAT, ' НДС по накладной');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentInvoice, ' с НДС по накладной');    
+    
+    @defineDocumentInterfaceDetailQuantityCustomPrefix (creditNoteDetail, shipment, ' по факту');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipment, ' по факту');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentVAT, ' НДС по факту');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentInvoice, ' с НДС по факту');    
 // --------------------------- Формы --------------------------------- //
 
     editCreditNote 'Редактировать' = ABSTRACT ACTION LIST (CreditNote) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -437,7 +446,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     VATSumInvoiceCreditNoteDetail 'Сумма НДС' (invoiceCreditNoteDetail) = NUMERIC[16,2](roundPriceCurrency((sumInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
     valueVATInvoiceCreditNoteDetail (invoiceCreditNoteDetail) / 100), currencyInvoiceCreditNoteDetail(invoiceCreditNoteDetail)));
 
-    invoiceSumInvoiceCreditNoteDetail 'Сумма НДС' (invoiceCreditNoteDetail) = VATSumInvoiceCreditNoteDetail(invoiceCreditNoteDetail) (+)
+    invoiceSumInvoiceCreditNoteDetail 'Сумма с НДС' (invoiceCreditNoteDetail) = VATSumInvoiceCreditNoteDetail(invoiceCreditNoteDetail) (+)
         sumInvoiceCreditNoteDetail(invoiceCreditNoteDetail);
 
     VATSumCreditNoteDetail (creditNoteDetail) += VATSumInvoiceCreditNoteDetail(creditNoteDetail);
@@ -445,6 +454,21 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     
     editCreditNote(c) += ACTION EXEC editInvoice(invoiceInvoiceCreditNote(c));
     editCreditNoteDetail(d) += ACTION editInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d));
+    
+   documentQuantityCreditNoteDetail (d) += quantityInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d)); 
+   documentSumCreditNoteDetail (d) += sumInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d)); 
+   documentVATSumCreditNoteDetail (d) += VATSumInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d));        
+   documentInvoiceSumCreditNoteDetail (d) += invoiceSumInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d)); 
+
+   shipmentQuantityCreditNoteDetail (d) += shippedInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d)); 
+   shipmentSumInvoiceCreditNoteDetail (d) = NUMERIC[16,2](roundPriceCurrency((shippedInvoiceDetail(invoiceDetailInvoiceCreditNoteDetail(d)) *
+                                     priceInvoiceCreditNoteDetail(d)), currencyInvoiceCreditNoteDetail(d)));
+   shipmentSumCreditNoteDetail (d) += shipmentSumInvoiceCreditNoteDetail(d);
+   shipmentVATSumInvoiceCreditNoteDetail (d) = NUMERIC[16,2](roundPriceCurrency((shipmentSumInvoiceCreditNoteDetail(d) *
+                                  valueVATInvoiceCreditNoteDetail (d) / 100), currencyInvoiceCreditNoteDetail(d)));   
+   shipmentVATSumCreditNoteDetail (d) += shipmentVATSumInvoiceCreditNoteDetail(d);        
+   shipmentInvoiceSumCreditNoteDetail (d) += shipmentVATSumInvoiceCreditNoteDetail(d) (+) shipmentSumInvoiceCreditNoteDetail(d);   
+   
 END
 
 META defineCreditNoteBatch(legalEntityProp, stockProp)
