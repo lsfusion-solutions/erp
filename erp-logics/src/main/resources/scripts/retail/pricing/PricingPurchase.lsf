@@ -30,6 +30,8 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(retailPric
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
 // Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
+extraCalcRetailCalcPriceListTypeUserInvoiceDetail= ABSTRACT CalcPriceListType(UserInvoiceDetail);
+
 WHEN SESSION FORMS userInvoice
     (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
      CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
@@ -41,7 +43,7 @@ WHEN SESSION FORMS userInvoice
                                                                                                 customerStockUserInvoiceDetail(detail),
                                                                                                 dateTimeUserInvoiceDetail(detail))
                                                         THEN pt
-                                                        ELSE calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
+                                                        ELSE OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
 WHEN SESSION FORMS userInvoice
     (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
@@ -49,7 +51,7 @@ WHEN SESSION FORMS userInvoice
      CHANGED(skuUserInvoiceDetail(detail)) OR
      CHANGED(customerStockUserInvoiceDetail(detail)) OR
      CHANGED(dateTimeUserInvoiceDetail(detail))) AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail) DO
-     retailPriceListTypeUserInvoiceDetail(detail) <- calcRetailCalcPriceListTypeUserInvoiceDetail(detail);     
+     retailPriceListTypeUserInvoiceDetail(detail) <- OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);     
      
 //fillRetailPriceListTypeUserInvoiceDetailAll 'Пересчитать цену для всех'  = ACTION (detail) { // нужно чтобы еще сработали SESSION потом, которые изменяют цену и надбавку
 //    retailPriceListTypeUserInvoiceDetail(d) <-NULL WHERE userInvoiceUserInvoiceDetail(detail) == userInvoiceUserInvoiceDetail(d);
