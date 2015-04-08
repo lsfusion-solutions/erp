@@ -1,0 +1,46 @@
+MODULE PriceListCalcBrand;
+
+REQUIRE PriceListCalc, Item;
+
+NAMESPACE PriceList;
+
+TABLE calcPriceListTypeBrand (CalcPriceListType, Brand);
+markupCalcPriceListTypeBrand'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Brand);
+
+extraMarkupCalcPriceListTypeSku(t,sku) += markupCalcPriceListTypeBrand(t,brandItem(sku));
+
+
+EXTEND FORM calcPriceListType
+    OBJECTS b=Brand
+    PROPERTIES(b) nameBrand READONLY, idBrand READONLY SHOWIF showIDs()
+    PROPERTIES  markupCalcPriceListTypeBrand(c, b)
+    
+    ORDER BY nameBrand(b)
+    
+    OBJECTS s1 = Sku
+    PROPERTIES(s1) READONLY nameSku, idBarcodeSku    
+    PROPERTIES (c, s1) dataMarkupCalcPriceListTypeSku, overMarkupCalcPriceListTypeSku, nameRoundConditionCalcPriceListTypeSku
+    
+    FILTERS brandItem(s1) == b
+        
+;
+DESIGN calcPriceListType {
+    MOVE c.box;
+    NEW tabContainer {
+        fill = 1;
+        type = TABBED;
+        MOVE groupContainer {
+            caption = 'По группам';
+        }
+        NEW brandContainer {
+            fill = 1;
+            caption = 'По брендам';
+            type = SPLITH;
+            MOVE b.box;
+            MOVE s1.box {
+                fill = 2;
+            }            
+        }
+    }
+     MOVE functions.box;
+}
