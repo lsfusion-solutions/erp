@@ -269,8 +269,42 @@ filterSaleCustomerSaleLedger = customerSaleLedger(ledger)==saleCustomer() OR (le
 
 idBarcodeSkuSaleLedger 'Штрихкод' (l) = idBarcodeSku(skuSaleLedger(l));
 
+dataInSessionSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+
+levelParentSkuGroup (group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF dataInSessionSkuGroup(parent)
+    BY group;
+
+inParentSkuGroup (group) = TRUE IF levelParentSkuGroup(group);
+
+inSessionSkuGroup 'Отм.' (group) = OVERRIDE
+    inParentSkuGroup(group),
+    dataInSessionSkuGroup(group);
+
+sessionConcatSkuGroups 'Группы' () =
+    GROUP CONCAT nameSkuGroup(group) IF inSessionSkuGroup(group) AND NOT inSessionSkuGroup(parentSkuGroup(group)),'; ' PREFCHARWIDTH 30;
+    
+    
+countInSessionSkuGroups  = GROUP SUM 1 IF dataInSessionSkuGroup(g);
+resetSelectedGroups  'Сбросить отмеченные' = ACTION () {
+    dataInSessionSkuGroup(g) <- NULL WHERE g IS SkuGroup ;    
+}  
+  
+FORM filterGroupType 'Фильтр по группам'    
+     
+     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
+     PROPERTIES READONLY orderSkuGroup(g), idSkuGroup(g) SHOWIF showIDs(), nameSkuGroup(g)
+     PROPERTIES inSessionSkuGroup(g) ON SHORTCUT resetSelectedGroups()    
+
+     ORDER BY orderSkuGroup(g), nameSkuGroup(g)
+     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT        
+     PROPERTIES resetSelectedGroups() TOOLBAR FORCE PANEL TODRAW g
+;   
+selectSkuGroups 'Выбор групп' = ACTION () {
+    FORM filterGroupType MODAL;
+} 
+
 FORM saleLedger 'Регистр продаж'
-    PROPERTIES() nameSaleOperation, nameSaleCustomer
+    PROPERTIES() nameSaleOperation, nameSaleCustomer, sessionConcatSkuGroups ON CHANGE selectSkuGroups()
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -290,6 +324,8 @@ FORM saleLedger 'Регистр продаж'
     
     FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
+    
+    FILTERS inSessionSkuGroup(skuGroupSku(skuSaleLedger(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
 ;
 @extendFormFilterAccessStock(SaleLedger, s, saleLedger, stock, company);
 @extendFormFilterAccessLegalEntity(SaleLedger, s, saleLedger, customer, customer);
@@ -306,6 +342,7 @@ DESIGN saleLedger {
             caption = 'Фильтры';
             MOVE PROPERTY(nameSaleOperation());
             MOVE PROPERTY(nameSaleCustomer());
+            MOVE PROPERTY(sessionConcatSkuGroups());
         }            
         MOVE te.box {
             type = CONTAINERH;
