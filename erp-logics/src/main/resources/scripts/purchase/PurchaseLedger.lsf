@@ -47,6 +47,12 @@ nameOperationPurchaseLedger 'Операция' (ledger) = nameOperation(operatio
 quantityPurchaseSupplierSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY supplierPurchaseLedger(ledger), skuPurchaseLedger(ledger) PERSISTENT;
     
+lastExternalSupplierStockSku (stock, sku) = 
+    GROUP LAST supplierPurchaseLedger(ledger)
+        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
+        ORDER dateTimePurchaseLedger(ledger), ledger
+        WHERE activePurchaseLedger(ledger) AND NOT isCompanyLegalEntity(supplierPurchaseLedger(ledger));
+    
 lastSupplierStockSku (stock, sku) = 
     GROUP LAST supplierPurchaseLedger(ledger)
         BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
