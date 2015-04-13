@@ -100,22 +100,22 @@ addPaymentInContractLedger 'Погасить задолженность' = ACTIO
             beneficiaryPayment(p) <- partyAContractInContractLedger(ledger);
             sumPayment(p) <- chosenNumeric('n');
             isPostedPayment(p) <- TRUE;
-            isFiscalPayment(p) <- TRUE IF NOT fiscalSkip();
             IF debtInContractLedger(ledger) >= sumContractPayment(p) THEN {
                 costOutContractLedgerInContractLedger(p, ledger) <- sumContractPayment(p);    
             } ELSE IF debtInContractLedger(ledger) < sumContractPayment(p) THEN{
                 costOutContractLedgerInContractLedger(p, ledger) <- debtInContractLedger(ledger);     
             }             
             dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
-            IF fiscalSkip() THEN {
+            IF fiscalSkip() OR NOT modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
                 apply();            
             }
             ELSE {
                 IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
                     printReceiptInvoicePayment(ledger, p); 
                     IF printReceiptResult() THEN 
+                        zReportPayment(p) <- currentZReport();                        
                         apply();
-                }        
+                } 
             }                                      
         }
     }    
