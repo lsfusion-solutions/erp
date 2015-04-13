@@ -13,7 +13,14 @@ differentOrganizationsLedgerPriceListType 'Для разных организа�
 
 TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
 batchLedgerPriceListTypeStock 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
-
+                                                   
+FORM ledgerPriceListTypes 'Регистровые виды цен'
+   OBJECTS p = LedgerPriceListType
+   PROPERTIES(p) READONLY nameLedgerPriceListType
+   
+   DIALOG LedgerPriceListType OBJECT p
+;
+    
 CLASS ABSTRACT PriceListLedger 'Изменение цены';
 TABLE priceListLedger(PriceListLedger);
 
@@ -652,7 +659,7 @@ META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceLis
     @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, , , skuProp, stockProp);
 END
 
-dialogPriceListTypeSkuStock = DATA LOCAL PriceListType (Sku, Stock);
+dialogPriceListTypeSkuStock = DATA LOCAL LedgerPriceListType (Sku, Stock);
 nameDialogPriceListTypeSkuStock 'Вид цены' = namePriceListType(dialogPriceListTypeSkuStock(sku, stock));
 
 relationSkuStockPriceListType(s,st,t) = GROUP SUM 1 IF skuPriceListLedger(pl) == s AND isPostedPriceListLedger(pl) AND inPriceListLedgerLedgerPriceListType(pl, t)
@@ -668,7 +675,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     PROPERTIES(st) SELECTOR nameStock
     PROPERTIES(s,st) nameDialogPriceListTypeSkuStock
 
-    OBJECTS pp = (t = PriceListType, pl = PriceListLedger)
+    OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
     PROPERTIES READONLY namePriceListType(t),  descriptionPriceListLedger(pl), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
                         pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) FORCE GRID
     PROPERTIES(pl) editPriceListLedger                     

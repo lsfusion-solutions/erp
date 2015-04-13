@@ -1,0 +1,100 @@
+MODULE PriceListBefore;
+
+REQUIRE PriceList, PriceListOperation;
+
+NAMESPACE PriceList;
+
+priceBeforePriceListDetail 'Цена до' = ABSTRACT NUMERIC[14,2] (PriceListDetail);
+priceBeforeUserPriceListDetail 'Цена до' = DATA NUMERIC[14,2] (UserPriceListDetail);
+priceBeforePriceListDetail(d) += priceBeforeUserPriceListDetail(d);
+
+priceListTypeBeforePriceList 'Вид цены для цены до' = ABSTRACT DataPriceListType (PriceList);
+priceListTypeBeforeUserPriceList 'Вид цены для цены до' = DATA DataPriceListType (UserPriceList);
+namePriceListTypeBeforeUserPriceList 'Вид цены для цены до' (p) = namePriceListType(priceListTypeBeforeUserPriceList(p));
+priceListTypeBeforePriceList(p) += priceListTypeBeforeUserPriceList(p);
+
+showPriceBeforePriceList 'Цена до' =  ABSTRACT BOOLEAN (PriceList);   
+showPriceBeforeUserPriceList 'Цена до' =  DATA BOOLEAN (UserPriceList);  
+showPriceBeforePriceList(p) += showPriceBeforeUserPriceList(p);
+
+EXTEND FORM userPriceList 
+    PROPERTIES(p) showPriceBeforeUserPriceList, namePriceListTypeBeforeUserPriceList SHOWIF showPriceBeforeUserPriceList(p)
+    PROPERTIES(d) priceBeforeUserPriceListDetail SHOWIF showPriceBeforeUserPriceList(p) BEFORE viewPriceUserPriceListDetailPriceListType(d,to)
+    ;
+    
+DESIGN userPriceList {
+    p.documentPrm{
+        MOVE PROPERTY (namePriceListTypeBeforeUserPriceList(p));
+    }
+    param{
+        MOVE PROPERTY (showPriceBeforeUserPriceList(p));
+    }
+}
+
+priceListTypeBeforeOperation 'Вид цены для цены до' = DATA DataPriceListType (PriceList.Operation);
+namePriceListTypeBeforeOperation 'Вид цены для цены до' (o) = namePriceListType(priceListTypeBeforeOperation(o));
+
+priceListTypeBeforeUserPriceList(priceList) <- priceListTypeBeforeOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));    
+    
+showPriceBeforeOperation 'Цена до' = DATA BOOLEAN (PriceList.Operation);
+showPriceBeforeUserPriceList(priceList) <- showPriceBeforeOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));  
+    
+EXTEND FORM operation PROPERTIES(o) showPriceBeforeOperation, namePriceListTypeBeforeOperation;
+
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showPriceBeforeOperation(o));
+        MOVE PROPERTY(namePriceListTypeBeforeOperation(o));
+    }
+}
+
+@defineDocumentInterfaceHeaderTimePrefix(PriceList, fromPriceBefore, ' c (Цена до)');
+@deriveDocumentHeaderTimePrefix(UserPriceList, fromPriceBefore);
+
+@defineDocumentInterfaceHeaderTimePrefix(PriceList, toPriceBefore, ' по (Цена до)');
+@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceBefore);
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) SHOWIF showPriceBeforeUserPriceList(p) fromPriceBeforeDateUserPriceList, fromPriceBeforeTimeUserPriceList, toPriceBeforeDateUserPriceList, toPriceBeforeTimeUserPriceList
+;
+
+DESIGN userPriceList{
+    midContainer {
+        type = CONTAINERV;
+        NEW timePriceBeforeContainer{
+            caption = 'Период действия (Цена до)';
+            type = CONTAINERH;
+            MOVE PROPERTY (fromPriceBeforeDateUserPriceList(p));
+            MOVE PROPERTY (fromPriceBeforeTimeUserPriceList(p));
+            MOVE PROPERTY (toPriceBeforeDateUserPriceList(p));
+            MOVE PROPERTY (toPriceBeforeTimeUserPriceList(p));
+        }
+    }
+}
+
+CLASS PriceListBeforeLedger : PriceListLedger;
+TABLE priceListBeforeLedger(PriceListBeforeLedger);
+
+needPriceBeforePriceListDetail(d) = priceBeforePriceListDetail(d) AND priceListTypeBeforePriceList(priceListPriceListDetail(d))
+    AND fromPriceBeforeDateTimePriceList(priceListPriceListDetail(d)) AND toPriceBeforeDateTimePriceList(priceListPriceListDetail(d));
+
+@defineAggregation(priceListDetail, priceListBeforeLedger, needPriceBefore);
+
+inPriceListLedgerLedgerPriceListType(l, t) += t == priceListTypeBeforePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+
+descriptionPriceListLedger(l) += descriptionUserPriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l))) + ' (цена до)' ;
+
+pricePriceListLedgerLedgerPriceListType(l, t) += priceBeforePriceListDetail(priceListDetailPriceListBeforeLedger(l)) IF t == priceListTypeBeforePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+
+fromDateTimePriceListLedger(l) += fromPriceBeforeDateTimePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+toDateTimePriceListLedger(l) += toPriceBeforeDateTimePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+
+isPostedPriceListLedger(l) += isPostedPriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+
+skuPriceListLedger(l) += skuPriceListDetail(priceListDetailPriceListBeforeLedger(l));
+
+companyPriceListLedger(l) += companyPriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+
+inPriceListLedgerStock(l,st) += inPriceListStock(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)),st);
