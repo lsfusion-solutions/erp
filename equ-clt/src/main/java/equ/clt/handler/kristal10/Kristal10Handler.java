@@ -667,7 +667,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     }
 
                                     //временное решение для весовых товаров
-                                    if (barcode != null && barcode.startsWith(weightCode))
+                                    if (barcode != null && barcode.startsWith(weightCode) && barcode.length() <= 7)
                                         barcode = barcode.substring(2);
 
                                     BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
