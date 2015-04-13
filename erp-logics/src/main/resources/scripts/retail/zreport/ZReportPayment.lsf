@@ -1,0 +1,12 @@
+MODULE ZReportPayment;
+
+REQUIRE ZReport, Payment;
+
+sumPaymentBeneficiaryDate = GROUP SUM Payment.sumPayment(payment) IF Payment.isFiscalPayment(payment) BY Payment.beneficiaryPayment(payment), Payment.datePayment(payment);
+extraSumZReport 'Дополнительная сумма Z-отчета' = sumPaymentBeneficiaryDate(legalEntityStockZReport(ZReport), dateZReport(ZReport));
+
+totalSumZReport 'Общая сумма Z-отчета' (ZReport) = sumReceiptDetailZReport(ZReport) (+) extraSumZReport(ZReport);
+
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY totalSumZReport BEFORE sumReceiptDetailZReport(z), extraSumZReport AFTER sumReceiptDetailZReport(z)
+;
