@@ -201,10 +201,14 @@ signedQuantitySkuLedger 'Кол-во' (ledger) = MULTI quantityInSkuLedger(ledge
 
 // -------------------------------------------- Расчет себестоимости -------------------------------------- //
 
-explicitBatchLedgerStock 'Партионный учет' = ABSTRACT BOOLEAN (Stock) PERSISTENT IN bookkeeping;
+explicitBatchLedgerStock 'Обязательный партионный учет' = ABSTRACT BOOLEAN (Stock) PERSISTENT IN bookkeeping;
 skipExplicitBatchSkuLedger 'Разрешить регистр без партии' = ABSTRACT BOOLEAN (SkuLedger);
 CONSTRAINT explicitBatchLedgerStock(stockSkuLedger(l)) AND isPostedSkuLedger(l) AND NOT batchSkuLedger(l) AND NOT skipExplicitBatchSkuLedger(l)
     MESSAGE 'Не выбрана партия для строки движения товара';
+    
+showPriceBatchLedgerStock(s) = isCompanyStock(s) AND NOT explicitBatchLedgerStock(s);   
+dataPriceBatchLedgerStock 'Использовать свои цены для каждой партии' = ABSTRACT BOOLEAN (Stock);
+priceBatchLedgerStock 'Использовать свои цены для каждой партии' (s) = dataPriceBatchLedgerStock(s) OR explicitBatchLedgerStock(s) PERSISTENT;  
 
 orderDataSkuLedger (ledger) = STRUCT(dateTimeDataSkuLedger(ledger), ledger);
 

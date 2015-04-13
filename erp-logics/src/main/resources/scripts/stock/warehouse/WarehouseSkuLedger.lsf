@@ -7,12 +7,16 @@ NAMESPACE Warehouse;
 explicitBatchLedgerWarehouse 'Партионный учет' = DATA BOOLEAN (Warehouse);
 explicitBatchLedgerStock(stock) += explicitBatchLedgerWarehouse(stock);
 
+dataPriceBatchLedgerWarehouse 'Использовать свои цены для каждой партии' = DATA BOOLEAN (Warehouse);
+dataPriceBatchLedgerStock(stock) += dataPriceBatchLedgerWarehouse(stock);
+
 EXTEND FORM warehouse
-    PROPERTIES(w) SHOWIF isCompanyStock(w) explicitBatchLedgerWarehouse
+    PROPERTIES(w) explicitBatchLedgerWarehouse SHOWIF isCompanyStock(w), dataPriceBatchLedgerWarehouse SHOWIF showPriceBatchLedgerStock(w)
 ;
 
 DESIGN warehouse {
     headerExtraParams {
         MOVE PROPERTY(explicitBatchLedgerWarehouse(w));
+        MOVE PROPERTY(dataPriceBatchLedgerWarehouse(w));
     }
 }
