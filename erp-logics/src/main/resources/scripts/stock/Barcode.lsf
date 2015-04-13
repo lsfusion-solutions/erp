@@ -32,19 +32,23 @@ allowIncorrectBarcode 'Разрешить некорректные штрихк�
 
 CONSTRAINT charLength(idBarcode(barcode)) == 8 AND completeBarcode(left(idBarcode(barcode),7)) != idBarcode(barcode) 
     AND NOT allowIncorrectBarcode()  
-    MESSAGE 'Некорректный штрихкод';
+    MESSAGE 'Некорректный EAN-8 штрихкод';
+
+CONSTRAINT charLength(idBarcode(barcode)) == 12 AND completeBarcode('0'+left(idBarcode(barcode),11)) != '0'+idBarcode(barcode) 
+    AND NOT allowIncorrectBarcode()  
+    MESSAGE 'Некорректный UPC штрихкод';
 
 CONSTRAINT charLength(idBarcode(barcode)) == 13 AND completeBarcode(left(idBarcode(barcode),12)) != idBarcode(barcode) 
     AND NOT allowIncorrectBarcode()  
-    MESSAGE 'Некорректный штрихкод';
+    MESSAGE 'Некорректный EAN-13 штрихкод';
     
-onlyEANBarcode 'Только EAN штрихкоды' = DATA BOOLEAN ();
+onlyEANBarcode 'Только EAN или UPC штрихкоды' = DATA BOOLEAN ();
 
-CONSTRAINT ((charLength(idBarcode(barcode)) > 5 AND charLength(idBarcode(barcode)) < 8) 
-    OR (charLength(idBarcode(barcode)) > 8 AND charLength(idBarcode(barcode)) < 13) 
+CONSTRAINT ((charLength(idBarcode(barcode)) > 5 AND charLength(idBarcode(barcode)) < 8)
+    OR (charLength(idBarcode(barcode)) > 8 AND charLength(idBarcode(barcode)) < 12) 
     OR (charLength(idBarcode(barcode)) > 13)) 
     AND onlyEANBarcode()
-    MESSAGE 'Штрихкод не соответствует требованиям длины (больше 5, не равен 8 или 13)';
+    MESSAGE 'Штрихкод не является EAN или UPC, так как соответствует требованиям длины (больше 5, не равен 8, 12 или 13)';
     
 setIdBarcodeSku 'Штрихкод обязателен для товара' = DATA BOOLEAN ();
 
