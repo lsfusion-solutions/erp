@@ -1,6 +1,6 @@
 MODULE Ware;
 
-REQUIRE System, Historizable, Tax, Sku;
+REQUIRE System, Historizable, StockTax, Sku;
 
 // ------------------------------------------ Глобальные настройки --------------------------------- //
 showWare 'Показывать стеклопосуду' = DATA BOOLEAN ();
@@ -54,19 +54,38 @@ TABLE wareDate(Ware, DATE);
 
 @defineHistorizable(, price, 'Цена', NUMERIC[14,2], ware, nameWare, base);
 
-@defineHistorizableCustom(range, 'НДС', Range, number, range, ware, nameWare, base);
+VATWareCountry 'НДС' = DATA Range (Ware, Country);
+numberVATWareCountry 'НДС, номер' (w, c) = numberRange(VATWareCountry(w, c));
 
-CONSTRAINT taxRange(dataRangeWareDate(ware, date)) != Tax.taxVAT CHECKED BY dataRangeWareDate MESSAGE 'ошибка: Шкала должна соответствовать шкале НДС';
+VATSkuCountry (sku, country) += VATWareCountry (sku, country);
 
-dataValueRangeWareDate 'НДС, %' (ware, date) = valueRateRangeDate(dataRangeWareDate(ware, date), date) IN base;
-valueCurrentRateRangeWare 'НДС, %' (ware) = valueCurrentRateRange(rangeWare(ware)) IN base;
+CONSTRAINT taxRange(VATWareCountry(ware, country)) != Tax.taxVAT OR
+           countryRange(VATWareCountry(ware, country)) != country AS Country
+           CHECKED BY VATWareCountry
+           MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС : Ware';
 
-EXTEND FORM addRangeWare
-    PROPERTIES READONLY dataValueRangeWareDate(a, d)
-;
-EXTEND FORM dialogRangeWare
-    PROPERTIES dataValueRangeWareDate(a, d)
-;
+valueVATWareCountryDate 'НДС, %' (ware, country, date) = valueRateRangeDate(VATWareCountry(ware, country), date);
+
+VATWare 'НДС' (ware) = VATWareCountry(ware, defaultCountry()) PERSISTENT;
+numberVATWare 'НДС' (ware) = numberRange(VATWare(ware));
+
+valueVATWareDate 'НДС, %' (ware, date) = valueRateRangeDate(VATWare(ware), date);
+valueVATWare 'НДС, %' (ware) = valueVATWareDate(ware, currentDate());
+
+changeNumberVATWare = ACTION (ware) {
+    REQUEST OBJECT r
+        FORM rangeDialog OBJECTS c = defaultCountry() DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        VATWareCountry(ware, country) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        VATWareCountry(ware, country) <- NULL WHERE country == defaultCountry();
+    }
+}
+changeValueVATWare = ACTION (ware) {
+    REQUEST NUMERIC[10,5] INPUT;
+    VATWareCountry(ware, country) <- valueCurrentVATCountryValue(country, requestedNumeric()) WHERE country == defaultCountry();
+}
 
 // ------------------ Формы  --------------------- //
 
@@ -110,10 +129,17 @@ DESIGN wareGroups {
 FORM ware 'Посуда'
     OBJECTS w=Ware FIXED PANEL
     PROPERTIES(w) nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, warePrice
-    PROPERTIES(w) numberRangeRangeWare, valueCurrentRateRangeWare
+
+    PROPERTIES (w)         numberVATWare ON CHANGE changeNumberVATWare(w) 
+    PROPERTIES (w)         valueVATWare ON CHANGE changeValueVATWare(w)
 
     EDIT Ware OBJECT w
 ;
+DESIGN ware {
+    MOVE w.box;
+    NEW tabContainer;
+    MOVE functions.box;
+}
 
 FORM wares 'Посуда'
 
@@ -122,7 +148,7 @@ FORM wares 'Посуда'
     ORDER BY nameWareGroup(tg)
 
     OBJECTS w=Ware
-    PROPERTIES(w) READONLY nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, warePrice, numberRangeRangeWare, valueCurrentRateRangeWare
+    PROPERTIES(w) READONLY nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, warePrice, numberVATWare, valueVATWare
     PROPERTIES(w) ADDFORM, EDITFORM, deletew=DELETE FORCE PANEL TOOLBAR
     FILTERS isParentWareGroupWare(tg, w)
 
@@ -188,7 +214,12 @@ EXTEND FORM ware
     PROPERTIES nameCustomGroupType(cgt) READONLY, canonicalNameCustomGroupCustomGroupTypeWare(cgt, w)
 ;
 DESIGN ware {
-    MOVE cgt.box BEFORE functions.box;
+    tabContainer{
+        fill =1;
+        type = TABBED;
+        MOVE cgt.box;
+    }
+    
 }
 
 EXTEND FORM wareGroup
