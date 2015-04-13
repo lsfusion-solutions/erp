@@ -310,17 +310,22 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     @defineDocumentInterfaceDetailExpiryDate(invoice);
     @defineDocumentInterfaceDetailManufactureDate(invoice);
     
-    calcExpiryDateInvoiceDetail (d) = IF expiryMonthSku(skuUserInvoiceDetail(d)) 
-        THEN sumDateMonth(manufactureDateInvoiceDetail(d), expiryMonthSku(skuInvoiceDetail(d)))
-        ELSE sumDate(manufactureDateInvoiceDetail(d), expiryDaysSku(skuInvoiceDetail(d)));
+    overExpiryDateInvoiceDetail = ABSTRACT DATE (InvoiceDetail);
+    calcExpiryDateInvoiceDetail (d) = OVERRIDE 
+        (IF expiryMonthSku(skuUserInvoiceDetail(d)) 
+            THEN sumDateMonth(manufactureDateInvoiceDetail(d), expiryMonthSku(skuInvoiceDetail(d)))
+            ELSE sumDate(manufactureDateInvoiceDetail(d), expiryDaysSku(skuInvoiceDetail(d)))),
+        overExpiryDateInvoiceDetail(d);
         
     WHEN SESSION FORMS userInvoice (CHANGED(manufactureDateInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d))) AND NOT batchUserInvoiceDetail(d) AND manufactureDateInvoiceDetail(d) DO {
         expiryDateUserInvoiceDetail(d) <- calcExpiryDateInvoiceDetail(d);            
     } 
-    
-    calcManufactureDateInvoiceDetail (d) = IF expiryMonthSku(skuUserInvoiceDetail(d)) 
-        THEN sumDateMonth(expiryDateInvoiceDetail(d), -expiryMonthSku(skuInvoiceDetail(d)))
-        ELSE sumDate(expiryDateInvoiceDetail(d), -expiryDaysSku(skuInvoiceDetail(d)));     
+    overManufactureDateInvoiceDetail = ABSTRACT DATE (InvoiceDetail);
+    calcManufactureDateInvoiceDetail (d) = OVERRIDE 
+        (IF expiryMonthSku(skuUserInvoiceDetail(d)) 
+            THEN sumDateMonth(expiryDateInvoiceDetail(d), -expiryMonthSku(skuInvoiceDetail(d)))
+            ELSE sumDate(expiryDateInvoiceDetail(d), -expiryDaysSku(skuInvoiceDetail(d)))),
+        overManufactureDateInvoiceDetail(d);     
            
     WHEN SESSION FORMS userInvoice (CHANGED(expiryDateInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d))) AND NOT batchUserInvoiceDetail(d) AND expiryDateInvoiceDetail(d) DO {
         manufactureDateUserInvoiceDetail(d) <- calcManufactureDateInvoiceDetail(d);            

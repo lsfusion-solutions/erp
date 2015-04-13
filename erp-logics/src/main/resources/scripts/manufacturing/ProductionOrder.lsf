@@ -100,15 +100,20 @@ CONSTRAINT skuProductDetail(productDetail) != skuProduct(productProductDetail(pr
     MESSAGE 'Sku изделия и строки изделия не соответствуют друг другу';
     
 expiryDateProductDetail 'Годен до' = DATA DATE (ProductDetail);
-manufactureDateProductDetail 'Дата изготовления' = DATA DATE (ProductDetail);
-
-calcManufactureDateProductDetail (d) = IF expiryMonthSku(skuProductDetail(d)) 
-    THEN sumDateMonth(expiryDateProductDetail(d), -expiryMonthSku(skuProductDetail(d)))
-    ELSE sumDate(expiryDateProductDetail(d), -expiryDaysSku(skuProductDetail(d)));   
-      
-calcExpiryDateProductDetail (d) = IF expiryMonthSku(skuProductDetail(d)) 
-    THEN sumDateMonth(manufactureDateProductDetail(d), expiryMonthSku(skuProductDetail(d)))
-    ELSE sumDate(manufactureDateProductDetail(d), expiryDaysSku(skuProductDetail(d)));      
+overManufactureDateProductDetail = ABSTRACT DATE (ProductDetail);
+calcManufactureDateProductDetail (d) = OVERRIDE 
+    (IF expiryMonthSku(skuProductDetail(d)) 
+        THEN sumDateMonth(expiryDateProductDetail(d), -expiryMonthSku(skuProductDetail(d)))
+        ELSE sumDate(expiryDateProductDetail(d), -expiryDaysSku(skuProductDetail(d)))),
+    overManufactureDateProductDetail(d);  
+     
+manufactureDateProductDetail 'Дата изготовления' = DATA DATE (ProductDetail);    
+overExpiryDateProductDetail = ABSTRACT DATE (ProductDetail);      
+calcExpiryDateProductDetail (d) = OVERRIDE 
+    (IF expiryMonthSku(skuProductDetail(d)) 
+        THEN sumDateMonth(manufactureDateProductDetail(d), expiryMonthSku(skuProductDetail(d)))
+        ELSE sumDate(manufactureDateProductDetail(d), expiryDaysSku(skuProductDetail(d)))),
+    overExpiryDateProductDetail(d);      
 
 // Кол-во
 @defineDocumentDetailQuantityCustom (productDetail);
@@ -1265,6 +1270,14 @@ WHEN SESSION FORMS order CHANGED(productProductDetail(d)) NOINLINE DO {
     pricePercentProductDetail(d) <- pricePercentProduct(productProductDetail(d))
         WHERE pricePercentProduct(productProductDetail(d));
 } 
+
+
+WHEN SESSION FORMS order (CHANGED(expiryDateProductDetail(d)) OR CHANGED(skuProductDetail(d))) AND expiryDateProductDetail(d) DO {
+    manufactureDateProductDetail(d) <- calcManufactureDateProductDetail(d);            
+} 
+WHEN SESSION FORMS order (CHANGED(manufactureDateProductDetail(d)) OR CHANGED(skuProductDetail(d))) AND manufactureDateProductDetail(d) DO {
+    expiryDateProductDetail(d) <- calcExpiryDateProductDetail(d);            
+}  
 
 FORM orders 'Производственные заказы'
 
