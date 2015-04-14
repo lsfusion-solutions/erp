@@ -24,12 +24,24 @@ EXTEND FORM  priceLists
 
 ;
 
+ledgerPriceListTypeLabelType = DATA DataPriceListType (LabelType);
+nameLedgerPriceListTypeLabelType 'Управленческий вид цен' (l) = nameLedgerPriceListType(ledgerPriceListTypeLabelType(l));
+
+EXTEND FORM labelType PROPERTIES nameLedgerPriceListTypeLabelType(l);
+
+DESIGN labelType {
+    wor2{
+        MOVE PROPERTY (nameLedgerPriceListTypeLabelType(l) );
+    }
+    
+}
+
 inOverPriceListTypeSkuStock (type, sku, stock)= priceListTypeLabelType(labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime())))==type;
 
 overLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) += 
-    departmentStore IS DepartmentStore AND labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, departmentStore, currentDateTime())) == labelType; 
+    departmentStore IS DepartmentStore AND labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(ledgerPriceListTypeLabelType(labelType), sku, departmentStore, currentDateTime())) == labelType; 
 skipLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) += 
-    departmentStore IS DepartmentStore AND labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, departmentStore, currentDateTime())) == labelType; 
+    departmentStore IS DepartmentStore AND labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(ledgerPriceListTypeLabelType(labelType), sku, departmentStore, currentDateTime())) != labelType; 
         
 labelTypeOperation = DATA LabelType (PriceList.Operation);   
 nameLabelTypeOperation 'Тип ценника' = nameLabelType(labelTypeOperation(o));
