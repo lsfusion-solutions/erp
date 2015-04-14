@@ -49,6 +49,9 @@ costSumSaleLedger 'Себестоимость продажи' (ledger) = ABSTRAC
 customerSaleLedger (ledger) = ABSTRACT LegalEntity (SaleLedger) PERSISTENT INDEXED;
 nameCustomerSaleLedger 'Покупатель' (ledger) = nameLegalEntity(customerSaleLedger(ledger));
 
+customerStockSaleLedger (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
+nameCustomerStockSaleLedger 'Склад покупателя' (ledger) = nameStock(customerStockSaleLedger(ledger));
+
 inCustomerSku 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
     BY customerSaleLedger(ledger), skuSaleLedger(ledger) PERSISTENT;
 prevInCustomerSku 'Были продажи (пред.)' (legalEntity, sku) = PREV(inCustomerSku(legalEntity, sku));
@@ -262,10 +265,16 @@ nameSaleOperation 'Операция' = nameOperation(saleOperation());
 
 filterSaleOperationSaleLedger = operationSaleLedger(ledger)==saleOperation() OR (ledger IS SaleLedger AND NOT saleOperation());
 
-saleCustomer 'Покупатель' = DATA LOCAL LegalEntity ();
+saleCustomer = DATA LOCAL LegalEntity ();
 nameSaleCustomer 'Покупатель' = nameLegalEntity(saleCustomer());
-
 filterSaleCustomerSaleLedger = customerSaleLedger(ledger)==saleCustomer() OR (ledger IS SaleLedger AND NOT saleCustomer());
+
+saleCustomerStock  = DATA LOCAL Stock ();
+nameSaleCustomerStock 'Склад покупателя' = nameStock(saleCustomerStock());
+filterSaleCustomerStockSaleLedger = customerStockSaleLedger(ledger)==saleCustomerStock() OR (ledger IS SaleLedger AND NOT saleCustomerStock());
+
+CONSTRAINT saleCustomer() AND saleCustomerStock() AND NOT inLegalEntityStock(saleCustomer(), saleCustomerStock())
+    CHECKED BY saleCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для регистра продаж не имеют связи';     
 
 idBarcodeSkuSaleLedger 'Штрихкод' (l) = idBarcodeSku(skuSaleLedger(l));
 
@@ -304,7 +313,7 @@ selectSkuGroups 'Выбор групп' = ACTION () {
 } 
 
 FORM saleLedger 'Регистр продаж'
-    PROPERTIES() nameSaleOperation, nameSaleCustomer, sessionConcatSkuGroups ON CHANGE selectSkuGroups()
+    PROPERTIES() nameSaleOperation, nameSaleCustomer, nameSaleCustomerStock, sessionConcatSkuGroups ON CHANGE selectSkuGroups()
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -314,7 +323,7 @@ FORM saleLedger 'Регистр продаж'
 
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY nameMonthSaleLedger, nameDOWSaleLedger, dateSaleLedger, hourSaleLedger, dateTimeSaleLedger, 
-                           nameStockSaleLedger, nameCustomerSaleLedger, nameOperationSaleLedger,
+                           nameStockSaleLedger, nameCustomerSaleLedger, nameCustomerStockSaleLedger, nameOperationSaleLedger,
                            nameSkuGroup1SkuSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, nameSkuGroup5SkuSaleLedger, 
                            canonicalNameSkuGroupSaleLedger, nameSkuSaleLedger, idBarcodeSkuSaleLedger, descriptionSaleLedger, numberDocumentSaleLedger,
                            quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
@@ -322,7 +331,7 @@ FORM saleLedger 'Регистр продаж'
     PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)    
     PROPERTIES(s) editSaleLedger
     
-    FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s)
+    FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
     
     FILTERS inSessionSkuGroup(skuGroupSku(skuSaleLedger(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
@@ -335,20 +344,20 @@ DESIGN saleLedger {
         type = CONTAINERH;
         MOVE dates.box {
             type = CONTAINERH;
-        }
-        NEW operationContainer{
-            type = COLUMNS;
-            columns = 3;
-            caption = 'Фильтры';
-            MOVE PROPERTY(nameSaleOperation());
-            MOVE PROPERTY(nameSaleCustomer());
-            MOVE PROPERTY(sessionConcatSkuGroups());
         }            
         MOVE te.box {
             type = CONTAINERH;
             PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
             PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
         }
+    }
+    NEW operationContainer{
+        type = CONTAINERH;
+        caption = 'Фильтры';
+        MOVE PROPERTY(nameSaleOperation());
+        MOVE PROPERTY(nameSaleCustomer());
+        MOVE PROPERTY(nameSaleCustomerStock()); 
+        MOVE PROPERTY(sessionConcatSkuGroups());
     }
     MOVE s.box;
     MOVE functions.box;
