@@ -1,7 +1,6 @@
 package equ.clt.handler.htc;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
 import org.apache.commons.lang.time.DateUtils;
@@ -649,7 +648,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     String idEmployee = getDBFFieldValue(dbfFile, "CASHIER", charset);
                     Date dateReceipt = getDBFDateFieldValue(dbfFile, "DATE", charset);
                     if (dateReceipt != null) {
-                        Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm:ss"}).getTime());
+                        Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm"}).getTime());
 
                         String codeItem = getDBFFieldValue(dbfFile, "CODE", charset);
                         String barcodeItem = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
@@ -709,12 +708,15 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
-                sendSalesLogger.info("HTC: creating request files");
                 for (String directory : entry.directorySet) {
 
+                    if (!directorySet.contains(directory)) continue;
+                    
+                    sendSalesLogger.info("HTC: creating request files for directory : " + directory);
+                    
                     //если запрос с даты по дату, мы всё равно можем запросить только за 1 день
                     String date = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);                    
 
@@ -725,6 +727,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     } else
                         return "Error: " + directory + " doesn't exist. Request creation failed.";
                 }
+                succeededRequests.add(entry.requestExchange);
             }
         }
         return null;

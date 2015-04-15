@@ -2,7 +2,6 @@ package equ.clt.handler.ukm4;
 
 import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
-import com.hexiong.jdbf.JDBFException;
 import equ.api.*;
 import equ.api.cashregister.*;
 import org.apache.commons.lang.time.DateUtils;
@@ -355,7 +354,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
         return null;
     }
 

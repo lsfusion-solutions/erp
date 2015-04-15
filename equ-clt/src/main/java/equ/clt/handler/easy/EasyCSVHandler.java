@@ -90,7 +90,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException { 
+        public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException { 
             return null;
         }
 

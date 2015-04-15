@@ -176,7 +176,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
 
         for (RequestExchange entry : requestExchangeList) {
             if (entry.isSalesInfoExchange()) {
