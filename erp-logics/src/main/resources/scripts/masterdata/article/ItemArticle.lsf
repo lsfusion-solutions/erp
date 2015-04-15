@@ -51,6 +51,9 @@ brandArticle 'Бренд' = DATA Brand (Article);
 nameBrandArticle 'Бренд' (a) = nameBrand(brandArticle(a)) IN itemBase;
 idBrandArticle 'Бренд' (a) = idBrand(brandArticle(a));
 siteBrandArticle 'Адрес сайта' (a) = siteBrand(brandArticle(a));
+overReplaceBrandBrand (new,o) += ACTION (new,o) {
+    brandArticle(article) <- new WHERE brandArticle(article) == o;
+}
 
 CONSTRAINT brandArticle(article) AND itemGroupArticle(article) AND countDataItemGroupBrand(brandArticle(article)) AND NOT countRecBrandItemGroup(brandArticle(article), itemGroupArticle(article))
     CHECKED BY brandArticle, itemGroupArticle  
@@ -59,11 +62,15 @@ CONSTRAINT brandArticle(article) AND itemGroupArticle(article) AND countDataItem
 // Производитель
 manufacturerArticle 'Производитель' = DATA Manufacturer (Article);
 nameManufacturerArticle 'Производитель' (a) = nameManufacturer(manufacturerArticle(a)) IN itemBase;
-
+overReplaceManufacturerManufacturer (new,o) += ACTION (new,o) {
+    manufacturerArticle(article) <- new WHERE manufacturerArticle(article) == o;
+}
 // Производитель
 countryArticle = DATA Country (Article);
 nameCountryArticle 'Страна' (a) = nameCountry(countryArticle(a)) IN itemBase;
-
+overReplaceCountryCountry (new,o) += ACTION (new,o) {
+    countryArticle(article) <- new WHERE countryArticle(article) == o;
+}
 // Изображение артикула
 TABLE imagesArticle (Article);
 imageArticle 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArticle;
@@ -245,7 +252,9 @@ countColorArticle 'Кол-во цветов для артикля' (color,articl
 
 colorArticle  = DATA Color(Article);
 nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN itemArticle;
-
+overReplaceColorColor (new,o) += ACTION (new,o) {
+    colorArticle(article) <- new WHERE colorArticle(article) == o;
+}
 EXTEND FORM article PROPERTIES(a) nameColorArticle;
 DESIGN article  {
     articlePrimary {
@@ -262,7 +271,9 @@ shortNameUOMArticle 'Краткое наименование' (article)=  shortN
 
 WHEN SESSION CHANGED(itemGroupArticle(a)) AND NOT UOMArticle(a) DO
     UOMArticle(a) <- UOMItemGroup(itemGroupArticle(a));
-
+overReplaceUOMUOM (new,o) += ACTION (new,o) {
+    UOMArticle(article) <- new WHERE UOMArticle(article) == o;
+}
 //  Состав
 compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
 originalCompositionArticle 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal MINCHARWIDTH 30 PREFCHARWIDTH 40;
