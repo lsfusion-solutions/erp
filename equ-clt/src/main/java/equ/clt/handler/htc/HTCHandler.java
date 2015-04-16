@@ -648,7 +648,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     String idEmployee = getDBFFieldValue(dbfFile, "CASHIER", charset);
                     Date dateReceipt = getDBFDateFieldValue(dbfFile, "DATE", charset);
                     if (dateReceipt != null) {
-                        Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm"}).getTime());
+                        Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(dbfFile, "TIME", charset), new String[]{"HH:mm", "HH:mm:ss"}).getTime());
 
                         String codeItem = getDBFFieldValue(dbfFile, "CODE", charset);
                         String barcodeItem = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
