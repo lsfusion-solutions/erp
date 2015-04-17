@@ -434,11 +434,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
             logError(errors, String.format("PLU price is invalid. Price is %s (item: %s)", price, item.idItem));
         }
 
+        if (item.daysExpiry > 999 || item.daysExpiry < 0) {
+            item.daysExpiry = 0;
+//            logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
+//          пока временно не грузим            
+        }
+        
         if(item.daysExpiry == null)
             item.daysExpiry = 0;
-        if (item.daysExpiry > 999 || item.daysExpiry < 0) {
-            logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
-        }
 
         String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
         if (!manualWeight) {
