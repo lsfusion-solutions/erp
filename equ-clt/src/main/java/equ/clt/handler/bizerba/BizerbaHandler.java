@@ -350,9 +350,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
         int count = 0;
         List<String> splittedMessage = new ArrayList<String>();
         for (String line : description.split("\\\\n")) {
-            while (line.length() > 255) {
-                splittedMessage.add(line.substring(0, 255));
-                line = line.substring(255);
+            while (line.length() > 2000) {
+                splittedMessage.add(line.substring(0, 1999));
+                line = line.substring(1999);
             }
             splittedMessage.add(line);
         }
@@ -361,14 +361,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
         for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
             String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
             line = line.replace('@', 'a');
-            if (line.length() >= 255) {
-                line = line.substring(0, 255);
+            if (line.length() >= 2000) {
+                line = line.substring(0, 1999);
             }
             int messageNumber = pluNumber * 10 + count;
             messageMap.put(messageNumber, line);
             ++count;
         }
-        while(count < 10) {
+        while(count < 4) {
             int messageNumber = pluNumber * 10 + count;
             messageMap.put(messageNumber, "");
             ++count;
