@@ -609,6 +609,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
         File salesFile = new File(directory + "/Sales.dbf");
         File receiptFile = new File(directory + "/Receipt.dbf");
+        File queryFile = new File(directory + "/sales.ans");
 
         if (!salesFile.exists() || !receiptFile.exists())
             sendSalesLogger.info("HTC: No sale or receipt file found in " + directory);
@@ -688,6 +689,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             }
             filePathList.add(salesFile.getAbsolutePath());
         }
+        if(queryFile.exists())
+            filePathList.add(queryFile.getAbsolutePath());
         if (receiptFile.exists())
             filePathList.add(receiptFile.getAbsolutePath());
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
