@@ -389,16 +389,16 @@ public class EquipmentServer {
                                     sendSalesLogger.info("SalesInfo is empty");
                                 } else {
                                     sendSalesLogger.info("Sending SalesInfo");
-                                    String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
-                                    if (result != null) {
-                                        reportEquipmentServerError(remote, sidEquipmentServer, result);
-                                    } else {
-                                        sendSalesLogger.info("Finish Reading starts");
-                                        try {
+                                    try {
+                                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                                        if (result != null) {
+                                            reportEquipmentServerError(remote, sidEquipmentServer, result);
+                                        } else {
+                                            sendSalesLogger.info("Finish Reading starts");
                                             ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
-                                        } catch (Exception e) {
-                                            reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
                                         }
+                                    } catch (Exception e) {
+                                        reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
                                     }
                                 }
                             }
