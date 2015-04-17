@@ -296,6 +296,7 @@ labelTransactionLabelTransactionDetail = DATA LabelTransaction (LabelTransaction
 
 labelTypeLabelTransactionDetail (d) = labelTypeLabelTransaction(labelTransactionLabelTransactionDetail(d));
 nameLabelTypeLabelTransactionDetail 'Тип ценника' (d) = nameLabelType(labelTypeLabelTransactionDetail(d));
+descriptionLabelTransactionDetail 'Основание загрузки' (d) = descriptionLabelTransaction(labelTypeLabelTransactionDetail(d));
 
 priceListTypeLabelTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d));
 priceListTypeLabelTransactionDetail(d) = OVERRIDE priceListTypeLabelTypeLabelTransactionDetail(d), priceListTypeLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
@@ -308,6 +309,10 @@ departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labe
 dateTimeLabelTransactionDetail 'Дата/время' (d) = dateTimeLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
 dateLabelTransactionDetail 'Дата' (d) = dateLabelTransaction(labelTransactionLabelTransactionDetail(d));
 timeLabelTransactionDetail 'Время' (d) = timeLabelTransaction(labelTransactionLabelTransactionDetail(d));
+
+createdNameUserLabelTransactionDetail 'Создан пользователем' (d) = createdNameUserLabelTransaction(labelTransactionLabelTransactionDetail(d));
+createdTimeLabelTransactionDetail 'Время создания' (d) = createdTimeLabelTransaction(labelTransactionLabelTransactionDetail(d));
+createdHostnameComputerLabelTransactionDetail 'Создан на компьютере' (d) = createdHostnameComputerLabelTransaction(labelTransactionLabelTransactionDetail(d));
 
 skuLabelTransactionDetail = DATA Sku (LabelTransactionDetail);
 nameSkuLabelTransactionDetail 'SKU' (d) = nameSku(skuLabelTransactionDetail(d));
@@ -400,6 +405,8 @@ printToLabelTransaction 'Печать ценников' (labelTransaction) = ACT
         printLabelTransaction(labelTransaction);
 } IMAGE 'print.png' IN print;
 
+filterInLabelTransactionDetailSkuDepartmentStore (s,d)= GROUP SUM 1 IF s == skuLabelTransactionDetail(d) BY s, departmentStoreLabelTransactionDetail(d);
+
 FORM labelTransactions 'Печать ценников'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES nameDepartmentStore(d) SELECTOR
@@ -417,6 +424,19 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(dt) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
                             quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail, discountSumTransactionDetail 
     FILTERS labelTransactionLabelTransactionDetail(dt) == l
+    
+ // по определенной позиции и складу  
+    OBJECTS s = Sku
+    PROPERTIES(s)    READONLY idBarcodeSku, nameSku, idSku
+    FILTERS filterInLabelTransactionDetailSkuDepartmentStore(s,d)
+    OBJECTS dts = LabelTransactionDetail
+    PROPERTIES(dts) READONLY nameLabelTypeLabelTransactionDetail, descriptionLabelTransactionDetail, dateLabelTransactionDetail, timeLabelTransactionDetail,
+            createdNameUserLabelTransactionDetail, createdTimeLabelTransactionDetail, createdHostnameComputerLabelTransactionDetail,
+            idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
+            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail, discountSumTransactionDetail 
+    ORDER BY dateLabelTransactionDetail(dts) DESC, timeLabelTransactionDetail(dts) DESC
+    FILTERS skuLabelTransactionDetail(dts) == s,
+            departmentStoreLabelTransactionDetail(dts) == d
 ;
 
 @extendFormFilterStockAccess(d, labelTransactions);
@@ -424,23 +444,36 @@ FORM labelTransactions 'Печать ценников'
 DESIGN labelTransactions {
     main {
         MOVE d.box;
-        NEW topContainer{
-            type = SPLITV;
+        NEW pane{
             fill = 1;
-
-            MOVE l.box;
-            NEW documentDetail {
+            type = TABBED ;
+            NEW topContainer{
+                type = SPLITV;
                 fill = 1;
-                type = TABBED;
+                caption = 'Печать ценников';
     
-                MOVE dt.box {
-                    caption = 'Спецификация';
-                } 
-                NEW printTab {
-                    caption = 'Печатные формы';
-                    MOVE l.print;
-                } 
-            }              
+                MOVE l.box;
+                NEW documentDetail {
+                    fill = 1;
+                    type = TABBED;
+        
+                    MOVE dt.box {
+                        caption = 'Спецификация';
+                    } 
+                    NEW printTab {
+                        caption = 'Печатные формы';
+                        MOVE l.print;
+                    } 
+                }              
+            }
+            NEW skuContainer{
+                type = SPLITV;
+                fill = 1;
+                caption = 'Печать ценников по позиции';  
+                          
+                MOVE s.box;
+                MOVE dts.box;
+            }     
         }
         MOVE functions.box;
     }
@@ -488,7 +521,7 @@ META defineLabelTransactionAttributeAction(object, skuClass, skuProp)
 
     EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object##LabelTransactionDetail;
     EXTEND FORM customLabelTransaction PROPERTIES(d) object##LabelTransactionDetail;
-    EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object##LabelTransactionDetail;
+    EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object##LabelTransactionDetail PROPERTIES(dts) READONLY object##LabelTransactionDetail;   
 END
 
 META defineLabelTransactionAttribute(object, caption, type, skuClass, skuProp)
@@ -930,7 +963,7 @@ EXTEND FORM labelTransactions
     PROPERTIES(d) createBalanceLabelTransactionDepartmentStore, createAllLabelTransactionDepartmentStore
 ;
 DESIGN labelTransactions {
-    NEW header BEFORE topContainer{
+    NEW header BEFORE pane{
         type = CONTAINERH;
         MOVE d.box;
         MOVE d.incrementMachineryLabel;
