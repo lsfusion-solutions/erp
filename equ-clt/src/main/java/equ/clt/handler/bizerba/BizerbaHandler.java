@@ -368,6 +368,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
             messageMap.put(messageNumber, line);
             ++count;
         }
+        while(count < 10) {
+            int messageNumber = pluNumber * 10 + count;
+            messageMap.put(messageNumber, "");
+            ++count;
+        }
         return messageMap;
     }
 
