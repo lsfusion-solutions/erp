@@ -347,12 +347,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
         OrderedMap<Integer, String> messageMap = new OrderedMap<Integer, String>();
         Integer pluNumber = getPluNumber(item);
         String description = item.description == null ? "" : item.description;
+        if(description.length() > 3000)
+            description = description.substring(0, 2999);
         int count = 0;
         List<String> splittedMessage = new ArrayList<String>();
         for (String line : description.split("\\\\n")) {
-            while (line.length() > 2000) {
-                splittedMessage.add(line.substring(0, 1999));
-                line = line.substring(1999);
+            while (line.length() > 750) {
+                splittedMessage.add(line.substring(0, 749));
+                line = line.substring(749);
             }
             splittedMessage.add(line);
         }
@@ -361,8 +363,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
         for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
             String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
             line = line.replace('@', 'a');
-            if (line.length() >= 2000) {
-                line = line.substring(0, 1999);
+            if (line.length() >= 750) {
+                line = line.substring(0, 749);
             }
             int messageNumber = pluNumber * 10 + count;
             messageMap.put(messageNumber, line);
