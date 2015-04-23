@@ -334,7 +334,6 @@ public class EquipmentServer {
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
 
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
-        Set<Integer> succeededRequestsSet = new HashSet<Integer>();
         
         Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<String, Set<String>>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
@@ -364,9 +363,12 @@ public class EquipmentServer {
     
                         if (!requestExchangeList.isEmpty()) {
                             sendSalesLogger.info("Requesting SalesInfo");
+                            Set<Integer> succeededRequestsSet = new HashSet<Integer>();
                             String result = ((CashRegisterHandler) clsHandler).requestSalesInfo(requestExchangeList, directorySet, succeededRequestsSet);
                             if (result != null) {
                                 reportEquipmentServerError(remote, sidEquipmentServer, result);
+                            } else if (!succeededRequestsSet.isEmpty()) {
+                                remote.finishRequestExchange(succeededRequestsSet);
                             }
                         }
     
@@ -414,6 +416,8 @@ public class EquipmentServer {
                         }
     
                         if (!requestExchangeList.isEmpty()) {
+                            sendSalesLogger.info("Executing checkZerequestExchanges");
+                            Set<Integer> succeededRequestsSet = new HashSet<Integer>();
                             for (RequestExchange request : requestExchangeList) {
                                 if (request.isCheckZReportExchange()) {
                                     request.extraStockSet.add(request.idStock);
@@ -431,13 +435,13 @@ public class EquipmentServer {
                                     succeededRequestsSet.add(request.requestExchange);
                                 }
                             }
+                            if (!succeededRequestsSet.isEmpty()) {
+                                remote.finishRequestExchange(succeededRequestsSet);
+                            }
                         }
-    
                     }
                 }
             }
-            if (!succeededRequestsSet.isEmpty())
-                remote.finishRequestExchange(succeededRequestsSet);
         } catch (Throwable e) {
             sendSalesLogger.error("Equipment server error: ", e);
             remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
