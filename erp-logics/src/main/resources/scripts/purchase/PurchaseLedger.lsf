@@ -41,6 +41,9 @@ nameCurrencyPurchaseLedger 'Валюта' = nameCurrency(currencyPurchaseLedger(
 supplierPurchaseLedger  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) PERSISTENT;
 nameSupplierPurchaseLedger 'Поставщик' (ledger) = nameLegalEntity(supplierPurchaseLedger (ledger));
 
+supplierStockPurchaseLedger  (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT;
+nameSupplierStockPurchaseLedger 'Поставщик' (ledger) = nameStock(supplierStockPurchaseLedger (ledger));
+
 operationPurchaseLedger  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) PERSISTENT;
 nameOperationPurchaseLedger 'Операция' (ledger) = nameOperation(operationPurchaseLedger (ledger));
 
@@ -64,6 +67,19 @@ lastSupplierSku (sku) =
         BY skuPurchaseLedger(ledger)
         ORDER dateTimePurchaseLedger(ledger), ledger
         WHERE activePurchaseLedger(ledger);
+        
+//-- по складу поставщика        
+lastExternalSupplierStockStockSku (stock, sku) = 
+    GROUP LAST supplierStockPurchaseLedger(ledger)
+        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
+        ORDER dateTimePurchaseLedger(ledger), ledger
+        WHERE activePurchaseLedger(ledger) AND NOT isCompanyStock(supplierStockPurchaseLedger(ledger));
+    
+lastSupplierStockStockSku (stock, sku) = 
+    GROUP LAST supplierStockPurchaseLedger(ledger)
+        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
+        ORDER dateTimePurchaseLedger(ledger), ledger
+        WHERE activePurchaseLedger(ledger);        
 
 inSupplierSku 'Были поставки' (legalEntity, sku) = TRUE IF quantityPurchaseSupplierSku(legalEntity, sku) PERSISTENT;
 prevInSupplierSku 'Были поставки (пред.)' (legalEntity, sku) = PREV(inSupplierSku(legalEntity, sku));
