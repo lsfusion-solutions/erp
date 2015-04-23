@@ -39,23 +39,23 @@ overCostPriceShipmentDetail(d) = ABSTRACT NUMERIC[14,2] (ShipmentDetail);
 extraCostPriceShipmentDetail(d) = ABSTRACT NUMERIC[14,2] (ShipmentDetail);
 costPriceShipmentDetail(d) = OVERRIDE priceShipmentDetail(d), overCostPriceShipmentDetail(d), extraCostPriceShipmentDetail(d);
 
-isShippedInvoice = shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice));
+isShippedInvoice = shippedInvoice(invoice) OR NOT quantityNotChargeInvoiceDetailInvoice(invoice) > 0.0;
 
-statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipInvoiceDetailInvoice(invoice)  
+statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipNotChargeInvoiceDetailInvoice(invoice)  
                                                     THEN 'Расхождение'
                                                     ELSE 
                                                         IF isShippedInvoice (invoice) 
                                                             THEN 'Оприходована' 
                                                             ELSE 'Не оприходована' IF invoice IS Invoice;
                                                                                                                                                                                                                      
-backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT (shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice)));  
+backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT isShippedInvoice(invoice);  
 
 EXTEND FORM invoices
     PROPERTIES (i) READONLY statusShippedInvoice BACKGROUND backgroundShipInvoice(i) AFTER isCommissionInvoice(i)
     
     FILTERGROUP shipped 
-        FILTER 'Не оприходованы' i IS Invoice AND NOT (shippedInvoice(i) OR (isPostedInvoice(i) AND quantityNotChargeInvoiceDetailInvoice(i)==0.0) OR (isPostedInvoice(i) AND NOT quantityNotChargeInvoiceDetailInvoice(i))) 'F11'
-        FILTER 'Оприходованы' shippedInvoice(i) OR (isPostedInvoice(i) AND quantityNotChargeInvoiceDetailInvoice(i)==0.0) OR (isPostedInvoice(i) AND NOT quantityNotChargeInvoiceDetailInvoice(i)) 'F10'
+        FILTER 'Не оприходованы' i IS Invoice AND NOT isShippedInvoice(i) 'F11'
+        FILTER 'Оприходованы' isShippedInvoice(i) 'F10'
 ;   
 @defineOrderShipmentExecution(); 
 @defineOrderInvoiceSupplierExecution(purchase, ' (закупка)');

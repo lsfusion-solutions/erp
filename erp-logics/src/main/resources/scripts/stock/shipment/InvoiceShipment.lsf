@@ -27,14 +27,20 @@ shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROU
                                                                    
 shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail)
                                                                    BY invoiceInvoiceDetail(detail) PERSISTENT;   
-
+shippedNotChargeInvoice 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isNotChargeSku(skuInvoiceDetail(detail))
+                                                                   BY invoiceInvoiceDetail(detail) PERSISTENT;   
+                                                                   
 notShippedInvoice (invoice) = invoice IS Invoice AND NOT shippedInvoice(invoice);
                                                                                                                                        
 toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail);
 
 toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
     GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
-          BY invoiceInvoiceDetail(invoiceDetail);              
+          BY invoiceInvoiceDetail(invoiceDetail); 
+                       
+toShipNotChargeInvoiceDetailInvoice 'Не поставлено по накладной (кроме услуг)' (invoice) =
+    GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0 AND isNotChargeSku(skuInvoiceDetail(invoiceDetail))
+          BY invoiceInvoiceDetail(invoiceDetail);                       
           
 addUserShipmentInvoice  = ABSTRACT ACTION CASE OVERRIDE (Invoice);
 
@@ -60,14 +66,14 @@ deleteMultiShipment 'Удалить полностью' = ACTION (shipment) NEWS
 
 isShippedInvoice = shippedInvoice(invoice) OR NOT quantityNotChargeInvoiceDetailInvoice(invoice) > 0.0;
 
-statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipInvoiceDetailInvoice(invoice)  
+statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipNotChargeInvoiceDetailInvoice(invoice)  
                                                     THEN 'Расхождение'
                                                     ELSE 
                                                         IF isShippedInvoice (invoice) 
                                                             THEN 'Оприходована' 
                                                             ELSE 'Не оприходована' IF invoice IS Invoice;
 
-backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT (shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice)));  
+backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT isShippedInvoice(invoice);  
 
 META defineInvoiceShipment(sign, stockProp, filter, NS)
 
@@ -104,7 +110,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
                                                                        BY invoiceDetailShipmentDetail(shipmentDetail) PERSISTENT;
                                                                        
     shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail)
-                                                                       BY invoiceInvoiceDetail(detail) PERSISTENT;    
+                                                                       BY invoiceInvoiceDetail(detail) PERSISTENT;  
+    shippedNotChargeInvoice 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail) AND isNotChargeSku(skuInvoiceDetail(detail))
+                                                                       BY invoiceInvoiceDetail(detail) PERSISTENT;                                                                           
+                                                                         
                                                                                                                                           
     shipmentQuantityInvoiceDetailSkuInvoice 'Кол-во товара в документе' (sku, invoice) = 
         GROUP SUM shippedInvoiceDetail(idetail)
@@ -135,7 +144,9 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
         GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
               BY invoiceInvoiceDetail(invoiceDetail);
-
+    toShipNotChargeInvoiceDetailInvoice 'Не поставлено по накладной (кроме услуг)' (invoice) =
+        GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0 AND isNotChargeSku(skuInvoiceDetail(invoiceDetail))
+              BY invoiceInvoiceDetail(invoiceDetail);
     // Создание поставки на основе инвойса //
 
     backgroundShippedInvoice 'Цвет' (invoice) = RGB(255, 224, 255) IF invoice IS Invoice;
