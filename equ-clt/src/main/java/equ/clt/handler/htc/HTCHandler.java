@@ -279,6 +279,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     flagPriceFile.createNewFile();
                                     waitList.add(Arrays.asList(priceFile, flagPriceFile, entry.getValue()));
                                 } catch (IOException e) {
+                                    exception = e;
                                     processTransactionLogger.error("HTC: error while create files", e);
                                 }
                             } finally {
