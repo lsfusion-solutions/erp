@@ -233,11 +233,13 @@ showDeclarationInvoice 'Таможенные платежи' = ABSTRACT BOOLEAN(
 showDeclarationUserInvoice 'Таможенные платежи' = DATA BOOLEAN(UserInvoice) IN documentPrm;
 showDeclarationInvoice(invoice) += showDeclarationUserInvoice(invoice);
 
+changeCodeCustomsGroupUserInvoiceDetail = ABSTRACT ACTION (UserInvoiceDetail);
+
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustoms() showDeclarationUserInvoice
     PROPERTIES(d) BACKGROUND backgroundCustoms() SHOWIF showDeclarationUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
-        codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, dutyPriceUserInvoiceDetail, 
-        registrationPriceUserInvoiceDetail, VATPriceUserInvoiceDetail
+        codeCustomsGroupUserInvoiceDetail ON CHANGE changeCodeCustomsGroupUserInvoiceDetail(d), nameVATCustomsExceptionUserInvoiceDetail, 
+        dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail, VATPriceUserInvoiceDetail
 ;
 DESIGN userInvoice {
     headerExtraParams {
