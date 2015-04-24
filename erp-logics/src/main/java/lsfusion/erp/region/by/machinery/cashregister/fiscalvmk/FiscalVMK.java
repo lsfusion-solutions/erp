@@ -244,7 +244,7 @@ public class FiscalVMK {
     public static boolean registerItem(ReceiptItem item) {
         try {
             logAction("vmk_sale", item.barcode, item.name, (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
-            return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
+            return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, (int) item.sumPos);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
