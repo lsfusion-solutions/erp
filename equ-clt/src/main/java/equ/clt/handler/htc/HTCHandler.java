@@ -645,11 +645,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     int receiptRecordCount = receiptDBFFile.getRecordCount();
                     for (int i = 0; i < receiptRecordCount; i++) {
                         receiptDBFFile.read();
-                        Integer numberReceipt = getDBFIntegerFieldValue(receiptDBFFile, "NUMDOC", charset);
-                        BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
-                        BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
-                        String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
-                        receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
+                        if(!receiptDBFFile.deleted()) {
+                            Integer numberReceipt = getDBFIntegerFieldValue(receiptDBFFile, "NUMDOC", charset);
+                            BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
+                            BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
+                            String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
+                            receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
+                        }
 
                     }
                     receiptDBFFile.close();
@@ -661,46 +663,48 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     for (int i = 0; i < recordCount; i++) {
 
                         salesDBFFile.read();
-                        Integer numberReceipt = getDBFIntegerFieldValue(salesDBFFile, "CHECK", charset);
+                        if (!salesDBFFile.deleted()) {
+                            Integer numberReceipt = getDBFIntegerFieldValue(salesDBFFile, "CHECK", charset);
 
-                        List<Object> receiptEntry = receiptMap.get(numberReceipt);
-                        BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
-                        BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
-                        String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
+                            List<Object> receiptEntry = receiptMap.get(numberReceipt);
+                            BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
+                            BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
+                            String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
 
-                        String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
-                        Date dateReceipt = getDBFDateFieldValue(salesDBFFile, "DATE", charset);
-                        if (dateReceipt != null) {
-                            Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), new String[]{"HH:mm", "HH:mm:ss"}).getTime());
+                            String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
+                            Date dateReceipt = getDBFDateFieldValue(salesDBFFile, "DATE", charset);
+                            if (dateReceipt != null) {
+                                Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), new String[]{"HH:mm", "HH:mm:ss"}).getTime());
 
-                            String codeItem = getDBFFieldValue(salesDBFFile, "CODE", charset);
-                            String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
-                            //временный чит для корректировки весовых штрихкодов
-                            if (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
-                                barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                                String codeItem = getDBFFieldValue(salesDBFFile, "CODE", charset);
+                                String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
+                                //временный чит для корректировки весовых штрихкодов
+                                if (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
+                                    barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                                }
+                                if ("00000".equals(barcodeItem)) {
+                                    barcodeItem = codeItem;
+                                }
+
+                                BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COUNT", charset);
+                                BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "PRICE", charset);
+                                BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset);
+                                BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset);
+                                BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset);
+                                discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discountSumReceipt);
+
+                                Integer nppMachinery = directoryCashRegisterMap.get(directory);
+                                Integer nppGroupMachinery = directoryGroupCashRegisterMap.get(directory);
+                                Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
+                                numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
+                                numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
+                                String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
+
+                                salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
+                                        timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail,
+                                        priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
+                                        nameSalesFile));
                             }
-                            if ("00000".equals(barcodeItem)) {
-                                barcodeItem = codeItem;
-                            }
-
-                            BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COUNT", charset);
-                            BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "PRICE", charset);
-                            BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset);
-                            BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset);
-                            BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset);
-                            discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discountSumReceipt);
-
-                            Integer nppMachinery = directoryCashRegisterMap.get(directory);
-                            Integer nppGroupMachinery = directoryGroupCashRegisterMap.get(directory);
-                            Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
-                            numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
-                            numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
-                            String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
-
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
-                                    timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail,
-                                    priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
-                                    nameSalesFile));
                         }
                     }
                     salesDBFFile.close();
