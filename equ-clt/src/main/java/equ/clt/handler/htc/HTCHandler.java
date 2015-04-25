@@ -95,7 +95,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         File cachedPriceFile = null;
                         File cachedPriceMdxFile = null;
 
-                        List<List<Object>> waitList = new ArrayList<List<Object>>();
+                        List<List<Object>> waitList = new ArrayList<>();
                         for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
 
                             String directory = entry.getKey();
@@ -288,18 +288,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             }
                         }
 
-                        for (List<Object> waitEntry : waitList) {
-                            File priceFile = (File) waitEntry.get(0);
-                            File flagPriceFile = (File) waitEntry.get(1);
-                            List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(2);
-                            processTransactionLogger.info("HTC: waiting for deletion: " + flagPriceFile.getAbsolutePath());
-                            if (waitForDeletion(priceFile, flagPriceFile))
-                                succeededCashRegisterList.addAll(cashRegisterInfoList);
-                            else {
-                                exception = new RuntimeException(String.format("HTC: file %s has been created but not processed by server",
-                                        flagPriceFile.exists() ? flagPriceFile.getAbsolutePath() : priceFile.getAbsoluteFile()));
-                            }
-                        }
+                        exception = waitForDeletion(waitList, succeededCashRegisterList);
 
                         if (cachedPriceFile != null)
                             cachedPriceFile.delete();
@@ -549,17 +538,41 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             field.put(value == null ? "null" : value);
     }
 
-    private boolean waitForDeletion(File file, File flagFile) {
+    private Exception waitForDeletion(List<List<Object>> waitList, List<MachineryInfo> succeededCashRegisterList) {
         int count = 0;
-        while (!Thread.currentThread().isInterrupted() && (flagFile.exists() || file.exists()) && count < 60) {
+        while (!Thread.currentThread().isInterrupted() && !waitList.isEmpty()) {
             try {
-                Thread.sleep(1000);
+                List<List<Object>> nextWaitList = new ArrayList<>();
                 count++;
+                if (count >= 60) {
+                    break;
+                }
+                for (List<Object> waitEntry : waitList) {
+                    File file = (File) waitEntry.get(0);
+                    File flagFile = (File) waitEntry.get(1);
+                    List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(2);
+                    if (flagFile.exists() || file.exists())
+                        nextWaitList.add(Arrays.asList(file, flagFile, cashRegisterInfoList));
+                    else
+                        succeededCashRegisterList.addAll(cashRegisterInfoList);
+                }
+                waitList = nextWaitList;
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
         }
-        return count < 60;
+
+        String exception = waitList.isEmpty() ? null : "HTC: files has been created but not processed by server: ";
+        for(List<Object> waitEntry : waitList) {
+            File file = (File) waitEntry.get(0);
+            File flagFile = (File) waitEntry.get(1);
+            if(file.exists())
+            exception += file.getAbsolutePath() + "; ";
+            if(flagFile.exists())
+                exception += flagFile.getAbsolutePath() + "; ";
+        }
+        return exception == null ? null : new RuntimeException(exception);
     }
 
     @Override
