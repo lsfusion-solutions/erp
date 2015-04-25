@@ -703,19 +703,19 @@ public class EquipmentServer {
                         if(exception != null) {
                             noErrors = false;
                             errorTransactionReport(transactionInfo.id, exception);
-                        } else {
-                            try {
-
-                                List<MachineryInfo> succeededMachineryInfoList = succeededMachineryInfoMap.get(transactionInfo.id).succeededMachineryList;
-                                if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
-                                    noErrors = false;
-                                if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
-                                    remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
-                            } catch (Exception e) {
-                                noErrors = false;
-                                errorTransactionReport(transactionInfo.id, e);
-                            }
                         }
+
+                        try {
+                            List<MachineryInfo> succeededMachineryInfoList = succeededMachineryInfoMap.get(transactionInfo.id).succeededMachineryList;
+                            if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
+                                noErrors = false;
+                            if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
+                                remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                        } catch (Exception e) {
+                            noErrors = false;
+                            errorTransactionReport(transactionInfo.id, e);
+                        }
+
                         if (noErrors) {
                             succeededTransaction(transactionInfo.id);
                         }
