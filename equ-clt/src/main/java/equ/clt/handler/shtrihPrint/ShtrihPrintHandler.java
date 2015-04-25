@@ -151,12 +151,14 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                             if (result != 0)
                                                                 error = result;
                                                         }
-                                                    } while (attempt < 5 && error != 0);
+                                                    } while (attempt < 10 && error != 0);
 
                                                     if (error != 0) {
                                                         if (itemErrors != null && !itemErrors.isEmpty())
                                                             localErrors.addAll(itemErrors);
                                                         logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
+                                                        //поменяли логику: один товар за 10 попыток не прогрузился - прекращаем загрузку всех последующих
+                                                        break;
                                                     }
                                                     usedPLUNumberSet.add(item.pluNumber);
                                                 }
