@@ -317,6 +317,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
+                int count = 0;
                 for (String directory : entry.directorySet) {
 
                     if (!directorySet.contains(directory)) continue;
@@ -344,8 +345,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         writer.close();
                     } else
                         return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                    count++;
                 }
-                succeededRequests.add(entry.requestExchange);
+                if(count > 0)
+                    succeededRequests.add(entry.requestExchange);
             }
         }
         return null;

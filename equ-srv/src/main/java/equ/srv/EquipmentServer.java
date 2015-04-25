@@ -1036,42 +1036,51 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
                     
-                    Set<String> extraStockSet = typeRequestExchange.contains("salesInfo") ? new HashSet<String>() : readExtraStockMapRequestExchange(session, requestExchangeObject);
+                    List<Set<String>> extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
                     
-                    if (requestExchangeMap.containsKey(stockRequestExchange))
+                    if (requestExchangeMap.containsKey(stockRequestExchange)) {
                         requestExchangeMap.get(stockRequestExchange).directorySet.add(directoryMachinery);
-                    else
-                        requestExchangeMap.put(stockRequestExchange, new RequestExchange((Integer) result.getKey(i).get("requestExchange").getValue(), 
-                                new HashSet<String>(Arrays.asList(directoryMachinery)), idStockMachinery, extraStockSet,
-                                dateFromRequestExchange, dateToRequestExchange, startDateRequestExchange, typeRequestExchange));
+                        requestExchangeMap.get(stockRequestExchange).directorySet.addAll(extraStockSet.get(1));
+                    }
+                    else {
+                        Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
+                        directorySet.addAll(extraStockSet.get(1));
+                        requestExchangeMap.put(stockRequestExchange, new RequestExchange((Integer) requestExchangeObject.getValue(),
+                                directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
+                                startDateRequestExchange, typeRequestExchange));
+                    }
                 }
               
                 for (RequestExchange entry : requestExchangeMap.values())
                     requestExchangeList.add(entry);
 
                 session.apply(getBusinessLogics());
-            } catch (ScriptingErrorLog.SemanticErrorException e) {
-                throw Throwables.propagate(e);
-            } catch (SQLHandledException e) {
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
         return requestExchangeList;             
     }
         
-    private Set<String> readExtraStockMapRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Set<String> stockMap = new HashSet<String>();
+    private List<Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> idStockSet = new HashSet<>();
+        Set<String> directorySet = new HashSet<>();
         KeyExpr stockExpr = new KeyExpr("stock");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stock", stockExpr);
+        KeyExpr machineryExpr = new KeyExpr("machinery");
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "machinery", machineryExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
         query.addProperty("idStock", machineryPriceTransactionLM.findProperty("idStock").getExpr(stockExpr));
+        query.addProperty("overDirectoryMachinery", machineryPriceTransactionLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
         query.and(machineryPriceTransactionLM.findProperty("inStockRequestExchange").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
+        query.and(machineryPriceTransactionLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
+        query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(stockExpr, Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for (ImMap<Object, Object> entry : result.values()) {
-            stockMap.add(trim((String) entry.get("idStock")));
+            idStockSet.add(trim((String) entry.get("idStock")));
+            directorySet.add(trim((String) entry.get("overDirectoryMachinery")));
         }
-        return stockMap;
+        return Arrays.asList(idStockSet, directorySet);
     }
 
     @Override

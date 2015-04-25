@@ -287,11 +287,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
+            int count = 0;
             if(entry.isSalesInfoExchange()) {
                 for (String directory : entry.directorySet) {
                     
                     if (!directorySet.contains(directory)) continue;
-                    
+
                     sendSalesLogger.info("Kristal: creating request files for directory : " + directory);
                     String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                     String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
@@ -304,8 +305,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         writer.close();
                     } else
                         return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                    count++;
                 }
-                succeededRequests.add(entry.requestExchange);
+                if(count > 0)
+                    succeededRequests.add(entry.requestExchange);
             }
         }
         return null;

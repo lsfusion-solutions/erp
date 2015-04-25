@@ -762,6 +762,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
+                int count = 0;
                 for (String directory : entry.directorySet) {
 
                     if (!directorySet.contains(directory)) continue;
@@ -777,8 +778,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         writer.close();
                     } else
                         return "Error: " + directory + " doesn't exist. Request creation failed.";
+                    count++;
                 }
-                succeededRequests.add(entry.requestExchange);
+                if(count > 0)
+                    succeededRequests.add(entry.requestExchange);
             }
         }
         return null;

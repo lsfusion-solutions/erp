@@ -180,11 +180,15 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
         for (RequestExchange entry : requestExchangeList) {
             if (entry.isSalesInfoExchange()) {
+                int count = 0;
                 String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                 String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
                 sendSalesLogger.info("Atol: creating request files");
                 for (String directory : entry.directorySet) {
+
+                    if (!directorySet.contains(directory)) continue;
+
                     String exchangeDirectory = directory + "/IN";
                     if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                         File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
@@ -195,7 +199,10 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         writer.close();
                     } else
                         return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                    count++;
                 }
+                if(count > 0)
+                    succeededRequests.add(count);
             }
         }
         return null;

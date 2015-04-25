@@ -416,7 +416,7 @@ public class EquipmentServer {
                         }
     
                         if (!requestExchangeList.isEmpty()) {
-                            sendSalesLogger.info("Executing checkZerequestExchanges");
+                            sendSalesLogger.info("Executing checkZReportRequestExchanges");
                             Set<Integer> succeededRequestsSet = new HashSet<Integer>();
                             for (RequestExchange request : requestExchangeList) {
                                 if (request.isCheckZReportExchange()) {
@@ -546,7 +546,7 @@ public class EquipmentServer {
                                             List<DiscountCard> discountCardList = remote.readDiscountCardList();
                                             if (discountCardList != null && !discountCardList.isEmpty())
                                                 ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange.startDate, directorySet);
-                                            remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
+                                            remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         } 
 
                                         //Promotion
@@ -554,7 +554,7 @@ public class EquipmentServer {
                                             PromotionInfo promotionInfo = remote.readPromotionInfo();
                                             if (promotionInfo != null)
                                                 ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, directorySet);
-                                            remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
+                                            remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         }
                                     }
                                     
@@ -563,7 +563,7 @@ public class EquipmentServer {
                                         List<TerminalOrder> terminalOrderList = remote.readTerminalOrderList(requestExchange);
                                         if (terminalOrderList != null && !terminalOrderList.isEmpty())
                                             ((TerminalHandler) clsHandler).sendTerminalOrderList(terminalOrderList, nppGroupMachinery, directoryGroupMachinery);
-                                        remote.finishRequestExchange(new HashSet<Integer>(Arrays.asList(requestExchange.requestExchange)));
+                                        remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
                                 }
                             } catch (Exception e) {
