@@ -295,6 +295,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             processTransactionLogger.info("HTC: waiting for deletion: " + flagPriceFile.getAbsolutePath());
                             if (waitForDeletion(priceFile, flagPriceFile))
                                 succeededCashRegisterList.addAll(cashRegisterInfoList);
+                            else {
+                                exception = new RuntimeException(String.format("HTC: file %s has been created but not processed by server",
+                                        flagPriceFile.exists() ? flagPriceFile.getAbsolutePath() : priceFile.getAbsoluteFile()));
+                            }
                         }
 
                         if (cachedPriceFile != null)
