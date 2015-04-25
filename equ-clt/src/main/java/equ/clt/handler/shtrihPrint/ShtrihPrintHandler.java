@@ -83,6 +83,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                     if (useSockets) {
 
                         for (ScalesInfo scales : usingScalesList) {
+                            boolean globalError = false;
                             List<String> localErrors = new ArrayList<String>();
 
                             UDPPort port = new UDPPort(scales.port, 1111, 1000);
@@ -158,6 +159,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                             localErrors.addAll(itemErrors);
                                                         logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
                                                         //поменяли логику: один товар за 10 попыток не прогрузился - прекращаем загрузку всех последующих
+                                                        globalError = true;
                                                         break;
                                                     }
                                                     usedPLUNumberSet.add(item.pluNumber);
@@ -165,7 +167,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                             }
 
                                             //зануляем незадействованные pluNumber
-                                            if (transaction.snapshot && advancedClearMaxPLU != 0) {
+                                            if (transaction.snapshot && advancedClearMaxPLU != 0 && !globalError) {
                                                 String firstLine = "Недопустимый штрих-код!";
                                                 String secondLine = "";
                                                 String message = "";
