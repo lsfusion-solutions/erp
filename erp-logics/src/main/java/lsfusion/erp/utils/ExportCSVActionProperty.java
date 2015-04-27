@@ -68,7 +68,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                         ftpClient.setControlEncoding("UTF-8");
                         ftpClient.connect(server, port);
                         ftpClient.login(username, password);
-                        ftpClient.enterLocalPassiveMode();
+//                        ftpClient.enterLocalPassiveMode();
                         ftpClient.enterRemotePassiveMode();
                         ftpClient.setFileType(FTP.BINARY_FILE_TYPE, FTP.BINARY_FILE_TYPE);
                         ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
