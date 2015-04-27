@@ -354,8 +354,8 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
-        return null;
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException {
     }
 
     @Override

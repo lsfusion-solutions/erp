@@ -23,7 +23,8 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
     
     public abstract SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException;
 
-    public abstract String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException;
+    public abstract void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+                                            Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException;
 
     public abstract void finishReadingSalesInfo(S salesBatch);
 

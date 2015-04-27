@@ -176,11 +176,13 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException {
 
         for (RequestExchange entry : requestExchangeList) {
             if (entry.isSalesInfoExchange()) {
                 int count = 0;
+                String requestResult = null;
                 String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                 String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
@@ -198,14 +200,17 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         writer.write(dateFrom + ";" + dateTo);
                         writer.close();
                     } else
-                        return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                        requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
                     count++;
                 }
-                if(count > 0)
-                    succeededRequests.add(count);
+                if(count > 0) {
+                    if(requestResult == null)
+                        succeededRequests.add(entry.requestExchange);
+                    else
+                        failedRequests.put(entry.requestExchange, requestResult);
+                }
             }
         }
-        return null;
     }
 
     @Override

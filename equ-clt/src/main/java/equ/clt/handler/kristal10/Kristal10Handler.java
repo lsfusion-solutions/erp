@@ -285,9 +285,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
+            String requestResult = null;
             if(entry.isSalesInfoExchange()) {
                 for (String directory : entry.directorySet) {
                     
@@ -304,14 +306,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
                         writer.close();
                     } else
-                        return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                        requestResult = "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
                     count++;
                 }
-                if(count > 0)
-                    succeededRequests.add(entry.requestExchange);
+                if(count > 0) {
+                    if(requestResult == null)
+                        succeededRequests.add(entry.requestExchange);
+                    else
+                        failedRequests.put(entry.requestExchange, requestResult);
+                }
             }
         }
-        return null;
     }
 
     @Override

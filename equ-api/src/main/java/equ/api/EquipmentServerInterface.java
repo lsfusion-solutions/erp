@@ -41,9 +41,10 @@ public interface EquipmentServerInterface extends Remote {
 
     List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
+    //requestExchange
     List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException;
-
     void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
+    void errorRequestExchange(Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException;
 
     List<DiscountCard> readDiscountCardList() throws RemoteException, SQLException;
 

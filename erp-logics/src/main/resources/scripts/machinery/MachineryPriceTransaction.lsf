@@ -323,7 +323,7 @@ showExtraStocks(requestExchange) = requestExchangeTypeRequestExchange(requestExc
                                    requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.salesInfo;
 showStartDate(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.discountCard;
 
-CLASS RequestExchangeLog 'Ошибки обмена данными';
+CLASS RequestExchangeLog 'Лог обмена данными';
 TABLE requestExchangeLog (RequestExchangeLog);
 
 machineryRequestExchangeLog 'Касса' = DATA Machinery (RequestExchangeLog);
@@ -331,6 +331,13 @@ nppMachineryRequestExchangeLog 'Касса' (requestExchangeLog) = nppMachinery(
 messageRequestExchangeLog 'Сообщение' = DATA TEXT (RequestExchangeLog);
 dateRequestExchangeLog 'Время' = DATA DATETIME (RequestExchangeLog);
 requestExchangeRequestExchangeLog = DATA RequestExchange (RequestExchangeLog);
+
+CLASS RequestExchangeError 'Ошибки обмена данными';
+TABLE requestExchangeError (RequestExchangeError);
+
+messageRequestExchangeError 'Сообщение' = DATA TEXT (RequestExchangeError);
+dateRequestExchangeError 'Время' = DATA DATETIME (RequestExchangeError);
+requestExchangeRequestExchangeError = DATA RequestExchange (RequestExchangeError);
 
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
@@ -360,7 +367,37 @@ FORM requestExchanges 'Запросы обмена данными'
     OBJECTS rl = RequestExchangeLog
     PROPERTIES(rl) READONLY nppMachineryRequestExchangeLog, messageRequestExchangeLog, dateRequestExchangeLog
     FILTERS requestExchangeRequestExchangeLog(rl) == r    
+    
+    OBJECTS re = RequestExchangeError
+    PROPERTIES(re) READONLY messageRequestExchangeError, dateRequestExchangeError
+    FILTERS requestExchangeRequestExchangeError(re) == r    
 ;
+
+DESIGN requestExchanges {
+    main {
+        MOVE PROPERTY(nameStock(s));
+        NEW requestExchangeContainer {
+            fill = 1;
+            type = SPLITV;
+            MOVE r.box;
+            NEW tabbedContainer {
+                type = TABBED;
+                fill = 1;
+                NEW errorTabbedContainer {
+                    fill = 1;
+                    caption = 'Ошибки';
+                    MOVE re.box;
+                }
+                NEW logTabbedContainer {
+                    fill = 1;
+                    caption = 'Лог';
+                    MOVE rl.box;
+                }
+            }
+        }
+        MOVE functions.box;
+    }
+}
 
 createMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (GroupMachinery);
 

@@ -759,10 +759,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet, Set<Integer> succeededRequests) throws IOException, ParseException {
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
+                                   Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
                 int count = 0;
+                String requestResult = null;
                 for (String directory : entry.directorySet) {
 
                     if (!directorySet.contains(directory)) continue;
@@ -771,17 +773,44 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     
                     //если запрос с даты по дату, мы всё равно можем запросить только за 1 день
                     String date = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);                    
-
+                    File queryFile = new File(directory + "/" + "sales.qry");
+                    File salesFile = new File(directory + "/Sales.dbf");
+                    File receiptFile = new File(directory + "/Receipt.dbf");
                     if (new File(directory).exists()) {
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(directory + "/" + "sales.qry"), "utf-8"));
+                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
                         writer.write(date);
                         writer.close();
+                        String currentRequestResult = waitRequestSalesInfo(queryFile, salesFile, receiptFile);
+                        if(currentRequestResult != null)
+                            requestResult = currentRequestResult;
                     } else
-                        return "Error: " + directory + " doesn't exist. Request creation failed.";
+                        requestResult = "Error: " + directory + " doesn't exist. Request creation failed.";
                     count++;
                 }
-                if(count > 0)
-                    succeededRequests.add(entry.requestExchange);
+                if(count > 0) {
+                    if(requestResult == null)
+                        succeededRequests.add(entry.requestExchange);
+                    else
+                        failedRequests.put(entry.requestExchange, requestResult);
+                }
+            }
+        }
+    }
+
+    private String waitRequestSalesInfo(File queryFile, File salesFile, File receiptFile) {
+        int count = 0;
+        while (!Thread.currentThread().isInterrupted() && (queryFile.exists() || !salesFile.exists() || !receiptFile.exists())) {
+            try {
+                count++;
+                if (count >= 60)
+                    if(queryFile.exists())
+                        return String.format("Request file %s has been created but not processed by server", queryFile.getAbsolutePath());
+                    else
+                        return String.format("Request file %s has been processed by server but no sales data found", queryFile.getAbsolutePath());
+                else
+                    Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                return e.getMessage();
             }
         }
         return null;

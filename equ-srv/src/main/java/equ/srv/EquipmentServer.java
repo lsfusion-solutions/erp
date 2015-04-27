@@ -1095,9 +1095,25 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
                 session.apply(getBusinessLogics());
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
+        }
+    }
+
+    @Override
+    public void errorRequestExchange(Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException {
+        try {
+            if (machineryPriceTransactionLM != null) {
+                DataSession session = getDbManager().createSession();
+                for (Map.Entry<Integer, String> request : succeededRequestsMap.entrySet()) {
+                    DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
+                    machineryPriceTransactionLM.findProperty("messageRequestExchangeError").change(request.getValue(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("dateRequestExchangeError").change(getCurrentTimestamp(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeError").change(request.getKey(), session, errorObject);
+                }
+                session.apply(getBusinessLogics());
+            }
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
     }
