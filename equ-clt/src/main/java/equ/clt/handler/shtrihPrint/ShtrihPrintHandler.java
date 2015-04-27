@@ -21,7 +21,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     private static String password = "0030";
-    
+
     private FileSystemXmlApplicationContext springContext;
 
     public ShtrihPrintHandler(FileSystemXmlApplicationContext springContext) {
@@ -48,11 +48,11 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionScalesInfo transaction : transactionList) {
 
-            List<MachineryInfo> succeededScalesList = new ArrayList<MachineryInfo>();
+            List<MachineryInfo> succeededScalesList = new ArrayList<>();
             Exception exception = null;
             try {
 
@@ -63,7 +63,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 boolean useSockets = shtrihSettings == null || shtrihSettings.isUseSockets();
                 int advancedClearMaxPLU = shtrihSettings == null || shtrihSettings.getAdvancedClearMaxPLU() == null ? 0 : shtrihSettings.getAdvancedClearMaxPLU();
 
-                List<ScalesInfo> enabledScalesList = new ArrayList<ScalesInfo>();
+                List<ScalesInfo> enabledScalesList = new ArrayList<>();
                 for (ScalesInfo scales : transaction.machineryInfoList) {
                     if (scales.enabled)
                         enabledScalesList.add(scales);
@@ -73,8 +73,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                 if (!transaction.machineryInfoList.isEmpty()) {
 
-                    Map<String, List<String>> errors = new HashMap<String, List<String>>();
-                    Set<String> ips = new HashSet<String>();
+                    Map<String, List<String>> errors = new HashMap<>();
+                    Set<String> ips = new HashSet<>();
 
                     List<ScalesInfo> usingScalesList = enabledScalesList.isEmpty() ? transaction.machineryInfoList : enabledScalesList;
 
@@ -83,8 +83,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                     if (useSockets) {
 
                         for (ScalesInfo scales : usingScalesList) {
-                            boolean globalError = false;
-                            List<String> localErrors = new ArrayList<String>();
+                            int globalError = 0;
+                            List<String> localErrors = new ArrayList<>();
 
                             UDPPort port = new UDPPort(scales.port, 1111, 1000);
 
@@ -111,7 +111,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                                         processTransactionLogger.info("Shtrih: Sending items..." + ip);
                                         if (localErrors.isEmpty()) {
-                                            Set<Integer> usedPLUNumberSet = new HashSet<Integer>();
+                                            Set<Integer> usedPLUNumberSet = new HashSet<>();
                                             for (ScalesItemInfo item : transaction.itemsList) {
 
                                                 if (!Thread.currentThread().isInterrupted()) {
@@ -122,7 +122,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                     do {
                                                         error = 0;
                                                         attempt++;
-                                                        itemErrors = new ArrayList<String>();
+                                                        itemErrors = new ArrayList<>();
                                                         Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                                         Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
@@ -152,22 +152,23 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                             if (result != 0)
                                                                 error = result;
                                                         }
-                                                    } while (attempt < 10 && error != 0);
+                                                    } while (attempt < 5 && error != 0);
 
                                                     if (error != 0) {
                                                         if (itemErrors != null && !itemErrors.isEmpty())
                                                             localErrors.addAll(itemErrors);
                                                         logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
-                                                        //поменяли логику: один товар за 10 попыток не прогрузился - прекращаем загрузку всех последующих
-                                                        globalError = true;
-                                                        break;
+                                                        //поменяли логику: три товара по 5 попыток не прогрузились - прекращаем загрузку всех последующих
+                                                        globalError++;
+                                                        if(globalError >= 3)
+                                                            break;
                                                     }
                                                     usedPLUNumberSet.add(item.pluNumber);
                                                 }
                                             }
 
                                             //зануляем незадействованные pluNumber
-                                            if (transaction.snapshot && advancedClearMaxPLU != 0 && !globalError) {
+                                            if (transaction.snapshot && advancedClearMaxPLU != 0 && globalError < 3) {
                                                 String firstLine = "Недопустимый штрих-код!";
                                                 String secondLine = "";
                                                 String message = "";
@@ -179,7 +180,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         do {
                                                             error = 0;
                                                             attempt++;
-                                                            itemErrors = new ArrayList<String>();
+                                                            itemErrors = new ArrayList<>();
 
                                                             int j = 0;
                                                             while (j < 8) {
@@ -196,13 +197,15 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                                 if (result != 0)
                                                                     error = result;
                                                             }
-                                                        } while (attempt < 10 && error != 0);
+                                                        } while (attempt < 5 && error != 0);
 
                                                         if (error != 0) {
                                                             if (itemErrors != null && !itemErrors.isEmpty())
                                                                 localErrors.addAll(itemErrors);
                                                             logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", i, error, getErrorText(error)));
-                                                            break;
+                                                            globalError++;
+                                                            if(globalError >= 3)
+                                                                break;
                                                         }
                                                     }
                                             }
@@ -243,7 +246,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             Variant pass = new Variant(30);
 
                             for (ScalesInfo scales : enabledScalesList.isEmpty() ? transaction.machineryInfoList : enabledScalesList) {
-                                List<String> localErrors = new ArrayList<String>();
+                                List<String> localErrors = new ArrayList<>();
                                 String ip = scales.port;
                                 if (ip != null) {
                                     ips.add(scales.port);
