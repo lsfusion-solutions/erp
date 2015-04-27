@@ -140,9 +140,13 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                     if (importResult >= IMPORT_RESULT_OK)
                                         currentSession.apply(context);
 
-                                    if (importResult >= IMPORT_RESULT_OK || isOld) {
+                                    if (importResult >= IMPORT_RESULT_OK) {
                                         DataSession postImportSession = context.createSession();
                                         findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                        postImportSession.apply(context);
+                                    } else if (isOld) {
+                                        DataSession postImportSession = context.createSession();
+                                        findProperty("importErrorAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
                                         postImportSession.apply(context);
                                     }
 
@@ -164,7 +168,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         DataSession postImportSession = context.createSession();
         findProperty("lastErrorAttachmentEmail").change(error, postImportSession, (DataObject) attachmentEmailObject);
         if(isOld)
-            findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+            findProperty("importErrorAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
         postImportSession.apply(context);
     }
     
