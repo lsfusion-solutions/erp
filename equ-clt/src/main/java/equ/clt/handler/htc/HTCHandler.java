@@ -563,7 +563,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             }
         }
 
-        String exception = waitList.isEmpty() ? null : "HTC: files has been created but not processed by server: ";
+        String exception = waitList.isEmpty() ? null : "HTC: files has been created but not processed by cash register machine: ";
         for(List<Object> waitEntry : waitList) {
             File file = (File) waitEntry.get(0);
             File flagFile = (File) waitEntry.get(1);
