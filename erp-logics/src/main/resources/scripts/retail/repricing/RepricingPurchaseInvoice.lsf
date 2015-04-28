@@ -64,37 +64,51 @@ maxInvoiceDetailSkuInvoice = GROUP LAST detail
        
 repricingForm =  DATA LOCAL UserRepricing();                      
 
-skipNegativeepricing 'Не использовать обратную дооценку' = DATA BOOLEAN ();  
+skipNegativeRepricing 'Не использовать обратную дооценку' = DATA BOOLEAN ();  
 
 EXTEND FORM options
-    PROPERTIES () skipNegativeepricing
+    PROPERTIES () skipNegativeRepricing
 ;
 
 DESIGN options {
     repricings {
-        MOVE PROPERTY (skipNegativeepricing());            
+        MOVE PROPERTY (skipNegativeRepricing());            
     }
 }  
 
+overPositiveInvoiceDetail = ABSTRACT ACTION LIST (InvoiceDetail); 
+overNegativeInvoiceDetail= ABSTRACT ACTION LIST (InvoiceDetail); 
+
+positiveInvoiceDetail =  DATA LOCAL BOOLEAN (InvoiceDetail);
+negativeInvoiceDetail =  DATA LOCAL BOOLEAN (InvoiceDetail);    
+
 createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, operation) {   
     IF [ = GROUP SUM 1 IF filterToRepricingInvoiceStockDateTime (invoice, department, timeFrom) BY department, timeFrom] (department, timeFrom) THEN {
-    
-        LOCAL positiveInvoiceDetail =  BOOLEAN (InvoiceDetail);
+        
+//        LOCAL positiveInvoiceDetail =  BOOLEAN (InvoiceDetail);
+        positiveInvoiceDetail(detail) <- NULL;
         positiveInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoiceInvoiceDetail(detail), department, timeFrom);
         positiveInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND positiveInvoiceDetail(detail);                     
-        positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);                     
+        positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);     
+        FOR positiveInvoiceDetail(detail) DO {
+            overPositiveInvoiceDetail(detail);
+        }              
     
-        LOCAL negativeInvoiceDetail =  BOOLEAN (InvoiceDetail);    
+//        LOCAL negativeInvoiceDetail =  BOOLEAN (InvoiceDetail);   
+        negativeInvoiceDetail(detail) <- NULL;
         negativeInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoiceInvoiceDetail(detail), department, timeFrom);
         negativeInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetail(detail) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND negativeInvoiceDetail(detail);         
         negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail); 
-        negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND skipNegativeepricing();                    
+        negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND skipNegativeRepricing();
+        FOR negativeInvoiceDetail(detail) DO {
+            overNegativeInvoiceDetail(detail);
+        }              
                 
         IF [ = GROUP SUM 1 IF positiveInvoiceDetail(detail) OR negativeInvoiceDetail(detail) ]() THEN {
             FOR ADDOBJ r = UserRepricing DO {
