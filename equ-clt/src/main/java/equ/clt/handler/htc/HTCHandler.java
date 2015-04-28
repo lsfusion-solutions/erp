@@ -41,11 +41,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
-            List<MachineryInfo> succeededCashRegisterList = new ArrayList<MachineryInfo>();
+            List<MachineryInfo> succeededCashRegisterList = new ArrayList<>();
             Exception exception = null;
             try {
 
@@ -54,13 +54,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 } else {
                     processTransactionLogger.info(String.format("HTC: Send Transaction # %s", transaction.id));
 
-                    List<CashRegisterInfo> enabledCashRegisterList = new ArrayList<CashRegisterInfo>();
+                    List<CashRegisterInfo> enabledCashRegisterList = new ArrayList<>();
                     for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
                         if (cashRegister.enabled)
                             enabledCashRegisterList.add(cashRegister);
                     }
 
-                    Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<String, List<CashRegisterInfo>>();
+                    Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<>();
                     for (CashRegisterInfo cashRegister : enabledCashRegisterList.isEmpty() ? transaction.machineryInfoList : enabledCashRegisterList) {
                         if (cashRegister.succeeded)
                             succeededCashRegisterList.add(cashRegister);
@@ -126,8 +126,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                                 dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, CMD, NDS, NALOG});
                                     }
 
-                                    Set<String> usedBarcodes = new HashSet<String>();
-                                    Map<String, Integer> barcodeRecordMap = new HashMap<String, Integer>();
+                                    Set<String> usedBarcodes = new HashSet<>();
+                                    Map<String, Integer> barcodeRecordMap = new HashMap<>();
                                     for (int i = 1; i <= dbfFile.getRecordCount(); i++) {
                                         dbfFile.read();
                                         String barcode = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
@@ -364,7 +364,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     dbfFile.close();
                     FileCopyUtils.copy(cachedDiscFile, discountCardFile);
                 }
-                File discountFlag = new File(directory + startDate == null ? "/TMC.dcn" : "/TMC.dcu");
+                File discountFlag = new File(directory + (startDate == null ? "/TMC.dcn" : "/TMC.dcu"));
                 discountFlag.createNewFile();
 
                 machineryExchangeLogger.info("HTCHandler: finish sending to " + directory);
@@ -749,6 +749,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             }
                         }
                         salesDBFFile.close();
+
+                        String timePostfix = postfix == null ? (getCurrentTimestamp() + ".dbf") : postfix;
+                        new File(directory + "/backup").mkdir();
+                        FileCopyUtils.copy(salesFile, new File(directory + "/backup/Sales" + timePostfix));
+                        FileCopyUtils.copy(receiptFile, new File(directory + "/backup/Receipt" + timePostfix));
                     }
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
