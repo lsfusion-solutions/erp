@@ -728,11 +728,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) {
+    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
 
-        String message = "";
-        List<String> idZReportList = new ArrayList<String>();
-        
+        Map<String, List<Object>> zReportSumMap = new HashMap<>();
+
         Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -779,13 +778,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
                                 BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
                                 BigDecimal kristalSum = safeSubtract(sumSale, sumReturn);
-                                BigDecimal fusionSum = zReportSumMap.get(idZReport);
-                                
-                                if(fusionSum == null || kristalSum == null || fusionSum.doubleValue() != kristalSum.doubleValue())
-                                    message += String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
-                                            numberCashRegister, numberZReport, fusionSum, kristalSum);
-                                else 
-                                    idZReportList.add(idZReport);
+                                zReportSumMap.put(idZReport, Arrays.asList((Object) kristalSum, numberCashRegister, numberZReport, idZReport));
+
                             }
                             File successDir = new File(file.getParent() + "/success/");
                             if (successDir.exists() || successDir.mkdirs())
@@ -794,9 +788,36 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         }
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
-                    }                
+                    }
                 }
             }
+        }
+        return zReportSumMap.isEmpty() ? null : zReportSumMap;
+    }
+
+
+    @Override
+    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) {
+
+        String message = "";
+        List<String> idZReportList = new ArrayList<String>();
+
+        for (Map.Entry<String, List<Object>> kristalEntry : handlerZReportSumMap.entrySet()) {
+
+            String idZReportHandler = kristalEntry.getKey();
+            List<Object> valuesHandler = kristalEntry.getValue();
+            BigDecimal sumHandler = (BigDecimal) valuesHandler.get(0);
+            Integer numberCashRegister = (Integer) valuesHandler.get(1);
+            String numberZReport = (String) valuesHandler.get(2);
+            String idZReport = (String) valuesHandler.get(3);
+
+            BigDecimal sumBase = baseZReportSumMap.get(idZReportHandler);
+
+            if (sumHandler == null || sumBase == null || sumHandler.doubleValue() != sumBase.doubleValue())
+                message += String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
+                        numberCashRegister, numberZReport, sumBase, sumHandler);
+            else
+                idZReportList.add(idZReport);
         }
         return idZReportList.isEmpty() && message.isEmpty() ? null : new ExtraCheckZReportBatch(idZReportList, message);
     }

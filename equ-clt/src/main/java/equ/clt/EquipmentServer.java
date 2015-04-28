@@ -336,7 +336,7 @@ public class EquipmentServer {
 
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
         
-        Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<String, Set<String>>();
+        Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
             directorySet.add(cashRegister.directory);
@@ -443,8 +443,9 @@ public class EquipmentServer {
 
     private void extraCheckZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
             throws RemoteException, SQLException, ClassNotFoundException {
-        ExtraCheckZReportBatch extraCheckResult = handler.extraCheckZReportSum(cashRegisterInfoList, remote.readZReportSumMap());
-        if (extraCheckResult != null) {
+        Map<String, List<Object>> handlerZReportSumMap = handler.readExtraCheckZReport(cashRegisterInfoList);
+        if (handlerZReportSumMap != null) {
+            ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap, remote.readZReportSumMap());
             if (extraCheckResult.message.isEmpty()) {
                 remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
             } else {

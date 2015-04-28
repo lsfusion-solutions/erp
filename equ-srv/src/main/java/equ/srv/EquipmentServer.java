@@ -1124,6 +1124,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.addProperty("sumReceiptDetailZReport", zReportLM.findProperty("sumReceiptDetailZReport").getExpr(zReportExpr));
 
                 query.and(zReportLM.findProperty("idZReport").getExpr(zReportExpr).getWhere());
+                query.and(zReportLM.findProperty("succeededExtraCheckZReport").getExpr(zReportExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -1132,9 +1133,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
             }
             return zReportSumMap;
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
     }
