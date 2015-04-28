@@ -21,6 +21,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -353,99 +354,130 @@ public class EquipmentServer {
 
                     if(clsHandler instanceof CashRegisterHandler) {
                         CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
-                        Map succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
-                        if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
-                            sendSalesLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
-                            String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
-                            if (result != null)
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                        }
-    
-                        if (!requestExchangeList.isEmpty()) {
-                            sendSalesLogger.info("Requesting SalesInfo");
-                            Set<Integer> succeededRequests = new HashSet<>();
-                            Map<Integer, String> failedRequests = new HashMap<>();
-                            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests);
-                            if (!succeededRequests.isEmpty())
-                                remote.finishRequestExchange(succeededRequests);
-                            if (!failedRequests.isEmpty())
-                                remote.errorRequestExchange(failedRequests);
 
-                        }
-    
-                        Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
-                        CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
-                        if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
-                            sendSalesLogger.info("Sending CashDocuments");
-                            String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
-                            if (result != null) {
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                            } else {
-                                handler.finishReadingCashDocumentInfo(cashDocumentBatch);
-                            }
-                        }
-    
-                        if(directorySet != null) {
-                            for (String directory : directorySet) {
-                                SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                                if (salesBatch == null) {
-                                    sendSalesLogger.info("SalesInfo is empty");
-                                } else {
-                                    sendSalesLogger.info("Sending SalesInfo");
-                                    try {
-                                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
-                                        if (result != null) {
-                                            reportEquipmentServerError(remote, sidEquipmentServer, result);
-                                        } else {
-                                            sendSalesLogger.info("Finish Reading starts");
-                                            handler.finishReadingSalesInfo(salesBatch);
-                                        }
-                                    } catch (Exception e) {
-                                        reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
-                                    }
-                                }
-                            }
-                        }
-    
-                        ExtraCheckZReportBatch extraCheckResult = handler.extraCheckZReportSum(cashRegisterInfoList, remote.readZReportSumMap());
-                        if (extraCheckResult != null) {
-                            if (extraCheckResult.message.isEmpty()) {
-                                remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
-                            } else {
-                                reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
-                            }
-                        }
-    
-                        if (!requestExchangeList.isEmpty()) {
-                            sendSalesLogger.info("Executing checkZReportRequestExchanges");
-                            Set<Integer> succeededRequestsSet = new HashSet<Integer>();
-                            for (RequestExchange request : requestExchangeList) {
-                                if (request.isCheckZReportExchange()) {
-                                    request.extraStockSet.add(request.idStock);
-                                    for (String idStock : request.extraStockSet) {
-                                        Map<String, List<Object>> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
-                                        Map<Integer, List<List<Object>>> cashRegisterMap = remote.readCashRegistersStock(idStock);
-                                        for(Map.Entry<Integer, List<List<Object>>> cashRegisterEntry : cashRegisterMap.entrySet()) {
-                                            List<List<Object>> checkSumResult = zReportSumMap.isEmpty() ? null : 
-                                                    handler.checkZReportSum(zReportSumMap, cashRegisterEntry.getValue());
-                                            if (checkSumResult != null) {
-                                                remote.logRequestZReportSumCheck(request.requestExchange, cashRegisterEntry.getKey(), checkSumResult);
-                                            }
-                                        }
-                                    }
-                                    succeededRequestsSet.add(request.requestExchange);
-                                }
-                            }
-                            if (!succeededRequestsSet.isEmpty()) {
-                                remote.finishRequestExchange(succeededRequestsSet);
-                            }
-                        }
+                        sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
+
+                        requestSalesInfo(remote, requestExchangeList, handler, directorySet);
+
+                        sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
+
+                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, numberAtATime);
+
+                        extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
+
+                        checkZReportSum(remote, handler, requestExchangeList);
+
                     }
                 }
             }
         } catch (Throwable e) {
             sendSalesLogger.error("Equipment server error: ", e);
             remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+        }
+    }
+
+    private void sendSucceededSoftCheckInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, Set<String> directorySet)
+            throws RemoteException, SQLException, ClassNotFoundException {
+        Map succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
+        if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
+            sendSalesLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
+            String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
+            if (result != null)
+                reportEquipmentServerError(remote, sidEquipmentServer, result);
+        }
+    }
+
+    private void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
+            throws IOException, ParseException, SQLException {
+        if (!requestExchangeList.isEmpty()) {
+            sendSalesLogger.info("Requesting SalesInfo");
+            Set<Integer> succeededRequests = new HashSet<>();
+            Map<Integer, String> failedRequests = new HashMap<>();
+            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests);
+            if (!succeededRequests.isEmpty())
+                remote.finishRequestExchange(succeededRequests);
+            if (!failedRequests.isEmpty())
+                remote.errorRequestExchange(failedRequests);
+        }
+    }
+
+    private void sendCashDocument(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
+            throws IOException, SQLException, ClassNotFoundException {
+        Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
+        CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
+        if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
+            sendSalesLogger.info("Sending CashDocuments");
+            String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
+            if (result != null) {
+                reportEquipmentServerError(remote, sidEquipmentServer, result);
+            } else {
+                handler.finishReadingCashDocumentInfo(cashDocumentBatch);
+            }
+        }
+    }
+
+    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, Set<String> directorySet,
+                               List<CashRegisterInfo> cashRegisterInfoList, Integer numberAtATime) throws ParseException, IOException, ClassNotFoundException, SQLException {
+        if(directorySet != null) {
+            for (String directory : directorySet) {
+                SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
+                if (salesBatch == null) {
+                    sendSalesLogger.info("SalesInfo is empty");
+                } else {
+                    sendSalesLogger.info("Sending SalesInfo");
+                    try {
+                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                        if (result != null) {
+                            reportEquipmentServerError(remote, sidEquipmentServer, result);
+                        } else {
+                            sendSalesLogger.info("Finish Reading starts");
+                            handler.finishReadingSalesInfo(salesBatch);
+                        }
+                    } catch (Exception e) {
+                        reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
+    private void extraCheckZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
+            throws RemoteException, SQLException, ClassNotFoundException {
+        ExtraCheckZReportBatch extraCheckResult = handler.extraCheckZReportSum(cashRegisterInfoList, remote.readZReportSumMap());
+        if (extraCheckResult != null) {
+            if (extraCheckResult.message.isEmpty()) {
+                remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
+            } else {
+                reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
+            }
+        }
+    }
+
+    private void checkZReportSum(EquipmentServerInterface remote, CashRegisterHandler handler, List<RequestExchange> requestExchangeList)
+            throws RemoteException, SQLException, ClassNotFoundException {
+        if (!requestExchangeList.isEmpty()) {
+            sendSalesLogger.info("Executing checkZReportRequestExchanges");
+            Set<Integer> succeededRequestsSet = new HashSet<Integer>();
+            for (RequestExchange request : requestExchangeList) {
+                if (request.isCheckZReportExchange()) {
+                    request.extraStockSet.add(request.idStock);
+                    for (String idStock : request.extraStockSet) {
+                        Map<String, List<Object>> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
+                        Map<Integer, List<List<Object>>> cashRegisterMap = remote.readCashRegistersStock(idStock);
+                        for(Map.Entry<Integer, List<List<Object>>> cashRegisterEntry : cashRegisterMap.entrySet()) {
+                            List<List<Object>> checkSumResult = zReportSumMap.isEmpty() ? null :
+                                    handler.checkZReportSum(zReportSumMap, cashRegisterEntry.getValue());
+                            if (checkSumResult != null) {
+                                remote.logRequestZReportSumCheck(request.requestExchange, cashRegisterEntry.getKey(), checkSumResult);
+                            }
+                        }
+                    }
+                    succeededRequestsSet.add(request.requestExchange);
+                }
+            }
+            if (!succeededRequestsSet.isEmpty()) {
+                remote.finishRequestExchange(succeededRequestsSet);
+            }
         }
     }
 

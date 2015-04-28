@@ -611,8 +611,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
-        Map<String, Integer> directoryCashRegisterMap = new HashMap<String, Integer>();
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+        Map<String, Integer> directoryCashRegisterMap = new HashMap<>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("HTCHandler")) {
                 if (c.number != null)
@@ -622,121 +622,146 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             }
         }
 
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
-        List<String> filePathList = new ArrayList<String>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        List<String> filePathList = new ArrayList<>();
 
         String nameSalesFile = null;
         File salesFile = null;
         File receiptFile = null;
 
-        File remoteSalesFile = new File(directory + "/Sales.dbf");
-        File remoteReceiptFile = new File(directory + "/Receipt.dbf");
+        File[] salesFilesList = new File(directory).listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                return pathname != null && pathname.getName().startsWith("Sales") && pathname.getPath().endsWith(".dbf");
+            }
+        });
+
+        File[] receiptFilesList = new File(directory).listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                return pathname != null && pathname.getName().startsWith("Receipt") && pathname.getPath().endsWith(".dbf");
+            }
+        });
+
         File remoteAnsFile = new File(directory + "/Sales.ans");
 
-        if (!remoteSalesFile.exists() || !remoteReceiptFile.exists()) {
+        if (salesFilesList.length == 0 || receiptFilesList.length == 0) {
             sendSalesLogger.info("HTC: No sale or receipt file found in " + directory);
-            if (remoteSalesFile.exists())
-                filePathList.add(remoteSalesFile.getAbsolutePath());
-            if (remoteReceiptFile.exists())
-                filePathList.add(remoteReceiptFile.getAbsolutePath());
+            for(File file : salesFilesList) {
+                filePathList.add(file.getAbsolutePath());
+            }
+            for(File file : receiptFilesList) {
+                filePathList.add(file.getAbsolutePath());
+            }
         }
         else {
             sendSalesLogger.info("HTC: found sale and receipt files in " + directory);
 
-            boolean copyError = false;
-            try {
-                nameSalesFile = remoteSalesFile.getName();
-                salesFile = File.createTempFile("Sales", ".dbf");
-                FileCopyUtils.copy(remoteSalesFile, salesFile);
-                receiptFile = File.createTempFile("Receipt", ".dbf");
-                FileCopyUtils.copy(remoteReceiptFile, receiptFile);
-            } catch (Exception e) {
-                copyError = true;
-                sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
-            }
+            for(File remoteSalesFile : salesFilesList) {
 
-            try {
-                if(!copyError) {
-                    Map<Integer, List<Object>> receiptMap = new HashMap<Integer, List<Object>>();
-                    DBF receiptDBFFile = new DBF(receiptFile.getAbsolutePath());
-                    int receiptRecordCount = receiptDBFFile.getRecordCount();
-                    for (int i = 0; i < receiptRecordCount; i++) {
-                        receiptDBFFile.read();
-                        if(!receiptDBFFile.deleted()) {
-                            Integer numberReceipt = getDBFIntegerFieldValue(receiptDBFFile, "NUMDOC", charset);
-                            BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
-                            BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
-                            String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
-                            receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
+                String[] splitted = remoteSalesFile.getAbsolutePath().split("Sales");
+                String postfix = splitted[splitted.length - 1];
+                File remoteReceiptFile = new File(directory + "/Receipt" + postfix);
+                if(!remoteReceiptFile.exists()) {
+                    filePathList.add(remoteSalesFile.getAbsolutePath());
+                    continue;
+                }
+
+                boolean copyError = false;
+                try {
+                    nameSalesFile = remoteSalesFile.getName();
+                    salesFile = File.createTempFile("Sales", ".dbf");
+                    FileCopyUtils.copy(remoteSalesFile, salesFile);
+                    receiptFile = File.createTempFile("Receipt", ".dbf");
+                    FileCopyUtils.copy(remoteReceiptFile, receiptFile);
+                } catch (Exception e) {
+                    copyError = true;
+                    sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
+                }
+
+                try {
+                    if (!copyError) {
+                        Map<Integer, List<Object>> receiptMap = new HashMap<>();
+                        DBF receiptDBFFile = new DBF(receiptFile.getAbsolutePath());
+                        int receiptRecordCount = receiptDBFFile.getRecordCount();
+                        for (int i = 0; i < receiptRecordCount; i++) {
+                            receiptDBFFile.read();
+                            if (!receiptDBFFile.deleted()) {
+                                Integer numberReceipt = getDBFIntegerFieldValue(receiptDBFFile, "NUMDOC", charset);
+                                BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
+                                BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
+                                String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
+                                receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
+                            }
+
                         }
+                        receiptDBFFile.close();
 
-                    }
-                    receiptDBFFile.close();
+                        DBF salesDBFFile = new DBF(salesFile.getAbsolutePath());
+                        int recordCount = salesDBFFile.getRecordCount();
 
-                    DBF salesDBFFile = new DBF(salesFile.getAbsolutePath());
-                    int recordCount = salesDBFFile.getRecordCount();
+                        Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
+                        for (int i = 0; i < recordCount; i++) {
 
-                    Map<Integer, Integer> numberReceiptDetailMap = new HashMap<Integer, Integer>();
-                    for (int i = 0; i < recordCount; i++) {
+                            salesDBFFile.read();
+                            if (!salesDBFFile.deleted()) {
+                                Integer numberReceipt = getDBFIntegerFieldValue(salesDBFFile, "CHECK", charset);
 
-                        salesDBFFile.read();
-                        if (!salesDBFFile.deleted()) {
-                            Integer numberReceipt = getDBFIntegerFieldValue(salesDBFFile, "CHECK", charset);
+                                List<Object> receiptEntry = receiptMap.get(numberReceipt);
+                                BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
+                                BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
+                                String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
 
-                            List<Object> receiptEntry = receiptMap.get(numberReceipt);
-                            BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
-                            BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
-                            String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
+                                String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
+                                Date dateReceipt = getDBFDateFieldValue(salesDBFFile, "DATE", charset);
+                                if (dateReceipt != null) {
+                                    Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), new String[]{"HH:mm", "HH:mm:ss"}).getTime());
 
-                            String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
-                            Date dateReceipt = getDBFDateFieldValue(salesDBFFile, "DATE", charset);
-                            if (dateReceipt != null) {
-                                Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), new String[]{"HH:mm", "HH:mm:ss"}).getTime());
+                                    String codeItem = getDBFFieldValue(salesDBFFile, "CODE", charset);
+                                    String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
+                                    //временный чит для корректировки весовых штрихкодов
+                                    if (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
+                                        barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                                    }
+                                    if ("00000".equals(barcodeItem)) {
+                                        barcodeItem = codeItem;
+                                    }
 
-                                String codeItem = getDBFFieldValue(salesDBFFile, "CODE", charset);
-                                String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
-                                //временный чит для корректировки весовых штрихкодов
-                                if (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
-                                    barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                                    BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COUNT", charset);
+                                    BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "PRICE", charset);
+                                    BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset);
+                                    BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset);
+                                    BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset);
+                                    discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discountSumReceipt);
+
+                                    Integer nppMachinery = directoryCashRegisterMap.get(directory);
+                                    Integer nppGroupMachinery = directoryGroupCashRegisterMap.get(directory);
+                                    Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
+                                    numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
+                                    numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
+                                    String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
+
+                                    salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
+                                            timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail,
+                                            priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
+                                            nameSalesFile));
                                 }
-                                if ("00000".equals(barcodeItem)) {
-                                    barcodeItem = codeItem;
-                                }
-
-                                BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COUNT", charset);
-                                BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "PRICE", charset);
-                                BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset);
-                                BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset);
-                                BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset);
-                                discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discountSumReceipt);
-
-                                Integer nppMachinery = directoryCashRegisterMap.get(directory);
-                                Integer nppGroupMachinery = directoryGroupCashRegisterMap.get(directory);
-                                Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
-                                numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
-                                numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
-                                String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
-
-                                salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, quantityReceiptDetail,
-                                        priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
-                                        nameSalesFile));
                             }
                         }
+                        salesDBFFile.close();
                     }
-                    salesDBFFile.close();
+                } catch (Throwable e) {
+                    sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
+                } finally {
+                    if (!copyError) {
+                        filePathList.add(remoteSalesFile.getAbsolutePath());
+                        filePathList.add(remoteReceiptFile.getAbsolutePath());
+                    }
+                    if (salesFile != null)
+                        salesFile.delete();
+                    if (receiptFile != null)
+                        receiptFile.delete();
                 }
-            } catch (Throwable e) {
-                sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
-            } finally {
-                if(!copyError) {
-                    filePathList.add(remoteSalesFile.getAbsolutePath());
-                    filePathList.add(remoteReceiptFile.getAbsolutePath());
-                }
-                if (salesFile != null)
-                    salesFile.delete();
-                if (receiptFile != null)
-                    receiptFile.delete();
             }
         }
         if(remoteAnsFile.exists())
@@ -813,7 +838,14 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 return e.getMessage();
             }
         }
-        return null;
+        String salesPath = salesFile.getAbsolutePath();
+        String receiptPath = receiptFile.getAbsolutePath();
+        boolean renamed = salesFile.renameTo(new File(salesPath.substring(0, salesPath.length() - 4) + getCurrentTimestamp() + ".dbf"));
+        if(renamed) {
+            renamed = receiptFile.renameTo(new File(receiptPath.substring(0, receiptPath.length() - 4) + getCurrentTimestamp() + ".dbf"));
+            return renamed ? null : "Renaming of receipt file failed";
+        } else
+            return "Renaming of sales file failed";
     }
 
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
@@ -866,5 +898,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         } catch (Exception e) {
             return barcode;
         }
+    }
+
+    protected String getCurrentTimestamp() {
+        return new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss").format(Calendar.getInstance().getTime());
     }
 }

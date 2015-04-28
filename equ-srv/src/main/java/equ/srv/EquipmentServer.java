@@ -997,7 +997,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
 
-        Map<ObjectValue, RequestExchange> requestExchangeMap = new HashMap<ObjectValue, RequestExchange>();
         List<RequestExchange> requestExchangeList = new ArrayList<RequestExchange>();
         
         if(machineryLM != null && machineryPriceTransactionLM != null) {
@@ -1010,9 +1009,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                String[] names = new String[]{"stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", 
+                String[] names = new String[]{"dateFromRequestExchange", "dateToRequestExchange",
                         "startDateRequestExchange", "nameRequestExchangeTypeRequestExchange"};
-                LCP[] properties = machineryPriceTransactionLM.findProperties("stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", 
+                LCP[] properties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange",
                         "startDateRequestExchange", "nameRequestExchangeTypeRequestExchange");
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
@@ -1028,32 +1027,20 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int i = 0, size = result.size(); i < size; i++) {
 
                     DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
-                    ObjectValue stockRequestExchange = result.getValue(i).get("stockRequestExchange");
                     String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
                     String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
                     Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
                     Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
                     Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
-                    
-                    List<Set<String>> extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
-                    
-                    if (requestExchangeMap.containsKey(stockRequestExchange)) {
-                        requestExchangeMap.get(stockRequestExchange).directorySet.add(directoryMachinery);
-                        requestExchangeMap.get(stockRequestExchange).directorySet.addAll(extraStockSet.get(1));
-                    }
-                    else {
-                        Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
-                        directorySet.addAll(extraStockSet.get(1));
-                        requestExchangeMap.put(stockRequestExchange, new RequestExchange((Integer) requestExchangeObject.getValue(),
-                                directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
-                                startDateRequestExchange, typeRequestExchange));
-                    }
-                }
-              
-                for (RequestExchange entry : requestExchangeMap.values())
-                    requestExchangeList.add(entry);
 
+                    Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
+                    List<Set<String>> extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
+                    directorySet.addAll(extraStockSet.get(1));
+                    requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(),
+                            directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
+                            startDateRequestExchange, typeRequestExchange));
+                }
                 session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
