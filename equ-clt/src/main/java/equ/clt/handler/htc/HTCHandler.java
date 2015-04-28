@@ -793,23 +793,17 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 for (String directory : entry.directorySet) {
 
                     if (!directorySet.contains(directory)) continue;
-                    
-                    sendSalesLogger.info("HTC: creating request files for directory : " + directory);
-                    
-                    //если запрос с даты по дату, мы всё равно можем запросить только за 1 день
-                    String date = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);                    
-                    File queryFile = new File(directory + "/" + "sales.qry");
-                    File salesFile = new File(directory + "/Sales.dbf");
-                    File receiptFile = new File(directory + "/Receipt.dbf");
-                    if (new File(directory).exists()) {
-                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
-                        writer.write(date);
-                        writer.close();
-                        String currentRequestResult = waitRequestSalesInfo(queryFile, salesFile, receiptFile);
-                        if(currentRequestResult != null)
+
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(entry.dateFrom);
+                    while(cal.getTime().compareTo(entry.dateTo) <= 0) {
+                        String date = new SimpleDateFormat("dd.MM.yyyy").format(cal.getTime());
+                        sendSalesLogger.info(String.format("HTC: creating request file in %s for date %s", directory, date));
+                        String currentRequestResult = createRequest(date, directory);
+                        if (currentRequestResult != null)
                             requestResult = currentRequestResult;
-                    } else
-                        requestResult = "Error: " + directory + " doesn't exist. Request creation failed.";
+                        cal.add(Calendar.DATE, 1);
+                    }
                     count++;
                 }
                 if(count > 0) {
@@ -820,6 +814,19 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 }
             }
         }
+    }
+
+    private String createRequest(String date, String directory) throws IOException {
+        File queryFile = new File(directory + "/" + "sales.qry");
+        File salesFile = new File(directory + "/Sales.dbf");
+        File receiptFile = new File(directory + "/Receipt.dbf");
+        if (new File(directory).exists()) {
+            Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
+            writer.write(date);
+            writer.close();
+            return waitRequestSalesInfo(queryFile, salesFile, receiptFile);
+        } else
+            return "Error: " + directory + " doesn't exist. Request creation failed.";
     }
 
     private String waitRequestSalesInfo(File queryFile, File salesFile, File receiptFile) {
