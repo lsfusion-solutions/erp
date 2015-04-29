@@ -828,13 +828,16 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     private String createRequest(String date, String directory) throws IOException {
         File queryFile = new File(directory + "/" + "sales.qry");
+        File ansFile = new File(directory + "/" + "sales.ans");
         File salesFile = new File(directory + "/Sales.dbf");
         File receiptFile = new File(directory + "/Receipt.dbf");
         if (new File(directory).exists()) {
             Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
             writer.write(date);
             writer.close();
-            return waitRequestSalesInfo(queryFile, salesFile, receiptFile);
+            String result = waitRequestSalesInfo(queryFile, salesFile, receiptFile);
+            ansFile.delete();
+            return result;
         } else
             return "Error: " + directory + " doesn't exist. Request creation failed.";
     }
