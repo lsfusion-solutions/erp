@@ -999,6 +999,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
         List<RequestExchange> requestExchangeList = new ArrayList<>();
         Map<DataObject, List<Set<String>>> extraStockSetMap = new HashMap<>();
+        Set<String> requestExchangeSet = new HashSet<>();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
 
             try {
@@ -1043,9 +1044,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         extraStockSetMap.put(requestExchangeObject, extraStockSet);
                     }
                     directorySet.addAll(extraStockSet.get(1));
-                    requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(),
-                            directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
-                            startDateRequestExchange, typeRequestExchange));
+
+                    if(!requestExchangeSet.contains(requestExchangeObject.getValue() + directoryMachinery + idStockMachinery)) {
+                        requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(),
+                                directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
+                                startDateRequestExchange, typeRequestExchange));
+                        requestExchangeSet.add(requestExchangeObject.getValue() + directoryMachinery + idStockMachinery);
+                    }
                 }
                 session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
