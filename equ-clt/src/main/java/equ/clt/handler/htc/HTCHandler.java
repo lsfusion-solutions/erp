@@ -771,11 +771,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         salesFile.delete();
                     if (receiptFile != null)
                         receiptFile.delete();
+                    if(remoteAnsFile != null)
+                        remoteAnsFile.delete();
                 }
             }
         }
-        if(remoteAnsFile.exists())
-            filePathList.add(remoteAnsFile.getAbsolutePath());
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new HTCSalesBatch(salesInfoList, filePathList);
     }
