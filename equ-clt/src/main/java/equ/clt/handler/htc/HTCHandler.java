@@ -859,7 +859,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         while (!Thread.currentThread().isInterrupted() && (queryFile.exists() || !salesFile.exists() || !receiptFile.exists())) {
             try {
                 count++;
-                if (count >= 60)
+                if (count >= 120)
                     if(queryFile.exists())
                         return String.format("Request file %s has been created but not processed by server", queryFile.getAbsolutePath());
                     else
