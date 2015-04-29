@@ -997,8 +997,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
 
-        List<RequestExchange> requestExchangeList = new ArrayList<RequestExchange>();
-        
+        List<RequestExchange> requestExchangeList = new ArrayList<>();
+        Map<DataObject, List<Set<String>>> extraStockSetMap = new HashMap<>();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
 
             try {
@@ -1035,7 +1035,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
                     Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
-                    List<Set<String>> extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
+                    List<Set<String>> extraStockSet;
+                    if (extraStockSetMap.containsKey(requestExchangeObject)) {
+                        extraStockSet = extraStockSetMap.get(requestExchangeObject);
+                    } else {
+                        extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
+                        extraStockSetMap.put(requestExchangeObject, extraStockSet);
+                    }
                     directorySet.addAll(extraStockSet.get(1));
                     requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(),
                             directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,

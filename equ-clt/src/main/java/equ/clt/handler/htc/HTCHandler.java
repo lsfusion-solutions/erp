@@ -662,6 +662,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         else {
             sendSalesLogger.info("HTC: found sale and receipt files in " + directory);
 
+            List<String> receiptFilesPathList = new ArrayList<>();
+            for(File file : receiptFilesList) {
+                receiptFilesPathList.add(file.getAbsolutePath());
+            }
+
             for(File remoteSalesFile : salesFilesList) {
 
                 String[] splitted = remoteSalesFile.getAbsolutePath().split("Sales");
@@ -763,6 +768,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
                 } finally {
+                    receiptFilesPathList.remove(remoteReceiptFile.getAbsolutePath());
                     if (!copyError) {
                         filePathList.add(remoteSalesFile.getAbsolutePath());
                         filePathList.add(remoteReceiptFile.getAbsolutePath());
@@ -774,6 +780,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if(remoteAnsFile != null)
                         remoteAnsFile.delete();
                 }
+            }
+            for(String filePath : receiptFilesPathList) {
+                filePathList.add(filePath);
             }
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
@@ -810,8 +819,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         String date = new SimpleDateFormat("dd.MM.yyyy").format(cal.getTime());
                         sendSalesLogger.info(String.format("HTC: creating request file in %s for date %s", directory, date));
                         String currentRequestResult = createRequest(date, directory);
-                        if (currentRequestResult != null)
+                        if (currentRequestResult != null) {
+                            sendSalesLogger.error("HTC: " + currentRequestResult);
                             requestResult = currentRequestResult;
+                        }
                         cal.add(Calendar.DATE, 1);
                     }
                     count++;
@@ -832,6 +843,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         File salesFile = new File(directory + "/Sales.dbf");
         File receiptFile = new File(directory + "/Receipt.dbf");
         if (new File(directory).exists()) {
+            ansFile.delete();
             Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
             writer.write(date);
             writer.close();
