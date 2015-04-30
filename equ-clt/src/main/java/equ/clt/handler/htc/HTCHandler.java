@@ -634,23 +634,20 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         File salesFile = null;
         File receiptFile = null;
 
-        File[] salesFilesList = new File(directory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname != null && pathname.getName().startsWith("Sales") && pathname.getPath().endsWith(".dbf");
+        List<File> salesFilesList = new ArrayList<>();
+        List<File> receiptFilesList = new ArrayList<>();
+        File[] filesList = new File(directory).listFiles();
+        for(File file : filesList) {
+            if(file != null) {
+                String name = file.getName();
+                String path = file.getPath();
+                if(name.startsWith("Sales") && path.endsWith(".dbf"))
+                    salesFilesList.add(file);
+                if(name.startsWith("Receipt") && path.endsWith(".dbf"))
+                    receiptFilesList.add(file);
             }
-        });
-
-        File[] receiptFilesList = new File(directory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname != null && pathname.getName().startsWith("Receipt") && pathname.getPath().endsWith(".dbf");
-            }
-        });
-
-        File remoteAnsFile = new File(directory + "/Sales.ans");
-
-        if (salesFilesList.length == 0 || receiptFilesList.length == 0) {
+        }
+        if (salesFilesList.isEmpty() || receiptFilesList.isEmpty()) {
             sendSalesLogger.info("HTC: No sale or receipt file found in " + directory);
             for(File file : salesFilesList) {
                 filePathList.add(file.getAbsolutePath());
@@ -777,8 +774,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         salesFile.delete();
                     if (receiptFile != null)
                         receiptFile.delete();
-                    if(remoteAnsFile != null)
-                        remoteAnsFile.delete();
+                    File remoteAnsFile = new File(directory + "/Sales.ans");
+                    remoteAnsFile.delete();
                 }
             }
             for(String filePath : receiptFilesPathList) {
