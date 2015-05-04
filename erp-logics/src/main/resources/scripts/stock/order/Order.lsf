@@ -185,10 +185,13 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     shipmentDateUserOrder(order) <- dateUserOrder(order) WHEN CHANGED(dateUserOrder(order));
     shipmentTimeUserOrder(order) <- timeUserOrder(order) WHEN CHANGED(timeUserOrder(order));
 
+    overCloseDateOrder  = ABSTRACT DATE (Order);
     closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm;
     closeDateUserOrder 'Дата автоматического закрытия' = DATA DATE (UserOrder) IN documentPrm;
     closeDateOrder(order) += closeDateUserOrder(order);
     Order.closeDateOrder (order) += closeDateOrder(order);
+    
+    overCloseDateOrderDetail  = ABSTRACT DATE (OrderDetail);
     closeDataDateOrderDetail 'Дата автоматического закрытия' = ABSTRACT DATE (OrderDetail) IN documentPrm;
     closeDataDateUserOrderDetail 'Дата автоматического закрытия' = DATA DATE (UserOrderDetail) IN documentPrm;
     closeDataDateOrderDetail(detail) += closeDataDateUserOrderDetail(detail);
@@ -196,10 +199,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     closeDateOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateOrder(orderOrderDetail(detail)), closeDataDateOrderDetail(detail) PERSISTENT;
     closeDateUserOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateUserOrder(userOrderUserOrderDetail(detail)), closeDataDateUserOrderDetail(detail) PERSISTENT;
 
-    closeDataDateUserOrderDetail(detail) <- sumDate(shipmentDateUserOrderDetail(detail), quantityDaysCloseOrdersStock(stockProp###stock###userOrderDetail(detail)))
-        WHEN CHANGED(shipmentDateUserOrderDetail(detail)) OR CHANGED(stockProp###stock###userOrderDetail(detail));
-    closeDateUserOrder(order) <- sumDate(shipmentDateUserOrder(order), quantityDaysCloseOrdersStock(stockProp###stock###userOrder(order)))
-            WHEN CHANGED(shipmentDateUserOrder(order)) OR CHANGED(stockProp###stock###userOrder(order));    
+    closeDataDateUserOrderDetail(detail) <- OVERRIDE sumDate(shipmentDateUserOrderDetail(detail), quantityDaysCloseOrdersStock(stockProp###stock###userOrderDetail(detail))), overCloseDateOrderDetail(detail)
+        WHEN CHANGED(shipmentDateUserOrderDetail(detail)) OR CHANGED(stockProp###stock###userOrderDetail(detail)) OR CHANGED(overCloseDateOrderDetail(detail));
+    closeDateUserOrder(order) <- OVERRIDE sumDate(shipmentDateUserOrder(order), quantityDaysCloseOrdersStock(stockProp###stock###userOrder(order))), overCloseDateOrder(order)
+            WHEN CHANGED(shipmentDateUserOrder(order)) OR CHANGED(stockProp###stock###userOrder(order)) OR CHANGED(overCloseDateOrder(order));    
 
 //    isDataClosedOrder 'Закрыт' = ABSTRACT BOOLEAN(Order);
 //    isDataClosedUserOrder 'Закрыт' = DATA BOOLEAN(UserOrder);
