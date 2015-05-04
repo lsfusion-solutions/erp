@@ -915,6 +915,77 @@ EXTEND FORM zReports
     PROPERTIES(b) exportReceipt, exportedIncrementReceipt 
 ;
 
+countZReportsDepartmentStoreDate 'Кол-во Z-отчетов' (dep, date) = GROUP SUM 1 IF isPostedZReport(r) BY departmentStoreZReport(r), dateZReport(r);
+sumZReportsDepartmentStoreDate 'Сумма Z-отчетов' (dep, date) = GROUP SUM sumReceiptDetailZReport(r) IF isPostedZReport(r) BY departmentStoreZReport(r), dateZReport(r); 
+
+countZReportsStoreDate 'Кол-во Z-отчетов' (s, date) = GROUP SUM 1 IF isPostedZReport(r) BY storeDepartmentStore(departmentStoreZReport(r)), dateZReport(r);
+sumZReportsStoreDate 'Сумма Z-отчетов' (s, date) = GROUP SUM sumReceiptDetailZReport(r) IF isPostedZReport(r) BY storeDepartmentStore(departmentStoreZReport(r)), dateZReport(r); 
+
+EXTEND FORM zReports
+    OBJECTS dt = DATE FIXED PANEL 
+    PROPERTIES (dt) OBJVALUE        
+    
+    TREE treeStore1 a1=STRING[3], t1=ChainStores, st1=StoreType
+    PROPERTIES READONLY OBJVALUE(a1), nameChainStores(t1), nameStoreType(st1)
+
+    FILTERS stringEqualsAll(a1)
+    FILTERS inChainStoresStoreType (t1, st1)          
+    
+    OBJECTS s1=Store
+    PROPERTIES(s1) READONLY nameStore, idStore SHOWIF showIDs()
+    FILTERS inChainStoresStoreTypeStore(t1, st1, s1)    
+    PROPERTIES (s1,dt) READONLY countZReportsStoreDate, sumZReportsStoreDate       
+    
+    TREE treeStore a=STRING[3], t=ChainStores, st=StoreType, s = Store 
+    PROPERTIES READONLY OBJVALUE(a), nameChainStores(t), nameStoreType(st), nameStore(s)
+
+    FILTERS stringEqualsAll(a)
+    FILTERS inChainStoresStoreTypeStore(t, st, s) 
+ 
+     OBJECTS dep=DepartmentStore
+     PROPERTIES(dep) READONLY nameDepartmentStore, idDepartmentStore SHOWIF showIDs()
+     PROPERTIES READONLY countZReportsDepartmentStoreDate(dep,dt), sumZReportsDepartmentStoreDate(dep,dt)
+     
+     FILTERS inChainStoresStoreTypeStoreDepartmentStore(t, st, s, dep),
+             isCompanyStock(dep)    
+;
+
+DESIGN zReports {
+    NEW tabContainer BEFORE functions.box {
+        fill = 1;
+        type = TABBED;
+        MOVE topContainer {caption = 'Z-отчеты';}
+        NEW department {
+            caption = 'Магазины';
+            fill = 1;
+            type = CONTAINERV;
+            MOVE dt.box;
+            NEW treeContainer {
+                fill = 1;  
+                type = TABBED;
+                NEW treeContainer1{
+                    fill = 1;
+                    type = SPLITH;
+                    caption = 'По магазинам';
+                    MOVE treeStore1.tree.box;
+                    MOVE s1.box { fill = 2;}                 
+                }
+                NEW treeContainer2{
+                    fill = 1;
+                    type = SPLITH;
+                    caption = 'По отделам';
+                    MOVE treeStore.tree.box;
+                    MOVE dep.box { fill = 2;}                    
+                }                
+                
+            }
+        }
+    }
+}
+
+
+
+
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
 loadDefaultPaymentType 'Добавить тип оплаты' = ACTION(string, paymentMeans, sid) {
