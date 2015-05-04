@@ -637,6 +637,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         List<File> salesFilesList = new ArrayList<>();
         List<File> receiptFilesList = new ArrayList<>();
         File[] filesList = new File(directory).listFiles();
+        if(filesList == null) {
+            sendSalesLogger.info("HTC: Failed to access directory : " + directory);
+            return null;
+        }
+
         for(File file : filesList) {
             if(file != null) {
                 String name = file.getName();
