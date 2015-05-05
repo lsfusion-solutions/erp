@@ -2,11 +2,18 @@ MODULE ZReportPayment;
 
 REQUIRE ZReport, Payment;
 
+typePayment = DATA INTEGER (Payment.Payment);
 zReportPayment = DATA ZReport (Payment.Payment);
+
+extraSumCashZReport 'Дополнительная сумма Z-отчета(наличные)' = GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 0 BY zReportPayment(payment);   
+extraSumCardZReport 'Дополнительная сумма Z-отчета(карточка)' = GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 1 BY zReportPayment(payment);   
 extraSumZReport 'Дополнительная сумма Z-отчета' = GROUP SUM Payment.sumPayment(payment) BY zReportPayment(payment);   
 
+totalSumCashZReport 'Общая сумма Z-отчета(наличные)' (ZReport) = extraSumCashZReport(ZReport) (+) extraSumZReport(ZReport);
+totalSumCardZReport 'Общая сумма Z-отчета(карточка)' (ZReport) = extraSumCardZReport(ZReport) (+) extraSumZReport(ZReport);
 totalSumZReport 'Общая сумма Z-отчета' (ZReport) = sumReceiptDetailZReport(ZReport) (+) extraSumZReport(ZReport);
 
 EXTEND FORM zReports
-    PROPERTIES (z) READONLY totalSumZReport BEFORE sumReceiptDetailZReport(z), extraSumZReport AFTER sumReceiptDetailZReport(z)
+    PROPERTIES(z) READONLY BEFORE sumReceiptDetailZReport(z) totalSumZReport, totalSumCashZReport, totalSumCardZReport
+    PROPERTIES(z) READONLY AFTER sumReceiptDetailZReport(z) extraSumZReport, extraSumCashZReport, extraSumCardZReport
 ;
