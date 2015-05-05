@@ -31,7 +31,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         try {
 
@@ -96,9 +96,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                 }
             }
-        } catch (ClassNotFoundException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLException e) {
+        } catch (ClassNotFoundException | SQLException e) {
             throw Throwables.propagate(e);
         }
         return sendTransactionBatchMap;
@@ -123,7 +121,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     private void exportClassif(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
 
-        Set<String> usedGroups = new HashSet<String>();
+        Set<String> usedGroups = new HashSet<>();
 
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
@@ -363,6 +361,33 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             String sql = String.format("INSERT INTO `signal` (`signal`, version) VALUES('%s', '%s') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);",
                     (transaction.snapshot && !ignoreSnapshot) ? "cumm" : "incr", version);
             statement.executeUpdate(sql);
+
+            int count = 0;
+            while(!waitForSignalExecution(conn, version)) {
+                if(count > 60) {
+                    throw new RuntimeException(String.format("data was sent to db but signal record %s was not deleted", count));
+                } else {
+                    count++;
+                    processTransactionLogger.error(String.format("Waiting for deletion of signal record %s in base", version));
+                    Thread.sleep(5000);
+                }
+            }
+
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (statement != null)
+                statement.close();
+        }
+    }
+
+    private boolean waitForSignalExecution(Connection conn, int version) throws SQLException {
+        Statement statement = null;
+        try {
+            statement = conn.createStatement();
+            String sql = "SELECT COUNT(*) FROM `signal` WHERE version = " + version;
+            ResultSet resultSet = statement.executeQuery(sql);
+            return !resultSet.next() || resultSet.getInt(1) == 0;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         } finally {
@@ -431,7 +456,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     private Map<Integer, String> readLoginMap(Connection conn) throws SQLException {
 
-        Map<Integer, String> loginMap = new HashMap<Integer, String>();
+        Map<Integer, String> loginMap = new HashMap<>();
 
         Statement statement = null;
         try {
@@ -455,7 +480,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     private Map<String, Map<Integer, BigDecimal>> readPaymentMap(Connection conn) throws SQLException {
 
-        Map<String, Map<Integer, BigDecimal>> paymentMap = new HashMap<String, Map<Integer, BigDecimal>>();
+        Map<String, Map<Integer, BigDecimal>> paymentMap = new HashMap<>();
 
         Statement statement = null;
         try {
@@ -486,10 +511,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn) throws SQLException {
 
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
 
         Map<Integer, String> loginMap = readLoginMap(conn);
-        Set<Pair<Integer, Integer>> receiptSet = new HashSet<Pair<Integer, Integer>>();
+        Set<Pair<Integer, Integer>> receiptSet = new HashSet<>();
         Map<String, Map<Integer, BigDecimal>> paymentMap = readPaymentMap(conn);
 
         if(paymentMap != null) {
@@ -506,10 +531,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //i.store
                     Integer nppMachinery = rs.getInt(2); //i.cash_number
                     Integer cash_id = rs.getInt(3); //i.cash_id
-                    Integer id = rs.getInt(4); //i.id
+                    //Integer id = rs.getInt(4); //i.id
                     Integer idReceipt = rs.getInt(5); //i.receipt_header
                     String idBarcode = rs.getString(6); //i.var
-                    String idItem = rs.getString(7); //i.item
+                    //String idItem = rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
                     BigDecimal price = rs.getBigDecimal(9); //i.price
                     BigDecimal sum = rs.getBigDecimal(10); //i.total
