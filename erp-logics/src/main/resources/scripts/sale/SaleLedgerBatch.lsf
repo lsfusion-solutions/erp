@@ -55,13 +55,13 @@ overFillPropertyDateFromTo = ABSTRACT ACTION LIST (DATE, DATE);
 fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dFrom,dTo) {
     dbalanceBBatchStock(bb,sts) <- balanceBBatchStockDate(bb,sts,dFrom) 
         WHERE inBatchReportStock(sts);
-    dcostBBatchStock(bb,sts) <- dbalanceBBatchStock(bb,sts) * costBatch(bb) 
+    dcostBBatchStock(bb,sts) <- NUMERIC[15,3](dbalanceBBatchStock(bb,sts) * costBatch(bb)) 
         WHERE inBatchReportStock(sts); 
-    dVATSumBBatchStock(bb, sts) <- dcostBBatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0
+    dVATSumBBatchStock(bb, sts) <- NUMERIC[15,3](dcostBBatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0)
         WHERE inBatchReportStock(sts);
-    dSumBBatchStock(bb, sts) <- dcostBBatchStock(bb, sts) (+) dVATSumBBatchStock(bb, sts)
+    dSumBBatchStock(bb, sts) <- NUMERIC[15,3](dcostBBatchStock(bb, sts) (+) dVATSumBBatchStock(bb, sts))
         WHERE inBatchReportStock(sts);         
-    daccountSumBBatchStock(bb,sts) <- dbalanceBBatchStock(bb,sts) * accountPriceBBatchStockDate(bb,sts,dFrom) 
+    daccountSumBBatchStock(bb,sts) <- NUMERIC[15,3](dbalanceBBatchStock(bb,sts) * accountPriceBBatchStockDate(bb,sts,dFrom)) 
         WHERE inBatchReportStock(sts); 
 //--            
     dquantitySoldBatchStock(bb,sts) <- quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
@@ -74,20 +74,20 @@ fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dF
         WHERE inBatchReportStock(sts);
     dsumSoldBatchStock(bb,sts) <- sumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
         WHERE inBatchReportStock(sts);
-    daveragePriceSoldBatchStock(bb,sts) <- dsumSoldBatchStock(bb,sts) / dquantitySoldBatchStock(bb,sts)
+    daveragePriceSoldBatchStock(bb,sts) <- NUMERIC[22,8](dsumSoldBatchStock(bb,sts) / dquantitySoldBatchStock(bb,sts))
         WHERE inBatchReportStock(sts); 
-    daverageMarkupSoldBatchStock(bb,sts) <- dmarkupSumSoldBatchStock(bb,sts)/dcostSumSoldBatchStock(bb,sts)
+    daverageMarkupSoldBatchStock(bb,sts) <- NUMERIC[22,8](dmarkupSumSoldBatchStock(bb,sts) / dcostSumSoldBatchStock(bb,sts))
         WHERE inBatchReportStock(sts);
     //--
     dbalanceABatchStock(bb,sts) <- balanceABatchStockDate(bb,sts,dTo) 
         WHERE inBatchReportStock(sts);
-    dcostABatchStock(bb,sts) <- dbalanceABatchStock(bb,sts) * costBatch(bb)
+    dcostABatchStock(bb,sts) <- NUMERIC[15,3](dbalanceABatchStock(bb,sts) * costBatch(bb))
         WHERE inBatchReportStock(sts); 
-    dVATSumABatchStock(bb, sts) <- dcostABatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0
+    dVATSumABatchStock(bb, sts) <- NUMERIC[15,3](dcostABatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0)
         WHERE inBatchReportStock(sts);
-    dSumABatchStock(bb, sts) <- dcostABatchStock(bb, sts) (+) dVATSumABatchStock(bb, sts)
+    dSumABatchStock(bb, sts) <- NUMERIC[15,3](dcostABatchStock(bb, sts) (+) dVATSumABatchStock(bb, sts))
         WHERE inBatchReportStock(sts);           
-    daccountSumABatchStock(bb,sts) <- dbalanceABatchStock(bb,sts) * accountPriceABatchStockDate(bb,sts,dTo)
+    daccountSumABatchStock(bb,sts) <- NUMERIC[15,3](dbalanceABatchStock(bb,sts) * accountPriceABatchStockDate(bb,sts,dTo))
         WHERE inBatchReportStock(sts); 
     
     dmovedBatchStock(bb, sts) <- dquantitySoldBatchStock(bb,sts) OR dbalanceBBatchStock(bb,sts) OR dbalanceABatchStock(bb,sts);
@@ -138,7 +138,7 @@ FORM saleBatch 'Продажи по партиям'
                              
     OBJECTS stb = (sts=Stock, bb=Batch)                              
     PROPERTIES(sts)READONLY stsName = nameStock                          
-    PROPERTIES(bb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
+    PROPERTIES(bb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSupplierBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
                    costBatch
     PROPERTIES(sts, bb) READONLY currentValueVATStockBatch
                        
