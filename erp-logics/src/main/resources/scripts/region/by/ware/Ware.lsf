@@ -17,6 +17,10 @@ DESIGN options {
 CLASS WareGroup 'Группа посуды' : SkuGroup;
 TABLE wareGroup (WareGroup);
 
+@defineExternalizable(wareGroup, VARSTRING[100]);
+
+idSkuGroup(group) += idWareGroup(group) IF group IS WareGroup;
+
 nameWareGroup 'Наименование' = DATA VARISTRING[100](WareGroup);
 
 nameSkuGroup(group) += nameWareGroup(group) IF group IS WareGroup;
@@ -31,6 +35,8 @@ CLASS Ware 'Посуда' : Sku;
 TABLE ware(Ware);
 
 @defineExternalizable(ware, VARSTRING[100]);
+
+idSku(sku) += idWare(sku);
 
 nameWare 'Наименование' = DATA VARISTRING[100](Ware);
 wareName = GROUP AGGR ware BY nameWare(ware); 
@@ -91,7 +97,7 @@ changeValueVATWare = ACTION (ware) {
 
 FORM wareGroup 'Группа посуды'
     OBJECTS g=WareGroup FIXED PANEL
-    PROPERTIES(g) nameWareGroup, nameParentWareGroup
+    PROPERTIES(g) idWareGroup SHOWIF showIDs(), nameWareGroup, nameParentWareGroup
     EDIT WareGroup OBJECT g
 ;
 
