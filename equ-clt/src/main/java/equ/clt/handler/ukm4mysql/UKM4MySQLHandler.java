@@ -33,71 +33,73 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
-        try {
+        if (transactionList != null) {
 
-            Class.forName("com.mysql.jdbc.Driver");
+            try {
 
-            UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
-            String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
-            String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
+                Class.forName("com.mysql.jdbc.Driver");
 
-            if(connectionString == null) {
-                processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
-            } else {
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
+                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
+                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
-                for (TransactionCashRegisterInfo transaction : transactionList) {
+                if (connectionString == null) {
+                    processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
+                } else {
+                    for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                    String weightCode = transaction.weightCodeGroupCashRegister;
+                        String weightCode = transaction.weightCodeGroupCashRegister;
 
-                    Connection conn = DriverManager.getConnection(connectionString, user, password);
+                        Connection conn = DriverManager.getConnection(connectionString, user, password);
 
-                    Exception exception = null;
-                    try {
+                        Exception exception = null;
+                        try {
 
-                        int version = getVersion(conn);
+                            int version = getVersion(conn);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
-                        exportClassif(conn, transaction, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
+                            exportClassif(conn, transaction, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
-                        exportItems(conn, transaction, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
+                            exportItems(conn, transaction, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
-                        exportItemsStocks(conn, transaction, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
+                            exportItemsStocks(conn, transaction, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
-                        exportPriceList(conn, transaction, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
+                            exportPriceList(conn, transaction, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
-                        exportPriceListVar(conn, transaction, weightCode, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
+                            exportPriceListVar(conn, transaction, weightCode, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
-                        exportPriceTypeStorePriceList(conn, transaction, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
+                            exportPriceTypeStorePriceList(conn, transaction, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
-                        exportVar(conn, transaction, weightCode, version);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
+                            exportVar(conn, transaction, weightCode, version);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                        exportSignals(conn, transaction, version, true);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                            exportSignals(conn, transaction, version, true);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
-                        exportPriceListItems(conn, transaction, version + 1);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
+                            exportPriceListItems(conn, transaction, version + 1);
 
-                        processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                        exportSignals(conn, transaction, version + 1, false);
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                            exportSignals(conn, transaction, version + 1, false);
 
-                    } catch (Exception e) {
-                        exception = e;
-                    } finally {
-                        if (conn != null)
-                            conn.close();
+                        } catch (Exception e) {
+                            exception = e;
+                        } finally {
+                            if (conn != null)
+                                conn.close();
+                        }
+                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
-                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                 }
+            } catch (ClassNotFoundException | SQLException e) {
+                throw Throwables.propagate(e);
             }
-        } catch (ClassNotFoundException | SQLException e) {
-            throw Throwables.propagate(e);
         }
         return sendTransactionBatchMap;
     }
@@ -121,106 +123,113 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     private void exportClassif(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
 
-        Set<String> usedGroups = new HashSet<>();
+        if (transaction.itemsList != null) {
 
-        conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)");
+            Set<String> usedGroups = new HashSet<>();
 
-            for (CashRegisterItemInfo item : transaction.itemsList) {
-                List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.idItemGroup);
-                if(itemGroupList != null) {
-                    for (ItemGroup itemGroup : itemGroupList) {
-                        if (!usedGroups.contains(itemGroup.idItemGroup)) {
-                            usedGroups.add(itemGroup.idItemGroup);
-                            Long idItemGroup = parseGroup(itemGroup.idItemGroup);
-                            if (idItemGroup != 0) {
-                                ps.setLong(1, idItemGroup); //id
-                                ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
-                                ps.setString(3, trim(itemGroup.nameItemGroup, 80, "")); //name
-                                ps.setInt(4, version); //version
-                                ps.setInt(5, 0); //deleted
-                                ps.addBatch();
+            conn.setAutoCommit(false);
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(
+                        "INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)");
+
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.idItemGroup);
+                    if (itemGroupList != null) {
+                        for (ItemGroup itemGroup : itemGroupList) {
+                            if (!usedGroups.contains(itemGroup.idItemGroup)) {
+                                usedGroups.add(itemGroup.idItemGroup);
+                                Long idItemGroup = parseGroup(itemGroup.idItemGroup);
+                                if (idItemGroup != 0) {
+                                    ps.setLong(1, idItemGroup); //id
+                                    ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
+                                    ps.setString(3, trim(itemGroup.nameItemGroup, 80, "")); //name
+                                    ps.setInt(4, version); //version
+                                    ps.setInt(5, 0); //deleted
+                                    ps.addBatch();
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ps != null)
+                    ps.close();
+            }
         }
     }
 
     private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
-        conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
-                            "ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif)," +
-                            "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)");
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(
+                        "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
+                                "ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif)," +
+                                "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)");
 
-            for (CashRegisterItemInfo item : transaction.itemsList) {
-                ps.setString(1, trim(item.idItem, 40)); //id
-                ps.setString(2, trim(item.name, 40, "")); //name
-                ps.setString(3, item.description == null ? "" : item.description); //descr
-                ps.setString(4, trim(item.shortNameUOM, 40, "")); //measure
-                ps.setInt(5, item.passScalesItem ? 3 : item.splitItem ? 2 : 0); //measprec
-                ps.setLong(6, parseGroup(item.idItemGroup)); //classif
-                ps.setInt(7, 1); //prop - признак товара ?
-                ps.setString(8, trim(item.description, 100, "")); //summary
-                ps.setDate(9, item.expiryDate); //exp_date
-                ps.setInt(10, version); //version
-                ps.setInt(11, 0); //deleted
-                ps.addBatch();
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    ps.setString(1, trim(item.idItem, 40)); //id
+                    ps.setString(2, trim(item.name, 40, "")); //name
+                    ps.setString(3, item.description == null ? "" : item.description); //descr
+                    ps.setString(4, trim(item.shortNameUOM, 40, "")); //measure
+                    ps.setInt(5, item.passScalesItem ? 3 : item.splitItem ? 2 : 0); //measprec
+                    ps.setLong(6, parseGroup(item.idItemGroup)); //classif
+                    ps.setInt(7, 1); //prop - признак товара ?
+                    ps.setString(8, trim(item.description, 100, "")); //summary
+                    ps.setDate(9, item.expiryDate); //exp_date
+                    ps.setInt(10, version); //version
+                    ps.setInt(11, 0); //deleted
+                    ps.addBatch();
+                }
+
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ps != null)
+                    ps.close();
             }
-
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
         }
     }
 
     private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
-        conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO items_stocks (store, item, stock, version, deleted) VALUES (?, ?, ?, ?, ?)" +
-                            "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
+        if(transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(
+                        "INSERT INTO items_stocks (store, item, stock, version, deleted) VALUES (?, ?, ?, ?, ?)" +
+                                "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
 
-            for (CashRegisterItemInfo item : transaction.itemsList) {
-                if(item.section != null) {
-                    for (String stock : item.section.split(",")) {
-                        ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
-                        ps.setString(2, trim(item.idItem, 40, "")); //item
-                        ps.setInt(3, Integer.parseInt(stock)); //stock
-                        ps.setInt(4, version); //version
-                        ps.setInt(5, 0); //deleted
-                        ps.addBatch();
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    if (item.section != null) {
+                        for (String stock : item.section.split(",")) {
+                            ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                            ps.setString(2, trim(item.idItem, 40, "")); //item
+                            ps.setInt(3, Integer.parseInt(stock)); //stock
+                            ps.setInt(4, version); //version
+                            ps.setInt(5, 0); //deleted
+                            ps.addBatch();
+                        }
                     }
                 }
-            }
 
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ps != null)
+                    ps.close();
+            }
         }
     }
 
@@ -248,56 +257,63 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     }
 
     private void exportPriceListItems(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
-        conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                            "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
-            for (CashRegisterItemInfo item : transaction.itemsList) {
-                ps.setInt(1, transaction.nppGroupMachinery); //pricelist
-                ps.setString(2, trim(item.idItem, 40, "")); //item
-                ps.setBigDecimal(3, item.price); //price
-                BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : BigDecimal.ZERO;
-                ps.setBigDecimal(4, minPrice); //minprice
-                ps.setInt(5, version); //version
-                ps.setInt(6, 0); //deleted
-                ps.addBatch();
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(
+                        "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                                "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
+
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    ps.setInt(1, transaction.nppGroupMachinery); //pricelist
+                    ps.setString(2, trim(item.idItem, 40, "")); //item
+                    ps.setBigDecimal(3, item.price); //price
+                    BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : BigDecimal.ZERO;
+                    ps.setBigDecimal(4, minPrice); //minprice
+                    ps.setInt(5, version); //version
+                    ps.setInt(6, 0); //deleted
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ps != null)
+                    ps.close();
             }
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
         }
     }
 
     private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version) throws SQLException {
-        conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
-            for (CashRegisterItemInfo item : transaction.itemsList) {
-                String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
-                if(barcode != null) {
-                    ps.setInt(1, transaction.nppGroupMachinery); //pricelist
-                    ps.setString(2, trim(barcode, 40)); //var
-                    ps.setBigDecimal(3, item.price); //price
-                    ps.setInt(4, version); //version
-                    ps.setInt(5, 0); //deleted
-                    ps.addBatch();
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(
+                        "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
+                    if (barcode != null) {
+                        ps.setInt(1, transaction.nppGroupMachinery); //pricelist
+                        ps.setString(2, trim(barcode, 40)); //var
+                        ps.setBigDecimal(3, item.price); //price
+                        ps.setInt(4, version); //version
+                        ps.setInt(5, 0); //deleted
+                        ps.addBatch();
+                    }
                 }
+
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ps != null)
+                    ps.close();
             }
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
         }
     }
 
@@ -326,31 +342,33 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     }
 
     private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version) throws SQLException {
-        conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                            "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
-            for (CashRegisterItemInfo item : transaction.itemsList) {
-                String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
-                if(barcode != null && item.idItem != null) {
-                    ps.setString(1, trim(barcode, 40)); //id
-                    ps.setString(2, trim(item.idItem, 40)); //item
-                    ps.setInt(3, 1); //quantity
-                    ps.setInt(4, 1); //stock
-                    ps.setInt(5, version); //version
-                    ps.setInt(6, 0); //deleted
-                    ps.addBatch();
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            PreparedStatement ps = null;
+            try {
+                ps = conn.prepareStatement(
+                        "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                                "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
+                    if (barcode != null && item.idItem != null) {
+                        ps.setString(1, trim(barcode, 40)); //id
+                        ps.setString(2, trim(item.idItem, 40)); //item
+                        ps.setInt(3, 1); //quantity
+                        ps.setInt(4, 1); //stock
+                        ps.setInt(5, version); //version
+                        ps.setInt(6, 0); //deleted
+                        ps.addBatch();
+                    }
                 }
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ps != null)
+                    ps.close();
             }
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
         }
     }
 
@@ -602,7 +620,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
         String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
-        if (connectionString != null) {
+        if (connectionString != null && salesBatch.receiptSet != null) {
 
             Connection conn = null;
             PreparedStatement ps = null;
