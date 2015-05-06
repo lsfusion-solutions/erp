@@ -131,17 +131,19 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
             for (CashRegisterItemInfo item : transaction.itemsList) {
                 List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.idItemGroup);
-                for (ItemGroup itemGroup : itemGroupList) {
-                    if (!usedGroups.contains(itemGroup.idItemGroup)) {
-                        usedGroups.add(itemGroup.idItemGroup);
-                        Long idItemGroup = parseGroup(itemGroup.idItemGroup);
-                        if(idItemGroup != 0) {
-                            ps.setLong(1, idItemGroup); //id
-                            ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
-                            ps.setString(3, trim(itemGroup.nameItemGroup, 80, "")); //name
-                            ps.setInt(4, version); //version
-                            ps.setInt(5, 0); //deleted
-                            ps.addBatch();
+                if(itemGroupList != null) {
+                    for (ItemGroup itemGroup : itemGroupList) {
+                        if (!usedGroups.contains(itemGroup.idItemGroup)) {
+                            usedGroups.add(itemGroup.idItemGroup);
+                            Long idItemGroup = parseGroup(itemGroup.idItemGroup);
+                            if (idItemGroup != 0) {
+                                ps.setLong(1, idItemGroup); //id
+                                ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
+                                ps.setString(3, trim(itemGroup.nameItemGroup, 80, "")); //name
+                                ps.setInt(4, version); //version
+                                ps.setInt(5, 0); //deleted
+                                ps.addBatch();
+                            }
                         }
                     }
                 }
