@@ -388,7 +388,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     throw new RuntimeException(String.format("data was sent to db but signal record %s was not deleted", count));
                 } else {
                     count++;
-                    processTransactionLogger.error(String.format("Waiting for deletion of signal record %s in base", version));
+                    processTransactionLogger.info(String.format("Waiting for deletion of signal record %s in base", version));
                     Thread.sleep(5000);
                 }
             }
