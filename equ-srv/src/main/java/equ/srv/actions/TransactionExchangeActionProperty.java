@@ -192,9 +192,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     private void importPromotionQuantityList(ExecutionContext context, List<PromotionQuantity> promotionQuantityList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (notNullNorEmpty(promotionQuantityList)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(promotionQuantityList.size());
             
@@ -228,6 +228,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             ImportField idItemHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idItem"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("Item"),
                     HTCPromotionLM.findProperty("itemId").getMapping(idItemHTCPromotionQuantityField));
+            itemKey.skipKey = true;
             keys.add(itemKey);
             props.add(new ImportProperty(idItemHTCPromotionQuantityField, HTCPromotionLM.findProperty("itemHTCPromotionQuantity").getMapping(htcPromotionQuantityKey),
                     object(HTCPromotionLM.findClass("Item")).getMapping(itemKey)));

@@ -1171,9 +1171,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     findProperty("idDataPriceListType").change("Coordinated", session, (DataObject) dataPriceListTypeObject);
                 }
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+                List<ImportProperty<?>> props = new ArrayList<>();
+                List<ImportField> fields = new ArrayList<>();
+                List<ImportKey<?>> keys = new ArrayList<>();
 
                 List<List<Object>> data = initData(priceListStoresList.size());
 
@@ -1181,6 +1181,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
                 ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
                         findProperty("itemId").getMapping(idItemField));
+                itemKey.skipKey = true;
                 keys.add(itemKey);
                 ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
                         importUserPriceListLM.findProperty("userPriceListDetailIdSkuIdUserPriceList").getMapping(idItemField, idUserPriceListField));
@@ -1288,9 +1289,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     findProperty("idDataPriceListType").change("Offered", session, (DataObject) dataPriceListTypeObject);
                 }
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+                List<ImportProperty<?>> props = new ArrayList<>();
+                List<ImportField> fields = new ArrayList<>();
+                List<ImportKey<?>> keys = new ArrayList<>();
 
                 List<List<Object>> data = initData(priceListSuppliersList.size());
 
@@ -1298,6 +1299,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
                 ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
                         findProperty("itemId").getMapping(idItemField));
+                itemKey.skipKey = true;
                 keys.add(itemKey);
                 ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
                         importUserPriceListLM.findProperty("userPriceListDetailIdSkuIdUserPriceList").getMapping(idItemField, idUserPriceListField));
