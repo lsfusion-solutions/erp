@@ -398,6 +398,8 @@ quantityPageInventoryDetailStockInventory 'Кол-во по описям' (stock
 sumPageInventoryDetailStockInventory 'Сумма по описям' (stock, inventory) =
     GROUP SUM sumPageInventoryDetailListInventory(listInventory) BY stockListInventory(listInventory), inventoryListInventory(listInventory) IN documentSum;
 
+overChangeQuantityPageInventoryDetailCollationSheetSku = ABSTRACT ACTION LIST (CollationSheet, Sku);
+
 quantityPageInventoryDetailCollationSheetSku 'Кол-во по описям' (collationSheet, sku) = GROUP SUM quantityPageInventoryDetail(pageInventoryDetail)
     BY collationSheetPageInventoryDetail(pageInventoryDetail), skuPageInventoryDetail(pageInventoryDetail);
 pricePageInventoryDetailCollationSheetSku 'Цена по описям' (collationSheet, sku) = GROUP MAX pricePageInventoryDetail(pageInventoryDetail) // ??????? может нодо  priceSkuStockDateTime
@@ -932,7 +934,7 @@ FORM listInventory 'Опись'
                     countPageInventoryListInventory, countPageInventoryDetailListInventory, quantityPageInventoryDetailListInventory,
                     sumPageInventoryDetailListInventory, createPageListInventory
 
-    OBJECTS         pl=PageInventory
+    OBJECTS         pl=PageInventory FIXED GRID
     PROPERTIES(pl)  namePageInventory, notePageInventory FORCE PANEL, countPageInventoryDetailPageInventory, quantityPageInventoryDetailPageInventory, sumPageInventoryDetailPageInventory, ADDOBJ, DELETESESSION
     FILTERS         listInventoryPageInventory(pl) == li
 
@@ -942,18 +944,18 @@ FORM listInventory 'Опись'
                     sumPageInventoryDetail, ADDOBJ SHOWIF countPageInventoryListInventory(li), DELETESESSION
     FILTERS         pageInventoryPageInventoryDetail(dp) == pl
 
-    OBJECTS         i=Sku
+    OBJECTS         i=Sku FIXED GRID
     PROPERTIES (li,i)  indexListInventorySku
     PROPERTIES (i)     idBarcodeSku, nameSku
     PROPERTIES (li,i)  quantityPageInventoryDetailListInventorySku, pricePageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li),
                        sumPageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li)
-    FILTERS            quantityPageInventoryDetailListInventorySku(li,i) > 0
+    FILTERS            quantityPageInventoryDetailListInventorySku(li,i) //> 0
 
-    OBJECTS         bt=Batch
+    OBJECTS         bt=Batch FIXED GRID
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) indexListInventoryBatch
     PROPERTIES (bt)    SHOWIF isBatchListInventory(li) idBarcodeSkuBatch, nameSkuBatch, nameBatch
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) quantityPageInventoryDetailListInventoryBatch, pricePageInventoryDetailListInventoryBatch, sumPageInventoryDetailListInventoryBatch
-    FILTERS                                            quantityPageInventoryDetailListInventoryBatch(li,bt) > 0
+    FILTERS            quantityPageInventoryDetailListInventoryBatch(li,bt) //> 0
 
 
     EDIT ListInventory OBJECT li
@@ -1062,6 +1064,9 @@ EXTEND FORM listInventory
     PROPERTIES (pl) TODRAW dp addDetailInputPageInventoryBarcode, addDetailInputPageInventory  
 ;
 
+
+
+
 // --------------------------------------------- Формы инвентаризаций ------------------------------------- //
 
 dumbPageInventory (p) = ' ' IF p IS PageInventory;
@@ -1130,7 +1135,7 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS          i=Sku FIXED GRID
     PROPERTIES(i) READONLY                      idBarcodeSku, iNameSku = nameSku, idSku
-    PROPERTIES(cs, i)                           quantityPageInventoryDetailCollationSheetSku, quantityBalanceCollationSheetSku, quantityShortageCollationSheetSku
+    PROPERTIES(cs, i)                           quantityPageInventoryDetailCollationSheetSku ON CHANGE overChangeQuantityPageInventoryDetailCollationSheetSku(cs,i), quantityBalanceCollationSheetSku, quantityShortageCollationSheetSku
     PROPERTIES(cs, i) SHOWIF isSkuInventory(in) pricePageInventoryDetailCollationSheetSku BACKGROUND differentPriceCollationSheetSku(cs, i),
                                                 priceBalanceCollationSheetSku BACKGROUND differentPriceCollationSheetSku(cs, i)
     PROPERTIES(cs, i) SHOWIF isSkuInventory(in) sumPageInventoryDetailCollationSheetSku, sumBalanceCollationSheetSku, sumShortageCollationSheetSku
