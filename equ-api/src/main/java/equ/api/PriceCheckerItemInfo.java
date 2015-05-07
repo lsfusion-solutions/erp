@@ -6,7 +6,8 @@ import java.sql.Date;
 public class PriceCheckerItemInfo extends ItemInfo {
     
     public PriceCheckerItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
-                                Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags) {
-        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags);
+                                Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
+                                String idItemGroup, String canonicalNameSkuGroup) {
+        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, canonicalNameSkuGroup);
     }
 }

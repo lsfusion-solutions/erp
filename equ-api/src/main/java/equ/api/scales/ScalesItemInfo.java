@@ -15,15 +15,14 @@ public class ScalesItemInfo extends ItemInfo {
     public String shortNameUOM;
     
     public ScalesItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
-                          Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, Integer hoursExpiry,
-                          Integer labelFormat, String description, Integer descriptionNumber, String idItemGroup,
-                          String idUOM, String shortNameUOM) {
-        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags);
+                          Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
+                          String idItemGroup, String canonicalNameSkuGroup, Integer hoursExpiry, Integer labelFormat,
+                          String description, Integer descriptionNumber, String idUOM, String shortNameUOM) {
+        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, canonicalNameSkuGroup);
         this.hoursExpiry = hoursExpiry;
         this.labelFormat = labelFormat;
         this.description = description;
         this.descriptionNumber = descriptionNumber;
-        this.idItemGroup = idItemGroup;
         this.idUOM = idUOM;
         this.shortNameUOM = shortNameUOM;
     }

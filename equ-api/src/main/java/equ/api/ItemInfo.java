@@ -16,9 +16,12 @@ public class ItemInfo implements Serializable {
     public BigDecimal vat;
     public Integer pluNumber;
     public Integer flags;
+    public String idItemGroup;
+    public String nameItemGroup;
     
     public ItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
-                    Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags) {
+                    Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, String idItemGroup,
+                    String nameItemGroup) {
         this.idItem = idItem;
         this.idBarcode = idBarcode;
         this.name = name;
@@ -30,5 +33,7 @@ public class ItemInfo implements Serializable {
         this.vat = vat;
         this.pluNumber = pluNumber;
         this.flags = flags;
+        this.idItemGroup = idItemGroup;
+        this.nameItemGroup = nameItemGroup;
     }
 }

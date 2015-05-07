@@ -7,8 +7,6 @@ import java.sql.Date;
 public class CashRegisterItemInfo extends ItemInfo {
     public Integer idItemObject;
     public String description;
-    public String idItemGroup;
-    public String nameItemGroup;
     public String idUOM;
     public String shortNameUOM;
     public String idBrand;
@@ -19,15 +17,13 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String section;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
-                                Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, Integer idItemObject,
-                                String description, String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,  
-                                String idBrand, String nameBrand, String idSeason, String nameSeason, String idDepartmentStore,
-                                String section) {
-        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags);
+                                Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
+                                String idItemGroup, String nameItemGroup, Integer idItemObject, String description, String idUOM,
+                                String shortNameUOM, String idBrand, String nameBrand, String idSeason, String nameSeason,
+                                String idDepartmentStore, String section) {
+        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup);
         this.idItemObject = idItemObject;
         this.description = description;
-        this.idItemGroup = idItemGroup;
-        this.nameItemGroup = nameItemGroup;
         this.idUOM = idUOM;
         this.shortNameUOM = shortNameUOM;
         this.idBrand = idBrand;

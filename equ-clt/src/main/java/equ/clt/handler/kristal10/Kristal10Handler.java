@@ -491,11 +491,19 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     }
 
                     //parent: good
+                    Element barcode = new Element("bar-code");
+                    setAttribute(barcode, "code", item.idBarcode);
+                    addStringElement(barcode, "default-code", "true");
+                    good.addContent(barcode);
+
+                    //parent: good
                     Element priceEntry = new Element("price-entry");
                     setAttribute(priceEntry, "deleted", "true");
                     addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom));
                     addStringElement(priceEntry, "number", "1");
                     good.addContent(priceEntry);
+
+                    addStringElement(good, "vat", "20");
 
                     //parent: priceEntry
                     for (String shopIndex : stopListInfo.idStockSet) {
@@ -503,6 +511,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         setAttribute(department, "number", shopIndex);
                         priceEntry.addContent(department);
                     }
+
+                    //parent: good
+                    Element group = new Element("group");
+                    setAttribute(group, "id", item.idItemGroup);
+                    addStringElement(group, "name", item.nameItemGroup);
+                    good.addContent(group);
+
                 }
 
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
