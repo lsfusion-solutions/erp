@@ -47,8 +47,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<File, Integer> fileMap = new HashMap<File, Integer>();
-        Map<Integer, Exception> failedTransactionMap = new HashMap<Integer, Exception>();
+        Map<File, Integer> fileMap = new HashMap<>();
+        Map<Integer, Exception> failedTransactionMap = new HashMap<>();
 
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
@@ -64,7 +64,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
                 boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
-                List<String> directoriesList = new ArrayList<String>();
+                List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
                     if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
                         directoriesList.add(cashRegisterInfo.port.trim());
@@ -225,10 +225,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap) {
         int count = 0;
-        Map<Integer, SendTransactionBatch> result = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> result = new HashMap<>();
         while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
             try {
-                Map<File, Integer> nextFilesMap = new HashMap<File, Integer>();
+                Map<File, Integer> nextFilesMap = new HashMap<>();
                 count++;
                 if (count >= 180) {
                     break;
@@ -354,8 +354,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-        Set<String> directorySet = new HashSet<String>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+        Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler")) {
                 directorySet.add(c.directory);
@@ -365,8 +365,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
         }
 
-        List<CashDocument> cashDocumentList = new ArrayList<CashDocument>();
-        List<String> readFiles = new ArrayList<String>();
+        List<CashDocument> cashDocumentList = new ArrayList<>();
+        List<String> readFiles = new ArrayList<>();
         for (String directory : directorySet) {
 
             String exchangeDirectory = directory + "/reports/";
@@ -498,6 +498,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     //parent: good
                     Element priceEntry = new Element("price-entry");
+                    setAttribute(priceEntry, "price", 1);
                     setAttribute(priceEntry, "deleted", "true");
                     addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom));
                     addStringElement(priceEntry, "number", "1");
@@ -556,10 +557,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
-        Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<String, Integer>();
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-        Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
-        Map<String, String> directoryWeightCodeMap = new HashMap<String, String>();
+        Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+        Map<String, Date> directoryStartDateMap = new HashMap<>();
+        Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
                 directoryDepartNumberGroupCashRegisterMap.put(c.directory + "_" + c.number + "_" + c.overDepartNumber, c.numberGroup);
@@ -575,8 +576,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
-        List<String> filePathList = new ArrayList<String>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        List<String> filePathList = new ArrayList<>();
 
         String exchangeDirectory = directory + "/reports/";
 
@@ -669,7 +670,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             }
 
                             List positionsList = ((Element) purchaseNode).getChildren("positions");
-                            List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
+                            List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                             BigDecimal currentPaymentSum = BigDecimal.ZERO;
 
 
@@ -747,8 +748,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
-        Set<String> directorySet = new HashSet<String>();
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+        Set<String> directorySet = new HashSet<>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
                 directorySet.add(c.directory);
@@ -815,7 +816,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) {
 
         String message = "";
-        List<String> idZReportList = new ArrayList<String>();
+        List<String> idZReportList = new ArrayList<>();
 
         for (Map.Entry<String, List<Object>> kristalEntry : handlerZReportSumMap.entrySet()) {
 
