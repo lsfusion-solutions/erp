@@ -424,7 +424,7 @@ public class EquipmentServer {
                 if (salesBatch == null) {
                     sendSalesLogger.info("SalesInfo is empty");
                 } else {
-                    sendSalesLogger.info("Sending SalesInfo");
+                    sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
                     try {
                         String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
                         if (result != null) {
