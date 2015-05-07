@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
@@ -816,79 +817,50 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                    Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException {
+        Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
+
         for (RequestExchange entry : requestExchangeList) {
-            if(entry.isSalesInfoExchange()) {
-                int count = 0;
-                String requestResult = null;
+            if (entry.isSalesInfoExchange()) {
                 for (String directory : entry.directorySet) {
-
                     if (!directorySet.contains(directory)) continue;
-
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(entry.dateFrom);
-                    while(cal.getTime().compareTo(entry.dateTo) <= 0) {
-                        String date = new SimpleDateFormat("dd.MM.yyyy").format(cal.getTime());
-                        sendSalesLogger.info(String.format("HTC: creating request file in %s for date %s", directory, date));
-                        String currentRequestResult = createRequest(date, directory);
-                        if (currentRequestResult != null) {
-                            sendSalesLogger.error("HTC: " + currentRequestResult);
-                            requestResult = currentRequestResult;
-                        }
-                        cal.add(Calendar.DATE, 1);
-                    }
-                    count++;
-                }
-                if(count > 0) {
-                    if(requestResult == null)
-                        succeededRequests.add(entry.requestExchange);
-                    else
-                        failedRequests.put(entry.requestExchange, requestResult);
+                    List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<RequestExchange>();
+                    requestExchangeEntry.add(entry);
+                    requestExchangeMap.put(directory, requestExchangeEntry);
                 }
             }
         }
-    }
 
-    private String createRequest(String date, String directory) throws IOException {
-        File queryFile = new File(directory + "/" + "sales.qry");
-        File ansFile = new File(directory + "/" + "sales.ans");
-        File salesFile = new File(directory + "/Sales.dbf");
-        File receiptFile = new File(directory + "/Receipt.dbf");
-        if (new File(directory).exists()) {
-            ansFile.delete();
-            Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
-            writer.write(date);
-            writer.close();
-            String result = waitRequestSalesInfo(queryFile, salesFile, receiptFile);
-            ansFile.delete();
-            return result;
-        } else
-            return "Error: " + directory + " doesn't exist. Request creation failed.";
-    }
+        try {
 
-    private String waitRequestSalesInfo(File queryFile, File salesFile, File receiptFile) {
-        int count = 0;
-        while (!Thread.currentThread().isInterrupted() && (queryFile.exists() || !salesFile.exists() || !receiptFile.exists())) {
-            try {
-                count++;
-                if (count >= 120)
-                    if(queryFile.exists())
-                        return String.format("Request file %s has been created but not processed by server", queryFile.getAbsolutePath());
-                    else
-                        return String.format("Request file %s has been processed by server but no sales data found", queryFile.getAbsolutePath());
-                else
-                    Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                return e.getMessage();
+            Collection<Callable<Map<Integer, String>>> taskList = new LinkedList<>();
+            for (Map.Entry<String, List<RequestExchange>> entry : requestExchangeMap.entrySet()) {
+                String directory = entry.getKey();
+                List<RequestExchange> requestExchanges = entry.getValue();
+
+                taskList.add(new RequestSalesInfoTask(directory, requestExchanges));
             }
+
+            ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
+
+            List<Future<Map<Integer, String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+
+            for (Future<Map<Integer, String>> threadResult : threadResults) {
+                for (Map.Entry<Integer, String> entry : threadResult.get().entrySet()) {
+                    if (entry.getValue() == null)
+                        succeededRequests.add(entry.getKey());
+                    else
+                        failedRequests.put(entry.getKey(), entry.getValue());
+                }
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            sendSalesLogger.error("HTC: error while creating request files", e);
         }
-        String salesPath = salesFile.getAbsolutePath();
-        String receiptPath = receiptFile.getAbsolutePath();
-        boolean renamed = salesFile.renameTo(new File(salesPath.substring(0, salesPath.length() - 4) + getCurrentTimestamp() + ".dbf"));
-        if(renamed) {
-            renamed = receiptFile.renameTo(new File(receiptPath.substring(0, receiptPath.length() - 4) + getCurrentTimestamp() + ".dbf"));
-            return renamed ? null : "Renaming of receipt file failed";
-        } else
-            return "Renaming of sales file failed";
+
+        for(Integer failedRequest : failedRequests.keySet()) {
+            if(succeededRequests.contains(failedRequest))
+                succeededRequests.remove(failedRequest);
+        }
     }
 
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
@@ -945,5 +917,88 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     protected String getCurrentTimestamp() {
         return new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss").format(Calendar.getInstance().getTime());
+    }
+
+    class RequestSalesInfoTask implements Callable<Map<Integer, String>> {
+        String directory;
+        List<RequestExchange> requestExchanges;
+
+        public RequestSalesInfoTask(String directory, List<RequestExchange> requestExchanges) {
+            this.directory = directory;
+            this.requestExchanges = requestExchanges;
+        }
+
+        @Override
+        public Map<Integer, String> call() throws Exception {
+            Map<Integer, String> result = new HashMap<>();
+            for (RequestExchange requestExchange : requestExchanges) {
+
+                try {
+                    String requestResult = null;
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(requestExchange.dateFrom);
+                    while (cal.getTime().compareTo(requestExchange.dateTo) <= 0) {
+                        String currentRequestResult = createRequest(cal, directory);
+                        if (currentRequestResult != null)
+                            requestResult = currentRequestResult;
+                        cal.add(Calendar.DATE, 1);
+                    }
+                    if (requestResult != null || !result.containsKey(requestExchange.requestExchange))
+                        result.put(requestExchange.requestExchange, requestResult);
+                } catch (Exception e) {
+                    result.put(requestExchange.requestExchange, e.getMessage());
+                }
+            }
+            return result;
+        }
+
+        private String createRequest(Calendar cal, String directory) throws IOException {
+            String result;
+            String date = new SimpleDateFormat("dd.MM.yyyy").format(cal.getTime());
+            sendSalesLogger.info(String.format("HTC: creating request file in %s for date %s", directory, date));
+
+            File queryFile = new File(directory + "/" + "sales.qry");
+            File ansFile = new File(directory + "/" + "sales.ans");
+            File salesFile = new File(directory + "/Sales.dbf");
+            File receiptFile = new File(directory + "/Receipt.dbf");
+            if (new File(directory).exists()) {
+                ansFile.delete();
+                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
+                writer.write(date);
+                writer.close();
+                result = waitRequestSalesInfo(queryFile, salesFile, receiptFile);
+                ansFile.delete();
+            } else
+                result = "Error: " + directory + " doesn't exist. Request creation failed.";
+            if (result != null)
+                sendSalesLogger.error("HTC: " + result);
+            return result;
+        }
+
+        private String waitRequestSalesInfo(File queryFile, File salesFile, File receiptFile) {
+            int count = 0;
+            while (!Thread.currentThread().isInterrupted() && (queryFile.exists() || !salesFile.exists() || !receiptFile.exists())) {
+                try {
+                    count++;
+                    if (count >= 120)
+                        if(queryFile.exists())
+                            return String.format("Request file %s has been created but not processed by server", queryFile.getAbsolutePath());
+                        else
+                            return String.format("Request file %s has been processed by server but no sales data found", queryFile.getAbsolutePath());
+                    else
+                        Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    return e.getMessage();
+                }
+            }
+            String salesPath = salesFile.getAbsolutePath();
+            String receiptPath = receiptFile.getAbsolutePath();
+            boolean renamed = salesFile.renameTo(new File(salesPath.substring(0, salesPath.length() - 4) + getCurrentTimestamp() + ".dbf"));
+            if(renamed) {
+                renamed = receiptFile.renameTo(new File(receiptPath.substring(0, receiptPath.length() - 4) + getCurrentTimestamp() + ".dbf"));
+                return renamed ? null : "Renaming of receipt file failed";
+            } else
+                return "Renaming of sales file failed";
+        }
     }
 }
