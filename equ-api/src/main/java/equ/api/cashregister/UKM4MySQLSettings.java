@@ -8,6 +8,7 @@ public class UKM4MySQLSettings implements Serializable{
     private String exportConnectionString;
     private String user;
     private String password;
+    private Integer timeout;
 
     public UKM4MySQLSettings() {
     }
@@ -42,5 +43,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
     }
 }

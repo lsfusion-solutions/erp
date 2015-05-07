@@ -43,6 +43,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
                 String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
                 String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
+                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
+                timeout = timeout == null ? 300 : timeout;
 
                 if (connectionString == null) {
                     processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
@@ -80,13 +82,13 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             exportVar(conn, transaction, weightCode, version);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                            exportSignals(conn, transaction, version, true);
+                            exportSignals(conn, transaction, version, true, timeout);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
                             exportPriceListItems(conn, transaction, version + 1);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                            exportSignals(conn, transaction, version + 1, false);
+                            exportSignals(conn, transaction, version + 1, false, timeout);
 
                         } catch (Exception e) {
                             exception = e;
@@ -372,7 +374,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         }
     }
 
-    private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot) throws SQLException {
+    private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout) throws SQLException {
         conn.setAutoCommit(true);
         Statement statement = null;
         try {
@@ -384,7 +386,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
             int count = 0;
             while(!waitForSignalExecution(conn, version)) {
-                if(count > 60) {
+                if(count > (timeout / 5)) {
                     throw new RuntimeException(String.format("data was sent to db but signal record %s was not deleted", count));
                 } else {
                     count++;
