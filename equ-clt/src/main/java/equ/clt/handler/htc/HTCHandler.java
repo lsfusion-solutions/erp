@@ -5,6 +5,7 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.CharField;
@@ -25,13 +26,16 @@ import java.util.*;
 
 public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
+    private FileSystemXmlApplicationContext springContext;
+
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
     protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     
     String charset = "cp866";
 
-    public HTCHandler() {
+    public HTCHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
@@ -287,8 +291,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     dbfFile.close();
                             }
                         }
-
-                        exception = waitForDeletion(waitList, succeededCashRegisterList);
+                        Exception deletionException = waitForDeletion(waitList, succeededCashRegisterList);
+                        exception = exception == null ? deletionException : exception;
 
                         if (cachedPriceFile != null)
                             cachedPriceFile.delete();
@@ -616,6 +620,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
+        HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
+        boolean makeBackup = htcSettings == null || htcSettings.isMakeBackup();
+
         Map<String, Integer> directoryCashRegisterMap = new HashMap<>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -762,10 +769,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         }
                         salesDBFFile.close();
 
-                        String timePostfix = postfix == null ? (getCurrentTimestamp() + ".dbf") : postfix;
-                        new File(directory + "/backup").mkdir();
-                        FileCopyUtils.copy(salesFile, new File(directory + "/backup/Sales" + timePostfix));
-                        FileCopyUtils.copy(receiptFile, new File(directory + "/backup/Receipt" + timePostfix));
+                        if(makeBackup) {
+                            String timePostfix = postfix == null ? (getCurrentTimestamp() + ".dbf") : postfix;
+                            new File(directory + "/backup").mkdir();
+                            FileCopyUtils.copy(salesFile, new File(directory + "/backup/Sales" + timePostfix));
+                            FileCopyUtils.copy(receiptFile, new File(directory + "/backup/Receipt" + timePostfix));
+                        }
                     }
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
