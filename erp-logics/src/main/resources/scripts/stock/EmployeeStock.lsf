@@ -29,7 +29,17 @@ accessCompanyEmployeeStock 'Доступ разрешен (компания)' (e
     dataAccessCompanyEmployee(employee) AND stock IS Stock,
     nearestInCompanyEmployeeStockGroup(employee, stockGroupStock(stock)),
     dataAccessCompanyStockEmployee(stock, employee); // PERSISTENT;
-
+countAccessCompanyStockEmployee 'Кол-во доступных подразделений (компания)' (employee) =
+    GROUP SUM 1 IF accessCompanyEmployeeStock(employee, stock) AND activeStock(stock)
+          BY employee;
+defaultCompanyStockEmployee  (employee) =
+    GROUP MIN  stock IF accessCompanyEmployeeStock(employee, stock) AND activeStock(stock)
+          BY employee;
+META defineDocumentStockAccess(objectClass, prefix, filter)
+    prefix###objectClass(o) <- default###filter###stock##Employee(currentUser()) IF countAccess###filter###stock##Employee (currentUser()) == 1
+                                           WHEN SET(o IS objectClass);
+END     
+                          
 accessCompanyStock 'Доступ разрешен (компания)' (s) = accessCompanyEmployeeStock(currentUser(), s) OR (s IS Stock AND NOT limitAccessEmployee(currentUser()));
 
 countAccessCompanyEmployeeStockGroup 'Кол-во доступных подразделений (компания)' (employee, stockGroup) =
