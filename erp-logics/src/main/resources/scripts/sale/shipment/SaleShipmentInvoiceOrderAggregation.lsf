@@ -7,7 +7,42 @@ NAMESPACE Sale;
 createShipmentOrderInvoice = DATA BOOLEAN (OrderInvoice);
 createShipmentInvoice(invoice) += createShipmentOrderInvoice(invoice);
 
-shipmentQuantityOrderInvoiceDetail = DATA NUMERIC[14,3] (OrderInvoiceDetail);
+@defineDocumentHeaderTimePrefix(OrderInvoice, shipment, ' поставки');
+
+shipmentDateInvoice(o) += shipmentDateOrderInvoice(o);
+shipmentTimeInvoice(o) += shipmentTimeOrderInvoice(o);
+
+shipmentDateOrderInvoice(o) <- dateOrderInvoice(o) WHEN CHANGED(dateOrderInvoice(o));
+shipmentTimeOrderInvoice(o) <- timeOrderInvoice(o) WHEN CHANGED(timeOrderInvoice(o));
+
+shipmentQuantityOrderInvoiceDetail 'Кол-во (поставленное)' = DATA NUMERIC[14,3] (OrderInvoiceDetail);
 shipmentQuantityInvoiceDetail(invoiceDetail) += shipmentQuantityOrderInvoiceDetail(invoiceDetail);
 
-shipmentQuantityOrderInvoiceDetail(detail) <- invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(detail)) WHEN CHANGED(invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(detail)));
+shipmentQuantityOrderInvoiceDetail(detail) <- invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(detail)) 
+    WHEN SET(createShipmentOrderInvoice(orderInvoiceOrderInvoiceDetail(detail)));
+
+shipmentPriceOrderInvoiceDetail 'Цена (учетная)' = DATA NUMERIC[14,2] (OrderInvoiceDetail);
+shipmentPriceInvoiceDetail(detail) += shipmentPriceOrderInvoiceDetail(detail);
+
+WHEN SESSION (CHANGED(skuOrderDetail(orderDetailOrderInvoiceDetail(detail))) OR
+              CHANGED(supplierStockOrderDetail(orderDetailOrderInvoiceDetail(detail))) OR
+              CHANGED(dateTimeOrderDetail(orderDetailOrderInvoiceDetail(detail))) OR
+              CHANGED(batchOrderDetail(orderDetailOrderInvoiceDetail(detail)))) AND NOT CHANGED(shipmentPriceOrderInvoiceDetail(detail)) DO 
+    shipmentPriceOrderInvoiceDetail (detail)  <- IF batchOrderInvoiceDetail(detail)
+
+                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                   batchOrderInvoiceDetail(detail),
+                                                                                                   supplierStockOrderInvoiceDetail(detail),
+                                                                                                   dateTimeOrderInvoiceDetail(detail))
+                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                 skuOrderInvoiceDetail(detail),
+                                                                                                 supplierStockOrderInvoiceDetail(detail),
+                                                                                                 dateTimeOrderInvoiceDetail(detail));
+
+shipmentSumOrderInvoiceDetail 'Сумма (учетная)' = DATA NUMERIC[16,2] (OrderInvoiceDetail);
+shipmentSumInvoiceDetail (OrderInvoiceDetail) += shipmentSumOrderInvoiceDetail(OrderInvoiceDetail);
+                                                                                                   
+shipmentSumOrderInvoiceDetail (detail)  <- roundPriceCurrency(shipmentQuantityOrderInvoiceDetail(detail) * shipmentPriceOrderInvoiceDetail(detail), currencyOrderInvoiceDetail(detail))
+                WHEN DO CHANGED(shipmentQuantityOrderInvoiceDetail(detail)) OR CHANGED (shipmentPriceOrderInvoiceDetail(detail)) OR CHANGED(currencyOrderInvoiceDetail(detail));
+      
+                                                                                                 

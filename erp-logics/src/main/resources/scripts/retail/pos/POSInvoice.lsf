@@ -22,14 +22,19 @@ nameDefaultTypeExchangePaymentInstallments 'Тип обмена рассрочк
 defaultTypeExchangeRepaymentInstallments  = DATA TypeExchange ();
 nameDefaultTypeExchangeReaymentInstallments 'Тип обмена погашения' = nameTypeExchange(defaultTypeExchangeRepaymentInstallments());
 
+defaultOperationPaymentInstallments = DATA Operation ();
+nameDefaultOperationPaymentInstallments 'Операция рассрочки' = nameOperation(defaultOperationPaymentInstallments()); 
+
 EXTEND FORM options
-    PROPERTIES() nameDefaultCurrencyPaymentInstallmentsy, nameDefaultTypeExchangePaymentInstallments, nameDefaultTypeExchangeReaymentInstallments
+    PROPERTIES() nameDefaultCurrencyPaymentInstallmentsy, nameDefaultTypeExchangePaymentInstallments, nameDefaultTypeExchangeReaymentInstallments,
+                 nameDefaultOperationPaymentInstallments
 ;
 
 DESIGN options {
     pane {
         NEW paymentInstallmentsy {
             caption = 'Рассрочка';
+            MOVE PROPERTY(nameDefaultOperationPaymentInstallments());
             MOVE PROPERTY(nameDefaultCurrencyPaymentInstallmentsy());
             MOVE PROPERTY(nameDefaultTypeExchangePaymentInstallments());
             MOVE PROPERTY(nameDefaultTypeExchangeReaymentInstallments());
@@ -153,6 +158,7 @@ printReceiptResult = DATA LOCAL BOOLEAN ();
 
 createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCondition, note) {       
     FOR ADDOBJ i = UserInvoice DO {
+        operationUserInvoice(i) <- defaultOperationPaymentInstallments();
         supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
         supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
         customerUserInvoice(i) <- customer;
@@ -160,10 +166,10 @@ createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCond
         dateUserInvoice(i) <- dateReceipt(receipt);
         timeUserInvoice(i) <- timeReceipt(receipt);
         paymentConditionUserInvoice(i) <- paymentCondition;
+        priceListTypeUserInvoice(i) <- defaultPriceListTypeOperation(operationUserInvoice(i));
         noteUserInvoice(i) <- note;
         createShipmentUserInvoice(i) <- TRUE;
         isPostedUserInvoice(i) <- TRUE;
-        
         FOR ADDOBJ c = UserContractSku DO {
             supplierContractSku(c) <- legalEntityStock(departmentStoreReceipt(receipt));
             customerContractSku(c) <- customer;

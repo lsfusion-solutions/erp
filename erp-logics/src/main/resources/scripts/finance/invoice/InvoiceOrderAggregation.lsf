@@ -54,6 +54,8 @@ META defineInvoiceOrder(sign, NS)
 
     dateInvoice(invoice) += dateOrderInvoice(invoice);
     timeInvoice(invoice) += timeOrderInvoice(invoice);
+    
+    indexInvoiceDetail(detail) += indexOrderInvoiceDetail(detail);
 
     @defineDocumentAggregationStockPrefix(order, orderInvoice, supplier, 'Склад поставщика', , );
     supplierStockInvoice(invoice) += supplierStockOrderInvoice(invoice);
@@ -97,13 +99,17 @@ META defineInvoiceOrder(sign, NS)
         'Накладная на основе заказа (продажа)' + ' № ' + seriesNumberOrderInvoice(o) + ' от ' + dateOrderInvoice(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
     description##NS##OrderInvoiceDetail 'Название документа' (d) = descriptionOrderInvoice(orderInvoiceOrderInvoiceDetail(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
     descriptionIndexOrderInvoiceDetail 'Название документа' (d) = description##NS##OrderInvoiceDetail(d) + ', позиция ' + indexOrderInvoiceDetail(d) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN base;
-    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);
+    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);  
 
     @defineDocumentAggregationDetailSku(order, orderInvoice, sku);
     skuInvoiceDetail(invoiceDetail) +=  skuOrderInvoiceDetail(invoiceDetail);
 
-    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
+    @defineDocumentAggregationDetailBatch(order, orderInvoice);
+    batchInvoiceDetail (invoiceDetail) += batchOrderInvoiceDetail(invoiceDetail);
+    
+    currencyOrderInvoiceDetail (detail) = currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(detail)) PERSISTENT;
 
+    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
 
     quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
