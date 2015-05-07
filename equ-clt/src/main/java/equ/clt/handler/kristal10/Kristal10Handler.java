@@ -30,7 +30,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSaleslogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
     
     String encoding = "utf-8";
 
