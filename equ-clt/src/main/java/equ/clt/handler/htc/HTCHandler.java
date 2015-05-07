@@ -931,6 +931,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         @Override
         public Map<Integer, String> call() throws Exception {
             Map<Integer, String> result = new HashMap<>();
+            boolean failed = false;
             for (RequestExchange requestExchange : requestExchanges) {
 
                 try {
@@ -938,9 +939,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     Calendar cal = Calendar.getInstance();
                     cal.setTime(requestExchange.dateFrom);
                     while (cal.getTime().compareTo(requestExchange.dateTo) <= 0) {
-                        String currentRequestResult = createRequest(cal, directory);
-                        if (currentRequestResult != null)
-                            requestResult = currentRequestResult;
+                        if (failed) {
+                            requestResult = requestResult == null ? String.format("Previous query to directory %s failed", directory) : requestResult;
+                        } else {
+                            requestResult = createRequest(cal, directory);
+                            if (requestResult != null)
+                                failed = true;
+                        }
                         cal.add(Calendar.DATE, 1);
                     }
                     if (requestResult != null || !result.containsKey(requestExchange.requestExchange))
