@@ -1,28 +1,34 @@
 MODULE ReceiptProcessing;
 
 REQUIRE ZReport;
-
-FORM receiptProcessing 'Обработка чеков'
-    OBJECTS ds = DepartmentStore FIXED PANEL
-    PROPERTIES(ds) SELECTOR nameDepartmentStore 
-
-    FILTERS isCompanyStock(ds)
-    
+  
+diffsumPaymentReceipt 'Отклонение' = sumReceiptDetailReceipt(b) (-) sumPaymentReceipt(b);                                                                       
+   
+filterProcessingStock  = DATA LOCAL DepartmentStore ();
+nameFilterProcessingStock 'Склад' = nameStock(filterProcessingStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterStockProcessing (b) = departmentStoreReceipt(b) == filterProcessingStock() OR (b IS Receipt AND NOT filterProcessingStock());                                                                        
+                                                                      
+FORM receiptProcessing 'Обработка чеков'    
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
     OBJECTS b=Receipt
-    PROPERTIES(b) READONLY numberReceipt, dateTimeReceipt, nameEmployeeReceipt, numberCashRegisterReceipt,
+    PROPERTIES(b) READONLY nameDepartmentStoreReceipt, numberReceipt, dateTimeReceipt, nameEmployeeReceipt, numberCashRegisterReceipt,
                   sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
-                  discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
-                  
-    FILTERS departmentStoreReceipt(b)==ds
+                  discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
+                  sumPaymentReceipt, diffsumPaymentReceipt
+    ORDER BY   dateTimeReceipt(b)           
+    PROPERTIES  nameFilterProcessingStock()            
+    FILTERS filterStockProcessing (b),
+            dateReceipt(b) >= dFrom,
+            dateReceipt(b) <= dTo
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) READONLY FORCE GRID typeReceiptDetail, idBarcodeReceiptDetail
     PROPERTIES(d) READONLY FORCE GRID idSkuReceiptDetail, nameSkuReceiptDetail 
-    PROPERTIES(d) READONLY FORCE GRID descriptionSaleReceiptReturnDetail, quantityReceiptDetail, quantityReturnedReceiptSaleDetail,
-                  priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceiptDetail, numberVATReceiptDetail, 
-                  valueVATReceiptDetail                  
+    PROPERTIES(d) FORCE GRID descriptionSaleReceiptReturnDetail READONLY, quantityReceiptDetail, quantityReturnedReceiptSaleDetail,
+                  priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceiptDetail, numberVATReceiptDetail READONLY, 
+                  valueVATReceiptDetail READONLY                  
     PROPERTIES(d) DELETESESSION FORCE PANEL TOOLBAR               
-//    PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt 
     
     OBJECTS p=Payment
     PROPERTIES(p) namePaymentTypePayment, namePaymentMeansPayment, sumPayment, ADDOBJ, DELETESESSION
@@ -36,15 +42,18 @@ FORM receiptProcessing 'Обработка чеков'
             ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) > sumPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) < 0 AND sumReceiptDetailReceipt(b) != sumPaymentReceipt(b)))
         FILTER  'Сумма по безналу больше суммы чека' 
             ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) < sumCardPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) <0 AND sumReceiptDetailReceipt(b) > sumCardPaymentReceipt(b)))   
-        FILTER  'С отклонениями'  
-            ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) > sumPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) < 0 AND sumReceiptDetailReceipt(b) != sumPaymentReceipt(b))) OR                                                                                                                  
-            ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) < sumCardPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) <0 AND sumReceiptDetailReceipt(b) > sumCardPaymentReceipt(b))) OR                         
-            (NOT sumPaymentReceipt(b)) DEFAULT                                                  
+        FILTER  'С отклонениями'  diffsumPaymentReceipt(b)  DEFAULT              
                                                            
 ;
 DESIGN receiptProcessing {
 
-    MOVE ds.box;    
+    NEW filter {
+        caption = 'Фильтры';
+        type = CONTAINERH;
+        MOVE PROPERTY (objFrom) {caption = 'Дата с';};
+        MOVE PROPERTY (objTo) {caption = 'Дата по';};
+        MOVE PROPERTY (nameFilterProcessingStock());
+    }
     MOVE b.box;
     NEW secondCase{
         fill = 1;
@@ -52,11 +61,11 @@ DESIGN receiptProcessing {
 
         MOVE d.box {
             fill = 3;
-            caption = 'Строка чека';
+            caption = 'Строка чека';            
         }
         MOVE p.box;
     }           
-
+    
     MOVE functions.box;
 }
 

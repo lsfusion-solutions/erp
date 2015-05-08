@@ -492,7 +492,7 @@ numberPayment 'Номер платежа' (payment) = DATA INTEGER (Payment);
 
 sumPayment 'Сумма платежа' (payment) = DATA NUMERIC[16,2] (Payment);
 
-sumPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) BY receiptPayment(payment);
+sumPaymentReceipt 'Сумма платежа' (receipt) = GROUP SUM sumPayment(payment) BY receiptPayment(payment);
 
 sumInCashPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansCash  BY receiptPayment(payment);
 
@@ -770,6 +770,13 @@ filterDepartmentStoreZReport (z) = departmentStoreZReport(z) == filterZReportDep
 filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL INTEGER ();
 filterCashRegisterZReport (z) = numberCashRegisterZReport(z) == filterZReportCashRegister() OR (z IS ZReport AND NOT filterZReportCashRegister()); 
 
+lastDateTimeReceiptZReport 'Время последнего чека'  = GROUP LAST dateTimeReceipt(b)
+        BY zReportReceipt(b)
+        ORDER dateTimeReceipt(b), b;    
+firstDateTimeReceiptZReport 'Время первого чека' = GROUP LAST dateTimeReceipt(b)
+        BY zReportReceipt(b)
+        ORDER DESC dateTimeReceipt(b), b;      
+        
 FORM zReports 'Z-отчеты'
     PROPERTIES ()  filterZReportDateFrom, filterZReportDateTo, nameFilterZReportDepartmentStore, filterZReportCashRegister
 
@@ -778,7 +785,7 @@ FORM zReports 'Z-отчеты'
                             numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
                             sumReceiptDetailZReport, sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport,                             
                             sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, sumVATReceiptDetailZReport,
-                            discountSumZReport                                                                                 
+                            discountSumZReport, firstDateTimeReceiptZReport, lastDateTimeReceiptZReport                                                                                 
                                                         
     PROPERTIES (z) ADDFORM, EDITFORM SHOWIF isOpenedZReport(z) 
     PROPERTIES (z) closeZReport SHOWIF isOpenedZReport(z), openZReport SHOWIF isClosedZReport(z)
