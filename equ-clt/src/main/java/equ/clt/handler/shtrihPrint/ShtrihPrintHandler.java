@@ -61,6 +61,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.isUsePLUNumberInMessage();
                 boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.isNewLineNoSubstring();
                 boolean useSockets = shtrihSettings == null || shtrihSettings.isUseSockets();
+                boolean capitalLetters = shtrihSettings != null && shtrihSettings.isCapitalLetters();
                 int advancedClearMaxPLU = shtrihSettings == null || shtrihSettings.getAdvancedClearMaxPLU() == null ? 0 : shtrihSettings.getAdvancedClearMaxPLU();
 
                 List<ScalesInfo> enabledScalesList = new ArrayList<>();
@@ -126,9 +127,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                                         Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
-                                                        int len = item.name.length();
-                                                        String firstName = item.name.substring(0, len < 28 ? len : 28);
-                                                        String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
+                                                        String nameItem = item.name != null && capitalLetters ? item.name.toUpperCase() : item.name;
+                                                        int len = nameItem.length();
+                                                        String firstName = nameItem.substring(0, len < 28 ? len : 28);
+                                                        String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
                                                         Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
                                                         Integer groupCode = item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
@@ -283,9 +285,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                                         Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
-                                                        int len = item.name.length();
-                                                        String firstName = item.name.substring(0, len < 28 ? len : 28);
-                                                        String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
+                                                        String nameItem = item.name != null && capitalLetters ? item.name.toUpperCase() : item.name;
+                                                        int len = nameItem.length();
+                                                        String firstName = nameItem.substring(0, len < 28 ? len : 28);
+                                                        String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
 
                                                         shtrihActiveXComponent.setProperty("PLUNumber", new Variant(item.pluNumber));
                                                         shtrihActiveXComponent.setProperty("Price", new Variant(item.price));

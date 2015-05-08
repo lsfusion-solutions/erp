@@ -10,13 +10,12 @@ import java.util.List;
 import java.util.Map;
 
 public class BizerbaBCIIHandler extends BizerbaHandler {
-    
-    private FileSystemXmlApplicationContext springContext;
+
     protected String charset = "utf-8";
     protected boolean encode = false;
 
     public BizerbaBCIIHandler(FileSystemXmlApplicationContext springContext) {
-        this.springContext = springContext;
+        super(springContext);
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {

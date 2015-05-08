@@ -11,12 +11,11 @@ import java.util.Map;
 
 public class BizerbaSCIIHandler extends BizerbaHandler {
 
-    private FileSystemXmlApplicationContext springContext;
     protected String charset = "utf-8";
     protected boolean encode = false;
 
     public BizerbaSCIIHandler(FileSystemXmlApplicationContext springContext) {
-        this.springContext = springContext;
+        super(springContext);
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {

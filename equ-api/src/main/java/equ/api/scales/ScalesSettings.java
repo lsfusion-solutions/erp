@@ -8,10 +8,11 @@ public class ScalesSettings implements Serializable{
     private boolean newLineNoSubstring;
     private boolean useSockets;
     private boolean allowParallel;
+    private boolean capitalLetters;
     private Integer advancedClearMaxPLU;
 
     public ScalesSettings() {}
-    
+
     //конструктор оставлен для обратной совместимости
     public ScalesSettings(boolean usePLUNumberInMessage, boolean newLineNoSubstring, boolean useSockets, boolean allowParallel, Integer advancedClearMaxPLU) {
         this.usePLUNumberInMessage = usePLUNumberInMessage;
@@ -51,6 +52,14 @@ public class ScalesSettings implements Serializable{
 
     public void setAllowParallel(boolean allowParallel) {
         this.allowParallel = allowParallel;
+    }
+
+    public boolean isCapitalLetters() {
+        return capitalLetters;
+    }
+
+    public void setCapitalLetters(boolean capitalLetters) {
+        this.capitalLetters = capitalLetters;
     }
 
     public Integer getAdvancedClearMaxPLU() {
