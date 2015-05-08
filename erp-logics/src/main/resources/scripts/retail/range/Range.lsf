@@ -167,6 +167,7 @@ levelRangeRevSku = DATA RangeLevel(RangeRev, Sku);
 nameLevelRangeRevSku 'Уровень' (r, s)= nameRangeLevel(levelRangeRevSku(r, s));
 
 levelRangeSkuDate(r, s, d) = levelRangeRevSku(rangeRevRangeDate(r, d), s);
+nameLevelRangeSkuDate 'Уровень' (r, s, d) = nameRangeLevel(levelRangeSkuDate(r, s, d));
 
 inRangeRevRangeLevel 'Вкл' = inRangeRangeLevel(rangeRangeRev(v), l);
 
@@ -474,7 +475,10 @@ DESIGN ranges {
             caption = 'Список';
             fill = 2;   
             type = TABBED;
-            MOVE r.box;
+            NEW range{
+                caption = 'Ассортимент';
+                MOVE r.box;                
+            }
             NEW supplier{
                 caption = 'Без поставщиков';
                 fill = 1;
@@ -828,4 +832,22 @@ EXTEND FORM rangeRev
     PROPERTIES (v, dFrom, pt, d) fillRangeRev TODRAW s
 ;
 
+nameGroupRange 'Включенные группы'(r) = GROUP CONCAT nameSkuGroup(g) IF inDataRangeSkuGroup(r,g), ',' BY r MINCHARWIDTH 50 PREFCHARWIDTH 50 ;
 
+EXTEND FORM ranges PROPERTIES nameGroupRange(r);
+
+inRangeSku (r, s) = GROUP SUM 1 IF levelRangeRevSku(v, s) BY rangeRangeRev(v), s;
+
+EXTEND FORM ranges 
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(),nameSku, nameUOMSku, amountPackSku
+    PROPERTIES READONLY nameLevelRangeSkuDate(r, s, d)
+    ORDER BY nameSku(s)
+    FILTERS inRangeSku (r, s)
+;
+
+DESIGN ranges {
+    range{
+        MOVE s.box;
+    }
+}
