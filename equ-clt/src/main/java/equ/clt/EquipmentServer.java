@@ -393,11 +393,16 @@ public class EquipmentServer {
             sendSalesLogger.info("Requesting SalesInfo");
             Set<Integer> succeededRequests = new HashSet<>();
             Map<Integer, String> failedRequests = new HashMap<>();
-            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests);
+            Map<Integer, String> ignoredRequests = new HashMap<>();
+            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
             if (!succeededRequests.isEmpty())
                 remote.finishRequestExchange(succeededRequests);
             if (!failedRequests.isEmpty())
                 remote.errorRequestExchange(failedRequests);
+            if (!ignoredRequests.isEmpty()) {
+                remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
+                remote.errorRequestExchange(ignoredRequests);
+            }
         }
     }
 

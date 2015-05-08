@@ -816,7 +816,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                   Set<Integer> succeededRequests, Map<Integer, String> failedRequests) throws IOException, ParseException {
+                                   Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
         Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
 
         for (RequestExchange entry : requestExchangeList) {
@@ -849,7 +849,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if (entry.getValue() == null)
                         succeededRequests.add(entry.getKey());
                     else
-                        failedRequests.put(entry.getKey(), entry.getValue());
+                        ignoredRequests.put(entry.getKey(), entry.getValue());
                 }
             }
 
@@ -971,7 +971,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
                 writer.write(date);
                 writer.close();
-                result = waitRequestSalesInfo(queryFile, salesFile, receiptFile);
+                result = waitRequestSalesInfo(queryFile, ansFile, salesFile, receiptFile);
                 ansFile.delete();
             } else
                 result = "Error: " + directory + " doesn't exist. Request creation failed.";
@@ -980,9 +980,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             return result;
         }
 
-        private String waitRequestSalesInfo(File queryFile, File salesFile, File receiptFile) {
+        private String waitRequestSalesInfo(File queryFile, File ansFile, File salesFile, File receiptFile) {
             int count = 0;
-            while (!Thread.currentThread().isInterrupted() && (queryFile.exists() || !salesFile.exists() || !receiptFile.exists())) {
+            while (!Thread.currentThread().isInterrupted() && (queryFile.exists() || !ansFile.exists() || !salesFile.exists() || !receiptFile.exists())) {
                 try {
                     count++;
                     if (count >= 120)
