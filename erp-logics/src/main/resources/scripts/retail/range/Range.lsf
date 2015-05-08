@@ -48,13 +48,20 @@ inDataRangeSkuGroup 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
 
 countSkuGroupRange 'Кол-во групп' = GROUP SUM 1 IF inDataRangeSkuGroup(r, g) BY r PERSISTENT; 
 
-inParentRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, child) AND isParentSkuGroupSkuGroup(child, parent)
+inParentRangeSkuGroup (range, parent) = GROUP SUM 1 IF inDataRangeSkuGroup(range, child) AND isParentSkuGroupSkuGroup(child, parent)
                               BY range, parent PERSISTENT;
 
-inChildRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, parent) AND isParentSkuGroupSkuGroup(child, parent)
+inChildRangeSkuGroup (range, child) = GROUP SUM 1 IF inDataRangeSkuGroup(range, parent) AND isParentSkuGroupSkuGroup(child, parent)
                               BY range, child PERSISTENT;
                               
 inChildRangeSku (range, sku) = inChildRangeSkuGroup(range, skuGroupSku(sku)); 
+
+quantityChildWitSkuGroupRange (skuGroup, range) = GROUP SUM 1 IF inDataRangeSkuGroup(range, childSkuGroup) AND isParentSkuGroupSkuGroup(childSkuGroup, skuGroup) BY skuGroup, range PERSISTENT;
+quantityParentWithSkuGroupRange (skuGroup, range) = GROUP SUM 1 IF inDataRangeSkuGroup(range, parentSkuGroup) AND isParentSkuGroupSkuGroup(skuGroup, parentSkuGroup) BY skuGroup, range PERSISTENT; 
+
+backgroundInRangeSkuGroup 'Цвет' (range, skuGroup) = CASE 
+    WHEN inDataRangeSkuGroup(range, skuGroup) THEN RGB(0,0,0)
+    WHEN quantityChildWitSkuGroupRange (skuGroup,range) != descendantNumberSkuGroup(skuGroup) AND NOT quantityParentWithSkuGroupRange (skuGroup,range) THEN RGB(203,203,203);    
 
 TABLE rangeRangeLevel(Range, RangeLevel);
 inRangeRangeLevel 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
@@ -69,7 +76,7 @@ FORM range 'Ассортиментная матрица'
 
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    PROPERTIES inDataRangeSkuGroup(r, sg)
+    PROPERTIES inDataRangeSkuGroup(r, sg) BACKGROUND backgroundInRangeSkuGroup(r, sg)
     ORDER BY orderSkuGroup(sg), skuGroupName
     
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
