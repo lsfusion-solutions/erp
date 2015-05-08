@@ -591,6 +591,37 @@ overCurBruttoNetWeightyComponentBOM 'Вес брутто комп. (всего) 
 //------------------------------- Формы -------------------------------------//
 backgroundComponent 'Цвет' (component) = RGB(255,255,229) IF materialComponent(component) IS Product;
 
+TABLE stockBOM (Stock, BOM);
+TABLE stockGroupBOM (StockGroup, BOM);
+
+dataInBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (BOM);
+dataInStockBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, BOM);
+dataInStockGroupBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, BOM);
+
+levelParentCompanyBOMStockGroup (BOM, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataInStockGroupBOM(parent, BOM)
+                                                               BY BOM, stockGroup PERSISTENT;
+nearestParentCompanyBOMStockGroup (BOM, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCompanyBOMStockGroup(BOM, stockGroup));
+nearestInCompanyBOMStockGroup (BOM, stockGroup) =
+    dataInStockGroupBOM(nearestParentCompanyBOMStockGroup (BOM, stockGroup), BOM) PERSISTENT;
+
+inBOMStockGroup 'Вкл.' (BOM, stockGroup) = OVERRIDE
+    nearestInCompanyBOMStockGroup(BOM, stockGroup),
+    dataInStockGroupBOM(stockGroup, BOM);
+
+inBOMStock 'Вкл.' (BOM, stock) = OVERRIDE
+    nearestInCompanyBOMStockGroup(BOM, stockGroupStock(stock)),
+    dataInStockBOM(stock, BOM);
+    
+countStocksBOM = GROUP SUM 1 IF inBOMStock(BOM, stock) BY BOM;
+    
+quantityChildWithStockGroupBOM (stockGroup, BOM) = GROUP SUM 1 IF dataInStockGroupBOM(childstockGroup, BOM) AND isParentStockGroupStockGroup(childstockGroup, stockGroup) BY stockGroup, BOM PERSISTENT;
+quantityParentWithStockGroupBOM (stockGroup, BOM) = GROUP SUM 1 IF dataInStockGroupBOM(parentstockGroup, BOM) AND isParentStockGroupStockGroup(stockGroup, parentstockGroup) BY stockGroup, BOM PERSISTENT;     
+    
+backgroundInBOMStockGroup 'Цвет' (BOM, stockGroup) = CASE 
+    WHEN dataInStockGroupBOM(stockGroup, BOM) THEN RGB(0,0,0)
+    WHEN nearestInCompanyBOMStockGroup(stockGroup, BOM) THEN RGB(230,248,250) 
+    WHEN quantityChildWithStockGroupBOM (stockGroup, BOM) != descendantNumberStockGroup(stockGroup) AND NOT quantityParentWithStockGroupBOM (stockGroup, BOM) THEN RGB(203,203,203);    
+
 editMaterialComponent 'Редактировать компонент' (d) = ACTION editMaterial(materialComponent(d));
 FORM BOM 'Спецификация'
 
@@ -624,6 +655,19 @@ FORM BOM 'Спецификация'
     PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
     PROPERTIES(b) TODRAW c deleteComponentBOM
     FILTERS       BOMComponent(c) == b
+    
+    TREE stockTree sg = StockGroup PARENT parentStockGroup
+    PROPERTIES    nameStockGroup(sg) READONLY, inBOMStockGroup(b,sg) BACKGROUND backgroundInBOMStockGroup(b,sg)
+    ORDER BY      nameStockGroup(sg)
+    
+    OBJECTS ts=Stock
+    PROPERTIES    nameStock(ts) READONLY, idStock(ts) READONLY SHOWIF showIDs(), inBOMStock(b,ts)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
+    FILTERS isParentStockGroupStock(sg, ts)
+    ORDER BY nameStock(ts)
+    
+    FILTERGROUP BOM FILTER 'Отм.' inBOMStock(b,ts) 'ctrl F9'
 
     EDIT BOM OBJECT b
 ;
@@ -640,6 +684,13 @@ DESIGN BOM {
                 PROPERTY (idProduct(p)) { caption = 'Код изделия';}
             }
             MOVE c.box {caption = 'Компонент';}
+            NEW inBOM {
+                caption = 'Склады';
+                type = SPLITH;
+                fill = 1;
+                MOVE stockTree.tree.box;
+                MOVE ts.box;
+            }
         }
 
         MOVE b.box BEFORE specification.box {
@@ -927,6 +978,22 @@ DESIGN BOMsDialog {
     }
 }
 
+accessCurrentUserBOM = [ =GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), s) AND inBOMStock(BOM,s) BY BOM](BOM) OR (BOM IS BOM AND NOT countStocksBOM(BOM)); 
+
+EXTEND FORM BOMs 
+    FILTERS accessCurrentUserBOM(b)
+;
+EXTEND FORM BOMsDialog 
+    FILTERS accessCurrentUserBOM(b)
+;
+
+EXTEND FORM products 
+    FILTERS accessCurrentUserBOM(BOMProduct(p))
+;
+
+EXTEND FORM components 
+    FILTERS accessCurrentUserBOM(BOMComponent(c))
+;
 //-------------------------------- Комиссия для акта контрольной проработки ----------------------------------//
 CLASS ManufacturingCommittee 'Комиссия производство' : Committee;
 
