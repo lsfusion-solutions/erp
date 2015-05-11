@@ -164,7 +164,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     ScheduleOrder.startDateScheduleOrder (scheduleOrder) += startDateScheduleOrder(scheduleOrder);
     ScheduleOrder.endDateScheduleOrder (scheduleOrder) += endDateScheduleOrder(scheduleOrder);
 
-    dayBeforeScheduleOrder 'За сколько дней формировать заказ' = DATA INTEGER (ScheduleOrder);
+    dataDayBeforeScheduleOrder 'За сколько дней формировать заказ' = DATA INTEGER (ScheduleOrder);
+    dayBeforeScheduleOrder 'За сколько дней формировать заказ' (s) = OVERRIDE 1 IF s IS ScheduleOrder, dataDayBeforeScheduleOrder(s);
 
     //свойства "Каждые N недель"
     periodScheduleOrder 'Кол-во недель между поставками' = DATA INTEGER (ScheduleOrder);
@@ -435,13 +436,17 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     setScheduleOrderTimeInScheduleOrderDOW = ACTION (scheduleOrder, dow) {
         IF NOT scheduleOrderTimeInScheduleOrderDOW(scheduleOrder, dow) THEN {
+            LOCAL transfer = INTEGER();
             FOR ADDOBJ  t = ScheduleOrderTime DO {
                 scheduleOrderScheduleOrderTime(t) <- scheduleOrder;
                 shipmentDOWScheduleOrderTime(t) <- dow; 
-                IF numberDOW(dow) == 0 OR numberDOW(dow) == 1 THEN {
+
+                IF numberDOW(dow) < dayBeforeScheduleOrder(scheduleOrder) THEN transfer() <- 7 ELSE transfer() <- 0;
+
+                IF transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder) == 0 OR transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder) == 6 THEN {
                     orderDOWScheduleOrderTime(t) <- DOW.friday;   
                 } ELSE {
-                    orderDOWScheduleOrderTime(t) <- DOWNumber(numberDOW(dow)-1);      
+                    orderDOWScheduleOrderTime(t) <- DOWNumber(transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder));      
                 }                   
             }
         }
@@ -462,9 +467,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        nameSupplierStockScheduleOrder ON CHANGE changeSupplierStock###supplierFilter###scheduleOrder(s), 
                        nameCustomerScheduleOrder ON CHANGE changeCustomer###customerFilter###scheduleOrder(s), nameOperationScheduleOrder,
                        startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder, 
-                       overPeriodScheduleOrder SHOWIF toShowGenDayMonth(s), inAllMonthScheduleOrder SHOWIF toShowGenDayMonth(s),
-                       beforeDay = dayBeforeScheduleOrder SHOWIF toShowGenDay(s), dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s), 
-                       beforeNumber = dayBeforeScheduleOrder SHOWIF toShowGenNumber(s), stringNumberScheduleOrder SHOWIF toShowGenNumber(s), nameTransferDayScheduleOrder SHOWIF toShowGenNumber(s)
+                       overPeriodScheduleOrder SHOWIF toShowGenDayMonth(s), inAllMonthScheduleOrder SHOWIF toShowGenDayMonth(s), dayBeforeScheduleOrder,
+                       dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s), 
+                       stringNumberScheduleOrder SHOWIF toShowGenNumber(s), nameTransferDayScheduleOrder SHOWIF toShowGenNumber(s)
 
         OBJECTS dow=DOW FIXED GRID 
         PROPERTIES(dow) READONLY SHOWIF toShowGenDayMonth(s) staticCaption, numberDOW
@@ -572,14 +577,13 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                     NEW paramsHeader {
                         NEW paramsProps {
                             caption = 'Общие';
-                            type = CONTAINERH;
+                            type = CONTAINERV;
                             MOVE PROPERTY(nameTypeScheduleOrder(s));
+                            MOVE PROPERTY(dayBeforeScheduleOrder(s));
                         }
     
                         NEW paramsCustom {
                             caption = 'Параметры графика';
-                            MOVE PROPERTY(beforeDay);
-                            MOVE PROPERTY(beforeNumber);
                             MOVE PROPERTY(overPeriodScheduleOrder(s));
                             MOVE PROPERTY(inAllMonthScheduleOrder(s));
                             MOVE PROPERTY(dayLastOrderScheduleOrder(s));
