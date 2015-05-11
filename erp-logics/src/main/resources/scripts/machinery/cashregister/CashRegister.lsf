@@ -84,7 +84,7 @@ modelGroupMachinery(groupMachinery) += cashRegisterModelGroupCashRegister(groupM
 departmentStoreCashRegister (cashRegister) = departmentStoreGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
 nameDepartmentStoreCashRegister 'Склад' (cashRegister) = nameDepartmentStore(departmentStoreCashRegister(cashRegister));
 
-countCashRegisterDepartmentStore 'Кол-во касс' (departmentStore) = GROUP SUM 1 BY departmentStoreCashRegister(cashRegister);
+countCashRegisterDepartmentStore 'Кол-во касс' (departmentStore) = GROUP SUM 1 IF NOT inactiveMachinery(cashRegister) BY departmentStoreCashRegister(cashRegister);
     
 countCashRegisterStore 'Кол-во касс' (store) = GROUP SUM countCashRegisterDepartmentStore(d) BY storeDepartmentStore(d);   
 countDataCashRegisterStore 'Кол-во магазинов' = DATA INTEGER (Store);
@@ -96,7 +96,10 @@ dateCashRegister 'Дата фискализации кассового аппа�
 
 comPortCashRegister 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
 baudRateCashRegister 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
+
 disableSalesCashRegister 'Без реализации' = DATA BOOLEAN (CashRegister) IN base;
+countSalesCashRegisterDepartmentStore 'Кол-во касс (с реализацией)' = GROUP SUM 1 IF NOT disableSalesCashRegister(cashRegister) AND NOT inactiveMachinery(cashRegister) BY departmentStoreCashRegister(cashRegister);
+
 countryCashRegister 'Страна кассы' (cashRegister) = countryStock(stockGroupMachinery(groupCashRegisterCashRegister(cashRegister)));
 
 userLegalEntityCashRegister (cashRegister) = DATA LegalEntity (CashRegister);
