@@ -1071,6 +1071,24 @@ EXTEND FORM listInventory
 
 dumbPageInventory (p) = ' ' IF p IS PageInventory;
 
+
+sumPageInventoryDetailCollationSheetSkuGroup 'Сумма по описям' (collationSheet, group) = GROUP SUM sumPageInventoryDetailCollationSheetSku(cs,sku) IF isParentSkuGroupSku(group, sku) AND includeCollationSheetSku(cs, sku)
+    BY cs, group;
+sumBalanceCollationSheetSkuGroup 'Сумма по описям' (collationSheet, group) = GROUP SUM sumBalanceCollationSheetSku(cs,sku) IF isParentSkuGroupSku(group, sku) AND includeCollationSheetSku(cs, sku)
+    BY cs, group;    
+sumShortageCollationSheetSkuGroup 'Сумма по описям' (collationSheet, group) = GROUP SUM sumShortageCollationSheetSku(cs,sku) IF isParentSkuGroupSku(group, sku) AND includeCollationSheetSku(cs, sku)
+    BY cs, group;    
+    
+sumPageInventoryDetailBatchesCollationSheetSkuGroup  (collationSheet, group) = GROUP SUM sumPageInventoryDetailCollationSheetBatch(cs,b) IF isParentSkuGroupBatch(group, b) AND includeCollationSheetBatch(cs,b)
+    BY cs, group;
+sumBalanceBatchesCollationSheetSkuGroup  (collationSheet, group) = GROUP SUM sumBalanceCollationSheetBatch(cs,b) IF isParentSkuGroupBatch(group, b) AND includeCollationSheetBatch(cs,b)
+    BY cs, group;
+sumShortageBatchesCollationSheetSkuGroup  (collationSheet, group) = GROUP SUM sumShortageCollationSheetBatch(cs,b) IF isParentSkuGroupBatch(group, b) AND includeCollationSheetBatch(cs,b)
+    BY cs, group;
+overSumPageInventoryDetailCollationSheetSkuGroup 'Сумма по описям' = IF isBatchCollationSheet(cs) THEN sumPageInventoryDetailBatchesCollationSheetSkuGroup(cs,g) ELSE sumPageInventoryDetailCollationSheetSkuGroup(cs,g);
+overSumBalanceCollationSheetSkuGroup 'Сумма по остаткам' = IF isBatchCollationSheet(cs) THEN sumBalanceBatchesCollationSheetSkuGroup(cs,g) ELSE sumBalanceCollationSheetSkuGroup(cs,g);
+overSumShortageCollationSheetSkuGroup 'Сумма недостачи' = IF isBatchCollationSheet(cs) THEN sumShortageBatchesCollationSheetSkuGroup(cs,g) ELSE sumShortageCollationSheetSkuGroup(cs,g);
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
     PROPERTIES (in)  isBatchInventory, isPriceInventory, nameNumeratorInventory, numberInventory, seriesInventory,
@@ -1129,7 +1147,7 @@ FORM inventory 'Инвентаризация'
 
 
     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
+    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g), overSumPageInventoryDetailCollationSheetSkuGroup(cs,g), overSumBalanceCollationSheetSkuGroup(cs,g), overSumShortageCollationSheetSkuGroup(cs,g)
     ORDER BY orderSkuGroup(g), nameSkuGroup(g)
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
 
@@ -1272,7 +1290,7 @@ DESIGN inventory {
                     caption = 'Товарные группы';
                 }
                 NEW wor11 {
-                    fill = 3;
+                    fill = 2;
                     type = TABBED;
                     MOVE i.box;
                     MOVE b.box;
