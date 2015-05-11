@@ -976,16 +976,22 @@ takeDataSnapshot 'Сформировать отчет' (snapshot) = ACTION (snap
 }
 
 filterMoveSkuStockSnapshot (s, st, r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
-                                        inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
+                                        inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) OR
+                                        sumBSkuStockSnapshot(s,st,r) OR sumASkuStockSnapshot(s,st,r) OR 
+                                        inSumSkuStockSnapshot(s,st,r) OR outSumSkuStockSnapshot(s,st,r)PERSISTENT;
                                         
 filterMoveSkuStockSnapshotDate (s, st, r, d) = balanceBSkuStockSnapshotDate(s,st,r,d) OR balanceASkuStockSnapshotDate(s,st,r,d) OR 
-                                        inQuantitySkuStockSnapshotDate(s,st,r,d) OR outQuantitySkuStockSnapshotDate(s,st,r,d) PERSISTENT;  
+                                        inQuantitySkuStockSnapshotDate(s,st,r,d) OR outQuantitySkuStockSnapshotDate(s,st,r,d) OR
+                                        sumBSkuStockSnapshotDate(s,st,r,d) OR sumASkuStockSnapshotDate(s,st,r,d) OR 
+                                        inSumSkuStockSnapshotDate(s,st,r,d) OR outSumSkuStockSnapshotDate(s,st,r,d) PERSISTENT;  
                                         
 filterMoveSnapshotDate (r, d) = GROUP SUM 1 IF filterMoveSkuStockSnapshotDate (s, st, r, d) BY r, d;                                        
 filterMoveStockSnapshotDate (st, r, d) = GROUP SUM 1 IF filterMoveSkuStockSnapshotDate (s, st, r, d) BY st, r, d;                                       
                                                                               
 filterMoveBatchStockSnapshot (bt,ss,r)= balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) OR 
-                                        inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) PERSISTENT;
+                                        inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) OR 
+                                        sumBBatchStockSnapshot(bt,ss,r) OR sumABatchStockSnapshot(bt,ss,r) OR 
+                                        inSumBatchStockSnapshot(bt,ss,r) OR outSumBatchStockSnapshot(bt,ss,r) PERSISTENT;
 
 //-- SHOWIF
 isQuantityBalanceBSnapshot = isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
@@ -1058,6 +1064,66 @@ isCostVATSupplierBalanceADateSnapshot = isCostVATSupplierSnapshot(snapshot) AND 
 
 isVATSupplierBalanceBDateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
 isVATSupplierBalanceADateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
+
+inSnapshotTypeDOW 'Вкл.' = DATA BOOLEAN (SnapshotType, DOW);
+oneReportSnapshotType 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotType);
+idReportSnapshotType 'Идентификатор для планировщика' = DATA STRING[100] (SnapshotType);
+countDaysSnapshotType 'Количество дней' = DATA INTEGER (SnapshotType);
+
+EXTEND FORM snapshotType
+    OBJECTS dow = DOW    
+    PROPERTIES numberDOW(dow) READONLY, staticCaption(dow) READONLY, inSnapshotTypeDOW(t,dow)
+    PROPERTIES(t) oneReportSnapshotType, countDaysSnapshotType, idReportSnapshotType
+    ORDER BY numberDOW(dow)
+;
+DESIGN snapshotType {
+    NEW paramContainerTab BEFORE functions.box{
+        fill = 1;
+        type = TABBED;
+        MOVE select {caption = 'Выбор';}
+        NEW createContainer {
+            caption = 'Автоматическое формирование';
+            NEW createContainer1 {
+                type = CONTAINERH;
+                MOVE PROPERTY (oneReportSnapshotType(t));
+                MOVE PROPERTY (countDaysSnapshotType(t));
+                MOVE PROPERTY (idReportSnapshotType(t));
+            }
+            MOVE dow.box;
+        }         
+    }
+}
+  
+createSnapshotString 'Создать отчет' = ACTION (string) NEWSESSION { 
+    FOR idReportSnapshotType(type) == string  DO {
+        IF inSnapshotTypeDOW(type, extractDOW(currentDate())) AND countDaysSnapshotType(type) THEN {     
+
+            IF NOT oneReportSnapshotType(type)   THEN {
+
+                FOR ADDOBJ r = Snapshot DO {                    
+                    fromDateSnapshot(r) <- subtractDate(currentDate(),countDaysSnapshotType(type));
+                    toDateSnapshot(r) <- currentDate();
+                    snapshotTypeSnapshot(r) <- type;
+                    takeSnapshotDateFromTo(r, fromDateSnapshot(r), toDateSnapshot(r));                
+                }
+
+
+            } ELSE {
+                FOR includeSnapshotTypeStock(type, stock) ADDOBJ r = Snapshot DO {
+                    fromDateSnapshot(r) <- subtractDate(currentDate(),countDaysSnapshotType(type));
+                    toDateSnapshot(r) <- currentDate();
+                    snapshotTypeSnapshot(r) <- type;
+                    dataIncludeSnapshotStock(r, st) <- NULL;
+                    dataIncludeSnapshotStockGroup(r, st) <- NULL;
+                    dataIncludeSnapshotStock(r, stock) <- TRUE;
+                    takeSnapshotDateFromTo(r, fromDateSnapshot(r), toDateSnapshot(r));                      
+                }
+            }
+
+            apply();
+        }
+    }
+}
 
 FORM snapshot 'Аналитический отчет'                                   
     OBJECTS r = Snapshot FIXED PANEL
@@ -1132,9 +1198,9 @@ FORM snapshot 'Аналитический отчет'
                                                                                 
     FILTERGROUP filtersSold
         FILTER 'С движением' filterMoveSkuStockSnapshot(s,st,r) 'F11' DEFAULT
-        FILTER 'С остатком' balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) 'F10'  
-        FILTER 'С приходом' inQuantitySkuStockSnapshot(s,st,r) 'F9'   
-        FILTER 'С продажей' outQuantitySkuStockSnapshot(s,st,r) 'F8' 
+        FILTER 'С остатком' balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR sumBSkuStockSnapshot(s,st,r) OR sumASkuStockSnapshot(s,st,r)  'F10'  
+        FILTER 'С приходом' inQuantitySkuStockSnapshot(s,st,r) OR inSumSkuStockSnapshot(s,st,r) 'F9'   
+        FILTER 'С продажей' outQuantitySkuStockSnapshot(s,st,r) OR outSumSkuStockSnapshot(s,st,r)'F8' 
                                                                                                                                                                                       
 //--batch
     OBJECTS           stb=(ss=Stock, bt=Batch) FIXED GRID
@@ -1167,9 +1233,9 @@ FORM snapshot 'Аналитический отчет'
         
     FILTERGROUP filtersSoldBatch
         FILTER 'С движением' filterMoveBatchStockSnapshot(bt,ss,r) 'F11' DEFAULT
-        FILTER 'С остатком' balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) 'F10'  
-        FILTER 'С приходом' inQuantityBatchStockSnapshot(bt,ss,r) 'F9'   
-        FILTER 'С продажей' outQuantityBatchStockSnapshot(bt,ss,r) 'F8'     
+        FILTER 'С остатком' balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) OR sumBBatchStockSnapshot(bt,ss,r) OR sumABatchStockSnapshot(bt,ss,r) 'F10'  
+        FILTER 'С приходом' inQuantityBatchStockSnapshot(bt,ss,r) OR inSumBatchStockSnapshot(bt,ss,r) 'F9'   
+        FILTER 'С продажей' outQuantityBatchStockSnapshot(bt,ss,r) OR outSumBatchStockSnapshot(bt,ss,r)'F8'     
     
     PROPERTIES(r)  takeDataSnapshot FORCE PANEL 
 //-- По группам    
@@ -1225,11 +1291,12 @@ FORM snapshot 'Аналитический отчет'
                       netWeightAStockSnapshot SHOWIF isNetWeightBalanceASnapshot(r)    
                                   
     FILTERGROUP filtersSoldStock
-        FILTER 'С движением' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r) OR 
-                                   inQuantityStockSnapshot(ts1,r) OR outQuantityStockSnapshot(ts1,r) 'F11' DEFAULT
-        FILTER 'С остатком' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r) 'F10'  
-        FILTER 'С приходом' inQuantityStockSnapshot(ts1,r) 'F9'   
-        FILTER 'С продажей' outQuantityStockSnapshot(ts1,r) 'F8'   
+        FILTER 'С движением' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r) OR inQuantityStockSnapshot(ts1,r) OR outQuantityStockSnapshot(ts1,r) OR
+                             sumBStockSnapshot(ts1,r) OR sumAStockSnapshot(ts1,r) OR inSumStockSnapshot(ts1,r) OR outSumStockSnapshot(ts1,r) 'F11' DEFAULT
+                             
+        FILTER 'С остатком' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r) OR sumBStockSnapshot(ts1,r) OR sumAStockSnapshot(ts1,r) 'F10'  
+        FILTER 'С приходом' inQuantityStockSnapshot(ts1,r) OR inSumStockSnapshot(ts1,r) 'F9'   
+        FILTER 'С продажей' outQuantityStockSnapshot(ts1,r) OR outSumStockSnapshot(ts1,r) 'F8'   
                                           
 //-- По поставщикам                                                
     
@@ -1257,11 +1324,11 @@ FORM snapshot 'Аналитический отчет'
                     netWeightABatchSupplierSnapshot  SHOWIF isNetWeightBalanceABatchSnapshot(r)                                                                                                                                                          
  
     FILTERGROUP filtersSoldSupplier
-        FILTER 'С движением' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) OR 
-                                   inQuantityBatchSupplierSnapshot(l,r) OR outQuantityBatchSupplierSnapshot(l,r) 'F11' DEFAULT
-        FILTER 'С остатком' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) 'F10'  
-        FILTER 'С приходом' inQuantityBatchSupplierSnapshot(l,r) 'F9'   
-        FILTER 'С продажей' outQuantityBatchSupplierSnapshot(l,r) 'F8'    
+        FILTER 'С движением' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) OR inQuantityBatchSupplierSnapshot(l,r) OR outQuantityBatchSupplierSnapshot(l,r) OR
+                             sumBBatchSupplierSnapshot(l,r) OR sumABatchSupplierSnapshot(l,r) OR inSumBatchSupplierSnapshot(l,r) OR outSumBatchSupplierSnapshot(l,r)  'F11' DEFAULT
+        FILTER 'С остатком' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) OR sumBBatchSupplierSnapshot(l,r) OR sumABatchSupplierSnapshot(l,r) 'F10'  
+        FILTER 'С приходом' inQuantityBatchSupplierSnapshot(l,r) OR inSumBatchSupplierSnapshot(l,r)'F9'   
+        FILTER 'С продажей' outQuantityBatchSupplierSnapshot(l,r) OR outSumBatchSupplierSnapshot(l,r) 'F8'    
         
 //-- По SKU на дату         
            
@@ -1302,9 +1369,9 @@ FORM snapshot 'Аналитический отчет'
                                                              
     FILTERGROUP filtersSold1
         FILTER 'С движением' filterMoveSkuStockSnapshotDate(s3,st3,r,d3) 'F11' DEFAULT
-        FILTER 'С остатком' balanceBSkuStockSnapshotDate(s3,st3,r,d3) OR balanceASkuStockSnapshotDate(s3,st3,r,d3) 'F10'  
-        FILTER 'С приходом' inQuantitySkuStockSnapshotDate(s3,st3,r,d3) 'F9'   
-        FILTER 'С продажей' outQuantitySkuStockSnapshotDate(s3,st3,r,d3) 'F8'         
+        FILTER 'С остатком' balanceBSkuStockSnapshotDate(s3,st3,r,d3) OR balanceASkuStockSnapshotDate(s3,st3,r,d3) OR sumBSkuStockSnapshotDate(s3,st3,r,d3) OR sumASkuStockSnapshotDate(s3,st3,r,d3) 'F10'  
+        FILTER 'С приходом' inQuantitySkuStockSnapshotDate(s3,st3,r,d3) OR inSumSkuStockSnapshotDate(s3,st3,r,d3) 'F9'   
+        FILTER 'С продажей' outQuantitySkuStockSnapshotDate(s3,st3,r,d3) OR outSumSkuStockSnapshotDate(s3,st3,r,d3) 'F8'         
 
     OBJECTS st4=Stock
     FILTERS           st4 == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st4) AND NOT ts OR st4 IS Stock AND NOT sg AND NOT ts,
