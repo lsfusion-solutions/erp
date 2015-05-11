@@ -338,9 +338,11 @@ public class EquipmentServer {
         
         Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
-            directorySet.add(cashRegister.directory);
-            handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
+            if(!cashRegister.disableSales) {
+                Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
+                directorySet.add(cashRegister.directory);
+                handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
+            }
         }
 
         try {

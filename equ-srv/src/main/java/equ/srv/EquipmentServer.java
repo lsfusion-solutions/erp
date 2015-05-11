@@ -355,6 +355,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (int i = 0; i < machineryProperties.length; i++) {
                         cashRegisterQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
                     }
+                    if(cashRegisterLM != null)
+                        cashRegisterQuery.addProperty("disableSalesCashRegister", cashRegisterLM.findProperty("disableSalesCashRegister").getExpr(cashRegisterExpr));
                     if (cashRegisterPriceTransactionLM != null)
                         cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction",
                                 cashRegisterPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterExpr, transactionExpr));
@@ -369,11 +371,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String portMachinery = (String) row.get("portMachinery");
                         String directoryCashRegister = (String) row.get("overDirectoryMachinery");
                         Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededMachineryMachineryPriceTransaction") != null;
+                        Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, nppGroupMachinery, nppMachinery, nameModelGroupMachinery,
                                 handlerModelGroupMachinery, portMachinery, directoryCashRegister, startDateGroupCashRegister,
                                 overDepartmentNumberGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister,
-                                pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
+                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
@@ -581,12 +584,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     private Map<String, List<ItemGroup>> readItemGroupMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, List<ItemGroup>> result = new HashMap<String, List<ItemGroup>>();
-        Map<String, ItemGroup> itemGroupMap = new HashMap<String, ItemGroup>();
+        Map<String, List<ItemGroup>> result = new HashMap<>();
+        Map<String, ItemGroup> itemGroupMap = new HashMap<>();
         
         KeyExpr itemGroupExpr = new KeyExpr("ItemGroup");        
         ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev((Object) "itemGroup", itemGroupExpr);
-        QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<Object, Object>(itemGroupKeys);
+        QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[] {"idItemGroup", "nameItemGroup", "idParentItemGroup"};
         LCP[] itemGroupProperties = itemLM.findProperties("idItemGroup", "nameItemGroup", "idParentItemGroup");
@@ -1163,9 +1166,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     session.apply(getBusinessLogics());
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -1174,7 +1175,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         try {
 
-            List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
+            List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
 
             if (cashRegisterLM != null) {
 
@@ -1184,10 +1185,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
 
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-                String[] cashRegisterNames = new String[] {"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LCP[] cashRegisterProperties = machineryLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery");
+                String[] cashRegisterNames = new String[] {"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister"};
+                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister");
                 for (int i = 0; i < cashRegisterProperties.length; i++) {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
@@ -1200,9 +1201,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
                 
-                query.and(machineryLM.findProperty("handlerModelGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-                query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
-                query.and(machineryLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
+                query.and(cashRegisterLM.findProperty("handlerModelGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
                 query.and(equLM.findProperty("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
@@ -1211,13 +1212,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     cashRegisterInfoList.add(new CashRegisterInfo(true, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             (String) row.get("overDirectoryMachinery"), null, (Integer) row.get("overDepartmentNumberGroupCashRegister"),
-                            false, null, (String) row.get("pieceCodeGroupCashRegister"), (String) row.get("weightCodeGroupCashRegister")));
+                            false, null, row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
+                            (String) row.get("weightCodeGroupCashRegister")));
                 }
             }
             return cashRegisterInfoList;
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
     }
