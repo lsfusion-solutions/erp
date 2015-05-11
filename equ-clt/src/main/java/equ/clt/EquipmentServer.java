@@ -15,7 +15,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.*;
 import java.rmi.ConnectException;
-import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
@@ -37,7 +36,7 @@ public class EquipmentServer {
     protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
     
-    Map<String, Object> handlerMap = new HashMap<String, Object>();
+    Map<String, Object> handlerMap = new HashMap<>();
     EquipmentServerSettings equipmentServerSettings;
 
     Consumer processTransactionConsumer;
@@ -61,6 +60,8 @@ public class EquipmentServer {
     ExecutorService singleTransactionExecutor;
     
     boolean needReconnect = false;
+
+    private boolean mergeBatches = false;
 
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
         
@@ -89,15 +90,7 @@ public class EquipmentServer {
                         if (remote == null) {
                             try {
                                 remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
-                            } catch (ConnectException e) {
-                                logger.error("Naming lookup error : ", e);
-                            } catch (NoSuchObjectException e) {
-                                logger.error("Naming lookup error : ", e);
-                            } catch (RemoteException e) {
-                                logger.error("Naming lookup error : ", e);
-                            } catch (MalformedURLException e) {
-                                logger.error("Naming lookup error : ", e);
-                            } catch (NotBoundException e) {
+                            } catch (NotBoundException | MalformedURLException | RemoteException e) {
                                 logger.error("Naming lookup error : ", e);
                             }
 
@@ -211,7 +204,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
+                    sendSalesInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 }
@@ -272,7 +265,7 @@ public class EquipmentServer {
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(sidEquipmentServer);
         Map<String, List<Object>> groupTransactionInfoMap = groupTransactionInfoList(remote, transactionInfoList);
         if (!groupTransactionInfoMap.isEmpty()) {
-            Collection<Callable<Object>> taskList = new LinkedList<Callable<Object>>();
+            Collection<Callable<Object>> taskList = new LinkedList<>();
             for (Map.Entry<String, List<Object>> entry : groupTransactionInfoMap.entrySet()) {
                 String groupId = entry.getKey();
                 List<TransactionInfo> transactionEntry = (List<TransactionInfo>) entry.getValue().get(0);
@@ -290,7 +283,7 @@ public class EquipmentServer {
     }
     
     private Map<String, List<Object>> groupTransactionInfoList(EquipmentServerInterface remote, List<TransactionInfo> transactionInfoList) throws RemoteException, SQLException {
-        Map<String, List<Object>> result = new HashMap<String, List<Object>>();
+        Map<String, List<Object>> result = new HashMap<>();
         Collections.sort(transactionInfoList, COMPARATOR);
         for(TransactionInfo transactionInfo : transactionInfoList) {
             try {
@@ -329,7 +322,7 @@ public class EquipmentServer {
         processStopListLogger.info("Process StopListInfo finished");
     }
 
-    private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, EquipmentServerSettings settings) throws SQLException, IOException {
+    private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         sendSalesLogger.info("Send SalesInfo");
         Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
@@ -423,25 +416,60 @@ public class EquipmentServer {
         }
     }
 
-    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, Set<String> directorySet,
-                               List<CashRegisterInfo> cashRegisterInfoList, Integer numberAtATime) throws ParseException, IOException, ClassNotFoundException, SQLException {
+    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler,
+                               Set<String> directorySet, List<CashRegisterInfo> cashRegisterInfoList, Integer numberAtATime)
+            throws ParseException, IOException, ClassNotFoundException, SQLException {
         if(directorySet != null) {
-            for (String directory : directorySet) {
-                SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                if (salesBatch == null) {
+
+            if(mergeBatches) {
+
+                SalesBatch mergedSalesBatch = null;
+                for (String directory : directorySet) {
+                    SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
+                    if (salesBatch!= null) {
+                        if(mergedSalesBatch == null)
+                            mergedSalesBatch = salesBatch;
+                        else
+                            mergedSalesBatch.merge(salesBatch);
+                    }
+                }
+
+                if(mergedSalesBatch == null) {
                     sendSalesLogger.info("SalesInfo is empty");
                 } else {
-                    sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
+                    sendSalesLogger.info("Sending SalesInfo : " + mergedSalesBatch.salesInfoList.size() + " records");
                     try {
-                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                        String result = remote.sendSalesInfo(mergedSalesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
                         if (result != null) {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
                             sendSalesLogger.info("Finish Reading starts");
-                            handler.finishReadingSalesInfo(salesBatch);
+                            handler.finishReadingSalesInfo(mergedSalesBatch);
                         }
                     } catch (Exception e) {
                         reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
+                    }
+                }
+
+            } else {
+
+                for (String directory : directorySet) {
+                    SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
+                    if (salesBatch == null) {
+                        sendSalesLogger.info("SalesInfo is empty");
+                    } else {
+                        sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
+                        try {
+                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                            if (result != null) {
+                                reportEquipmentServerError(remote, sidEquipmentServer, result);
+                            } else {
+                                sendSalesLogger.info("Finish Reading starts");
+                                handler.finishReadingSalesInfo(salesBatch);
+                            }
+                        } catch (Exception e) {
+                            reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
+                        }
                     }
                 }
             }
@@ -465,7 +493,7 @@ public class EquipmentServer {
             throws RemoteException, SQLException, ClassNotFoundException {
         if (!requestExchangeList.isEmpty()) {
             sendSalesLogger.info("Executing checkZReportRequestExchanges");
-            Set<Integer> succeededRequestsSet = new HashSet<Integer>();
+            Set<Integer> succeededRequestsSet = new HashSet<>();
             for (RequestExchange request : requestExchangeList) {
                 if (request.isCheckZReportExchange()) {
                     request.extraStockSet.add(request.idStock);
@@ -514,7 +542,7 @@ public class EquipmentServer {
         sendTerminalDocumentLogger.info("Send TerminalDocumentInfo");
         List<TerminalInfo> terminalInfoList = remote.readTerminalInfo(sidEquipmentServer);
 
-        Map<String, List<TerminalInfo>> handlerModelTerminalMap = new HashMap<String, List<TerminalInfo>>();
+        Map<String, List<TerminalInfo>> handlerModelTerminalMap = new HashMap<>();
         for (TerminalInfo terminal : terminalInfoList) {
             if (!handlerModelTerminalMap.containsKey(terminal.handlerModel))
                 handlerModelTerminalMap.put(terminal.handlerModel, new ArrayList<TerminalInfo>());
@@ -557,7 +585,7 @@ public class EquipmentServer {
 
         if (!requestExchangeList.isEmpty()) {
 
-            Map<String, Map<Integer, String>> handlerModelMachineryMap = new HashMap<String, Map<Integer, String>>();
+            Map<String, Map<Integer, String>> handlerModelMachineryMap = new HashMap<>();
             for (MachineryInfo machinery : machineryInfoList) {
                 if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
                     handlerModelMachineryMap.put(machinery.handlerModel, new HashMap<Integer, String>());
@@ -580,7 +608,7 @@ public class EquipmentServer {
                                     boolean isTerminalHandler = clsHandler instanceof TerminalHandler;
 
                                     if(isCashRegisterHandler) {
-                                        Set<String> directorySet = new HashSet<String>(entry.getValue().values());
+                                        Set<String> directorySet = new HashSet<>(entry.getValue().values());
                                         
                                         //DiscountCard
                                         if (requestExchange.isDiscountCard()) {
@@ -670,10 +698,14 @@ public class EquipmentServer {
         thread.interrupt();
     }
 
+    public void setMergeBatches(boolean mergeBatches) {
+        this.mergeBatches = mergeBatches;
+    }
+
     abstract class Consumer implements Runnable {
         private SynchronousQueue<Object> queue;
         public Consumer() {
-            this.queue = new SynchronousQueue<Object>();
+            this.queue = new SynchronousQueue<>();
         }
 
         public void scheduleIfNotScheduledYet() {
