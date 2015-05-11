@@ -1,6 +1,7 @@
 MODULE  ProductionConsumption;
 
-REQUIRE ProductionOrder, ProductionOutput, StockDocumentSkuLedger;
+REQUIRE ProductionOrder, ProductionOutput, StockDocumentSkuLedger, StockMovement;
+
 NAMESPACE Production;
 
 // ---------------- Списание матириалов, производство ------------------- //
@@ -485,30 +486,6 @@ EXTEND FORM userConsumption
 ;
 
 
-createShipmentConsumption 'Создать поставку для Сырья' = ACTION (consumption)  {
-
-    FOR ADDOBJ sh = Sale.UserShipment DO {
-        ASSIGN Sale.supplierUserShipment(sh) <- legalEntityStockConsumption(consumption);
-        ASSIGN Sale.customerUserShipment(sh) <- legalEntityStockConsumption(consumption);
-        ASSIGN Sale.customerStockUserShipment(sh) <- stockConsumption(consumption);
-        ASSIGN createPurchaseUserShipment(sh) <- TRUE;
-        ASSIGN Sale.noteUserShipment(sh) <- VARSTRING[100](descriptionConsumption(consumption));
-
-        FOR consumptionConsumptionDetail(consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
-            ASSIGN Sale.userShipmentUserShipmentDetail(d) <- sh;
-            ASSIGN Sale.skuUserShipmentDetail(d) <- skuConsumptionDetail(consumptionDetail);
-            ASSIGN Sale.quantityUserShipmentDetail(d) <- quantityConsumptionDetail(consumptionDetail);
-            ASSIGN Sale.priceUserShipmentDetail(d) <- priceConsumptionDetail(consumptionDetail);
-        }
-
-    FORM Sale.userShipment OBJECTS s=sh MODAL;
-        IF formResult() == FormResult.ok THEN {
-            EXEC apply();
-        }
-    }
-} TOOLBAR;
-
-
 isUserOpenedConsumption(o)=  isOpenedConsumption(o) AND isUserConsumption(o);
 FORM consumptions 'Списания сырья'
     OBJECTS o = Consumption
@@ -516,7 +493,6 @@ FORM consumptions 'Списания сырья'
                             nameStockConsumption, nameCurrencyConsumption, namePriceListTypeConsumption
     PROPERTIES (o) READONLY countConsumptionDetailConsumption, quantityConsumptionDetailConsumption, sumConsumptionDetailConsumption, ordersConsumption
     PROPERTIES (o) READONLYIF isReadonly() noteConsumption
-    PROPERTIES (o) createShipmentConsumption
 
     PROPERTIES (o) READONLY FORCE PANEL createdNameUserUserConsumption, createdTimeUserConsumption, createdHostnameComputerUserConsumption, 
                                         postedNameUserUserConsumption, postedTimeUserConsumption, postedHostnameComputerUserConsumption

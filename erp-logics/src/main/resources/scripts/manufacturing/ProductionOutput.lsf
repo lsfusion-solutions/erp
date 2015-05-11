@@ -1,6 +1,6 @@
 MODULE  ProductionOutput;
 
-REQUIRE ProductionOrder, StockDocument, SalePurchaseShipment;
+REQUIRE ProductionOrder, StockDocumentSkuLedger;
 
 NAMESPACE Production;
 
@@ -457,29 +457,6 @@ copyOutput 'Копировать' = ACTION (userOutput) NEWSESSION {
     }
 } TOOLBAR;
 
-createShipmentOutput 'Создать поставку для ГП' = ACTION (output)  {
-
-    FOR ADDOBJ sh = Sale.UserShipment DO {
-        ASSIGN Sale.supplierUserShipment(sh) <- legalEntityStockOutput(output);
-        ASSIGN Sale.customerUserShipment(sh) <- legalEntityStockOutput(output);
-        ASSIGN Sale.supplierStockUserShipment(sh) <- stockOutput(output);
-        ASSIGN createPurchaseUserShipment(sh) <- TRUE;
-        ASSIGN Sale.noteUserShipment(sh) <- VARSTRING[100](descriptionOutput(output));
-
-        FOR outputOutputDetail(outputDetail)== output ADDOBJ d = Sale.UserShipmentDetail DO {
-            ASSIGN Sale.userShipmentUserShipmentDetail(d) <- sh;
-            ASSIGN Sale.skuUserShipmentDetail(d) <- skuOutputDetail(outputDetail);
-            ASSIGN Sale.quantityUserShipmentDetail(d) <- quantityOutputDetail(outputDetail);
-            ASSIGN Sale.priceUserShipmentDetail(d) <- priceOutputDetail(outputDetail);
-        }
-
-    FORM Sale.userShipment OBJECTS s=sh MODAL;
-        IF formResult() == FormResult.ok THEN {
-            EXEC apply();
-        }
-    }
-} TOOLBAR;
-
 isUserOpenedOutput(o)=  isOpenedOutput(o) AND isUserOutput(o);
 FORM outputs 'Производство'
     OBJECTS o = Output
@@ -487,7 +464,6 @@ FORM outputs 'Производство'
                             nameStockOutput, nameCurrencyOutput, namePriceListTypeOutput 
     PROPERTIES (o) READONLY countOutputDetailOutput, quantityOutputDetailOutput, sumOutputDetailOutput
     PROPERTIES (o) READONLYIF isReadonly() noteOutput
-    PROPERTIES (o) createShipmentOutput
 
     PROPERTIES (o) READONLY FORCE PANEL createdNameUserUserOutput, createdTimeUserOutput, createdHostnameComputerUserOutput, 
                                         postedNameUserUserOutput, postedTimeUserOutput, postedHostnameComputerUserOutput

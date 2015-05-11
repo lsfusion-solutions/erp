@@ -1,0 +1,32 @@
+MODULE ProductionOutputSaleShipment;
+
+REQUIRE ProductionOutput, SalePurchaseShipment;
+
+NAMESPACE Production;
+
+createShipmentOutput 'Создать поставку для ГП' = ACTION (output)  {
+
+    FOR ADDOBJ sh = Sale.UserShipment DO {
+        Sale.supplierUserShipment(sh) <- legalEntityStockOutput(output);
+        Sale.customerUserShipment(sh) <- legalEntityStockOutput(output);
+        Sale.supplierStockUserShipment(sh) <- stockOutput(output);
+        createPurchaseUserShipment(sh) <- TRUE;
+        Sale.noteUserShipment(sh) <- VARSTRING[100](descriptionOutput(output));
+
+        FOR outputOutputDetail(outputDetail)== output ADDOBJ d = Sale.UserShipmentDetail DO {
+            Sale.userShipmentUserShipmentDetail(d) <- sh;
+            Sale.skuUserShipmentDetail(d) <- skuOutputDetail(outputDetail);
+            Sale.quantityUserShipmentDetail(d) <- quantityOutputDetail(outputDetail);
+            Sale.priceUserShipmentDetail(d) <- priceOutputDetail(outputDetail);
+        }
+
+    FORM Sale.userShipment OBJECTS s=sh MODAL;
+        IF formResult() == FormResult.ok THEN {
+            apply();
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM outputs
+    PROPERTIES (o) createShipmentOutput
+;

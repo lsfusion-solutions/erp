@@ -1,0 +1,32 @@
+MODULE ProductionConsumptionSaleShipment;
+
+REQUIRE ProductionConsumption, SalePurchaseShipment;
+
+NAMESPACE Production;
+
+createShipmentConsumption 'Создать поставку для Сырья' = ACTION (consumption)  {
+
+    FOR ADDOBJ sh = Sale.UserShipment DO {
+        Sale.supplierUserShipment(sh) <- legalEntityStockConsumption(consumption);
+        Sale.customerUserShipment(sh) <- legalEntityStockConsumption(consumption);
+        Sale.customerStockUserShipment(sh) <- stockConsumption(consumption);
+        createPurchaseUserShipment(sh) <- TRUE;
+        Sale.noteUserShipment(sh) <- VARSTRING[100](descriptionConsumption(consumption));
+
+        FOR consumptionConsumptionDetail(consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
+            Sale.userShipmentUserShipmentDetail(d) <- sh;
+            Sale.skuUserShipmentDetail(d) <- skuConsumptionDetail(consumptionDetail);
+            Sale.quantityUserShipmentDetail(d) <- quantityConsumptionDetail(consumptionDetail);
+            Sale.priceUserShipmentDetail(d) <- priceConsumptionDetail(consumptionDetail);
+        }
+
+    FORM Sale.userShipment OBJECTS s=sh MODAL;
+        IF formResult() == FormResult.ok THEN {
+            EXEC apply();
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM consumptions
+    PROPERTIES (o) createShipmentConsumption
+;

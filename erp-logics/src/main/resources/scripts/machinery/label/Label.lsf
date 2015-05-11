@@ -36,7 +36,6 @@ TABLE labelType(LabelType);
 nameLabelType 'Наименование' = DATA VARISTRING[50](LabelType);
 
 @defineExternalizable(labelType, VARSTRING[100]);
-
 widthLabelType 'Ширина' = DATA INTEGER (LabelType);
 heightLabelType 'Высота' = DATA INTEGER (LabelType);
 
@@ -131,10 +130,12 @@ includeLabelTypeSku 'Из документа' (labelType, sku) = OVERRIDE
 //печать для нулевых цен
 printNullPriceLabelType 'Включать позиций без цен' = DATA BOOLEAN (LabelType);
 
+notPrintRetailPriceLabelType 'Не печатать без цены до' = DATA BOOLEAN (LabelType);
+
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType FIXED PANEL
     PROPERTIES(l) idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
-                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType
+                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType, notPrintRetailPriceLabelType
 
     TREE treeStore a=STRING[3], st=StoreType, s=Store
     PROPERTIES READONLY OBJVALUE(a), nameStockGroup(st), nameStore(s)
@@ -303,6 +304,7 @@ priceListTypeLabelTransactionDetail(d) = OVERRIDE priceListTypeLabelTypeLabelTra
 namePriceListTypeLabelTransactionDetail 'Вид цен' (labelTransactionDetail) = namePriceListType(priceListTypeLabelTransactionDetail(labelTransactionDetail));     
 
 printNullPriceLabelTransactionDetail = printNullPriceLabelType(labelTypeLabelTransactionDetail(detail));
+notPrintRetailPriceLabelTransactionDetail = notPrintRetailPriceLabelType(labelTypeLabelTransactionDetail(detail));
 
 departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
 
@@ -501,7 +503,7 @@ WHEN SESSION FORMS customLabelTransaction
         priceLabelTransactionDetail(d) <- OVERRIDE 
             calcPriceLabelTransactionDetail(d), 
             documentPriceLabelTransactionDetail(d);
-        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);   
+        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
 }
 
 WHEN SESSION FORMS customLabelTransaction
@@ -657,8 +659,13 @@ EXTEND FORM customLabelTransaction
         FILTER 'В документе ' quantityLabelTransactionDetailSkuLabelTransaction(ks, l) 'F9'
                   
 ;
+
+skipLabelTransactionDetail 'Не печатать на ценник' = ABSTRACT BOOLEAN (LabelTransactionDetail);
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, prefix)
+
+    createAttribute###document##DetailLabelTransactionDetail = ABSTRACT ACTION LIST (###detailProp##Detail, LabelTransactionDetail);
+    
     create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION {        
         
         IF isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()) THEN {
@@ -692,9 +699,11 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                                                              ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
 
                         priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d); 
+                        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
+                        createAttribute###document##DetailLabelTransactionDetail(dd, d);
                     }
-                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND (NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d));
+                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d);
+                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT retailPriceLabelTransactionDetail(d) AND notPrintRetailPriceLabelTransactionDetail(d);
                     printLabelTransaction(t);
             }
             printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
@@ -728,6 +737,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                         documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
                         
                         createAttributeLabelTransactionDetail(d);
+                        createAttribute###document##DetailLabelTransactionDetail(dd, d);
                 }
                 FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
                 IF formResult() == FormResult.ok THEN {
