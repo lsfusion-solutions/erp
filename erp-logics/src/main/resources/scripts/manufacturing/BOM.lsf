@@ -612,6 +612,10 @@ inBOMStock 'Вкл.' (BOM, stock) = OVERRIDE
     nearestInCompanyBOMStockGroup(BOM, stockGroupStock(stock)),
     dataInStockBOM(stock, BOM);
     
+WHEN SESSION SET(BOM IS BOM) DO {
+    inBOMStock(BOM, stock) <- TRUE WHERE accessCompanyEmployeeStock(currentUser(), stock); 
+};
+    
 countStocksBOM = GROUP SUM 1 IF inBOMStock(BOM, stock) BY BOM;
     
 quantityChildWithStockGroupBOM (stockGroup, BOM) = GROUP SUM 1 IF dataInStockGroupBOM(childstockGroup, BOM) AND isParentStockGroupStockGroup(childstockGroup, stockGroup) BY stockGroup, BOM PERSISTENT;
