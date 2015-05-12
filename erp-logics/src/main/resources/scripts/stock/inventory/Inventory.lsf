@@ -1326,6 +1326,9 @@ editInventory 'Редактировать' = ACTION EDITFORM Inventory;
 
 editStockDocumentLedger(l) += ACTION editInventory(inventoryCollationSheet(l));
 
+@extendFormFilterStockAccess(ts, dialogStockInventory);
+
+accessCompanyStockCurrentUserInventory (in) = GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), ts) AND includeStockInventory(ts,in) BY in;
 
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory
@@ -1397,6 +1400,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(cs,bt) READONLY SHOWIF isBatchCollationSheet(cs) sumPageInventoryDetailCollationSheetBatch, sumBalanceCollationSheetBatch, sumShortageCollationSheetBatch
     FILTERS                                                     includeCollationSheetBatch(cs, bt),
                                                                 quantityPageInventoryDetailCollationSheetBatch(cs,bt) OR quantityBalanceCollationSheetBatch(cs,bt)
+    FILTERS accessCompanyStockCurrentUserInventory(in)
 ;
 
 DESIGN inventories {
