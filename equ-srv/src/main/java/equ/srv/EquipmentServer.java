@@ -697,6 +697,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
                 slQuery.and(stopListLM.findProperty("numberStopList").getExpr(stopListExpr).getWhere());
                 slQuery.and(stopListLM.findProperty("isPostedStopList").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("toExportStopList").getExpr(stopListExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
                 for (int i = 0, size = slResult.size(); i < size; i++) {
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
