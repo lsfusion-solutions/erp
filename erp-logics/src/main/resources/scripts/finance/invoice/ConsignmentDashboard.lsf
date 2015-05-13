@@ -120,6 +120,10 @@ filterOrders = IF createNotPickedInvoice()
 toInvoicedOrder = IF createNotPickedInvoice()
                     THEN TRUE IF (Sale.toInvoiceOrder(order) OR PurchaseReturn.toInvoiceOrder(order))
                     ELSE TRUE IF toInvoicePickedOrder(order);
+                    
+toInvoicedOrderDetail = IF createNotPickedInvoice()
+                         THEN TRUE IF (Sale.toInvoiceOrderDetail(order) OR PurchaseReturn.toInvoiceOrderDetail(order))
+                         ELSE TRUE IF toInvoicePickedOrderDetail(order);                    
 
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
@@ -145,7 +149,7 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     PROPERTIES(d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, nameBatchOrderDetail, quantityOrderDetail,
                   pickingQuantityOrderDetail, Invoice.invoicedOrderDetail, toInvoicePickedOrderDetail    
     FILTERS orderOrderDetail(d) == o
-    FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' toInvoicePickedOrderDetail(d) 'ctrl F6' DEFAULT 
+    FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' toInvoicedOrderDetail(d) 'ctrl F6' DEFAULT 
     
     OBJECTS i = Invoice.Invoice FIXED GRID
     PROPERTIES (i) FORCE PANEL numInv=numberInvoice ON CHANGE changeNumberInvoice(i), serInv=seriesInvoice ON CHANGE changeSeriesInvoice(i)
