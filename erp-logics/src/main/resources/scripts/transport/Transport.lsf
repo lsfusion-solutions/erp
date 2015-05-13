@@ -40,10 +40,14 @@ nameTruck 'Наименование' (truck) = VARSTRING[70](CONCAT ',', nameTru
 trailerTruck 'Прицеп' = DATA VARSTRING[100](Truck);
 weightTruck 'Грузоподъёмность (кг)' = DATA NUMERIC[14,2](Truck);
 ownerTruck 'Владелец' = DATA VARSTRING[200](Truck);
+notOwnertruck = NOT ownerTruck(truck);
+legalEntityTruck = DATA LegalEntity (Truck);
+nameLegalEntityTruck 'Владелец(Организация)' = fullNameLegalEntity(legalEntityTruck(truck)); 
 
 FORM truck 'Машина'
     OBJECTS t=Truck FIXED PANEL
-    PROPERTIES (t) sidTruck, nameTruckModelTruck, nameTruck, trailerTruck, ownerTruck, weightTruck
+    PROPERTIES (t) sidTruck, nameTruckModelTruck, nameTruck, trailerTruck, ownerTruck, weightTruck, 
+                   nameLegalEntityTruck SHOWIF notOwnertruck(t)
 
     EDIT Truck OBJECT t
 ;
@@ -56,7 +60,8 @@ DESIGN truck {
 
 FORM trucks 'Машины'
     OBJECTS t=Truck
-    PROPERTIES(t) READONLY sidTruck, nameTruckModelTruck, nameTruck, trailerTruck, ownerTruck, weightTruck
+    PROPERTIES(t) READONLY sidTruck, nameTruckModelTruck, nameTruck, trailerTruck, ownerTruck, 
+                           nameLegalEntityTruck, weightTruck
     PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Truck OBJECT t

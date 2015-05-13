@@ -117,14 +117,14 @@ fullNamePayerConsignment 'Наим-ие для накладных заказчи
 
 GROUP carConsignment 'Автомобиль' : base;
 
-truckConsignment = ABSTRACT Truck(Consignment);
+defaultTruckConsignment = ABSTRACT Truck(Consignment);
 dataTruckConsignment = ABSTRACT Truck(Consignment);
-nameTruckConsignment 'Автомобиль' (consignment) = OVERRIDE nameTruck(truckConsignment(consignment)),
-                                                           nameTruck(dataTruckConsignment(consignment)) IN carConsignment;
+truckConsignment(consignment) = OVERRIDE defaultTruckConsignment(consignment), dataTruckConsignment(consignment);  
+nameTruckConsignment 'Автомобиль' (consignment) = nameTruck(truckConsignment(consignment)) IN carConsignment;
 
 dataOwnerTruckConsignment 'Владелец автомобиля' = DATA VARISTRING[200] (Consignment);
-ownerTruckConsignment 'Владелец автомобиля' (consignment) = OVERRIDE ownerTruck(truckConsignment(consignment)),
-                                                                     ownerTruck(dataTruckConsignment(consignment)),
+ownerTruckConsignment 'Владелец автомобиля' (consignment) = OVERRIDE nameLegalEntityTruck(truckConsignment(consignment)), 
+                                                                     ownerTruck(truckConsignment(consignment)),
                                                                      dataOwnerTruckConsignment(consignment) IN carConsignment;
 
 dataTrailerConsignment = ABSTRACT VARSTRING[100] (Consignment);
@@ -586,8 +586,9 @@ FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment FIXED PANEL
 
     PROPERTIES (c) READONLY nameSupplierStockConsignment
-    PROPERTIES (c) numberConsignment, seriesConsignment, dateConsignment, UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment, fullNameSupplierConsignment,
-                   fullNameCustomerConsignment, nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
+    PROPERTIES (c) numberConsignment, seriesConsignment, dateConsignment, UNPCustomerConsignment READONLY, UNPSupplierConsignment READONLY, 
+                   addressSupplierConsignment READONLY, addressCustomerConsignment READONLY, fullNameSupplierConsignment READONLY,
+                   fullNameCustomerConsignment READONLY, nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
                    shipmentBaseConsignment, addressSupplierStockConsignment, addressCustomerStockConsignment,
                    readdressingConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
                    forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
