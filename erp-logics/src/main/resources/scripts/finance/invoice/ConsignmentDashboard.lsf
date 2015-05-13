@@ -16,12 +16,27 @@ countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrintTrip(trip
 
 inConsignmentPrintTrip = GROUP MAX trip IF countOrderConsignmentPrintTrip(trip);
 
+createNotPickedInvoice 'Выписывать накладные на заказы без комплектации' = DATA BOOLEAN (); 
+
+EXTEND FORM options 
+    PROPERTIES () createNotPickedInvoice
+;
+
+DESIGN options {
+    sale {        
+        MOVE PROPERTY(createNotPickedInvoice());
+    }    
+}
+
 printConsignmentOrder 'Создать накладные' = ACTION (order) {
     IF countInConsignmentPrintOrder() THEN {
         IF countInConsignmentPrintTrip() > 1 THEN {
             MESSAGE 'Выберите заказы одного рейса';
         } ELSE {
             inCreatePickingUserInvoicePostedOrder(o) <- inConsignmentPrintOrder(o);
+            IF createNotPickedInvoice()
+                THEN addUserInvoiceOrder(order)
+                ELSE createPickingUserInvoicePostedOrder(order);
             createPickingUserInvoicePostedOrder(order);
             FOR createdUserInvoiceOrder(i, o) DO {
                 tripInvoice(i) <- tripOrder(o);
@@ -38,7 +53,10 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
             apply();
         }
     } ELSE {
-        createPickingUserInvoicePostedOrder(order);  
+        IF createNotPickedInvoice()
+            THEN addUserInvoiceOrder(order)
+            ELSE createPickingUserInvoicePostedOrder(order);
+        createPickingUserInvoicePostedOrder(order);
         FOR createdUserInvoiceOrder(i, order) DO {
             tripInvoice(i) <- tripOrder(order);
             IF i IS Sale.Invoice AND tripInvoice(i) THEN {
@@ -95,6 +113,14 @@ changeSeriesInvoice (invoice) = ACTION (invoice) {
 printedConsignment 'Распечатана' = DATA BOOLEAN (Consignment);
 notPrintedConsignment = TRUE AND NOT printedConsignment(consignment);
 
+filterOrders = IF createNotPickedInvoice() 
+                    THEN order IS Order
+                    ELSE pickedOrder(order);
+                    
+toInvoicedOrder = IF createNotPickedInvoice()
+                    THEN TRUE IF (Sale.toInvoiceOrder(order) OR PurchaseReturn.toInvoiceOrder(order))
+                    ELSE TRUE IF toInvoicePickedOrder(order);
+
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
     OBJECTS dt = DATE FIXED PANEL
@@ -108,9 +134,9 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                   nameToOrder, nameToStockOrder, addressToStockOrder, grossWeightOrderPickingOrder, packQuantityOrder, quantityOrderDetailOrder,
                   noteOrder
     PROPERTIES(o) printConsignmentOrder FORCE PANEL TOOLBAR
-    FILTERS isPostedOrder (o) AND pickedOrder(o)
-    FILTERGROUP toInvoice FILTER 'Не выписаны' toInvoicePickedOrder(o) 'ctrl F6' DEFAULT
-    FILTERGROUP opened FILTER 'Открыт' NOT isClosedOrder(o) 'F4' DEFAULT    
+    FILTERS isPostedOrder (o) AND filterOrders(o)
+    FILTERGROUP toInvoice FILTER 'Не выписаны' toInvoicedOrder(o) 'ctrl F6' DEFAULT
+    FILTERGROUP opened FILTER 'Открыт' NOT isClosedOrder(o) 'F4' DEFAULT
     FILTERGROUP filters FILTER 'Текущие заказы' dateOrder(o)<=dt 'F5' DEFAULT
                         FILTER 'Будущие заказы' dateOrder(o)>dt 'F6'       
     FILTERS outOrder (o)
@@ -134,9 +160,8 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     PROPERTIES (i)  FORCE PANEL printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
                                 printConsignmentVerticalB, printConsignmentHorizontalB,
                                 printConsignmentAttach, printConsignmentSimpleHorizontal, editAttributesConsignment,
-                                printConsignmentSimpleVertical, printConsignmentSimpleAttach, printConsignmentAttachXLS
+                                printConsignmentSimpleVertical, printConsignmentSimpleAttach, printConsignmentAttachXLS                        
                                 
-                               
     FILTERS outInvoice (i)                            
     FILTERGROUP filters1 FILTER 'Предыдущие накладные' dateInvoice(i)<dt 'F7'
                          FILTER 'Накладные на дату' dateInvoice(i)==dt 'F8' DEFAULT
@@ -182,7 +207,7 @@ DESIGN consignmentDashboard {
                     NEW secondContainer BEFORE tabContainer {
                         fill = 1;
                         MOVE o.box{
-                            caption = 'Скомплектованные заказы';
+                            caption = 'Заказы';
                                 PROPERTY(nameToOrder(o)){
                                     minimumCharWidth = 40;
                                 }

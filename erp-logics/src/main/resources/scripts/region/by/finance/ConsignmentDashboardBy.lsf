@@ -1,0 +1,179 @@
+MODULE ConsignmentDashboardBy;
+
+REQUIRE ConsignmentDashboard;
+
+NAMESPACE Order;
+
+//умная печать накладных
+sessionIssuanceAllowed = DATA LOCAL Employee ();
+nameSessionIssuanceAllowed 'Отпуск разрешил' = nameContact(sessionIssuanceAllowed());
+
+sessionIssuanceExecuted = DATA LOCAL Employee();
+nameSessionIssuanceExecuted 'Отпуск произвел' () = nameContact(sessionIssuanceExecuted());
+
+sessionLoadingExecuter = DATA LOCAL LegalEntity();
+nameSessionLoadingExecuter 'Исполнитель погрузки' () = nameLegalEntity(sessionLoadingExecuter());
+
+sessionWayOfLoading = DATA LOCAL WayOfLoading();
+nameSessionWayOfLoading 'Способ погрузки' () = nameWayOfLoading(sessionWayOfLoading());
+
+sessionUnloadingExecuter = DATA LOCAL LegalEntity();
+nameSessionUnloadingExecuter 'Исполнитель разгрузки' () = nameLegalEntity(sessionUnloadingExecuter());
+
+sessionWayOfUnloading = DATA LOCAL WayOfLoading();
+nameSessionWayOfUnloading 'Способ разгрузки' () = nameWayOfLoading(sessionWayOfUnloading());
+
+sessionCodeLoading 'Код ПРР' = DATA LOCAL STRING[3] ();
+
+numberCopiesConsignment 'Кол-во экз. накладной' = DATA INTEGER ();
+numberCopiesAttach 'Кол-во экз. приложения' = DATA INTEGER ();
+
+countRowsVerticalABConsignment = ABSTRACT INTEGER (Consignment);
+overCountRowsVerticalABConsignment = OVERRIDE countRowsVerticalAB(), countRowsVerticalABConsignment(consignment);
+
+
+EXTEND FORM options
+    PROPERTIES() numberCopiesConsignment, numberCopiesAttach
+;
+
+DESIGN options {
+    commons {
+        consignment  {
+            type = CONTAINERH;
+            NEW row1{
+                type = CONTAINERV;
+                MOVE PROPERTY(dataDowntime());
+                MOVE PROPERTY(notArrivalTimeConsignment());    
+                MOVE PROPERTY(notNullInvoiceVAT());          
+            }
+            NEW row2{
+                type = CONTAINERV;
+                MOVE PROPERTY(countRowsSimpleVertical());
+                MOVE PROPERTY(countRowsSimpleHorizontal());
+                MOVE PROPERTY(countRowsVerticalA());
+                MOVE PROPERTY(countRowsVerticalAB());
+                MOVE PROPERTY(countRowsHorizontal());
+            }
+            NEW row3{
+                type = CONTAINERV;
+                MOVE PROPERTY(numberCopiesConsignment());
+                MOVE PROPERTY(numberCopiesAttach());
+            }
+        }
+
+    }
+}
+
+//TABLE consignment (Consignment);
+dataNumberCopiesConsignmentConsignment 'Кол-во экз. накладной' = DATA INTEGER (Consignment);
+dataNumberCopiesAttachConsignment 'Кол-во экз. приложения' = DATA INTEGER (Consignment);
+
+numberCopiesConsignmentConsignment 'Кол-во экз. накладной' (consignment)= OVERRIDE (numberCopiesConsignment() IF consignment IS Consignment), 
+                                                                                    dataNumberCopiesConsignmentConsignment(consignment);
+numberCopiesAttachConsignment 'Кол-во экз. приложения' (consignment)= OVERRIDE (numberCopiesAttach() IF consignment IS Consignment), 
+                                                                                dataNumberCopiesAttachConsignment(consignment);
+                                                                                    
+FORM numberCopies 'Настройки печати'
+    PROPERTIES() nameSessionIssuanceAllowed, nameSessionIssuanceExecuted, 
+                 nameSessionLoadingExecuter, 
+                 nameSessionWayOfLoading, 
+                 nameSessionUnloadingExecuter, 
+                 nameSessionWayOfUnloading, sessionCodeLoading 
+    OBJECTS c = Consignment FIXED PANEL
+    PROPERTIES(c) numberCopiesConsignmentConsignment, numberCopiesAttachConsignment 
+        
+;
+ 
+DESIGN numberCopies {
+    main{
+        NEW top{
+            type = CONTAINERH;
+            NEW topLeft {
+                caption = 'Погрузка';
+                type = CONTAINERV;
+                MOVE PROPERTY (nameSessionIssuanceAllowed());
+                MOVE PROPERTY (nameSessionIssuanceExecuted());
+                MOVE PROPERTY (nameSessionLoadingExecuter());
+                MOVE PROPERTY (nameSessionWayOfLoading());
+                MOVE PROPERTY (nameSessionUnloadingExecuter());
+                MOVE PROPERTY (nameSessionWayOfUnloading());
+                MOVE PROPERTY (sessionCodeLoading());
+            }
+            NEW topReight {
+                caption = 'Кол-во копий';
+                type = CONTAINERV;
+                MOVE PROPERTY (numberCopiesConsignmentConsignment(c));
+                MOVE PROPERTY (numberCopiesAttachConsignment(c));
+            }
+        }           
+        MOVE functions.box;
+    }
+}
+           
+overPrintDoubleSidedConsignmentsVertical = ABSTRACT ACTION LIST (Consignment);
+overSetDoubleSidedConsignmentsVertical = ABSTRACT ACTION LIST (Consignment);
+printDoubleSidedConsignmentsVertical 'Печать документов' (consignment) = ACTION (consignment){
+    sessionIssuanceAllowed() <- issuanceAllowedStock(supplierStockConsignment(consignment));
+    sessionIssuanceExecuted() <- issuanceExecutedStock(supplierStockConsignment(consignment));
+    sessionLoadingExecuter() <- loadingExecuterStock(supplierStockConsignment(consignment));
+    sessionWayOfLoading() <- wayOfLoadingStock(supplierStockConsignment(consignment));
+    sessionUnloadingExecuter() <- unloadingExecuterStock(supplierStockConsignment(consignment));
+    sessionWayOfUnloading() <- wayOfUnloadingStock(supplierStockConsignment(consignment));    
+    sessionCodeLoading() <- codeLoadingStock(supplierStockConsignment(consignment));
+    FORM numberCopies OBJECTS c = consignment MODAL;
+    LOCAL countConsignment = INTEGER();        
+    LOCAL countAttach = INTEGER();                                                      
+                            
+    IF formResult() == FormResult.ok THEN {
+        issuanceAllowedConsignment(consignment) <- sessionIssuanceAllowed();
+        issuanceExecutedConsignment(consignment) <- sessionIssuanceExecuted();
+        loadingExecuterConsignment(consignment) <- sessionLoadingExecuter();
+        wayOfLoadingConsignment(consignment) <- sessionWayOfLoading();
+        unloadingExecuterConsignment(consignment) <- sessionUnloadingExecuter();
+        wayOfUnloadingConsignment(consignment) <- sessionWayOfUnloading();        
+        codeLoadingConsignment(consignment) <- sessionCodeLoading();
+        
+        overSetDoubleSidedConsignmentsVertical(consignment);
+        
+        countConsignment() <- 0;            
+        countAttach() <- 0;            
+        
+        IF countConsignmentDetailConsignment(consignment) <= overCountRowsVerticalABConsignment (consignment) THEN {
+            WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                printConsignmentVerticalABAuto(consignment);
+                countConsignment() <- countConsignment() + 1;
+            }               
+        } ELSE {
+            IF  countConsignmentDetailConsignment(consignment) <= countRowsVerticalA () THEN {
+                WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                    printConsignmentVerticalAuto(consignment);
+                    countConsignment() <- countConsignment() + 1;
+                }                 
+            
+            } ELSE {
+                WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                    printConsignmentVerticalABAuto(consignment);
+                    countConsignment() <- countConsignment() + 1;
+                }      
+                WHILE countAttach() < numberCopiesAttachConsignment(consignment) DO {
+                    printConsignmentAttachAuto(consignment);
+                    countAttach() <- countAttach() + 1;
+                }                          
+            }                                    
+        }
+        
+        printedConsignment(consignment) <- TRUE IF consignment IS Consignment;
+        overPrintDoubleSidedConsignmentsVertical(consignment);
+        apply();                 
+    }     
+} IMAGE 'print.png';
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES (i) printDoubleSidedConsignmentsVertical FORCE PANEL
+;
+
+DESIGN consignmentDashboard {
+    consignmentRow2 {
+        MOVE PROPERTY(printDoubleSidedConsignmentsVertical(i));
+    }
+}
