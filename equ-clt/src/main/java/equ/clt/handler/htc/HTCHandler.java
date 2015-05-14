@@ -67,9 +67,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                     Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<>();
                     for (CashRegisterInfo cashRegister : enabledCashRegisterList.isEmpty() ? transaction.machineryInfoList : enabledCashRegisterList) {
-                        if (cashRegister.succeeded)
+                        if (cashRegister.succeeded || cashRegister.directory == null)
                             succeededCashRegisterList.add(cashRegister);
-                        else if (cashRegister.directory != null) {
+                        else {
                             String directory = cashRegister.directory.trim();
                             List<CashRegisterInfo> cashRegisterEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
                             cashRegisterEntry.add(cashRegister);
