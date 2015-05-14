@@ -140,6 +140,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         return dividend.divide(quotient, scale, RoundingMode.HALF_UP);
     }
 
+    protected BigDecimal safeNegate(BigDecimal operand) {
+        return operand == null ? null : operand.negate();
+    }
+
     protected String trim(String input) {
         return input == null ? null : input.trim();
     }
