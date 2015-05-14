@@ -154,7 +154,13 @@ FORM printListSalesReport 'Отчет по продажам'
 
 printListSalesReport 'Списком' (stock, dateFrom, dateTo) =
     ACTION FORM printListSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
-
+    
+inReportSku= DATA LOCAL BOOLEAN (Sku);
+filterSkuStockDateFromTo (s, st, df, dt) = quantitySoldSkuStockDateFromTo(s, st, df, dt) OR 
+                                                      costSumSoldSkuStockDateFromTo(s, st, df, dt) OR
+                                                      markupSumSoldSkuStockDateFromTo(s, st, df, dt) OR 
+                                                      sumVATSoldSkuStockDateFromTo(s, st, df, dt) OR
+                                                      sumSoldSkuStockDateFromTo(s, st, df, dt);
 FORM printListSkuSalesReport 'Отчет по продажам'
     OBJECTS df=DATE FIXED PANEL
     PROPERTIES dateFrom = OBJVALUE(df)
@@ -178,13 +184,19 @@ FORM printListSkuSalesReport 'Отчет по продажам'
                                        sumVATSoldSkuStockDateFromTo, sumSoldSkuStockDateFromTo
     ORDER BY nameSku(s)
     FILTERS inSessionGroup(groupGroupTypeSku(gt, s)),
-            quantitySoldSkuStockDateFromTo(s, st, df, dt) OR costSumSoldSkuStockDateFromTo(s, st, df, dt) OR
-            markupSumSoldSkuStockDateFromTo(s, st, df, dt) OR sumVATSoldSkuStockDateFromTo(s, st, df, dt) OR
-            sumSoldSkuStockDateFromTo(s, st, df, dt)
+            inReportSku(s)
+//            quantitySoldSkuStockDateFromTo(s, st, df, dt) OR costSumSoldSkuStockDateFromTo(s, st, df, dt) OR
+//            markupSumSoldSkuStockDateFromTo(s, st, df, dt) OR sumVATSoldSkuStockDateFromTo(s, st, df, dt) OR
+//            sumSoldSkuStockDateFromTo(s, st, df, dt)
 ;
 
-printListSkuSalesReport 'Списком(по товарам)' (stock, dateFrom, dateTo) =
-    ACTION FORM printListSkuSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
+printListSkuSalesReport 'Списком(по товарам)' (stock, dateFrom, dateTo) = ACTION {
+    inReportSku(sku) <- NULL;
+    inReportSku(sku) <- filterSkuStockDateFromTo (sku, stock, dateFrom, dateTo) WHERE filterSkuStockDateFromTo (sku, stock, dateFrom, dateTo);
+    FORM printListSkuSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT;
+    
+} IMAGE 'print.png' IN print;
+     
 
 FORM printSalesReport 'Отчет по продажам'
     OBJECTS df=DATE FIXED PANEL
