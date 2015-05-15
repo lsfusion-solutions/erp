@@ -284,7 +284,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                                     try {
                                         if (!append) {
-                                            processTransactionLogger.info(String.format("HTC: Transaction # %s creating %s file", transaction.id, directory + "/" + fileName));
+                                            processTransactionLogger.info(String.format("HTC: Transaction # %s copying %s file", transaction.id, directory + "/" + fileName));
                                             FileCopyUtils.copy(cachedPriceFile, priceFile);
                                             processTransactionLogger.info(String.format("HTC: Transaction # %s finished copying %s file", transaction.id, directory + "/" + fileName));
                                         }
