@@ -10,18 +10,63 @@ REQUIRE System,
 
 //------------------------------------Отчет по таре-------------------------------------------//
 
-
-accountSumContainerStockDateFrom 'Остаток на начало по складу' (stock, date) = GROUP SUM accountSumBBatchStockDate(batch, stock, dateFrom)
-    IF isContainerBatch(batch) BY stock, dateFrom;
-
-accountSumContainerStockDateTo 'Остаток на конец по складу' (stock, date) = GROUP SUM accountSumABatchStockDate(batch, stock, dateTo)
-    IF isContainerBatch(batch) BY stock, dateTo;
-
 overMovementContainerBatchStockDateFromTo (batch, stock, dateFrom, dateTo) =
     OVERRIDE balanceBBatchStockDate(batch, stock, dateFrom),
              balanceABatchStockDate(batch, stock, dateTo),
              costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo),
              costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
+
+accountSumInBalanceBatchStockDateFromTo 'Сумма прихода' (batch, stock, dateFrom, dateTo) = GROUP SUM costSkuLedgerBatch (ledger, batch)* accountPriceABatchStockDateTime(batch, stock, dateTimeSkuLedger(ledger))
+    IF ledger IS InSkuLedger AND isPostedSkuLedger(ledger)
+    AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
+    BY batch, stockSkuLedger(ledger), dateFrom, dateTo;
+    
+accountSumOutBalanceBatchStockDateFromTo 'Сумма расхода' (batch, stock, dateFrom, dateTo) = GROUP SUM costSkuLedgerBatch (ledger, batch)* accountPriceABatchStockDateTime(batch, stock, dateTimeSkuLedger(ledger))
+    IF ledger IS OutSkuLedger AND isPostedSkuLedger(ledger)
+    AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
+    BY batch, stockSkuLedger(ledger), dateFrom, dateTo;
+
+inContainerMovementBatch = DATA LOCAL BOOLEAN (Batch);
+
+balanceInBatch 'Остаток на начало' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumInBatch 'Сумма на начало' =  DATA LOCAL NUMERIC[15,3] (Batch);
+
+balanceOutBatch 'Остаток на конец' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumOutBatch 'Сумма на конец' =  DATA LOCAL NUMERIC[15,3] (Batch);
+
+balanceMoveInBatch 'Приход' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumMoveInBatch 'Сумма прихода' =  DATA LOCAL NUMERIC[15,3] (Batch);
+
+balanceMoveOutBatch 'Приход' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumMoveOutBatch 'Сумма прихода' =  DATA LOCAL NUMERIC[15,3] (Batch);
+
+lastPriceBatch 'Цена'  = DATA LOCAL NUMERIC[15,3] (Batch);
+
+accountSumContainerStockDateFrom 'Остаток на начало по складу'  = GROUP SUM sumInBatch (bt);
+
+accountSumContainerStockDateTo 'Остаток на конец по складу' = GROUP SUM sumOutBatch(bt);
+
+includeContainerMovementBatchStockDateFromTo 'Рассчитать' = ACTION (stock, dateFrom, dateTo){
+    
+    inContainerMovementBatch (bt) <- isPostedBatch(bt) AND isContainerBatch(bt);
+    
+    inContainerMovementBatch (bt) <- NULL WHERE inContainerMovementBatch (bt) AND NOT overMovementContainerBatchStockDateFromTo(bt, stock, dateFrom, dateTo); 
+    
+    balanceInBatch(bt) <- balanceBBatchStockDate(bt, stock, dateFrom) IF inContainerMovementBatch (bt);
+    sumInBatch (bt) <- balanceInBatch(bt) * accountPriceBBatchStockDate(bt, stock, dateFrom);
+    
+    balanceOutBatch (bt) <- balanceABatchStockDate(bt, stock, dateTo) IF inContainerMovementBatch (bt);
+    lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, dateTo) IF inContainerMovementBatch (bt);
+    sumOutBatch (bt) <- balanceOutBatch(bt) * lastPriceBatch(bt);
+    
+    balanceMoveInBatch (bt) <- costInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
+    sumMoveInBatch (bt) <- accountSumInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
+    
+    balanceMoveOutBatch (bt) <- costOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
+    sumMoveOutBatch (bt) <- accountSumOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
+ 
+    formRefresh();
+}
 
 FORM containerMovement 'Отчет по таре'
 
@@ -29,20 +74,24 @@ FORM containerMovement 'Отчет по таре'
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
 
     OBJECTS dep = DepartmentStore  FIXED PANEL
-    PROPERTIES(dep) SELECTOR nameDepartmentStore, nameLegalEntityDepartmentStore
+    PROPERTIES(dep) SELECTOR nameDepartmentStore, nameLegalEntityDepartmentStore  
 
     OBJECTS bt=Batch
 
-    PROPERTIES READONLY accountSumContainerStockDateFrom(dep, dFrom), accountSumContainerStockDateTo(dep, dTo)
-    PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, costBatch
-    PROPERTIES(bt, dep, dFrom) READONLY balanceBBatchStockDate, accountSumBBatchStockDate
-    PROPERTIES(bt, dep, dTo) READONLY balanceABatchStockDate, accountSumABatchStockDate
-    PROPERTIES(bt, dep, dFrom, dTo) READONLY costInBalanceBatchStockDateFromTo, costSumInBalanceBatchStockDateFromTo,
-               costOutBalanceBatchStockDateFromTo, costSumOutBalanceBatchStockDateFromTo
+    PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
+    PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, nameSupplierBatch, lastPriceBatch
+    PROPERTIES(bt) READONLY balanceInBatch, sumInBatch, balanceOutBatch, sumOutBatch, balanceMoveInBatch, sumMoveInBatch, balanceMoveOutBatch, sumMoveOutBatch
+               
+    FILTERS inContainerMovementBatch(bt)
+    
+    ORDER BY nameSkuBatch(bt)
 
-    FILTERS isPostedBatch(bt),
-            isContainerBatch(bt),
-            overMovementContainerBatchStockDateFromTo(bt, dep, dFrom, dTo)!=0
+    PROPERTIES includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo) TOOLBAR TODRAW bt
+    
+    EVENTS 
+        ON CHANGE dFrom includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo), 
+        ON CHANGE dTo includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo),
+        ON CHANGE dep includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo)
 ;
 
 DESIGN containerMovement {
@@ -61,8 +110,8 @@ DESIGN containerMovement {
         NEW sums {
             caption = 'Суммы';
             type = CONTAINERH;
-            MOVE PROPERTY(accountSumContainerStockDateFrom(dep,dFrom));
-            MOVE PROPERTY(accountSumContainerStockDateTo(dep,dTo));
+            MOVE PROPERTY(accountSumContainerStockDateFrom());
+            MOVE PROPERTY(accountSumContainerStockDateTo());
         }
         NEW print {
             type = CONTAINERH;

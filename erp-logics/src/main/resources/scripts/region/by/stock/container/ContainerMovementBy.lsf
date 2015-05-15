@@ -6,24 +6,19 @@ NAMESPACE ContainerMovement;
 
 FORM printContainerMovementBy 'Отчет по таре'
 
-    OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    OBJECTS params = (dFrom = DATE, dTo = DATE, dep = DepartmentStore) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
-
-    OBJECTS dep = DepartmentStore  FIXED PANEL
     PROPERTIES(dep) SELECTOR nameDepartmentStore, nameStoreDepartmentStore, nameLegalEntityDepartmentStore
 
     OBJECTS bt=Batch
 
-    PROPERTIES READONLY accountSumContainerStockDateFrom(dep, dFrom), accountSumContainerStockDateTo(dep, dTo)
-    PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, costBatch
-    PROPERTIES(bt, dep, dFrom) READONLY balanceBBatchStockDate, accountSumBBatchStockDate
-    PROPERTIES(bt, dep, dTo) READONLY balanceABatchStockDate, accountSumABatchStockDate
-    PROPERTIES(bt, dep, dFrom, dTo) READONLY costInBalanceBatchStockDateFromTo, costSumInBalanceBatchStockDateFromTo,
-               costOutBalanceBatchStockDateFromTo, costSumOutBalanceBatchStockDateFromTo
-
-    FILTERS isPostedBatch(bt),
-            isContainerBatch(bt),
-            overMovementContainerBatchStockDateFromTo(bt, dep, dFrom, dTo)!=0
+    PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
+    PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, nameSupplierBatch, lastPriceBatch
+    PROPERTIES(bt) READONLY balanceInBatch, sumInBatch, balanceOutBatch, sumOutBatch, balanceMoveInBatch, sumMoveInBatch, balanceMoveOutBatch, sumMoveOutBatch
+    
+    FILTERS inContainerMovementBatch(bt)
+    
+    ORDER BY nameSkuBatch(bt)
 ;
 
 printContainerMovementBy 'Распечатать' (dateFrom, dateTo, departmentStore) =
