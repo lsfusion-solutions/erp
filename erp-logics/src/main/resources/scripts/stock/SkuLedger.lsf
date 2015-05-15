@@ -1,6 +1,6 @@
 MODULE SkuLedger;
 
-REQUIRE Stock, Sku, EmployeeStock;
+REQUIRE Stock, Sku, EmployeeStock, Document;
 
 NAMESPACE Stock;
 
@@ -626,12 +626,7 @@ DESIGN options {
 CONSTRAINT currentBalanceSkuStock(sk, st) < 0.0 AND banNegativeSku()
     MESSAGE 'Текущий остаток должен быть больше нуля';
 
-allowedEditSkuLedgerCustomUser 'Разрешить редактирование закрытых документов' = DATA BOOLEAN (CustomUser);
-EXTEND FORM customUser
-    PROPERTIES (u) allowedEditSkuLedgerCustomUser
-;
-
-allowedEditSkuLeadger (d) = NOT isClosedSkuLedger(d) OR allowedEditSkuLedgerCustomUser(currentUser());
+allowedEditSkuLedger (d) = NOT isClosedSkuLedger(d) OR allowedEditClosedDocumentsCustomUser(currentUser());
 // -------------------------------------- Последнее движение ---------------------------------- //
 
 dateTimeLastMovedSkuStock 'Время последнего движения' (sku, stock) =
@@ -731,7 +726,7 @@ FORM batches 'Партии'
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, idBatch SHOWIF showIDs(), 
                                nameBatch, nameStockBatch, shippedQuantityBatch, costBatch, expiryDateBatch, currentBalanceBatch
-    PROPERTIES(bt)    editSkuLedger SHOWIF allowedEditSkuLeadger(bt)
+    PROPERTIES(bt)    editSkuLedger SHOWIF allowedEditSkuLedger(bt)
     FILTERS           isParentSkuGroupBatch(sk, bt)
     ORDER BY          dateTimeBatch(bt)
 
@@ -805,7 +800,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
     PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
                              quantitySkuLedger, costedSkuLedger, sumSkuLedger
     PROPERTIES(bil)          resetCostDataSkuLedger FORCE GRID
-    PROPERTIES(bil)          editSkuLedger SHOWIF allowedEditSkuLeadger(bil)
+    PROPERTIES(bil)          editSkuLedger SHOWIF allowedEditSkuLedger(bil)
     FILTERS isSkuLedger(bil)
     ORDER BY dateTimeSkuLedger(bil)
 
@@ -1344,7 +1339,7 @@ FORM skuLedger 'Регистр движений'
     OBJECTS s = SkuLedger
     PROPERTIES(s) READONLY dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
                            signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, costSumSkuLedger
-    PROPERTIES(s) editSkuLedger SHOWIF allowedEditSkuLeadger(s)
+    PROPERTIES(s) editSkuLedger SHOWIF allowedEditSkuLedger(s)
     FILTERS isPostedSkuLedger(s)
 
     FILTERS dateSkuLedger(s) >= dFrom, dateSkuLedger(s) <= dTo

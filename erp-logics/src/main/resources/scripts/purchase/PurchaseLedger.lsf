@@ -10,6 +10,9 @@ datePurchaseLedger 'Дата' (ledger) = toDate(dateTimePurchaseLedger(ledger)) 
 
 isPostedPurchaseLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
 
+isClosedPurchaseLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
+allowedEditPurchaseLedger (d) = NOT isClosedPurchaseLedger(d) OR allowedEditClosedDocumentsCustomUser(currentUser());
+
 skipPurchaseLedger 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
 
 activePurchaseLedger (ledger) = isPostedPurchaseLedger(ledger) AND NOT skipPurchaseLedger(ledger);
@@ -248,7 +251,7 @@ FORM purchaseLedger 'Регистр поступлений'
                            quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger, nameCurrencyPurchaseLedger,
                            shipmentQuantityPurchaseLedger
     PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
-    PROPERTIES(s) editPurchaseLedger
+    PROPERTIES(s) editPurchaseLedger SHOWIF allowedEditPurchaseLedger(s)
     
     FILTERS activePurchaseLedger(s), filterPurchaseOperationSaleLedger(s), filterPurchaseCustomerSaleLedger(s)  
     FILTERS datePurchaseLedger(s) >= dFrom, datePurchaseLedger(s) <= dTo
@@ -300,6 +303,7 @@ NAVIGATOR {
 META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     dateTimePurchaseLedger (ledger) += dateTime###concrete##Detail(ledger);
     isPostedPurchaseLedger (ledger) += isPosted###concrete##Detail(ledger);
+    isClosedPurchaseLedger (ledger) += isClosed###concrete##Detail(ledger);
     numberDocumentPurchaseLedger(ledger) += number###concrete##Detail(ledger);
     skuPurchaseLedger (ledger) += skuProp###concrete##Detail(ledger);
     stockPurchaseLedger (ledger) += stockProp###concrete##Detail(ledger);

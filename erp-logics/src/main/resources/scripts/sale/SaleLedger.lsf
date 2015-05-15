@@ -13,6 +13,9 @@ nameMonthSaleLedger 'Месяц' (ledger) = extractMonthName(dateSaleLedger(ledg
 
 isPostedSaleLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT;
 
+isClosedSaleLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (SaleLedger);
+allowedEditSaleLedger (d) = NOT isClosedSaleLedger(d) OR allowedEditClosedDocumentsCustomUser(currentUser());
+
 skipSaleLedger 'Не проводить' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT; 
 
 activeSaleLedger (ledger) = isPostedSaleLedger(ledger) AND NOT skipSaleLedger(ledger);
@@ -329,7 +332,7 @@ FORM saleLedger 'Регистр продаж'
                            quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
                            sumVATSaleLedger, sumSaleLedger, discountSumSaleLedger, averagePriceSaleLedger
     PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)    
-    PROPERTIES(s) editSaleLedger
+    PROPERTIES(s) editSaleLedger SHOWIF allowedEditSaleLedger(s)
     
     FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
@@ -397,6 +400,7 @@ END
 META implementSaleLedgerCustom(concrete, skuProp, stockProp)
     dateTimeSaleLedger (ledger) += dateTime###concrete##Detail(ledger);
     isPostedSaleLedger (ledger) += isPosted###concrete##Detail(ledger);
+    isClosedSaleLedger (ledger) += isClosed###concrete##Detail(ledger);
     skuSaleLedger (ledger) += skuProp###concrete##Detail(ledger);
     stockSaleLedger (ledger) += stockProp###concrete##Detail(ledger);
     descriptionSaleLedger (ledger) += description###concrete##Detail(ledger);
