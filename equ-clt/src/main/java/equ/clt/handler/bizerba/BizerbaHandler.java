@@ -50,8 +50,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList, String charset, boolean encode) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
+        Map<String, String> brokenPortsMap = new HashMap<>();
         for(TransactionScalesInfo transaction : transactionList) {
             processTransactionLogger.info("Bizerba: Send Transaction # " + transaction.id);
 
@@ -79,30 +80,41 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                         String ip = scales.port;
                         if (ip != null) {
-                            ips.add(scales.port);
+                            ips.add(ip);
 
-                            try {
-
-                                processTransactionLogger.info("Bizerba: Connecting..." + ip);
-                                port.open();
-                                if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                    clearAll(localErrors, port, scales, charset, encode);
-                                }
-
-                                processTransactionLogger.info("Bizerba: Sending items..." + ip);
-                                if (localErrors.isEmpty()) {
-                                    loadAllPLU(transaction, localErrors, port, scales, charset, encode, capitalLetters);
-                                }
-                                port.close();
-
-                            } catch (Exception e) {
-                                logError(localErrors, "BizerbaHandler error: ", e);
-                            } finally {
-                                processTransactionLogger.info("Bizerba: Finally disconnecting..." + ip);
+                            if(brokenPortsMap.containsKey(ip)) {
+                                errors.put(ip, Collections.singletonList(brokenPortsMap.get(ip)));
+                            } else {
                                 try {
+
+                                    try {
+                                        processTransactionLogger.info("Bizerba: Connecting..." + ip);
+                                        port.open();
+                                    } catch (Exception e) {
+                                        processTransactionLogger.error(e);
+                                        brokenPortsMap.put(ip, "BizerbaHandler error: " + e.getMessage());
+                                        errors.put(ip, Collections.singletonList(e.getMessage()));
+                                        continue;
+                                    }
+                                    if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
+                                        clearAll(localErrors, port, scales, charset, encode);
+                                    }
+
+                                    processTransactionLogger.info("Bizerba: Sending items..." + ip);
+                                    if (localErrors.isEmpty()) {
+                                        loadAllPLU(transaction, localErrors, port, scales, charset, encode, capitalLetters);
+                                    }
                                     port.close();
-                                } catch (CommunicationException e) {
-                                    logError(localErrors, "BizerbaHandler close port error: ", e);
+
+                                } catch (Exception e) {
+                                    logError(localErrors, "BizerbaHandler error: ", e);
+                                } finally {
+                                    processTransactionLogger.info("Bizerba: Finally disconnecting..." + ip);
+                                    try {
+                                        port.close();
+                                    } catch (CommunicationException e) {
+                                        logError(localErrors, "BizerbaHandler close port error: ", e);
+                                    }
                                 }
                             }
                             processTransactionLogger.info("Bizerba: Completed ip: " + ip);
