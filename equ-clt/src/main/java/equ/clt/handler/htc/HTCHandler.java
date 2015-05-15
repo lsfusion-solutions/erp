@@ -105,8 +105,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
 
                             String directory = entry.getKey();
-                            if (directory != null && brokenDirectoriesMap.containsKey(directory.replace("/", "\\"))) {
-                                exception = brokenDirectoriesMap.get(directory.replace("/", "\\"));
+                            if (brokenDirectoriesMap.containsKey(directory)) {
+                                exception = brokenDirectoriesMap.get(directory);
                             } else {
                                 String fileName = transaction.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
                                 processTransactionLogger.info(String.format("HTC: Transaction # %s creating %s file", transaction.id, directory + "/" + fileName));
@@ -289,7 +289,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                             processTransactionLogger.info(String.format("HTC: Transaction # %s finished copying %s file", transaction.id, directory + "/" + fileName));
                                         }
                                         flagPriceFile.createNewFile();
-                                        waitList.add(Arrays.asList(priceFile, flagPriceFile, entry.getValue()));
+                                        waitList.add(Arrays.asList(priceFile, flagPriceFile, directory, entry.getValue()));
                                     } catch (IOException e) {
                                         brokenDirectoriesMap.put(priceFile.getParent(), e);
                                         exception = e;
@@ -566,9 +566,10 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 for (List<Object> waitEntry : waitList) {
                     File file = (File) waitEntry.get(0);
                     File flagFile = (File) waitEntry.get(1);
-                    List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(2);
+                    String directory = (String) waitEntry.get(2);
+                    List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(3);
                     if (flagFile.exists() || file.exists())
-                        nextWaitList.add(Arrays.asList(file, flagFile, cashRegisterInfoList));
+                        nextWaitList.add(Arrays.asList(file, flagFile, directory, cashRegisterInfoList));
                     else
                         succeededCashRegisterList.addAll(cashRegisterInfoList);
                 }
@@ -583,11 +584,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         for(List<Object> waitEntry : waitList) {
             File file = (File) waitEntry.get(0);
             File flagFile = (File) waitEntry.get(1);
+            String directory = (String) waitEntry.get(2);
             if(file.exists())
                 exception += file.getAbsolutePath() + "; ";
             if(flagFile.exists())
                 exception += flagFile.getAbsolutePath() + "; ";
-            brokenDirectoriesMap.put(file.getParent(), new RuntimeException(exception));
+            brokenDirectoriesMap.put(directory, new RuntimeException(exception));
         }
         return exception == null ? null : new RuntimeException(exception);
     }
