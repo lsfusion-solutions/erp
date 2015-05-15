@@ -436,12 +436,12 @@ turnoverGroupSnapshot 'Товароооборачиваемость, дн.' (gro
          
 //--По складам 
 cumBalanceStockSnapshot 'Накопленный остаток' (stock, snapshot) =
-    GROUP SUM cumBalanceGroupStockSnapshot(group, stock, snapshot) BY stock, snapshot;            
+    GROUP SUM cumBalanceSkuStockSnapshot(sku, stock, snapshot) BY stock, snapshot;            
 
 turnoverStockSnapshot 'Товароооборачиваемость, дн.' (stock, snapshot) = cumBalanceStockSnapshot(stock, snapshot) /
     (saleSumStockSnapshot(stock, snapshot) IF saleSumStockSnapshot(stock, snapshot) != 0);          
  
- 
+overCalcSaleSkuParamsInterval= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
 calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (snapshot, dateFrom, dateTo) {    
     IF turnoverSkuSnapshot(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
     
@@ -470,6 +470,7 @@ calcSaleSkuParamsInterval 'Рассчитать продажи в день и т
     
         daysOnStockSkuStockSnapshot(sku, stock, snapshot) <- daysOnStock(sku, stock);
         cumBalanceSkuStockSnapshot(sku, stock, snapshot) <- cumBalance(sku, stock);
+        overCalcSaleSkuParamsInterval(snapshot, dateFrom, dateTo);        
     }                                    
 } TOOLBAR;
 
