@@ -105,7 +105,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                             String directory = entry.getKey();
                             String fileName = transaction.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
-                            processTransactionLogger.info(String.format("HTC: creating %s file", fileName));
+                            processTransactionLogger.info(String.format("HTC: Transaction # %s creating %s file", transaction.id, directory + "/" + fileName));
                             File priceFile = new File(directory + "/" + fileName);
                             File flagPriceFile = new File(directory + "/price.qry");
 
@@ -279,8 +279,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 }
 
                                 try {
-                                    if (!append)
+                                    if (!append) {
+                                        processTransactionLogger.info(String.format("HTC: Transaction # %s copying %s file", transaction.id, directory + "/" + fileName));
                                         FileCopyUtils.copy(cachedPriceFile, priceFile);
+                                        processTransactionLogger.info(String.format("HTC: Transaction # %s finished copying %s file", transaction.id, directory + "/" + fileName));
+                                    }
                                     flagPriceFile.createNewFile();
                                     waitList.add(Arrays.asList(priceFile, flagPriceFile, entry.getValue()));
                                 } catch (IOException e) {
@@ -292,7 +295,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     dbfFile.close();
                             }
                         }
+                        processTransactionLogger.info(String.format("HTC: Transaction # %s wait for deletion", transaction.id));
                         Exception deletionException = waitForDeletion(waitList, succeededCashRegisterList);
+                        processTransactionLogger.info(String.format("HTC: Transaction # %s end waiting for deletion", transaction.id));
                         exception = exception == null ? deletionException : exception;
 
                         if (cachedPriceFile != null)
@@ -549,7 +554,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             try {
                 List<List<Object>> nextWaitList = new ArrayList<>();
                 count++;
-                if (count >= 60) {
+                if (count >= 120) {
                     break;
                 }
                 for (List<Object> waitEntry : waitList) {
@@ -573,7 +578,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             File file = (File) waitEntry.get(0);
             File flagFile = (File) waitEntry.get(1);
             if(file.exists())
-            exception += file.getAbsolutePath() + "; ";
+                exception += file.getAbsolutePath() + "; ";
             if(flagFile.exists())
                 exception += flagFile.getAbsolutePath() + "; ";
         }
