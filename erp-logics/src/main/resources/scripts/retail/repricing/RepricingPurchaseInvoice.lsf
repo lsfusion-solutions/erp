@@ -82,6 +82,8 @@ overNegativeInvoiceDetail= ABSTRACT ACTION LIST (InvoiceDetail);
 positiveInvoiceDetail =  DATA LOCAL BOOLEAN (InvoiceDetail);
 negativeInvoiceDetail =  DATA LOCAL BOOLEAN (InvoiceDetail);    
 
+saveSupplierPriceInRepricingInvoiceDetailDepartmentStore = ABSTRACT BOOLEAN (InvoiceDetail, DepartmentStore);
+
 createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, operation) {   
     IF [ = GROUP SUM 1 IF filterToRepricingInvoiceStockDateTime (invoice, department, timeFrom) BY department, timeFrom] (department, timeFrom) THEN {
         
@@ -124,7 +126,7 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
                         curPriceUserRepricingDetail(rd) <- prevSupplierPricingPriceBSkuStockDateTime(skuInvoiceDetail(detail), department, dateTimeInvoiceDetail(detail));
                         curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBInvoiceDetail(detail);
         
-                        priceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
+                        priceUserRepricingDetail(rd) <- IF NOT saveSupplierPriceInRepricingInvoiceDetailDepartmentStore(detail, department) THEN priceInvoiceDetail(detail) ELSE curPriceUserRepricingDetail(rd);
                         retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);                          
         
                         overExtraValuation(rd, detail);
