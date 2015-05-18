@@ -223,6 +223,7 @@ END
 
 META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
 
+    need###prop###propPostfix##Operation 'Должен быть задан для документа' = DATA BOOLEAN (Operation);
     // Отметка для групп
     dataIn###prop###propPostfix##GroupOperation 'Отм.' = DATA BOOLEAN (LegalEntityGroup, Operation);
 
@@ -256,6 +257,7 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
         TREE prop###propPostfix###groupTree object##g = LegalEntityGroup PARENT parentLegalEntityGroup
         PROPERTIES READONLY object##gTreeName = nameLegalEntityGroup(object##g)
         PROPERTIES in###prop###propPostfix###GroupOperation(object##g, o) BACKGROUND background###in###prop###propPostfix##GroupOperation(object##g, o)
+        PROPERTIES need###prop###propPostfix##Operation(o)
 
         OBJECTS object = LegalEntity
         PROPERTIES(object, o) in###prop###propPostfix##Operation BACKGROUND background###in###prop###propPostfix##Operation(object, o)
@@ -273,15 +275,20 @@ META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
     DESIGN operation {
         tabContainer {
             NEW prop###propPostfix###Container{
-                type = SPLITH;
                 caption = tabcaption;
-                MOVE prop###propPostfix###groupTree.tree.box;
-                MOVE object.box {
-                    fill = 3;
+                fill = 1;
+                MOVE PROPERTY (need###prop###propPostfix##Operation(o));
+                NEW split###prop###propPostfix###Container{
+                    type = SPLITH;
+                    fill = 1;
+                    MOVE prop###propPostfix###groupTree.tree.box;
+                    MOVE object.box {
+                        fill = 3;
+                    }
                 }
             }
         }
-    }                 
+    } 
 END
 
 META defineDocumentOperationLegalEntity(object, prop, caption)
@@ -289,6 +296,9 @@ META defineDocumentOperationLegalEntity(object, prop, caption)
                AND NOT in###prop##Operation(prop###object(object), operation###object(object))
         CHECKED BY prop###object
         MESSAGE caption##' должен совпадать с отмеченными в операции';
+    CONSTRAINT operation###object(object) AND isPosted###object(object)
+               AND NOT prop###object(object) AND need###prop###Operation(operation###object(object))
+        MESSAGE caption##' должен быть задан для документа';
 END
 
 META defineCountLegalEntityOperation(prop, filter)
@@ -308,6 +318,7 @@ END
 
 META defineOperationStock(prop, object, tabcaption)
 
+    need###prop##StockOperation 'Должен быть задан для документа' = DATA BOOLEAN (Operation);
     // Отметка для групп
     all###prop##StocksOperation 'Отм' = DATA BOOLEAN (Operation);
 
@@ -355,6 +366,7 @@ META defineOperationStock(prop, object, tabcaption)
         PROPERTIES READONLY OBJVALUE(object##a), object##gTreeName = nameStockGroup(object##g)
         PROPERTIES(o) all###prop##StocksOperation TODRAW object##a FORCE GRID BACKGROUND background###all###prop##StocksOperation(o)
         PROPERTIES in###prop###StockGroupOperation(object##g, o) BACKGROUND background###in###prop##StockGroupOperation(object##g, o)
+        PROPERTIES need###prop##StockOperation(o)
         FILTERS stringEqualsAll(object##a)
 
         OBJECTS object = Stock
@@ -371,15 +383,20 @@ META defineOperationStock(prop, object, tabcaption)
     DESIGN operation {
         tabContainer {
             NEW prop###stockContainer{
-                type = SPLITH;
                 caption = tabcaption;
-                MOVE prop###stockGroupTree.tree.box;
-                MOVE object.box {
-                    fill = 3;
+                fill = 1;
+                MOVE PROPERTY (need###prop##StockOperation(o));
+                NEW split###prop###stockContainer{
+                    type = SPLITH;
+                    fill = 1;
+                    MOVE prop###stockGroupTree.tree.box;
+                    MOVE object.box {
+                        fill = 3;
+                    }
                 }
             }
         }
-    }    
+    }
 END
 
 META defineDocumentOperationStock(object, prop, caption)
@@ -387,6 +404,9 @@ META defineDocumentOperationStock(object, prop, caption)
                AND NOT in###prop##Stock##Operation(prop###stock###object(object), operation###object(object))
         CHECKED BY prop###stock###object
         MESSAGE caption##' должен совпадать с отмеченными в операции';
+    CONSTRAINT operation###object(object) AND isPosted###object(object) 
+               AND NOT prop###stock###object(object) AND need###prop##Stock##Operation(operation###object(object))
+        MESSAGE caption##' должен быть задан для документа';
 END
 
 META defineCountStockOperation(prop, filter, filterEntity)
