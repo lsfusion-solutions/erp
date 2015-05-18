@@ -9,16 +9,11 @@ NAMESPACE Purchase;
 dateFromSoldPeriodUserOrder 'Дата с' = DATA DATE (UserOrder);
 dateToSoldPeriodUserOrder 'Дата по' = DATA DATE (UserOrder);
 
-WHEN SESSION SET(o IS UserOrder) DO {
-    IF o IS UserOrder AND NOT dateFromSoldPeriodUserOrder(o) THEN dateFromSoldPeriodUserOrder(o) <- subtractDate(currentDate(),1);
-    IF o IS UserOrder AND NOT dateToSoldPeriodUserOrder(o) THEN dateToSoldPeriodUserOrder(o) <- subtractDate(currentDate(),1);
-};
-
-WHEN SESSION FORMS userOrder CHANGED (fromShipmentDateUserOrder(o)) DO {
-    dateFromSoldPeriodUserOrder(o) <-  fromShipmentDateUserOrder(o);   
+WHEN SESSION FORMS userOrder CHANGED (fromShipmentDateUserOrder(o)) AND NOT CHANGED(dateFromSoldPeriodUserOrder(o)) DO {
+    dateFromSoldPeriodUserOrder(o) <- fromShipmentDateUserOrder(o);   
 }
-WHEN SESSION FORMS userOrder CHANGED (dateUserOrder(o)) DO {
-    dateToSoldPeriodUserOrder(o) <-  subtractDate(dateUserOrder(o),1);   
+WHEN SESSION FORMS userOrder CHANGED (dateUserOrder(o)) AND NOT CHANGED(dateToSoldPeriodUserOrder(o)) DO {
+    dateToSoldPeriodUserOrder(o) <- subtractDate(dateUserOrder(o),1);   
 }
 
 quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantitySoldSkuStockDateFromTo(sku, stock, dateFromSoldPeriodUserOrder(userOrder), dateToSoldPeriodUserOrder(userOrder));
