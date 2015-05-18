@@ -1154,7 +1154,7 @@ FORM snapshot 'Аналитический отчет'
     ORDER BY orderSkuGroup(sk2), nameSkuGroup(sk2)
     FILTERGROUP inactive2 FILTER 'Активные' activeSkuGroup(sk2) 'F5' DEFAULT            
             
-//--sku    
+//--stock    
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
     PROPERTIES READONLY OBJVALUE(a), nameStockGroup(sg), nameStock(ts)
     ORDER BY nameStockGroup(sg)
@@ -1528,14 +1528,18 @@ DESIGN snapshot {
 }
 
 @extendFormFilterStockGroupAccess(sg, snapshot);
-@extendFormFilterStockGroupAccess(sg1, snapshot);
 
+@extendFormFilterStockGroupAccess(sg1, snapshot);
+@extendFormFilterStockGroupAccess(sg2, snapshot);
+@extendFormFilterStockAccess(ts2, snapshot);
 @extendFormFilterStockAccess(ts, snapshot);
 @extendFormFilterStockAccess(st, snapshot);
 @extendFormFilterStockAccess(ss, snapshot);
 @extendFormFilterStockAccess(ts1, snapshot);
 
 @extendFormFilterLegalEntityAccess(LegalEntity, l, snapshot, supplier);
+
+accessCompanyEmployeeStocksSnapshot = GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), stock) AND includeSnapshotStock(r, stock) BY r;
 
 FORM snapshots 'Аналитические отчеты'
 
@@ -1560,7 +1564,8 @@ DESIGN snapshots {
         MOVE r.created; 
         MOVE functions.box;
     }    
-}
+} 
+EXTEND FORM snapshots FILTERS accessCompanyEmployeeStocksSnapshot(r);
 
 NAVIGATOR {
     stockNavigator {
