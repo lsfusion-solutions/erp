@@ -74,6 +74,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     processTransactionLogger.info("Bizerba: Starting sending to " + usingScalesList.size() + " scale(s)...");
 
                     for (ScalesInfo scales : usingScalesList) {
+                        int globalError = 0;
                         List<String> localErrors = new ArrayList<>();
 
                         TCPPort port = new TCPPort(scales.port, 1025);
@@ -102,7 +103,23 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                                     processTransactionLogger.info("Bizerba: Sending items..." + ip);
                                     if (localErrors.isEmpty()) {
-                                        loadAllPLU(transaction, localErrors, port, scales, charset, encode, capitalLetters);
+
+                                        int count = 0;
+                                        for (ScalesItemInfo item : transaction.itemsList) {
+                                            count++;
+                                            if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                                    processTransactionLogger.info(String.format("Bizerba: Transaction #%s, sending item #%s (barcode %s) of %s", transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                                    String result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
+                                                    if (!result.equals("0")) {
+                                                        logError(localErrors, String.format("Result is %s, item: %s", result, item.idItem));
+                                                        globalError++;
+                                                    }
+                                                } else {
+                                                    processTransactionLogger.info(String.format("Bizerba: Transaction #%s, item #%s: incorrect barcode %s", transaction.id, count, item.idBarcode));
+                                                }
+                                            }
+                                        }
                                     }
                                     port.close();
 
@@ -282,8 +299,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
     }
 
     private String replaceDelimiter(String var1) {
-        String var2 = var1.replace('\u0007', '\n');
-        return var2;
+        return var1.replace('\u0007', '\n');
     }
 
     private void sendCommand(List<String> errors, TCPPort port, String command, String charset, boolean encode) throws CommunicationException, IOException {
@@ -398,22 +414,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return messageMap;
     }
 
-    protected void loadAllPLU(TransactionScalesInfo transaction, List<String> localErrors, TCPPort port, ScalesInfo scales, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
-        int count = 0;
-        for (ScalesItemInfo item : transaction.itemsList) {
-            count++;
-            if (!Thread.currentThread().isInterrupted()) {
-                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                    processTransactionLogger.info(String.format("Bizerba: Transaction #%s, sending item #%s (barcode %s) of %s", transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                    loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
-                } else {
-                    processTransactionLogger.info(String.format("Bizerba: Transaction #%s, item #%s: incorrect barcode %s", transaction.id, count, item.idBarcode));
-                }
-            }
-        }
-    }
-
-    private void loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -455,8 +456,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
 
         if (pluNumber <= 0 || pluNumber > 999999) {
-            return;
-            //throw new RuntimeException("PLU number is invalid. Number is " + pluNumber);
+            return "0";
         }
 
         if (price > 999999 || price < 0) {
@@ -503,9 +503,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         command1 = command1 + "BLK \u001b";
         clearReceiveBuffer(port);
         sendCommand(errors, port, command1, charset, encode);
-        String result = receiveReply(errors, port, charset);
-        if (!result.equals("0"))
-            logError(errors, String.format("Result is %s, item: %s", result, item.idItem));
+        return receiveReply(errors, port, charset);
     }
 
     protected void logError(List<String> errors, String errorText) {
