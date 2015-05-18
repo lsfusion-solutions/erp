@@ -42,7 +42,7 @@ DESIGN options {
     }
 }
 
-setPassportPhoneLegalEntity = ABSTRACT ACTION (); 
+setPassportLegalEntity = ABSTRACT ACTION (); 
 
 isReadonly() = DATA LOCAL BOOLEAN ();
 
@@ -55,7 +55,7 @@ noteInvoice = DATA LOCAL STRING[255] ();
 FORM paymentInstallments 'Рассрочка'
     PROPERTIES READONLYIF isReadonly() nameLegalEntity()     
         
-    PROPERTIES READONLYIF isReadonly() passportNumberLegalEntity() ON CHANGE setPassportPhoneLegalEntity()
+    PROPERTIES READONLYIF isReadonly() passportNumberLegalEntity() ON CHANGE setPassportLegalEntity()
      
     PROPERTIES READONLYIF isReadonly() phoneContact()
     
@@ -142,16 +142,16 @@ DESIGN paymentInstallments {
     REMOVE PROPERTY(formRefresh());
 }
 
-setPassportPhoneLegalEntity () += ACTION () {
+setPassportLegalEntity () += ACTION () {
     REQUEST STRING[150] INPUT;
     passportNumberLegalEntity() <- requestedString(); 
-    FOR NOT requestCanceled() AND passportNumberLegalEntity(l) == requestedString() DO {
+    FOR NOT requestCanceled() AND passportNumberLegalEntity(l) == requestedString() AND NOT isReadonly() DO {
         nameLegalEntity() <- nameLegalEntity(l);
         phoneContact() <- phoneContact(l);
         postAddressContact() <- postAddressContact(l);
         isReadonly() <- TRUE;
     }
-} 
+}
 
 printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
