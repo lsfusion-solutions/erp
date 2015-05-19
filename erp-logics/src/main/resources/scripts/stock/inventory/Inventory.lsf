@@ -297,6 +297,7 @@ inCollationSheetEmployee 'Является членом комиссии' (colla
 //---------------------------- Состав сличительной ведомости (Sku) ----------------------------//
 
 TABLE collationSheetSku (CollationSheet, Sku);
+TABLE collationSheetSkuGroup (CollationSheet, SkuGroup);
 
 inManyCollationSheetSku 'Вкл в ведомость' = DATA BOOLEAN (ManyCollationSheet, Sku) IN base;
 quantityBalanceCollationSheetSku 'Кол-во по остаткам' (collationSheet, sku) = DATA NUMERIC[14,3] (CollationSheet, Sku);
@@ -425,9 +426,9 @@ countIndexListInventory 'Количество наименований това�
     BY listInventory IN documentSum;
 
 quantityPageInventoryDetailCollationSheet 'Кол-во по описям' (collationSheet) =
-    GROUP SUM quantityPageInventoryDetail(pageInventoryDetail) BY collationSheetPageInventoryDetail(pageInventoryDetail);
+    GROUP SUM quantityPageInventoryDetail(pageInventoryDetail) BY collationSheetPageInventoryDetail(pageInventoryDetail) PERSISTENT;
 sumPageInventoryDetailCollationSheet 'Сумма по описям' (collationSheet) =
-    GROUP SUM sumPageInventoryDetail(pageInventoryDetail) BY collationSheetPageInventoryDetail(pageInventoryDetail);
+    GROUP SUM sumPageInventoryDetail(pageInventoryDetail) BY collationSheetPageInventoryDetail(pageInventoryDetail) PERSISTENT;
     
     
 CONSTRAINT pricePageInventoryDetailCollationSheetSku(collationSheet, sku) != priceMinPageInventoryDetailCollationSheetSku(collationSheet, sku) AND NOT  isBatchCollationSheet(collationSheet)   
@@ -1073,18 +1074,18 @@ dumbPageInventory (p) = ' ' IF p IS PageInventory;
 
 
 sumPageInventoryDetailCollationSheetSkuGroup 'Сумма по описям' (collationSheet, group) = GROUP SUM sumPageInventoryDetailCollationSheetSku(cs,sku) IF isParentSkuGroupSku(group, sku) AND includeCollationSheetSku(cs, sku)
-    BY cs, group;
+    BY cs, group PERSISTENT;
 sumBalanceCollationSheetSkuGroup 'Сумма по описям' (collationSheet, group) = GROUP SUM sumBalanceCollationSheetSku(cs,sku) IF isParentSkuGroupSku(group, sku) AND includeCollationSheetSku(cs, sku)
-    BY cs, group;    
+    BY cs, group PERSISTENT;    
 sumShortageCollationSheetSkuGroup 'Сумма по описям' (collationSheet, group) = GROUP SUM sumShortageCollationSheetSku(cs,sku) IF isParentSkuGroupSku(group, sku) AND includeCollationSheetSku(cs, sku)
-    BY cs, group;    
+    BY cs, group PERSISTENT;    
     
 sumPageInventoryDetailBatchesCollationSheetSkuGroup  (collationSheet, group) = GROUP SUM sumPageInventoryDetailCollationSheetBatch(cs,b) IF isParentSkuGroupBatch(group, b) AND includeCollationSheetBatch(cs,b)
-    BY cs, group;
+    BY cs, group PERSISTENT;
 sumBalanceBatchesCollationSheetSkuGroup  (collationSheet, group) = GROUP SUM sumBalanceCollationSheetBatch(cs,b) IF isParentSkuGroupBatch(group, b) AND includeCollationSheetBatch(cs,b)
-    BY cs, group;
+    BY cs, group PERSISTENT;
 sumShortageBatchesCollationSheetSkuGroup  (collationSheet, group) = GROUP SUM sumShortageCollationSheetBatch(cs,b) IF isParentSkuGroupBatch(group, b) AND includeCollationSheetBatch(cs,b)
-    BY cs, group;
+    BY cs, group PERSISTENT;
 overSumPageInventoryDetailCollationSheetSkuGroup 'Сумма по описям' = IF isBatchCollationSheet(cs) THEN sumPageInventoryDetailBatchesCollationSheetSkuGroup(cs,g) ELSE sumPageInventoryDetailCollationSheetSkuGroup(cs,g);
 overSumBalanceCollationSheetSkuGroup 'Сумма по остаткам' = IF isBatchCollationSheet(cs) THEN sumBalanceBatchesCollationSheetSkuGroup(cs,g) ELSE sumBalanceCollationSheetSkuGroup(cs,g);
 overSumShortageCollationSheetSkuGroup 'Сумма недостачи' = IF isBatchCollationSheet(cs) THEN sumShortageBatchesCollationSheetSkuGroup(cs,g) ELSE sumShortageCollationSheetSkuGroup(cs,g);
