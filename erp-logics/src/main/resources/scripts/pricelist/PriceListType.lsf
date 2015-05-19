@@ -556,9 +556,12 @@ META defineOperationPriceListType(dumb)
     defaultPriceListTypeOperation 'Вид цены по умолчанию' = DATA PriceListType(Operation);
     isDefaultPriceListTypeOperation 'По умолчанию' (type, operation) = defaultPriceListTypeOperation(operation) == type;
     
+    defaultReturnPriceListTypeOperation 'Вид цены по умолчанию (возврат)' = DATA PriceListType(Operation);
+    isDefaultReturnPriceListTypeOperation 'По умолчанию (возврат)' (type, operation) = defaultReturnPriceListTypeOperation(operation) == type;
+    
     EXTEND FORM operation
         OBJECTS pt = PriceListType
-        PROPERTIES(pt, o) inPriceListTypeOperation, isDefaultPriceListTypeOperation
+        PROPERTIES(pt, o) inPriceListTypeOperation, isDefaultPriceListTypeOperation, isDefaultReturnPriceListTypeOperation
         PROPERTIES(pt) READONLY idPriceListType SHOWIF showIDs(), namePriceListType, nameCurrencyPriceListType, objectClassName
         FILTERGROUP filters
             FILTER 'Показывать отмеченные' inPriceListTypeOperation(pt, o) 'F9'
@@ -572,7 +575,7 @@ META defineOperationPriceListType(dumb)
 
 END
 
-META defineDocumentOperationPriceListType(object, caption, form)
+META defineDocumentOperationPriceListType(object, caption, form, defaultPrefix)
     CONSTRAINT operation###object(object) AND priceListType###object(object)
                AND NOT inPriceListTypeOperation(priceListType###object(object), operation###object(object))
         CHECKED BY priceListType###object
@@ -584,12 +587,18 @@ META defineDocumentOperationPriceListType(object, caption, form)
         MESSAGE 'Вид цены для строки '###caption###' должен совпадать с отмеченными в операции';
         
     WHEN SESSION FORMS form CHANGED(operation###object(object)) DO {
-        IF defaultPriceListTypeOperation(operation###object(object)) THEN
-            priceListType###object(object) <- defaultPriceListTypeOperation(operation###object(object)); 
+        IF default###defaultPrefix##PriceListTypeOperation(operation###object(object)) THEN
+            priceListType###object(object) <- default###defaultPrefix##PriceListTypeOperation(operation###object(object))
+        ELSE IF defaultPriceListTypeOperation(operation###object(object)) THEN
+                priceListType###object(object) <- defaultPriceListTypeOperation(operation###object(object)); 
     }
     
     WHEN SESSION FORMS form CHANGED(operation###object(object)) AND priceListType###object(object) DO {
         IF TRUE AND NOT inPriceListTypeOperation(priceListType###object(object), operation###object(object)) THEN
             priceListType###object(object) <- NULL; 
     }
+END
+
+META defineDocumentOperationPriceListType(object, caption, form)
+    @defineDocumentOperationPriceListType(object, caption, form,);
 END
