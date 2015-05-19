@@ -31,6 +31,27 @@ numberCopiesAttach 'Кол-во экз. приложения' = DATA INTEGER ();
 countRowsVerticalABConsignment = ABSTRACT INTEGER (Consignment);
 overCountRowsVerticalABConsignment = OVERRIDE countRowsVerticalAB(), countRowsVerticalABConsignment(consignment);
 
+FORM issuanceEmpoyee 'Сотрудники'
+    OBJECTS c = Consignment FIXED PANEL
+    
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY nameContact
+    FILTERS inStockEmployee(supplierStockConsignment(c), e)
+;
+
+changeSessionIssuanceAllowed = ACTION (consignment) {
+    FORM issuanceEmpoyee OBJECTS c = consignment MODAL;
+    IF formResult() == FormResult.ok THEN {
+        sessionIssuanceAllowed() <- chosenObject('e');   
+    }
+}
+
+changeSessionIssuanceExecuted = ACTION (consignment) {
+     FORM issuanceEmpoyee OBJECTS c = consignment MODAL;
+     IF formResult() == FormResult.ok THEN {
+         sessionIssuanceExecuted() <- chosenObject('e');   
+     }
+}
 
 EXTEND FORM options
     PROPERTIES() numberCopiesConsignment, numberCopiesAttach
@@ -74,14 +95,15 @@ numberCopiesAttachConsignment 'Кол-во экз. приложения' (consig
                                                                                 dataNumberCopiesAttachConsignment(consignment);
                                                                                     
 FORM numberCopies 'Настройки печати'
-    PROPERTIES() nameSessionIssuanceAllowed, nameSessionIssuanceExecuted, 
-                 nameSessionLoadingExecuter, 
-                 nameSessionWayOfLoading, 
-                 nameSessionUnloadingExecuter, 
-                 nameSessionWayOfUnloading, sessionCodeLoading 
     OBJECTS c = Consignment FIXED PANEL
     PROPERTIES(c) numberCopiesConsignmentConsignment, numberCopiesAttachConsignment 
         
+    PROPERTIES() nameSessionIssuanceAllowed ON CHANGE changeSessionIssuanceAllowed(c), 
+                 nameSessionIssuanceExecuted ON CHANGE changeSessionIssuanceExecuted(c), 
+                 nameSessionLoadingExecuter, 
+                 nameSessionWayOfLoading, 
+                 nameSessionUnloadingExecuter, 
+                 nameSessionWayOfUnloading, sessionCodeLoading         
 ;
  
 DESIGN numberCopies {
