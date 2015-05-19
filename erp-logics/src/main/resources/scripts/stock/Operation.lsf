@@ -486,14 +486,16 @@ META defineOperationRole(dumb)
 
     countOperationsUser (user) = GROUP SUM 1 IF inUserOperation(user, operation) BY user;
     defaultOperationUser 'Операция по умолчанию' (user) = GROUP MIN operation IF inUserOperation(user, operation) BY user;
-
+    
+    preventChangesDocumentUserRoleOperation 'Запретить редактирование' = DATA BOOLEAN (UserRole, Operation);
+    preventChangesDocumentUserOperation (user, operation) = preventChangesDocumentUserRoleOperation(mainRoleUser(user), operation);
 
     EXTEND FORM operation
         PROPERTIES(o) allRolesOperation
 
         OBJECTS r = UserRole
         PROPERTIES(r) READONLY nameUserRole
-        PROPERTIES(r, o) inUserRoleOperation
+        PROPERTIES(r, o) inUserRoleOperation, preventChangesDocumentUserRoleOperation
 
         FILTERGROUP filtersRole
                 FILTER 'Показывать отмеченные' inUserRoleOperation(r, o) 'F8'
@@ -591,7 +593,7 @@ META defineOperationChangesDocumentPrefix(object, objectClass, concreteClass, pr
     prefix###property###object (o) = property###operation(prefix###operation###object(o));
     
     showEditDeleteUser###object (o) = (prefix###property###object (o)  AND (currentUser() == createdUserProp###concreteClass(o))) OR 
-                                (o IS objectClass AND NOT prefix###property###object (o));    
+                                (o IS objectClass AND NOT prefix###property###object (o) AND NOT property###userOperation(currentUser(),prefix###operation###object(o)));    
        
 END
 
