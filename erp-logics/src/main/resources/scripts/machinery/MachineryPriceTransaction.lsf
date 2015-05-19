@@ -309,7 +309,7 @@ nameStockRequestExchange 'Склад' (requestExchange) = nameStock(stockRequest
 TABLE stockRequestExchange(Stock, RequestExchange);
 inStockRequestExchange 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
 extraStocksRequestExchange 'Дополнительные склады' (requestExchange) = GROUP CONCAT VARSTRING[255](nameStock(stock)) IF inStockRequestExchange(stock, requestExchange), ', ' 
-    BY requestExchange MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;;                                                                          
+    BY requestExchange MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;                                                                         
 dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
 dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
 startDateRequestExchange 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
@@ -323,6 +323,10 @@ showExtraStocks(requestExchange) = requestExchangeTypeRequestExchange(requestExc
                                    requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.salesInfo;
 showStartDate(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.discountCard;
 
+dataInMachineryRequestExchange 'Вкл' = DATA BOOLEAN (Machinery, RequestExchange); 
+machineriesRequestExchange 'Оборудование' (requestExchange) = GROUP SUM 1 IF dataInMachineryRequestExchange(m, requestExchange) BY requestExchange;  
+inMachineryRequestExchange (machinery, requestExchange) = dataInMachineryRequestExchange(machinery, requestExchange) OR NOT machineriesRequestExchange(requestExchange);     
+     
 CLASS RequestExchangeLog 'Лог обмена данными';
 TABLE requestExchangeLog (RequestExchangeLog);
 
@@ -344,13 +348,32 @@ FORM requestExchange 'Запрос обмена данными'
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
                   captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r),
                   startDateRequestExchange SHOWIF showStartDate(r)
+ 
     OBJECTS s = Stock FIXED GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
     PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock
     FILTERS isCompanyStock(s)
     
+    OBJECTS m = Machinery 
+    PROPERTIES(m, r) dataInMachineryRequestExchange
+    PROPERTIES(m) nppMachinery, descriptionMachinery, objectClassName  
+    FILTERS stockMachinery(m) == stockRequestExchange(r)  
+    
     EDIT RequestExchange OBJECT r
 ;
+
+DESIGN requestExchange {
+    main {
+        MOVE r.box;
+        NEW tabbedPanel {
+            fill = 1;
+            type = TABBED;
+            MOVE s.box;
+            MOVE m.box;
+        }
+        MOVE functions.box;
+    }
+}
 
 FORM requestExchanges 'Запросы обмена данными'
     OBJECTS s = Stock FIXED PANEL

@@ -1029,6 +1029,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.addProperty("idStockMachinery", machineryLM.findProperty("idStockMachinery").getExpr(machineryExpr));
                 query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
                 query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
+                query.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeExpr).getWhere());
                 query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
                         machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
                 query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
