@@ -261,10 +261,10 @@ public class EquipmentServer {
 
 
     private void processTransactionInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
-        processTransactionLogger.info("Process TransactionInfo: Start");
+        processTransactionLogger.info("         Process TransactionInfo: Start");
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(sidEquipmentServer);
         Map<String, List<Object>> groupTransactionInfoMap = groupTransactionInfoList(remote, transactionInfoList);
-        processTransactionLogger.info("Process TransactionInfo: found " + groupTransactionInfoMap.size() + " groups");
+        processTransactionLogger.info("         Process TransactionInfo: found " + groupTransactionInfoMap.size() + " groups");
         if (!groupTransactionInfoMap.isEmpty()) {
             Collection<Callable<Object>> taskList = new LinkedList<>();
             for (Map.Entry<String, List<Object>> entry : groupTransactionInfoMap.entrySet()) {
@@ -280,7 +280,7 @@ public class EquipmentServer {
                 remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
             }
         }
-        processTransactionLogger.info("Process TransactionInfo : Finish");
+        processTransactionLogger.info("         Process TransactionInfo : Finish");
     }
     
     private Map<String, List<Object>> groupTransactionInfoList(EquipmentServerInterface remote, List<TransactionInfo> transactionInfoList) throws RemoteException, SQLException {
@@ -747,7 +747,7 @@ public class EquipmentServer {
 
         public void run() {
 
-            processTransactionLogger.info(String.format("Sending transaction group %s: start, count : %s", groupId, transactionEntry.size()));
+            processTransactionLogger.info(String.format("   Sending transaction group %s: start, count : %s", groupId, transactionEntry.size()));
             //transactions without handler
             if (groupId != null && groupId.equals("No handler")) {
                 for (TransactionInfo transactionInfo : transactionEntry) {
@@ -771,7 +771,7 @@ public class EquipmentServer {
                 try {
                     Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
                     
-                    processTransactionLogger.info(String.format("Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
+                    processTransactionLogger.info(String.format("   Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
 
                     for (TransactionInfo transactionInfo : transactionEntry) {
                         boolean noErrors = true;
@@ -801,7 +801,7 @@ public class EquipmentServer {
                 }
 
             }
-            processTransactionLogger.info(String.format("Sending transaction group %s: finish", groupId));
+            processTransactionLogger.info(String.format("   Sending transaction group %s: finish", groupId));
 
         }
 
