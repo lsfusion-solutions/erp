@@ -264,6 +264,7 @@ public class EquipmentServer {
         processTransactionLogger.info("Process TransactionInfo: Start");
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(sidEquipmentServer);
         Map<String, List<Object>> groupTransactionInfoMap = groupTransactionInfoList(remote, transactionInfoList);
+        processTransactionLogger.info("Process TransactionInfo: found " + groupTransactionInfoMap.size() + " groups");
         if (!groupTransactionInfoMap.isEmpty()) {
             Collection<Callable<Object>> taskList = new LinkedList<>();
             for (Map.Entry<String, List<Object>> entry : groupTransactionInfoMap.entrySet()) {
@@ -746,7 +747,7 @@ public class EquipmentServer {
 
         public void run() {
 
-            processTransactionLogger.info(String.format("Sending transaction group %s: start", groupId));
+            processTransactionLogger.info(String.format("Sending transaction group %s: start, count : %s", groupId, transactionEntry.size()));
             //transactions without handler
             if (groupId != null && groupId.equals("No handler")) {
                 for (TransactionInfo transactionInfo : transactionEntry) {
@@ -769,8 +770,8 @@ public class EquipmentServer {
 
                 try {
                     Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
-
-                    processTransactionLogger.info(String.format("Sending transaction group %s: confirm to server", groupId));
+                    
+                    processTransactionLogger.info(String.format("Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
 
                     for (TransactionInfo transactionInfo : transactionEntry) {
                         boolean noErrors = true;
