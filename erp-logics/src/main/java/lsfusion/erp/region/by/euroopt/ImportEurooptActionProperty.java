@@ -444,10 +444,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                     for (Element item : doc.getElementsByTag("a")) {
                         String href = item.attr("href");
                         if (href != null && href.matches(itemPattern)) {
-                            String finalHref = href.replace(mainPage, "");
-                            if(!itemsSet.contains(finalHref)) {
+                            href = href.replace(mainPage, "");
+                            if(!itemsSet.contains(href)) {
                                 ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item page #%s: %s", itemsSet.size() + 1, href));
-                                itemsSet.add(finalHref);
+                                itemsSet.add(href);
                             }
                             hash += href;
                         }
