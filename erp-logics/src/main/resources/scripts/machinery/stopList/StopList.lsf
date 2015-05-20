@@ -16,6 +16,12 @@ CLASS StopList 'Запрет продаж по кассе';
 CLASS StopListDetail 'Строка запрета продаж по кассе';
 
 @defineDocument(stopList);
+createdTimeStopListDetail 'Время создания' = createdTimeStopList(stopListStopListDetail(d)); 
+createdUserStopListDetail = createdUserStopList(stopListStopListDetail(d)); 
+createdNameUserStopListDetail 'Создан пользователем' = nameContact(createdUserStopListDetail(d)); 
+createdComputerStopListDetail 'Создан на компьютере' = createdComputerStopList(stopListStopListDetail(d)); 
+createdHostnameComputerStopListDetail 'Создан на компьютере' = hostnameComputer(createdComputerStopListDetail(d)); 
+
 @deriveDocumentHeaderTimePrefix(StopList, );
 
 @defineDocumentTimePrefix (stopList, from, ' с');
@@ -24,6 +30,8 @@ CLASS StopListDetail 'Строка запрета продаж по кассе';
 @defineDocumentTimePrefix (stopList, to, ' по');
 
 @defineDocumentHeaderNumber(StopList);
+@defineDocumentDetailNumber(stopList, StopListDetail);
+
 @defineNumeratedDefault(StopList, 'Запрет продаж по кассе', 'ЗП');
 
 @defineDocumentHeaderLegalEntity(stopList, company, 'Компания');
@@ -401,9 +409,26 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
-
 countChangedSkusStopList =  GROUP SUM 1 IF SETCHANGED (skuStopListDetail(d)) BY stopListStopListDetail(d);
 
 WHEN FORMS stopList CHANGED(excludeStopList(l)) OR CHANGED(countChangedSkusStopList(l)) AND isPostedStopList(l) DO {
     succeededStockStopList(st, l) <- NULL WHERE st IS Stock;    
 }
+
+FORM historyStopList 'История запрета продаж товара на кассе'
+    OBJECTS st = Stock FIXED PANEL
+    OBJECTS s = Sku FIXED PANEL 
+    
+    OBJECTS d = StopListDetail
+    PROPERTIES(d) READONLY createdTimeStopListDetail, createdNameUserStopListDetail, createdHostnameComputerStopListDetail, numberStopListDetail, excludeStopListDetail
+    FILTERS skuStopListDetail(d) == s,
+            inStockStopList(st, stopListStopListDetail(d))
+;
+
+DESIGN historyStopList {
+    REMOVE st.box;
+    REMOVE s.box;
+}
+
+showHistoryStopListSku 'Показать историю запрета продаж товара на кассе' (sku, stock) = 
+    ACTION FORM historyStopList OBJECTS s = sku, st = stock MODAL SHORTCUT statusStopListSkuStock;
