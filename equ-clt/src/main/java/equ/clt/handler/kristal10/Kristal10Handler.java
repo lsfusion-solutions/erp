@@ -238,8 +238,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     Integer idTransaction = entry.getValue();
                     if (file.exists())
                         nextFilesMap.put(file, idTransaction);
-                    else
+                    else {
+                        processTransactionLogger.info(String.format("Kristal (wait for deletion): file %s has been deleted", file.getAbsolutePath()));
                         result.put(idTransaction, new SendTransactionBatch(failedTransactionMap.get(idTransaction)));
+                    }
                 }
                 filesMap = nextFilesMap;
                 Thread.sleep(1000);
@@ -249,6 +251,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
 
         for(Map.Entry<File, Integer> file : filesMap.entrySet()) {
+            processTransactionLogger.info(String.format("Kristal (wait for deletion): file %s has NOT been deleted", file.getKey().getAbsolutePath()));
             result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
         }
         return result;
