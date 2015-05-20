@@ -468,7 +468,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         if(doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
-                if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href) && itemGroupsSet.size() <=50) {
+                if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href)) {
                     ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
                     itemGroupsSet.add(href);
                 }
@@ -483,7 +483,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         if(doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
-                if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href) && itemGroupsSet.size() <=50) {
+                if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href)) {
                     ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
                     itemGroupsSet.add(href.replace(mainPage, ""));
                 }
