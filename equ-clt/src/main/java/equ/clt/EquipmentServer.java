@@ -770,6 +770,8 @@ public class EquipmentServer {
                 try {
                     Map<Integer, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
 
+                    processTransactionLogger.info(String.format("Sending transaction group %s: confirm to server", groupId));
+
                     for (TransactionInfo transactionInfo : transactionEntry) {
                         boolean noErrors = true;
                         Throwable exception = succeededMachineryInfoMap.get(transactionInfo.id).exception;
