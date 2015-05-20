@@ -383,7 +383,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
     }
 
     private String parseChild(Element element, int child) {
-        return Jsoup.parse(element.childNode(child).outerHtml()).text();
+        return element.children().size() > child ? Jsoup.parse(element.childNode(child).outerHtml()).text() : "";
     }
 
     private BigDecimal getPrice(Document doc) {
