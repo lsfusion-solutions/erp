@@ -110,6 +110,32 @@ DESIGN options {
         }
     }
 }
+
+CLASS AcquisitionTarget 'Цель приобретения';
+TABLE acquisitionTarget(AcquisitionTarget);
+
+@defineExternalizable(acquisitionTarget, VARSTRING[100]);
+
+nameAcquisitionTarget 'Наименование' = DATA VARISTRING[50](AcquisitionTarget);
+
+FORM acquisitionTarget 'Бренд'
+    OBJECTS t=AcquisitionTarget FIXED PANEL
+    PROPERTIES(t) nameAcquisitionTarget,  idAcquisitionTarget SHOWIF showIDs()
+    EDIT AcquisitionTarget OBJECT t
+;
+
+FORM acquisitionTargets 'Бренды'
+    OBJECTS t=AcquisitionTarget
+    PROPERTIES(t) nameAcquisitionTarget READONLY, idAcquisitionTarget READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameAcquisitionTarget(t)
+    DIALOG AcquisitionTarget OBJECT t
+;
+DESIGN acquisitionTargets { main{ preferredSize = (600, 400); } }
+
+acquisitionTargetOrder = ABSTRACT AcquisitionTarget(Order);
+nameAcquisitionTargetOrder 'Цель приобретения' = nameAcquisitionTarget(acquisitionTargetOrder(o));
+
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
 META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter, NS)
@@ -170,6 +196,13 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                      'Организация (покупатель) договора заказа не соответствует организация (покупатель) заказа',
                                      'заказ'###sign, NS);
     Order.contractSkuOrder (order) += contractSkuOrder (order);
+    acquisitionTargetOrder = ABSTRACT AcquisitionTarget(Order);
+    nameAcquisitionTargetOrder 'Цель приобретения' = nameAcquisitionTarget(acquisitionTargetOrder(o));
+    acquisitionTargetUserOrder = DATA AcquisitionTarget(UserOrder);
+    nameAcquisitionTargetUserOrder 'Цель приобретения' = nameAcquisitionTarget(acquisitionTargetUserOrder(o)) IN documentPrm;    
+    acquisitionTargetOrder(o) += acquisitionTargetUserOrder(o);
+    Order.acquisitionTargetOrder(o) += acquisitionTargetOrder(o);
+    
     @defineDocumentInterfacePosted(order);
     Order.isPostedOrder (order) += isPostedOrder(order);
     
@@ -371,7 +404,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        nameSupplierStockUserOrder ON CHANGE changeSupplierStock###supplierFilter###userOrder(o),
                        nameCustomerStockUserOrder ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
                        nameNumeratorUserOrder, numberUserOrder, seriesUserOrder, dateUserOrder, timeUserOrder,
-                       nameCurrencyUserOrder, nameAgreementUserOrder, namePriceListTypeUserOrder SHOWIF noAgreementUserOrder(o), noteUserOrder
+                       nameCurrencyUserOrder, nameAgreementUserOrder, namePriceListTypeUserOrder SHOWIF noAgreementUserOrder(o), noteUserOrder, nameAcquisitionTargetUserOrder
         PROPERTIES (o) READONLY countUserOrderDetailUserOrder, quantityUserOrderDetailUserOrder, sumUserOrderDetailUserOrder,
                        VATSumUserOrderDetailUserOrder, invoiceSumUserOrderDetailUserOrder
         PROPERTIES (o) shipmentDateUserOrder, shipmentTimeUserOrder, closeDateUserOrder, nextShipmentDateUserOrder,
