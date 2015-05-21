@@ -91,10 +91,10 @@ dateTimeSucceededMachineryMachineryPriceTransaction 'Время загрузки
 countSucceededMachineriesPriceTransactionDocument'Кол-во загруженного оборудования' (t) = 
     GROUP SUM 1 IF succeededMachineryMachineryPriceTransaction(m, t) OR 
                    (succeededMachineryPriceTransaction(t) AND groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t)) 
-          BY priceTransactionDocumentMachineryPriceTransaction(t);
+          BY priceTransactionDocumentMachineryPriceTransaction(t) PERSISTENT;
     
 countSucceededMachineriesMachineryPriceTransaction'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
-    IF succeededMachineryMachineryPriceTransaction(m,t) BY t;
+    IF succeededMachineryMachineryPriceTransaction(m,t) BY t PERSISTENT;
 
 countMachineriesGroupMachinery 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachineryMachinery(m);
 countMachineriesPriceTransactionDocument 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(t)) BY priceTransactionDocumentMachineryPriceTransaction(t);
@@ -107,7 +107,7 @@ statusMachineryPriceTransactionDocument 'Статус загрузки в обо
         WHEN succeededPriceTransactionDocument(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument        
         WHEN sentPriceTransactionDocument(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
         ELSE 'Не загружен' IF document IS PriceTransactionDocument
-    ;
+    PERSISTENT;
 
 // Загруженные штрихкоды
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
