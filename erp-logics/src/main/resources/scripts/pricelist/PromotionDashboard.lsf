@@ -1,6 +1,6 @@
 MODULE PromotionDashboard;
 
-REQUIRE PriceListDashboard, PriceListOperation;
+REQUIRE PriceListDashboard, PriceListOperation, Store, PriceListBefore;
         
 FORM promotionDashboard 'Управление акциями'
     OBJECTS dt = DATETIME FIXED PANEL
@@ -59,38 +59,53 @@ NAVIGATOR {
 // c
 
 
-activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation (type, sku, company, dateTime, operation) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn, operationPriceListDetail(ledger)
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
-                
-notePriceListTypeSkuCompanyDateTimeOperation 'Примечание' (type, sku, company, dateTime, operation) = notePriceList(priceListPriceListDetail(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)));                                            
-fromDatePriceListTypeSkuCompanyDateTimeOperation 'Дата с' (type, sku, company, dateTime, operation) = fromDatePriceList(priceListPriceListDetail(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)));                                            
-toDatePriceListTypeSkuCompanyDateTimeOperation 'Дата по' (type, sku, company, dateTime, operation) = toDatePriceList(priceListPriceListDetail(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)));                                            
-curPricePriceListTypeSkuCompanyDateTimeOperation 'Цена (до)' (type, sku, company, dateTime, operation) = viewPriceUserPriceListDetailPriceListType(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation),type);
-activePricePriceListTypeSkuCompanyDateTimeOperation 'Цена' (type, sku, company, dateTime, operation) = pricePriceListLedgerLedgerPriceListType(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation),type);
-descriptionPriceListTypeSkuCompanyDateTimeOperation 'Описание' (type, sku, company, dateTime, operation) = descriptionPriceListLedger(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation));                                            
-editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation'Редактировать' (type, sku, company, dateTime, operation) = ACTION editPriceListLedger(activeLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)) IMAGE 'edit.png';                                            
+activePriceListDetailAPriceListTypeSkuCompanyDateTimeOperation (type, sku, company, dateTime, operation) =
+    GROUP LAST detail
+          BY type, skuPriceListDetail(detail), companyPriceListDetail(detail), dateTimeIn, operationPriceListDetail(detail)
+          ORDER fromDateTimePriceListDetail(detail), detail
+          WHERE pricePriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND
+                fromDateTimePriceListDetail(detail) <= dateTimeIn AND NOT toDateTimePriceListDetail(detail) < dateTimeIn COMPLEX;                                      
 
-activeLedgerALedgerPriceListTypeSkuStockCompanyDateTimeOperation 'Цена' (type, sku, stock, company, dateTime, operation) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn, operationPriceListDetail(ledger)
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND 
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
-activePricePriceListTypeSkuStockCompanyDateTimeOperation 'Цена' = pricePriceListLedgerLedgerPriceListType(activeLedgerALedgerPriceListTypeSkuStockCompanyDateTimeOperation(type, sku, stock, company, dateTime, operation), type);
+activePriceListDetailAPriceListTypeSkuStockCompanyDateTimeOperation 'Цена' (type, sku, stock, company, dateTime, operation) =
+    GROUP LAST detail
+          BY type, skuPriceListDetail(detail), stock, companyPriceListDetail(detail), dateTimeIn, operationPriceListDetail(detail)
+          ORDER fromDateTimePriceListDetail(detail), detail
+          WHERE pricePriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
+                fromDateTimePriceListDetail(detail) <= dateTimeIn AND NOT toDateTimePriceListDetail(detail) < dateTimeIn COMPLEX;
+              
+                
+activePricePriceListTypeSkuStockCompanyDateTimeOperation 'Цена' (type, sku, stock, company, dateTime, operation) = pricePriceListDetailDataPriceListType(activePriceListDetailAPriceListTypeSkuStockCompanyDateTimeOperation(type, sku, stock, company, dateTime, operation), type);
 
 countStockAPriceListTypeSkuCompanyDateTimeOperation 'Кол-во складов' (type, sku, company, dateTime, operation) =
     GROUP SUM 1 IF activePricePriceListTypeSkuStockCompanyDateTimeOperation(type, sku, stock, company, dateTime, operation)
     BY type, sku, company, dateTime, operation;
+
+filterPromotionStock  = DATA LOCAL DepartmentStore ();
+nameFilterPromotionStock 'Склад' = nameStock(filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
+notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
+
+overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation  (type, sku, company, dateTime, operation) = IF filterPromotionStock() 
+    THEN activePriceListDetailAPriceListTypeSkuStockCompanyDateTimeOperation(type, sku, filterPromotionStock(), company, dateTime, operation)
+    ELSE activePriceListDetailAPriceListTypeSkuCompanyDateTimeOperation (type, sku, company, dateTime, operation);
+
+notePriceListTypeSkuCompanyDateTimeOperation 'Примечание' (type, sku, company, dateTime, operation) = notePriceList(priceListPriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)));                                            
+stocksPriceListTypeSkuCompanyDateTimeOperation 'Склады' (type, sku, company, dateTime, operation) = stocksPriceList(priceListPriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)));                                            
+fromDatePriceListTypeSkuCompanyDateTimeOperation 'Дата с' (type, sku, company, dateTime, operation) = fromDatePriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation));                                            
+toDatePriceListTypeSkuCompanyDateTimeOperation 'Дата по' (type, sku, company, dateTime, operation) = toDatePriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation));                                            
+priceBeforePriceListTypeSkuCompanyDateTimeOperation 'Цена (до)' (type, sku, company, dateTime, operation) = priceBeforePriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation));
+activePricePriceListTypeSkuCompanyDateTimeOperation 'Цена' (type, sku, company, dateTime, operation) = pricePriceListDetailDataPriceListType(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation),type);
+descriptionPriceListTypeSkuCompanyDateTimeOperation 'Описание' (type, sku, company, dateTime, operation) = descriptionPriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation));                                            
+editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation'Редактировать' (type, sku, company, dateTime, operation) = ACTION editPriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)) IMAGE 'edit.png';     
+
+balanceBPriceListTypeSkuCompanyDateTimeOperation 'Остаток (до акции)' (type, sku, company, dateTime, operation) = balanceBSkuStockDateTime(sku, filterPromotionStock(), fromDateTimePriceListDetail(activePriceListDetailAPriceListTypeSkuStockCompanyDateTimeOperation(type, sku, filterPromotionStock(), company, dateTime, operation)));
 
 EXTEND FORM promotionDashboard
    
     OBJECTS c = LegalEntity FIXED PANEL
     PROPERTIES(c) nameLegalEntity SELECTOR
     FILTERS isCompanyLegalEntity(c)
+    
+    PROPERTIES nameFilterPromotionStock()
 
     TREE cskg cskg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(cskg), cskgName = nameSkuGroup(cskg)
@@ -98,37 +113,43 @@ EXTEND FORM promotionDashboard
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(cskg) 'F5' DEFAULT
 
     OBJECTS csk = Sku
-    PROPERTIES(csk)          inSku
+//    PROPERTIES(csk)          inSku
     PROPERTIES(csk) READONLY nameSku, idBarcodeSku
     ORDER BY nameSku(csk)
-    FILTERS isParentSkuGroupSku(cskg, csk)
+    FILTERS isParentSkuGroupSku(cskg, csk),
+            overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
 
-    PROPERTIES READONLY curPricePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), activePricePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), fromDatePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
-                        toDatePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)// последний прайс, в котором есть цена
-    PROPERTIES READONLY notePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), descriptionPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) ON SHORTCUT editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
+    PROPERTIES READONLY  balanceBPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) SHOWIF filterPromotionStock(), 
+                         priceBeforePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
+                         activePricePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
+                         fromDatePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), toDatePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
+    PROPERTIES READONLY  stocksPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), notePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
+                         descriptionPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) ON SHORTCUT editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
 
-    PROPERTIES editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) TOOLBAR 
+    PROPERTIES  editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) TOOLBAR 
     // на больших объемах возможно будет тормозить
     FILTERS countStockAPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
 
-    OBJECTS cst = Stock
-    PROPERTIES(cst)          READONLY nameStock
-    PROPERTIES(csk, cst, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES               READONLY cPriceStock = activePricePriceListTypeSkuStockCompanyDateTimeOperation(pt, csk, cst, c, dt, o)
+    OBJECTS cst = Stock FIXED GRID
+    PROPERTIES(cst)           SHOWIF notFilterPromotionStock() READONLY nameStock
+    PROPERTIES(csk, cst, dt)  SHOWIF notFilterPromotionStock() READONLY balanceASkuStockDateTime
+    PROPERTIES                SHOWIF notFilterPromotionStock() READONLY cPriceStock = activePricePriceListTypeSkuStockCompanyDateTimeOperation(pt, csk, cst, c, dt, o)
     ORDER BY nameStock(cst)
     FILTERS activePricePriceListTypeSkuStockCompanyDateTimeOperation(pt, csk, cst, c, dt, o)
     FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(cst) 'ctrl F10' DEFAULT 
        
-    OBJECTS cpl = PriceListLedger
-    PROPERTIES(cpl) READONLY isPostedPriceListLedger, fromDateTimePriceListLedger, toDateTimePriceListLedger, descriptionPriceListLedger, 
-                             nameCompanyPriceListLedger, priceListTypesPriceListLedger, stocksPriceListLedger, 
-                             createdTimePriceListLedger, createdNameUserPriceListLedger, createdHostnameComputerPriceListLedger
-    PROPERTIES(cpl) editPriceListLedger                         
-    PROPERTIES      READONLY pricePriceListLedgerLedgerPriceListType(cpl, pt)
-    FILTERS inPriceListLedgerLedgerPriceListType(cpl, pt),
-            skuPriceListLedger(cpl) == csk,
-            companyPriceListLedger(cpl) == c,
-            operationPriceListDetail(cpl) == o
+    OBJECTS cpl = PriceListDetail
+    PROPERTIES(cpl) READONLY isPostedPriceListDetail, fromDateTimePriceListDetail, toDateTimePriceListDetail, descriptionPriceListDetail, 
+                             nameCompanyPriceListDetail, priceListTypesPriceListDetail, stocksPriceListDetail, 
+                             createdTimePriceListDetail, createdNameUserPriceListDetail, createdHostnameComputerPriceListDetail
+    PROPERTIES(cpl) editPriceListDetail                         
+    PROPERTIES      READONLY pricePriceListDetailDataPriceListType(cpl, pt)
+    FILTERS inPriceListDetailDataPriceListType(cpl, pt),
+            skuPriceListDetail(cpl) == csk,
+            companyPriceListDetail(cpl) == c,
+            operationPriceListDetail(cpl) == o,
+            inPriceListStock(priceListPriceListDetail(cpl),filterPromotionStock()) OR (cpl IS PriceListDetail AND NOT filterPromotionStock())
+            
 ;
 
 DESIGN promotionDashboard {
@@ -147,9 +168,13 @@ DESIGN promotionDashboard {
                         caption = 'Товарные группы';
                     }
                 }
-                MOVE csk.box {
+                NEW box {
                     fill = 3;
-                    caption = 'Товары';
+                    NEW fiter {
+                        caption = 'Фильтр';
+                        MOVE PROPERTY (nameFilterPromotionStock());
+                    }
+                    MOVE csk.box {caption = 'Товары';}                                                                    
                 }
             }
             NEW c.detail {
