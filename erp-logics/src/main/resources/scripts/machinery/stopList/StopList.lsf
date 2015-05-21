@@ -351,13 +351,15 @@ DESIGN options {
     }
 }
 
+skipSkuStock 'Отм.' = ABSTRACT BOOLEAN (Sku, Stock);
+
 createRequestStopList 'Включить в стоп-лист'  = ACTION (){
 
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         NEWSESSION NESTED selectSkuStock {
             FOR ADDOBJ sl = StopList DO {
                 inStockStopList(st, sl) <- TRUE WHERE [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY sku](sku) ADDOBJ d = StopListDetail DO {
+                FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) AND NOT skipSkuStock(sku, stock) BY sku](sku) ADDOBJ d = StopListDetail DO {
                     stopListStopListDetail(d) <- sl;
                     skuStopListDetail(d) <- sku;            
                 } 
