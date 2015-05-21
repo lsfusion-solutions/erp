@@ -27,11 +27,13 @@ currencyPriceListType(dataPriceListType) += currencyDataPriceListType(dataPriceL
 differentOrganizationsDataPriceListType 'Для разных организаций' = DATA BOOLEAN (DataPriceListType); 
 differentOrganizationsLedgerPriceListType(type) += WHEN type IS DataPriceListType THEN differentOrganizationsDataPriceListType(type);   
 
+notNullDataPriceListType 'Далжна быть задана цена' = DATA BOOLEAN (DataPriceListType);
+
 FORM dataPriceListType 'Пользовательский вид цен'
     OBJECTS d = DataPriceListType FIXED PANEL
     PROPERTIES(d) nameDataPriceListType, idDataPriceListType SHOWIF showIDs(), includeVATPriceListType,
                   nameCurrencyDataPriceListType, nameRoundConditionPriceListType, batchLedgerDataPriceListType, 
-                  differentOrganizationsDataPriceListType
+                  differentOrganizationsDataPriceListType, notNullDataPriceListType
 
     EDIT DataPriceListType OBJECT d
 ;
@@ -44,13 +46,14 @@ DESIGN dataPriceListType {
         MOVE PROPERTY(nameCurrencyDataPriceListType(d));
         MOVE PROPERTY(nameRoundConditionPriceListType(d));
         MOVE PROPERTY(batchLedgerDataPriceListType(d));
+        MOVE PROPERTY(notNullDataPriceListType(d));
     }
 }
 
 FORM dataPriceListTypes 'Пользовательские виды цен'
     OBJECTS p = DataPriceListType
     PROPERTIES(p) READONLY nameDataPriceListType, nameCurrencyDataPriceListType, nameRoundConditionPriceListType
-    PROPERTIES(p) READONLY includeVATDataPriceListType
+    PROPERTIES(p) READONLY includeVATDataPriceListType, notNullDataPriceListType
 
     DIALOG DataPriceListType OBJECT p
 ;
@@ -399,6 +402,9 @@ isActivePriceList(priceList) = isActivePriceListDateTime(priceList, currentDateT
 //                               (fromDateTimePriceList(priceList) <= currentDateTime() AND NOT toDateTimePriceList(priceList));
 isActivePriceListDetail(priceListDetail) = (fromDateTimePriceListDetail(priceListDetail) <= currentDateTime() AND toDateTimePriceListDetail(priceListDetail) >= currentDateTime()) OR
                                (fromDateTimePriceListDetail(priceListDetail) <= currentDateTime() AND NOT toDateTimePriceListDetail(priceListDetail));
+
+CONSTRAINT notNullDataPriceListType(priceListType) AND isActivePriceListDetail(detail) AND inPriceListDetailDataPriceListType(detail, priceListType) AND NOT pricePriceListDetailDataPriceListType(detail, priceListType)
+    MESSAGE 'Должна быть задана цена';
 
 // Цвета
 //backgroundPriceList 'Цвет' (priceList) =
