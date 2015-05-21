@@ -1148,6 +1148,47 @@ END
 
 @defineDialogStockSku(dialogSku);
 
+dataInSessionGroup 'Отм.' = DATA LOCAL BOOLEAN (Group);
+
+levelParentGroup (group) = GROUP MIN levelGroupGroup(group, parent) IF dataInSessionGroup(parent)
+    BY group;
+
+inParentGroup (group) = TRUE IF levelParentGroup(group);
+
+inSessionGroup 'Отм.' (group) = OVERRIDE
+    inParentGroup(group),
+    dataInSessionGroup(group);
+    
+includeSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+includeGroupTypeSku 'Отм.' (groupType, sku) =  OVERRIDE inSessionGroup(groupGroupTypeSku(groupType, sku)), includeSku(sku);
+
+FORM dialogSkuGroup 'Подбор товарных групп'
+    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
+    PROPERTIES inSessionGroup(sk)
+    PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
+    ORDER BY orderSkuGroup(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+
+    OBJECTS skg = SkuGroup
+    PROPERTIES(skg)         inSessionGroup    
+    PROPERTIES READONLY     nameSkuGroup(skg)
+    FILTERS                 inSessionGroup(skg)
+    ORDER BY nameSkuGroup(skg)
+;
+
+DESIGN dialogSkuGroup {
+    main {
+        preferredSize = (1024, 768);
+        NEW skuContainer BEFORE functions.box {
+            fill = 1;
+            type = SPLITH;
+            MOVE skuTree.tree.box;
+            MOVE skg.box;
+        }
+    }
+}
+
+
 // ----------------------------------------------- Документы с товарами для подбора ---------------------------------------- //
 
 CLASS ABSTRACT Document 'Документ с товарами';

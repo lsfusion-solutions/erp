@@ -20,47 +20,51 @@ skipManagementPriceListPriceSku = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, D
 overSetManagementRetailPriceDepartmentStoreDateTime = ABSTRACT ACTION LIST (DepartmentStore, DATETIME);
 
 calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o, dt) {
-    
-    IF onStockPriceListRepricing() THEN {
-        managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
-                                                                                  sku, d, dt);
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
-            IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
-        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
-    } ELSE {
-        managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
-                                                                                  sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
-            IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
-        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+    FORM dialogSkuGroup MODAL;
+    IF formResult() == FormResult.ok THEN {              
+        IF onStockPriceListRepricing() THEN {
+            managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
+                                                                                      sku, d, dt) IF inSessionGroup(skuGroupSku(sku));
+            managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
+                IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) AND inSessionGroup(skuGroupSku(sku));
+            managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+        } ELSE {
+            managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
+                                                                                      sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0 AND inSessionGroup(skuGroupSku(sku));
+            managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
+                IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) AND inSessionGroup(skuGroupSku(sku));
+            managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+        }
+        
+        overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
+        
+        inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+        
+        assignAttributeSku(d, o, dt);
+        formRefresh();
     }
-    
-    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
-    
-    inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
-    
-    assignAttributeSku(d, o, dt);
-    formRefresh();
 } TOOLBAR;
 
 calculateDashboardManagementRepricing 'Рассчитать позиции (упр.)' = ACTION (d, o, dt) {
-    
-    IF onStockPriceListRepricing() THEN {
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
-            IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
-        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
-    } ELSE {
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) 
-            IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
-        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
-    }
-    
-    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
-    
-    inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
-    
-    assignAttributeSku(d, o, dt);    
-    formRefresh();
+    FORM dialogSkuGroup MODAL;
+    IF formResult() == FormResult.ok THEN {        
+        IF onStockPriceListRepricing() THEN {
+            managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
+                IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) AND inSessionGroup(skuGroupSku(sku));
+            managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+        } ELSE {
+            managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) 
+                IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) AND inSessionGroup(skuGroupSku(sku));
+            managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+        }
+        
+        overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
+        
+        inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+        
+        assignAttributeSku(d, o, dt);    
+        formRefresh();
+    }    
 } TOOLBAR;
 
 repForm =  DATA LOCAL UserRepricing();  
