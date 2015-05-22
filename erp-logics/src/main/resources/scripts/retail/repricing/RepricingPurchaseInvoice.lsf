@@ -14,6 +14,9 @@ FORM extraValuation 'Дооценка'
 
     OBJECTS tf=DATETIME FIXED PANEL
     PROPERTIES(tf) OBJVALUE
+
+    OBJECTS tt=DATETIME FIXED PANEL
+    PROPERTIES(tt) OBJVALUE
     
     OBJECTS o=Repricing.Operation FIXED PANEL
     PROPERTIES(o) SELECTOR Repricing.nameOperation    
@@ -27,6 +30,7 @@ DESIGN extraValuation {
             type = CONTAINERH;
             MOVE d.box { caption = 'Выберите отдел магазина';}
             MOVE tf.box { caption = 'Дата/время с'; }
+            MOVE tt.box { caption = 'Дата/время по'; }
             MOVE o.box { caption = 'Выберите операцию переоценки'; }
         }
         MOVE functions.box;
@@ -51,7 +55,22 @@ filterToRepricingInvoiceStockDateTime 'Фильтр' (invoice, department, timeF
     costLedgerDepartmentStore(department) AND
     isPostedInvoice(invoice) AND NOT
     repricingInvoice(invoice)
-;                  
+; 
+ 
+calcQuantitySoldSkuStockPriceDateTimeFromTo 'Кол-во продано по старой цене' (sku, stock, price, fromDateTime, toDateTime) = GROUP SUM 
+    signedQuantityReceiptDetail(d) IF dateTimeReceiptDetail(d) >= (fromDateTime AS DATETIME) AND (dateTimeReceiptDetail(d) <= (toDateTime AS DATETIME)) AND isPostedReceiptDetail(d)
+        BY skuReceiptDetail(d), departmentStoreReceiptDetail(d), priceReceiptDetail(d), fromDateTime, toDateTime; 
+        
+toRepricingQuantitySkuStockPriceDateTimeFromTo 'Кол-во к дооценке' (sku, stock, price, fromDateTime, toDateTime) = prevBalanceBSkuStockDateTime (sku, stock, fromDateTime) (-) calcQuantitySoldSkuStockPriceDateTimeFromTo(sku, stock, price, fromDateTime, toDateTime);         
+toRepricingQuantityInvoiceDetailToDateTime 'Кол-во к дооценке' (detail, toDateTime) = toRepricingQuantitySkuStockPriceDateTimeFromTo(skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), prevRetailPricingPriceBInvoiceDetail(detail), shipmentDateTimeInvoiceDetail(detail), toDateTime); 
+filterToRepricingInvoiceStockDateTimeFromTo 'Фильтр' (invoice, department, timeFrom, timeTo)= 
+    customerStockInvoice(invoice) == department AND         
+    shipmentDateTimeInvoice(invoice) >= timeFrom AND 
+    shipmentDateTimeInvoice(invoice) <= timeTo AND NOT
+    costLedgerDepartmentStore(department) AND
+    isPostedInvoice(invoice) AND NOT
+    repricingInvoice(invoice)
+;                
                   
 overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);  
 overExtraRevertValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);
@@ -87,36 +106,40 @@ keepSupplierPriceInRepricingInvoiceDetailDepartmentStore = ABSTRACT BOOLEAN (Inv
 toRepricingOperation  = DATA Repricing.Operation ();
 nameToRepricingOperation 'Операция для автоматической дооценки' = nameOperation(toRepricingOperation());
 
-toRepricingTime 'Время для автоматической дооценки' = DATA TIME ();
-toRepricingCountDays 'Количество дней анализа для автоматической дооценки' = DATA INTEGER ();
-toRepricingDateTime 'Дата/время документа' () = dateTimeToDateTime(subtractDate(currentDate(), toRepricingCountDays()), toRepricingTime()); 
+toRepricingTime 'Время (с) для автоматической дооценки' = DATA TIME ();
+toRepricingCountDays 'Количество дней анализа для автоматической дооценки (с)' = DATA INTEGER ();
+toRepricingDateTime 'Дата/время документа (с)' () = dateTimeToDateTime(subtractDate(currentDate(), toRepricingCountDays()), toRepricingTime()); 
 minQuantityToRepricing 'Минимальное количество к дооценке' = DATA NUMERIC[14,4] ();
 
-createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, operation) {   
-    IF [ = GROUP SUM 1 IF filterToRepricingInvoiceStockDateTime (invoice, department, timeFrom) BY department, timeFrom] (department, timeFrom) THEN {
+toRepricingTimeTo 'Время (по) для автоматической дооценки' = DATA TIME ();
+toRepricingCountDaysTo 'Количество дней анализа для автоматической дооценки (по)' = DATA INTEGER ();
+toRepricingDateTimeTo 'Дата/время документа (по)' () = OVERRIDE 2030_01_01_00:00, dateTimeToDateTime(subtractDate(currentDate(), toRepricingCountDaysTo()), toRepricingTimeTo()); 
+    
+createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, timeTo, operation) {   
+    IF [ = GROUP SUM 1 IF filterToRepricingInvoiceStockDateTimeFromTo (invoice, department, timeFrom, timeTo) BY department, timeFrom, timeTo] (department, timeFrom, timeTo) THEN {
         
         positiveInvoiceDetail(detail) <- NULL;
-        positiveInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoiceInvoiceDetail(detail), department, timeFrom);
+        positiveInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTimeFromTo(invoiceInvoiceDetail(detail), department, timeFrom, timeTo);
         positiveInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
-        positiveInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
+        positiveInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) > 0 AND isStockSkuInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND positiveInvoiceDetail(detail);                     
         positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);   
-        positiveInvoiceDetail(detail) <- NULL WHERE toRepricingQuantityInvoiceDetail(detail) < minQuantityToRepricing() AND positiveInvoiceDetail(detail); 
+        positiveInvoiceDetail(detail) <- NULL WHERE toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < minQuantityToRepricing() AND positiveInvoiceDetail(detail); 
           
         FOR positiveInvoiceDetail(detail) DO {
             overPositiveInvoiceDetail(detail);
         }              
     
         negativeInvoiceDetail(detail) <- NULL;
-        negativeInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoiceInvoiceDetail(detail), department, timeFrom);
+        negativeInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTimeFromTo(invoiceInvoiceDetail(detail), department, timeFrom, timeTo);
         negativeInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
-        negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetail(detail) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
+        negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE negativeInvoiceDetail(detail);
         negativeInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND negativeInvoiceDetail(detail);         
         negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail); 
         negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND skipNegativeRepricing();
-        negativeInvoiceDetail(detail) <- NULL WHERE delta(toRepricingQuantityInvoiceDetail(detail),0) < minQuantityToRepricing() AND negativeInvoiceDetail(detail);   
+        negativeInvoiceDetail(detail) <- NULL WHERE delta(toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo),0) < minQuantityToRepricing() AND negativeInvoiceDetail(detail);   
         
         FOR negativeInvoiceDetail(detail) DO {
             overNegativeInvoiceDetail(detail);
@@ -133,7 +156,7 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
                 FOR positiveInvoiceDetail(detail) ADDOBJ rd = UserRepricingDetail DO {
                         userRepricingUserRepricingDetail(rd) <- r;
                         skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
-                        quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetail(detail);
+                        quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo);
         
                         curPriceUserRepricingDetail(rd) <- prevSupplierPricingPriceBSkuStockDateTime(skuInvoiceDetail(detail), department, dateTimeInvoiceDetail(detail));
                         curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBInvoiceDetail(detail);
@@ -148,7 +171,7 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
                 FOR negativeInvoiceDetail(detail) ADDOBJ rd = UserRepricingDetail DO {
                         userRepricingUserRepricingDetail(rd) <- r;
                         skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
-                        quantityUserRepricingDetail(rd) <- - toRepricingQuantityInvoiceDetail(detail);
+                        quantityUserRepricingDetail(rd) <- - toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo);
         
                         curPriceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
                         curRetailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);
@@ -158,15 +181,15 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
         
                         overExtraRevertValuation(rd, detail);
                 }
-                repricingInvoice(invoice) <- r WHERE filterToRepricingInvoiceStockDateTime(invoice, department, timeFrom);
+                repricingInvoice(invoice) <- r WHERE filterToRepricingInvoiceStockDateTimeFromTo(invoice, department, timeFrom, timeTo);
                 repricingForm() <- r;            
             } 
         }
     }
-} 
-                  
-createExtraValuationStockTimeOperation 'Создать дооценку' = ACTION  (department, timeFrom, operation) NEWSESSION {
-    createExtraValuationStockTimeOperationNotForm(department, timeFrom, operation);
+}                  
+                   
+createExtraValuationStockTimeOperation 'Создать дооценку' = ACTION  (department, timeFrom, timeTo, operation) NEWSESSION {
+    createExtraValuationStockTimeOperationNotForm(department, timeFrom, timeTo, operation);
     FORM userRepricing  OBJECTS p = repricingForm() MANAGESESSION DOCKEDMODAL;  
     repricingForm() <- NULL;      
 }                 
@@ -174,13 +197,13 @@ createExtraValuationStockTimeOperation 'Создать дооценку' = ACTIO
 createExtraValuation 'Создать дооценку' = ACTION () NEWSESSION {
     FORM extraValuation  MODAL;
     IF formResult() == FormResult.ok THEN {        
-        createExtraValuationStockTimeOperation(chosenObject('d'), chosenDateTime('tf'), chosenObject('o'));                               
+        createExtraValuationStockTimeOperation(chosenObject('d'), chosenDateTime('tf'), chosenDateTime('tt'), chosenObject('o'));                               
     }
 } TOOLBAR ;
 
 EXTEND FORM repricings
     PROPERTIES ()  createExtraValuation TODRAW p
-;
+; 
   
 createOverExtraValuationAllStocks = ABSTRACT ACTION LIST ();
 isOverExtraValuationAllStocks = ABSTRACT BOOLEAN ();
@@ -190,14 +213,14 @@ createExtraValuationAllStocks 'Создать автоматическую до�
         createOverExtraValuationAllStocks();
     } ELSE {   
         FOR department IS DepartmentStore AND isCompanyStock(department) DO {
-            createExtraValuationStockTimeOperationNotForm(department, toRepricingDateTime(), toRepricingOperation());                                     
+            createExtraValuationStockTimeOperationNotForm(department, toRepricingDateTime(), toRepricingDateTimeTo(), toRepricingOperation());                                     
         } 
     }
     apply();
 }
 
 EXTEND FORM options
-    PROPERTIES() nameToRepricingOperation, toRepricingTime, toRepricingCountDays, minQuantityToRepricing, createExtraValuationAllStocks
+    PROPERTIES() nameToRepricingOperation, toRepricingTime, toRepricingCountDays, minQuantityToRepricing, toRepricingTimeTo, toRepricingCountDaysTo, createExtraValuationAllStocks
 ;
 
 DESIGN options {
@@ -208,6 +231,8 @@ DESIGN options {
             MOVE PROPERTY(toRepricingTime());
             MOVE PROPERTY(toRepricingCountDays());
             MOVE PROPERTY(minQuantityToRepricing());
+            MOVE PROPERTY(toRepricingTimeTo());
+            MOVE PROPERTY(toRepricingCountDaysTo());                       
             MOVE PROPERTY(createExtraValuationAllStocks());
         }
     }

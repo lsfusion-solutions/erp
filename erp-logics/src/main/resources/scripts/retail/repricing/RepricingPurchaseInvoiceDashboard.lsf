@@ -4,8 +4,8 @@ REQUIRE Dashboard, RepricingPurchaseInvoice, RepricingLabel, RepricingMachinery;
 
 NAMESPACE Repricing;
 
-createExtraValuationNewStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, operation) NEWSESSION {
-    createExtraValuationStockTimeOperation(department, timeFrom, operation);   
+createExtraValuationNewStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, timeTo, operation) NEWSESSION {
+    createExtraValuationStockTimeOperation(department, timeFrom, timeTo, operation);   
 }
 
 FORM repricingInvoiceDashboard 'Дооценка'
@@ -19,6 +19,9 @@ FORM repricingInvoiceDashboard 'Дооценка'
 
     OBJECTS t=DATETIME FIXED PANEL
     PROPERTIES(t) OBJVALUE        
+    
+    OBJECTS tt=DATETIME FIXED PANEL
+    PROPERTIES(tt) OBJVALUE            
      
     OBJECTS i = Purchase.Invoice
     PROPERTIES (i) READONLY Purchase.isClosedInvoice, Purchase.isPostedInvoice,
@@ -27,7 +30,7 @@ FORM repricingInvoiceDashboard 'Дооценка'
                             Purchase.countInvoiceDetailInvoice, Purchase.quantityInvoiceDetailInvoice, Purchase.sumInvoiceDetailInvoice,
                             Purchase.VATSumInvoiceDetailInvoice, Purchase.invoiceSumInvoiceDetailInvoice
     PROPERTIES (i) Purchase.editInvoice SHOWIF Purchase.isOpenedInvoice(i)
-    FILTERGROUP filters FILTER 'Накладные, по которым не было дооценки' filterToRepricingInvoiceStockDateTime(i,d,t) 'F9' DEFAULT     
+    FILTERGROUP filters FILTER 'Накладные, по которым не было дооценки' filterToRepricingInvoiceStockDateTimeFromTo(i,d,t,tt) 'F9' DEFAULT     
     
     OBJECTS p = Repricing
     PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
@@ -46,7 +49,7 @@ FORM repricingInvoiceDashboard 'Дооценка'
     PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
     PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
                
-    PROPERTIES (d,t,o)  createExtraValuationNewStockTimeOperation TODRAW i FORCE PANEL TOOLBAR     
+    PROPERTIES (d,t,tt,o)  createExtraValuationNewStockTimeOperation TODRAW i FORCE PANEL TOOLBAR     
                      
     FILTERGROUP filters2 FILTER 'Переоценки на текущую дату' dateRepricing(p)==currentDate() 'F5' DEFAULT                         
                                                
@@ -60,6 +63,7 @@ DESIGN repricingInvoiceDashboard {
             MOVE d.box;
             MOVE o.box;
             MOVE t.box { caption = 'Время с';}
+            MOVE tt.box { caption = 'Время по';}
         }
         MOVE i.box;
         MOVE p.box;

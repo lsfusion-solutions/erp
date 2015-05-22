@@ -67,7 +67,6 @@ calculateDashboardManagementRepricing 'Рассчитать позиции (уп
 repForm =  DATA LOCAL UserRepricing();  
 
 createDashboardRepricingNotForm 'Создать переоценку' = ACTION (d, o, dt) {
-//    NEWSESSION NESTED LOCAL {
     IF [ = GROUP SUM 1 IF inDashboardRepricingSku(sku)]() THEN {
         FOR ADDOBJ r = UserRepricing DO {
             departmentStoreUserRepricing(r) <- d;
@@ -86,10 +85,8 @@ createDashboardRepricingNotForm 'Создать переоценку' = ACTION (
                 overPriceListUserRepricingDetail(rd);
             }
             repForm() <- r;
-            //FORM userRepricing OBJECTS p = r MANAGESESSION DOCKEDMODAL;
         }
     }
-//    }
 } TOOLBAR;
 
 createDashboardRepricing 'Создать переоценку' = ACTION  (d, o, dt) NEWSESSION NESTED LOCAL  {
@@ -127,43 +124,44 @@ createManagementRepricingAllStocks 'Создать автоматическую 
     apply();
 }
 //--------------------------------
-FORM cc 'Дооценка'
-    OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES (d) SELECTOR nameDepartmentStore
-
-    OBJECTS tf=DATETIME FIXED PANEL
-    PROPERTIES(tf) OBJVALUE
-    
-    OBJECTS o=Repricing.Operation FIXED PANEL
-    PROPERTIES(o) SELECTOR Repricing.nameOperation    
-
-;
-DESIGN cc {
-    main {
-        type = CONTAINERV;
-
-        NEW topContainer {
-            type = CONTAINERH;
-            MOVE d.box { caption = 'Выберите отдел магазина';}
-            MOVE tf.box { caption = 'Дата/время с'; }
-            MOVE o.box { caption = 'Выберите операцию переоценки'; }
-        }
-        MOVE functions.box;
-    }
-} 
-aaaaa 'Создать переоценку упр.' = ACTION () NEWSESSION {
-    FORM cc  MODAL;
-    IF formResult() == FormResult.ok THEN {  
-        calculateDashboardManagementRepricing(chosenObject('d'), chosenObject('o'), currentDateTime());
-        createDashboardRepricingNotForm(chosenObject('d'), chosenObject('o'), currentDateTime());      
-//        createExtraValuationStockTimeOperation(chosenObject('d'), chosenDateTime('tf'), chosenObject('o'));                               
-    }
-    apply();
-} TOOLBAR ;
+//FORM cc 'Дооценка'
+//    OBJECTS d = DepartmentStore FIXED PANEL
+//    PROPERTIES (d) SELECTOR nameDepartmentStore
+//
+//    OBJECTS tf=DATETIME FIXED PANEL
+//    PROPERTIES(tf) OBJVALUE
+//    
+//    OBJECTS o=Repricing.Operation FIXED PANEL
+//    PROPERTIES(o) SELECTOR Repricing.nameOperation    
+//
+//;
+//DESIGN cc {
+//    main {
+//        type = CONTAINERV;
+//
+//        NEW topContainer {
+//            type = CONTAINERH;
+//            MOVE d.box { caption = 'Выберите отдел магазина';}
+//            MOVE tf.box { caption = 'Дата/время с'; }
+//            MOVE o.box { caption = 'Выберите операцию переоценки'; }
+//        }
+//        MOVE functions.box;
+//    }
+//} 
+//aaaaa 'Создать переоценку упр.' = ACTION () NEWSESSION {
+//    FORM cc  MODAL;
+//    IF formResult() == FormResult.ok THEN {  
+//        calculateDashboardManagementRepricing(chosenObject('d'), chosenObject('o'), currentDateTime());
+//        createDashboardRepricingNotForm(chosenObject('d'), chosenObject('o'), currentDateTime());      
+////        createExtraValuationStockTimeOperation(chosenObject('d'), chosenDateTime('tf'), chosenObject('o'));                               
+//    }
+//    apply();
+//} TOOLBAR;
 
 
 EXTEND FORM options
-    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks, aaaaa
+    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks
+//    , aaaaa
 ;
 DESIGN options {
     repricings {
@@ -171,7 +169,7 @@ DESIGN options {
             caption = 'Автоматическая переоценка упр.';
             MOVE PROPERTY(nameToManagementRepricingOperation());
             MOVE PROPERTY(createManagementRepricingAllStocks());
-            MOVE PROPERTY(aaaaa());
+//            MOVE PROPERTY(aaaaa());
         }
     }
 }
