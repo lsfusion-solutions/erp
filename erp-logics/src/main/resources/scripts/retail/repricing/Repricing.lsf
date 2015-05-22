@@ -238,6 +238,25 @@ markupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))
 
 // ---- Действия по проставлению новых надбавок и цен ------- //
 
+repricingRoundCondition = DATA RoundCondition ();
+nameRepricingRoundCondition 'Условие округления розничной цены' ()= nameRoundCondition(repricingRoundCondition());
+
+CONSTRAINT defaultCurrency() AND repricingRoundCondition() AND NOT defaultCurrency() == currencyRoundCondition(repricingRoundCondition())
+    CHECKED BY repricingRoundCondition MESSAGE 'Валюта округления должна совпадать с валютой по умолчанию';
+
+EXTEND FORM options
+    PROPERTIES() nameRepricingRoundCondition
+;
+
+DESIGN options {
+    pane {        
+        NEW repricings {
+            caption = 'Акты переоценки';
+            MOVE PROPERTY(nameRepricingRoundCondition());   
+        }
+    }
+}
+
 CLASS ChangePriceType 'Тип изменения цены' {
     markupChange 'Процент торговой надбавки',
     discountChange 'Процент к розничной цене'
@@ -253,19 +272,24 @@ nameChangePriceTypeUserRepricing 'Тип изменения цены' (userRepri
 
 percentUserRepricing 'Процент' (userRepricing)= DATA NUMERIC[8,3](UserRepricing);
 
+roundConditionUserRepricing = DATA RoundCondition (UserRepricing);
+nameRoundConditionUserRepricing 'Условие округления розничной цены' (d)= nameRoundCondition(roundConditionUserRepricing(d));
+
+CONSTRAINT currencyUserRepricing(r) AND roundConditionUserRepricing(r) AND NOT currencyUserRepricing(r) == currencyRoundCondition(roundConditionUserRepricing(r))
+    CHECKED BY roundConditionUserRepricing MESSAGE 'Валюта округления должна совпадать с валютой переоценки';
+
 newDiscountRetailPriceUserRepricingDetail (d) =  roundPriceRoundCondition(NUMERIC[14,2]([= X+(X*Y)/100](
     curRetailPriceUserRepricingDetail(d),
-    percentUserRepricing(userRepricingUserRepricingDetail(d)))), roundConditionDepartmentStore(departmentStoreUserRepricingDetail(d)));
+    percentUserRepricing(userRepricingUserRepricingDetail(d)))), roundConditionUserRepricing(userRepricingUserRepricingDetail(d)));
 
 newMarkupRetailPriceUserRepricingDetail (d) = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
     curRepricingPriceUserRepricingDetail(d),
     percentUserRepricing(userRepricingUserRepricingDetail(d)),
-    valueCurVATUserRepricingDetail(d))), roundConditionDepartmentStore(departmentStoreUserRepricingDetail(d)));
-
+    valueCurVATUserRepricingDetail(d))), roundConditionUserRepricing(userRepricingUserRepricingDetail(d)));
 
 FORM addPercentUserRepricing 'Изменение цены'
     OBJECTS u=UserRepricing FIXED PANEL
-    PROPERTIES (u) nameChangePriceTypeUserRepricing, percentUserRepricing
+    PROPERTIES (u) nameChangePriceTypeUserRepricing, percentUserRepricing, nameRoundConditionUserRepricing
 ;
 
 DESIGN addPercentUserRepricing {
@@ -284,12 +308,19 @@ DESIGN addPercentUserRepricing {
             font = 'bold 64';
             panelCaptionAbove = TRUE;
         }
+        PROPERTY (nameRoundConditionUserRepricing(u)) {
+            alignment = STRETCH;
+            caption = 'Выберите тип округления';
+            font = 'bold 28';
+            panelCaptionAbove = TRUE;
+        }        
     }
 }
 
 overChangePriceUserRepricing = ABSTRACT ACTION LIST (RepricingDetail);
 
 changePriceUserRepricing 'Изменить цену' (repricing) = ACTION (repricing) {
+        roundConditionUserRepricing(repricing) <- repricingRoundCondition() IF currencyUserRepricing(repricing) == currencyRoundCondition(repricingRoundCondition());
         FORM addPercentUserRepricing OBJECTS u = repricing MODAL;
         IF formResult() == FormResult.ok AND changePriceTypeUserRepricing(repricing) AND percentUserRepricing(repricing) THEN {
             FOR userRepricingUserRepricingDetail(d) == repricing DO {
@@ -554,8 +585,7 @@ EXTEND FORM options
 
 DESIGN options {
     pane {        
-        NEW repricings {
-            caption = 'Акты переоценки';
+        repricings {
             MOVE PROPERTY(isStockRepricings());   
         }
     }
