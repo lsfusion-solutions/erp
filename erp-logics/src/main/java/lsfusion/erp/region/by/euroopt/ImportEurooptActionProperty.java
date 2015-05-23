@@ -174,21 +174,21 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 object(findClass("Brand")).getMapping(brandKey), true));
         fields.add(idBrandField);
 
-        ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extIdBarcode"));
-        ImportKey<?> packBarcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                findProperty("extBarcodeId").getMapping(extIdPackBarcodeSkuField));
-        keys.add(packBarcodeKey);
-        packBarcodeKey.skipKey = skipKeys;
-        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extIdBarcode").getMapping(packBarcodeKey)));
-        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("skuBarcode").getMapping(packBarcodeKey),
-                object(findClass("Item")).getMapping(itemKey)));
-        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
-                object(findClass("Barcode")).getMapping(packBarcodeKey)));
-        fields.add(extIdPackBarcodeSkuField);
-
-        ImportField amountPackBarcodeField = new ImportField(findProperty("amountBarcode"));
-        props.add(new ImportProperty(amountPackBarcodeField, findProperty("amountBarcode").getMapping(packBarcodeKey)));
-        fields.add(amountPackBarcodeField);
+//        ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extIdBarcode"));
+//        ImportKey<?> packBarcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
+//                findProperty("extBarcodeId").getMapping(extIdPackBarcodeSkuField));
+//        keys.add(packBarcodeKey);
+//        packBarcodeKey.skipKey = skipKeys;
+//        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extIdBarcode").getMapping(packBarcodeKey)));
+//        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("skuBarcode").getMapping(packBarcodeKey),
+//                object(findClass("Item")).getMapping(itemKey)));
+//        props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
+//                object(findClass("Barcode")).getMapping(packBarcodeKey)));
+//        fields.add(extIdPackBarcodeSkuField);
+//
+//        ImportField amountPackBarcodeField = new ImportField(findProperty("amountBarcode"));
+//        props.add(new ImportProperty(amountPackBarcodeField, findProperty("amountBarcode").getMapping(packBarcodeKey)));
+//        fields.add(amountPackBarcodeField);
 
         ImportTable table = new ImportTable(fields, data);
 
@@ -271,7 +271,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         try {
 
             NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
-            String idPriceList = String.valueOf(Calendar.getInstance().getTimeInMillis());
+            String idPriceList = "euroopt" + String.valueOf(Calendar.getInstance().getTimeInMillis());
             Set<String> itemURLSet = useTor ? getItemURLSetTor(lowerNetLayer) : getItemURLSet();
             int idPriceListDetail = 1;
             int i = 1;
@@ -363,9 +363,9 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                         if (importItems)
                             itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
                                     fatsItem, carbohydratesItem, energyItem, imageItem == null ? null : IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem,
-                                    brandItem, idBarcodePack, quantityPack));
+                                    brandItem)); //, idBarcodePack, quantityPack));
                         if (importUserPriceLists) {
-                            userPriceListsList.add(Arrays.asList((Object) idPriceList, String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
+                            userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
                             idPriceListDetail++;
                         }
                         //to avoid duplicates
