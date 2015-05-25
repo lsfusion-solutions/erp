@@ -115,35 +115,42 @@ toRepricingTimeTo 'Время (по) для автоматической доо�
 toRepricingCountDaysTo 'Количество дней анализа для автоматической дооценки (по)' = DATA INTEGER ();
 toRepricingDateTimeTo 'Дата/время документа (по)' () = OVERRIDE 2030_01_01_00:00, dateTimeToDateTime(subtractDate(currentDate(), toRepricingCountDaysTo()), toRepricingTimeTo()); 
     
-createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, timeTo, operation) {   
-    IF [ = GROUP SUM 1 IF filterToRepricingInvoiceStockDateTimeFromTo (invoice, department, timeFrom, timeTo) BY department, timeFrom, timeTo] (department, timeFrom, timeTo) THEN {
+createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, timeTo, operation) {
+    LOCAL inInvoice = BOOLEAN (Invoice);
+    inInvoice(invoice) <- filterToRepricingInvoiceStockDateTimeFromTo (invoice, department, timeFrom, timeTo);
+    IF [ = GROUP SUM 1 IF inInvoice(invoice)] () THEN {
         
         positiveInvoiceDetail(detail) <- NULL;
-        positiveInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTimeFromTo(invoiceInvoiceDetail(detail), department, timeFrom, timeTo);
+        positiveInvoiceDetail(detail) <- inInvoice(invoiceInvoiceDetail(detail));
         positiveInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) > 0 AND isStockSkuInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
-        positiveInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE positiveInvoiceDetail(detail);
+        positiveInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail)) == detail WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND positiveInvoiceDetail(detail);                     
-        positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);   
-        positiveInvoiceDetail(detail) <- NULL WHERE toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < minQuantityToRepricing() AND positiveInvoiceDetail(detail); 
+        positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail);
+        IF minQuantityToRepricing() THEN {
+            positiveInvoiceDetail(detail) <- NULL WHERE toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < minQuantityToRepricing() AND positiveInvoiceDetail(detail);
+        }
           
         FOR positiveInvoiceDetail(detail) DO {
             overPositiveInvoiceDetail(detail);
         }              
     
-        negativeInvoiceDetail(detail) <- NULL;
-        negativeInvoiceDetail(detail) <- TRUE WHERE filterToRepricingInvoiceStockDateTimeFromTo(invoiceInvoiceDetail(detail), department, timeFrom, timeTo);
-        negativeInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
-        negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
-        negativeInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE negativeInvoiceDetail(detail);
-        negativeInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND negativeInvoiceDetail(detail);         
-        negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail); 
-        negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND skipNegativeRepricing();
-        negativeInvoiceDetail(detail) <- NULL WHERE delta(toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo),0) < minQuantityToRepricing() AND negativeInvoiceDetail(detail);   
+        IF NOT skipNegativeRepricing() THEN {
+            negativeInvoiceDetail(detail) <- NULL;
+            negativeInvoiceDetail(detail) <- inInvoice(invoiceInvoiceDetail(detail));
+            negativeInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
+            negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
+            negativeInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE negativeInvoiceDetail(detail);
+            negativeInvoiceDetail(detail) <- NULL WHERE skipExtraValuationSkuStock(skuInvoiceDetail(detail), department) AND negativeInvoiceDetail(detail);         
+            negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND NOT priceInvoiceDetail(detail); 
+            IF minQuantityToRepricing() THEN {
+                negativeInvoiceDetail(detail) <- NULL WHERE delta(toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo),0) < minQuantityToRepricing() AND negativeInvoiceDetail(detail);
+            }
         
-        FOR negativeInvoiceDetail(detail) DO {
-            overNegativeInvoiceDetail(detail);
-        }              
+            FOR negativeInvoiceDetail(detail) DO {
+                overNegativeInvoiceDetail(detail);
+            }
+        }
                 
         IF [ = GROUP SUM 1 IF positiveInvoiceDetail(detail) OR negativeInvoiceDetail(detail) ]() THEN {
             FOR ADDOBJ r = UserRepricing DO {
@@ -181,7 +188,7 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
         
                         overExtraRevertValuation(rd, detail);
                 }
-                repricingInvoice(invoice) <- r WHERE filterToRepricingInvoiceStockDateTimeFromTo(invoice, department, timeFrom, timeTo);
+                repricingInvoice(invoice) <- r WHERE inInvoice(invoice);
                 repricingForm() <- r;            
             } 
         }
@@ -200,6 +207,18 @@ createExtraValuation 'Создать дооценку' = ACTION () NEWSESSION {
         createExtraValuationStockTimeOperation(chosenObject('d'), chosenDateTime('tf'), chosenDateTime('tt'), chosenObject('o'));                               
     }
 } TOOLBAR ;
+
+recreateExtraValuation = ACTION(dateFrom, dateTo) {
+    FOR iterateDate(d, dateFrom, dateTom) DO {
+        DELETE u WHERE operationUserRepricing(u) == toRepricingOperation() AND dateUserRepricing(u) == d;
+        apply();
+        FOR department IS DepartmentStore AND isCompanyStock(department) DO {
+            createExtraValuationStockTimeOperationNotForm(department, DATETIME(subtractDate(d,1)), DATETIME(d), toRepricingOperation());
+            dateUserRepricing(r) <- d WHERE SET(r IS UserRepricing);
+            apply();
+        }
+    }
+}
 
 EXTEND FORM repricings
     PROPERTIES ()  createExtraValuation TODRAW p
