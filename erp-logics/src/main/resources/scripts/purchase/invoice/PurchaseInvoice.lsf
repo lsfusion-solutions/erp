@@ -356,6 +356,7 @@ overShowEditInvoice (i) += showEditDeleteUserInvoice(i) AND isOpenedInvoice(i);
 overShowDeleteInvoice (i) += showEditDeleteUserInvoice(i) AND isUserOpenedInvoice(i); 
 
 dateBanBarcodeStock 'Дата запрета приемки накладных без штрихкодов'  = DATA DATE (Stock); 
+dateBanValueVATStock 'Дата запрета приемки накладных без ставки НДС'  = DATA DATE (Stock); 
 
 EXTEND FORM options
 
@@ -365,7 +366,7 @@ EXTEND FORM options
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, dateBanBarcodeStock EDITABLE 
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, dateBanBarcodeStock EDITABLE, dateBanValueVATStock EDITABLE
     ORDER BY stockName
     
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
@@ -393,3 +394,12 @@ DESIGN options {
     }
 }
 
+CONSTRAINT  isPostedInvoiceDetail(d) AND isItemSku(skuInvoiceDetail(d)) AND 
+    dateInvoiceDetail(d) >= dateBanValueVATStock(customerStockInvoiceDetail(d)) AND NOT valueVATInvoiceDetail(d)
+        MESSAGE 'Для строки накладной (закупка) должна быть задана ставка входного НДС';   
+
+
+banBarcodeInvoiceDetail(d) = ABSTRACT BOOLEAN (InvoiceDetail);
+CONSTRAINT  isPostedInvoiceDetail(d) AND isItemSku(skuInvoiceDetail(d)) AND NOT banBarcodeInvoiceDetail(d) AND
+    dateInvoiceDetail(d) >= dateBanBarcodeStock(customerStockInvoiceDetail(d)) AND NOT idBarcodeSkuInvoiceDetail(d)
+        MESSAGE 'Для строки накладной (закупка) обязан быть задан штрихкод';   
