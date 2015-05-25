@@ -793,6 +793,7 @@ DESIGN dialogBatchStock {
 // ------------------------------------------------- Себестоимость --------------------------- //
 
 currentBalanceSkuLedgerBatch 'Текущий остаток' (bil, bt) = currentBalanceBatchStock(bt, stockSkuLedger(bil));
+countLedgerSkuLedgerBatch 'Кол-во движений' (bil, bt) = countLedgerBatchStock(bt, stockSkuLedger(bil));
 
 FORM costSkuLedger 'Себестоимость (операции)'
     OBJECTS bil = SkuLedger
@@ -808,7 +809,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
 
     OBJECTS bt = Batch
     PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, shippedQuantityBatch, costBatch, currentBalanceBatch
-    PROPERTIES(bil, bt)     costSkuLedgerBatch FORCE GRID, currentBalanceSkuLedgerBatch FORCE GRID
+    PROPERTIES(bil, bt)  FORCE GRID costSkuLedgerBatch, currentBalanceSkuLedgerBatch, countLedgerSkuLedgerBatch
     FILTERS skuBatch(bt) == skuSkuLedger(bil)
     ORDER BY dateTimeBatch(bt) DESC
 
@@ -1452,7 +1453,7 @@ META implementSkuLedgerOutFIFOBatchBalancePostfix (object, stockProp, postfix)
     limitOutFIFOSkuLedgerBatch(ledger, batch) += IF batch###object(ledger) THEN
                                                     quantity###object(ledger) IF batch == batch###object(ledger)
                                                  ELSE
-                                                    currentBalance##postfix##BatchStock(batch, stockProp###object(ledger));
+                                                    OVERRIDE 0.0 IF countLedger##postfix##BatchStock(batch, stockProp###object(ledger)), currentBalance##postfix##BatchStock(batch, stockProp###object(ledger));
     changedDataSkuLedger(ledger) += CHANGED(batch###object(ledger));
 END
 
@@ -1461,7 +1462,7 @@ META implementSkuLedgerOutFIFOBatchBalance (object, stockProp)
 END
 
 META implementSkuLedgerOutFIFOBalancePostfix (object, stockProp, postfix)
-    limitOutFIFOSkuLedgerBatch(ledger, batch) += currentBalance##postfix##BatchStock(batch, stockProp###object(ledger));
+    limitOutFIFOSkuLedgerBatch(ledger, batch) += OVERRIDE 0.0 IF countLedger##postfix##BatchStock(batch, stockProp###object(ledger)), currentBalance##postfix##BatchStock(batch, stockProp###object(ledger));
 END
 
 META implementSkuLedgerOutFIFOBalance (object, stockProp)
