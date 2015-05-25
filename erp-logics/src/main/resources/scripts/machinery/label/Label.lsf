@@ -722,28 +722,73 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
             
             LOCAL inSku = BOOLEAN (Sku);    
             inSku(sku) <- TRUE IF count###detailProp##Detail###skuProp###document(sku, document);
+            
+            FORM selectLabelTypes OBJECTS ds =  stockProp###document(document) MODAL;
+            IF formResult() == FormResult.ok THEN { 
+                IF NOT countSelectType() THEN {  
+                    selectType(type) <- TRUE WHERE type == chosenObject('l');
+                }                                        
+                FOR selectType(type) ADDOBJ t = LabelTransaction DO {              
+                    departmentStoreLabelTransaction(t) <- stockProp###document(document);
+                    priceTransactionDocumentLabelTransaction(t) <- document;
+                    labelTypeLabelTransaction(t) <- type;
         
-            FOR ADDOBJ t = LabelTransaction DO {
-                departmentStoreLabelTransaction(t) <- stockProp###document(document);
-                priceTransactionDocumentLabelTransaction(t) <- document;
-    
-                FOR document###detailProp##Detail(dd) == document AND inSku(sku) AND sku == skuProp###detailProp##Detail(dd) 
-                    ADDOBJ d = LabelTransactionDetail DO {
-                        labelTransactionLabelTransactionDetail(d) <- t;
-                        skuLabelTransactionDetail(d) <- sku;
-                        batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
-    
-                        nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                        documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
-                        
-                        createAttributeLabelTransactionDetail(d);
-                        createAttribute###document##DetailLabelTransactionDetail(dd, d);
+                    FOR document###detailProp##Detail(dd) == document AND inSku(sku) AND sku == skuProp###detailProp##Detail(dd) 
+                        ADDOBJ d = LabelTransactionDetail DO {
+                            labelTransactionLabelTransactionDetail(d) <- t;
+                            skuLabelTransactionDetail(d) <- sku;
+                            batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
+        
+                            nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
+                            documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
+                            
+                            priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
+                            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
+                    
+                            quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
+                                                                    INTEGER(documentQuantityLabelTransactionDetail(d))
+                                                                 ELSE 
+                                                                    countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));    
+                            
+                            
+                            createAttributeLabelTransactionDetail(d);
+                            createAttribute###document##DetailLabelTransactionDetail(dd, d);
+                    }
+                    IF changeDepartmentStore(stockProp###document(document)) THEN {
+                        FORM customLabelTransaction OBJECTS l = t MODAL;
+                        IF formResult() == FormResult.ok THEN {    
+                            printLabelTransaction(t);
+                        } ELSE {
+                            cancel();
+                        }             
+                    } ELSE {
+                        printLabelTransaction(t);
+                    }                        
                 }
-                FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
-                IF formResult() == FormResult.ok THEN {
-                        printLabelTransaction(t);                
-                }
-            }            
+                 
+            }                                                                                      
+        
+//            FOR ADDOBJ t = LabelTransaction DO {
+//                departmentStoreLabelTransaction(t) <- stockProp###document(document);
+//                priceTransactionDocumentLabelTransaction(t) <- document;
+//    
+//                FOR document###detailProp##Detail(dd) == document AND inSku(sku) AND sku == skuProp###detailProp##Detail(dd) 
+//                    ADDOBJ d = LabelTransactionDetail DO {
+//                        labelTransactionLabelTransactionDetail(d) <- t;
+//                        skuLabelTransactionDetail(d) <- sku;
+//                        batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
+//    
+//                        nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
+//                        documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
+//                        
+//                        createAttributeLabelTransactionDetail(d);
+//                        createAttribute###document##DetailLabelTransactionDetail(dd, d);
+//                }
+//                FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
+//                IF formResult() == FormResult.ok THEN {
+//                        printLabelTransaction(t);                
+//                }
+//            }            
         }            
         
     } TOOLBAR;
@@ -838,11 +883,41 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
     }
 } TOOLBAR;
 
-createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
+//createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
+//
+//    FOR ADDOBJ t = LabelTransaction DO {
+//        departmentStoreLabelTransaction(t) <- departmentStore;
+//
+//        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
+//            labelTransactionLabelTransactionDetail(d) <- t;
+//            skuLabelTransactionDetail(d) <- sku;
+//
+//            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+//            documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
+//
+//            createAttributeLabelTransactionDetail(d);
+//        }
+//        
+//        FORM customLabelTransaction OBJECTS l = t MODAL;
+//        IF formResult() == FormResult.ok THEN {    
+//            printLabelTransaction(t);
+//        } ELSE {
+//            cancel();
+//        }      
+//    }  
+//} TOOLBAR ;
+
+selectType 'Вкл.' = DATA LOCAL BOOLEAN (LabelType);
+changeDepartmentStore 'Изменить данные' = DATA LOCAL BOOLEAN (DepartmentStore);
+countSelectType = GROUP SUM 1 IF selectType(t);
+
+
+createSnapshotLabelTransactionDepartmentStoreLabelType 'Перепечатать ценники' = ACTION (departmentStore, labelType) {
 
     FOR ADDOBJ t = LabelTransaction DO {
         departmentStoreLabelTransaction(t) <- departmentStore;
-
+        labelTypeLabelTransaction(t) <- labelType;
+        
         FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
             labelTransactionLabelTransactionDetail(d) <- t;
             skuLabelTransactionDetail(d) <- sku;
@@ -850,38 +925,29 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
             nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
             documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
 
-            createAttributeLabelTransactionDetail(d);
+            createAttributeLabelTransactionDetail(d);           
+            
+
+            priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
+            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
+    
+            quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
+                                                    INTEGER(documentQuantityLabelTransactionDetail(d))
+                                                 ELSE 
+                                                    countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));                                                              
         }
-        
-        FORM customLabelTransaction OBJECTS l = t MODAL;
-        IF formResult() == FormResult.ok THEN {    
-            printLabelTransaction(t);
+        IF changeDepartmentStore(departmentStore) THEN {
+            FORM customLabelTransaction OBJECTS l = t MODAL;
+            IF formResult() == FormResult.ok THEN {    
+                printLabelTransaction(t);
+            } ELSE {
+                cancel();
+            }             
         } ELSE {
-            cancel();
-        }      
+            printLabelTransaction(t);
+        }     
     }  
 } TOOLBAR ;
-
-// --------------------------------- Печать ценников по отмеченным по sku ------------------------- //
-
-printSelectedSkuLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
-    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
-        createLabelTransactionDepartmentStore(departmentStore);
-        selectSku(sku) <- NULL;
-    } ELSE {
-        MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
-    }
-} TOOLBAR;
-
-printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
-    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {            
-        createSnapshotLabelTransactionDepartmentStore(departmentStore);
-        selectSku(sku) <- NULL;
-    } ELSE {
-        MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
-    }
-} TOOLBAR;
 
 
 // --------------------------------- Печать ценников по отмеченным по складу ------------------------- //
@@ -911,15 +977,36 @@ createSelectedSkuStockLabelTransaction 'Распечатать ценники' =
     }
 } TOOLBAR;
 
+FORM selectLabelTypes 'Доступные типы ценников'
+    OBJECTS ds = DepartmentStore  FIXED PANEL   
+    PROPERTIES(ds) SELECTOR nameDepartmentStore
+    PROPERTIES changeDepartmentStore(ds)
+    OBJECTS l = LabelType FIXED GRID
+    PROPERTIES(l) selectType
+    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
+                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType, notPrintRetailPriceLabelType
+    FILTERS inLabelTypeDepartmentStore(l,ds)
+;
+
+DESIGN selectLabelTypes { main{ preferredSize = (600, 400); } }  
+
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
         NEWSESSION NESTED selectSkuStock {
+
             FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
-                selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
-                                   
-                createSnapshotLabelTransactionDepartmentStore(stock);
-            }
-            
+                FORM selectLabelTypes OBJECTS ds =  stock MODAL;
+                IF formResult() == FormResult.ok THEN { 
+                    selectSku(sku) <- NULL;  
+                    selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);     
+                    IF NOT countSelectType() THEN {
+                        selectType(type) <- TRUE WHERE type == chosenObject('l');
+                    }            
+                    FOR selectType(type) DO {
+                        createSnapshotLabelTransactionDepartmentStoreLabelType(stock, type);
+                    }                     
+                }                                                  
+            }                      
             apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
@@ -928,9 +1015,68 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
     }
 } TOOLBAR;
 
+
+//createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
+//    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
+//        NEWSESSION NESTED selectSkuStock {
+//            FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
+//                selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
+//                                   
+//                createSnapshotLabelTransactionDepartmentStore(stock);
+//            }
+//            
+//            apply();
+//        }
+//        IF NOT notResetLabelSelectSku() THEN {
+//            selectSkuStock(sku, stock) <- NULL;
+//        }
+//    }
+//} TOOLBAR;
+
 EXTEND  FORM currentBalanceSkuStock
     PROPERTIES() TODRAW sts createSelectedSkuStockLabelTransaction, createSelectedSkuStockSnapshotLabelTransaction 
 ;
+// --------------------------------- Печать ценников по отмеченным по sku ------------------------- //
+
+printSelectedSkuLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
+    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
+        selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
+        createLabelTransactionDepartmentStore(departmentStore);
+        selectSku(sku) <- NULL;
+    } ELSE {
+        MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
+    }
+} TOOLBAR;
+printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
+    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN  { 
+        NEWSESSION NESTED selectSku {
+            FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;  
+            IF formResult() == FormResult.ok THEN {       
+                IF NOT countSelectType() THEN {
+                    selectType(type) <- TRUE WHERE type == chosenObject('l');
+                }                                                            
+                FOR selectType(type) DO {
+                    createSnapshotLabelTransactionDepartmentStoreLabelType(departmentStore, type);
+                }             
+            }
+            apply();
+        }
+        IF NOT notResetLabelSelectSku() THEN {
+            selectSku(sku) <- NULL;
+        }
+    } ELSE {
+        MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
+    }
+} TOOLBAR;
+
+//printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
+//    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {            
+//        createSnapshotLabelTransactionDepartmentStore(departmentStore);
+//        selectSku(sku) <- NULL;
+//    } ELSE {
+//        MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
+//    }
+//} TOOLBAR;
 
 // Инкрементная загрузка
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
