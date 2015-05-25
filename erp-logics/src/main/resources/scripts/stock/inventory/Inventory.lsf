@@ -906,27 +906,29 @@ dialogSkuCollationSheet 'Добавить товар' = ACTION (collationSheet) 
 //------------------------------------ Формы редактирования описей ------------------------------------------//
 
 createPageListInventory 'Создать страницу описи с остатками'  (listInventory) = ACTION (listInventory) {
-
-    FOR ADDOBJ p = PageInventory  DO {
-        listInventoryPageInventory(p) <- listInventory;
-        IF isBatchInventory(inventoryListInventory(listInventory)) THEN {
-            FOR cnt == balanceBBatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) ADDOBJ d = PageInventoryDetail DO {
-                pageInventoryPageInventoryDetail(d) <- p;
-                skuPageInventoryDetail(d) <- skuBatch(b);
-                batchPageInventoryDetail(d) <- b;
-                quantityPageInventoryDetail(d) <- cnt;
-                pricePageInventoryDetail(d) <- accountPriceBatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory)));
-            }
-        } ELSE {
-            FOR cnt == balanceBSkuStockDateTime(sk, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) ORDER nameSku (sk) ADDOBJ d = PageInventoryDetail DO {
-                pageInventoryPageInventoryDetail(d) <- p;
-                skuPageInventoryDetail(d) <- sk;
-                quantityPageInventoryDetail(d) <- cnt;
-                pricePageInventoryDetail(d) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sk, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory)));
-            }        
-        }          
-    }
-} CONFIRM;
+    FORM dialogSkuGroup MODAL;
+    IF formResult() == FormResult.ok THEN {    
+        FOR ADDOBJ p = PageInventory  DO {
+            listInventoryPageInventory(p) <- listInventory;
+            IF isBatchInventory(inventoryListInventory(listInventory)) THEN {
+                FOR (cnt == balanceBBatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) AND inSessionGroup(skuGroupSku(skuBatch(b)))) ADDOBJ d = PageInventoryDetail DO {
+                    pageInventoryPageInventoryDetail(d) <- p;
+                    skuPageInventoryDetail(d) <- skuBatch(b);
+                    batchPageInventoryDetail(d) <- b;
+                    quantityPageInventoryDetail(d) <- cnt;
+                    pricePageInventoryDetail(d) <- accountPriceBatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory)));
+                }
+            } ELSE {
+                FOR (cnt == balanceBSkuStockDateTime(sk, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) AND inSessionGroup(skuGroupSku(sk))) ORDER nameSku (sk) ADDOBJ d = PageInventoryDetail DO {
+                    pageInventoryPageInventoryDetail(d) <- p;
+                    skuPageInventoryDetail(d) <- sk;
+                    quantityPageInventoryDetail(d) <- cnt;
+                    pricePageInventoryDetail(d) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sk, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory)));
+                }        
+            }          
+        }
+    }    
+};
                                                                                                                                                 
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory FIXED PANEL
