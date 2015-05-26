@@ -20,9 +20,10 @@ binUserShipmentDetail(detail) <- binStockSku(supplierStockUserShipmentDetail(det
 @defineInvoiceShipmentBin(supplierStock);
 @deriveDocumentOperationProperty(UserInvoice, showBin);
 
-binUserInvoiceDetail(detail) <- binStockSku(supplierStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail))
-    WHEN CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-         CHANGED(skuUserInvoiceDetail(detail));
+WHEN SESSION FORMS userInvoice
+    CHANGED(supplierStockUserInvoiceDetail(detail)) OR CHANGED(skuUserInvoiceDetail(detail)) DO {
+        binUserInvoiceDetail(detail) <- binStockSku(supplierStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail));    
+    }
 
 //-- Проводим по регистру (ячейка)
 binDataSkuLedger(ledger) += binShipmentDetail(ledger);
