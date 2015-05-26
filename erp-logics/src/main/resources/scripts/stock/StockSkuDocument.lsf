@@ -1194,6 +1194,9 @@ DESIGN dialogSkuGroup {
 CLASS ABSTRACT Document 'Документ с товарами';
 CLASS ABSTRACT DocumentDetail 'Строка документа';
 
+isClosedDocument 'Закрыт' = ABSTRACT BOOLEAN  (Document);
+isPostedDocument 'Проведен' = ABSTRACT BOOLEAN (Document);
+
 numberDocument 'Номер' = ABSTRACT STRING[18] (Document);
 seriesDocument 'Серия' = ABSTRACT STRING[2] (Document);
 dateDocument 'Дата' = ABSTRACT DATE(Document);
@@ -1240,6 +1243,8 @@ DESIGN documents {
 }
 
 META implementDocument(object)
+    isClosedDocument(object) += isClosed###object(object);
+    isPostedDocument(object) += isPosted###object(object);
     numberDocument(object) += number###object(object);
     seriesDocument(object) += series###object(object);
     dateDocument(object) += date###object(object);
@@ -1351,7 +1356,9 @@ CLASS TypeChange 'Тип изменения' {
     deleteRow 'Удаление строк',
     changeSeriesNumber 'Изменение серии/номера',
     changeSupplierStock 'Изменение склада поставщика',
-    changeCustomerStock 'Изменение склада покупателя'
+    changeCustomerStock 'Изменение склада покупателя',
+    changePosted 'Проведение/Распроведение',
+    changeClosed 'Закрытие/Открытие'
 }
 
 typeChangeDocumentLog= DATA TypeChange (DocumentLog);
@@ -1481,6 +1488,44 @@ WHEN (CHANGED(customerStockDocument(o)) AND PREV(customerStockDocument(o))) IF N
         dateDocumentDocumentLog(d) <- dateDocument(o);   
         typeChangeDocumentLog(d) <- TypeChange.changeCustomerStock;
         noteDocumentLog(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameCustomerStockDocument(o)));      
+        sessionDocumentLog(d) <- currentSession();  
+        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
+        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
+        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
+        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());   
+        supplierStockDocumentLog(d) <- supplierStockDocument(o);
+        customerStockDocumentLog(d) <- customerStockDocument(o);
+    }
+}
+
+WHEN (DROPSET (isPostedDocument(o))) IF NOT disableDocumentLog()  DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumentDocumentLog(d) <- numberDocument(o);  
+        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.changePosted;
+        noteDocumentLog(d) <- VARSTRING[255](IF isPostedDocument(o) THEN 'Проведен' ELSE 'Распроведен');      
+        sessionDocumentLog(d) <- currentSession();  
+        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
+        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
+        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
+        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());   
+        supplierStockDocumentLog(d) <- supplierStockDocument(o);
+        customerStockDocumentLog(d) <- customerStockDocument(o);
+    }
+}
+
+WHEN (DROPSET (isClosedDocument(o))) IF NOT disableDocumentLog()  DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumentDocumentLog(d) <- numberDocument(o);  
+        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.changeClosed;
+        noteDocumentLog(d) <- VARSTRING[255](IF isClosedDocument(o) THEN 'Закрыт' ELSE 'Открыт');      
         sessionDocumentLog(d) <- currentSession();  
         hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
         userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
