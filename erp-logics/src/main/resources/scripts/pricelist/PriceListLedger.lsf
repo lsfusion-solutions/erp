@@ -257,14 +257,19 @@ priceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime
     GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
           BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
           ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+          WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
 
 priceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
     GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
           BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
           ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
           WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+
+currentPriceListLedgerLedgerPriceListTypeSkuStock 'Цена' (type, sku, stock) =
+    GROUP LAST ledger
+          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock
+          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
+          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) COMPLEX;
 
 META defineLastLedgerPriceListTypeSkuStock(property, caption)
     property##BLedgerPriceListTypeSkuStockDateTime caption (type, sku, stock, dateTime) =
@@ -539,23 +544,24 @@ accountSumRecASkuGroupBatchStockDate 'Учетная сумма на конец 
     BY group, stock, date;   
 
 //--
-currentAccountPriceBatchStock 'Цена учетная' (batch, stock) =
+accountPriceABatchStock 'Цена учетная' (batch, stock) =
     prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
+
+// Суммы остатков
 currentAccountSumBatchStock 'Сумма учетная' (batch, stock) =
-    currentBalanceBatchStock(batch, stock) * currentAccountPriceBatchStock(batch, stock);
+    currentBalanceBatchStock(batch, stock) * accountPriceABatchStock(batch, stock);
 currentCostSumBatchStock 'Сумма себестоимости' (batch, stock) =
     currentBalanceBatchStock(batch, stock) * costBatch(batch);    
 
-accountPriceBatchStockDateTime 'Цена учетная' (batch, stock, dateTime) =
-    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
-
 currentAccountSumBatchSkuStock 'Сумма учетная по партиям' (sku, stock) =
-    GROUP SUM currentAccountSumBatchStock(batch, stock) BY skuBatch(batch), stock; 
+    GROUP SUM currentAccountSumBatchStock(batch, stock) BY skuBatch(batch), stock;
+     
 currentCostSumBatchSkuStock 'Сумма себестоимости по партиям' (sku, stock) =
-    GROUP SUM currentCostSumBatchStock(batch, stock) BY skuBatch(batch), stock; 
+    GROUP SUM currentCostSumBatchStock(batch, stock) BY skuBatch(batch), stock;
+     
 averageCostPriceBatchSkuStock 'Себестоимость (средневзв.)' = 
-    currentCostSumBatchSkuStock(sku, stock)/currentBalanceSkuStock(sku, stock);   
-    
+    currentCostSumBatchSkuStock(sku, stock) / currentBalanceSkuStock(sku, stock);   
+
 //--Дата/время    
 accountPriceBBatchStockDateTime 'Учетная цена товара в партии' (batch, stock, dateTime) =
     prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
@@ -578,19 +584,19 @@ accountSumRecBSkuGroupBatchStockDateTime 'Учетная сумма (по пар
     BY group, stock, dateTime;
 
 EXTEND FORM currentBalanceBatchStock
-    PROPERTIES(bt, st) READONLY BEFORE dateTimeBatch(bt) currentAccountPriceBatchStock, currentAccountSumBatchStock
+    PROPERTIES(bt, st) READONLY BEFORE dateTimeBatch(bt) accountPriceABatchStock, currentAccountSumBatchStock
 ;
 EXTEND FORM balanceBatchStock
-    PROPERTIES(bt, st, t) READONLY BEFORE dateTimeBatch(bt) accountPriceBatchStockDateTime, accountSumBBatchStockDateTime
+    PROPERTIES(bt, st, t) READONLY BEFORE dateTimeBatch(bt) accountPriceBBatchStockDateTime, accountSumBBatchStockDateTime
 ;
 
 EXTEND FORM dialogBatchStock
-    PROPERTIES(bt, st, t) READONLY accountPriceBatchStockDateTime
+    PROPERTIES(bt, st, t) READONLY accountPriceABatchStockDateTime
 ;
 
 // ------------------ Суммы по регистрам ------------------------ //
 
-accountPriceASkuLedgerBatch 'Цена учетная' (ledger, batch) = accountPriceBatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+accountPriceASkuLedgerBatch 'Цена учетная' (ledger, batch) = accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 accountSumBatchSkuLedger 'Сумма по партиям' = GROUP SUM costSkuLedgerBatch(l, b) * accountPriceASkuLedgerBatch(l, b) BY l;
 EXTEND FORM costSkuLedger 
     PROPERTIES(bil) accountSumBatchSkuLedger AFTER sumSkuLedger(bil)

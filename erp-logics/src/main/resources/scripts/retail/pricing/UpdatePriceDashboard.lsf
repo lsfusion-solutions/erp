@@ -34,11 +34,29 @@ FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании
 ;
 showPriceMachineryPriceTransactionSkuStock 'Показать изменение цены' (sku, stock) = ACTION FORM priceMachineryPriceTransactionBarcode OBJECTS b = barcodeSku(sku), st = stock MODAL SHORTCUT transactionPriceSkuStock;
 
+useCurrentPriceUpdatePriceDashboard 'Использовать текущие цены в обновлении цен' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() useCurrentPriceUpdatePriceDashboard
+;
+
+DESIGN options {
+    pricings {
+        MOVE PROPERTY(useCurrentPriceUpdatePriceDashboard());
+    }
+}
+
+useCurrentPrice = DATA LOCAL BOOLEAN();
+initUseCurrentPrice = ACTION() {
+    useCurrentPrice() <- useCurrentPriceUpdatePriceDashboard();
+}
+updatePriceSkuStock 'Розничная цена' (sku, stock) = IF useCurrentPrice() THEN currentRetailPricingPriceSkuStock(sku, stock) ELSE retailPricingPriceASkuStock(sku, stock);   
+updateDescriptionSkuStock 'Описание' (sku, stock) = IF useCurrentPrice() THEN currentRetailPricingDescriptionSkuStock(sku, stock) ELSE retailPricingDescriptionASkuStock(sku, stock);   
+updateFromDateTimeSkuStock 'Дата/время с' (sku, stock) = IF useCurrentPrice() THEN currentRetailPricingFromDateTimeSkuStock(sku, stock) ELSE retailPricingFromDateTimeASkuStock(sku, stock);   
 
 showMovementPriceSkuSkuStocks 'Показать изменение цены товара' (sku, stock) = ACTION (sku, stock)  {
     dialogPriceListTypeSkuStock(sku, stock) <- SystemLedgerPriceListType.retailPricingPriceListType;
     FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
-} SHORTCUT retailPricingPriceASkuStock;
+} SHORTCUT updatePriceSkuStock;
 
 FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS d = DepartmentStore FIXED PANEL
@@ -53,18 +71,22 @@ FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS sk = Sku
     PROPERTIES(sk) selectSku
     PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku
-    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, retailPricingDescriptionASkuStock, retailPricingFromDateTimeASkuStock, retailPricingPriceASkuStock, priceLabelTransactionDetailSkuDepartmentStore, transactionPriceSkuStock
+    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, updateDescriptionSkuStock, updateFromDateTimeSkuStock, updatePriceSkuStock, priceLabelTransactionDetailSkuDepartmentStore, transactionPriceSkuStock
     PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransactionDepartmentStore, printSelectedSkuSnapshotLabelTransactionDepartmentStore, createSelectedSkuPriceTransactionDocumentStock
-    FILTERS isParentSkuGroupSku(sg, sk)
+    FILTERS isParentSkuGroupSku(sg, sk),
+            isItemSku(sk)
     ORDER BY nameSku(sk)
     FILTERGROUP inactive FILTER 'Активные' activeSku(sk) 'F5' DEFAULT
     FILTERGROUP diffPrice
-        FILTER 'Ценники' retailPricingPriceASkuStock(sk, d) AND NOT retailPricingPriceASkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d) 'F11' 
-        FILTER 'Оборудование' retailPricingPriceASkuStock(sk, d) AND barcodeSku(sk) AND NOT retailPricingPriceASkuStock(sk, d) == transactionPriceSkuStock(sk, d) 'F10'
-        FILTER 'Ценники и оборуд.' retailPricingPriceASkuStock(sk, d) 
-                                                            AND (NOT (retailPricingPriceASkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d)) OR 
-                                                                 (barcodeSku(sk) AND NOT retailPricingPriceASkuStock(sk, d) == transactionPriceSkuStock(sk, d))) 'F9' DEFAULT 
-    PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk                                                                                 
+        FILTER 'Ценники' updatePriceSkuStock(sk, d) AND NOT updatePriceSkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d) 'F11' 
+        FILTER 'Оборудование' updatePriceSkuStock(sk, d) AND barcodeSku(sk) AND NOT updatePriceSkuStock(sk, d) == transactionPriceSkuStock(sk, d) 'F10'
+        FILTER 'Ценники и оборуд.' updatePriceSkuStock(sk, d) 
+                                                            AND (NOT (updatePriceSkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d)) OR 
+                                                                 (barcodeSku(sk) AND NOT updatePriceSkuStock(sk, d) == transactionPriceSkuStock(sk, d))) 'F9' DEFAULT 
+    PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk
+                                                                                     
+    EVENTS
+        ON INIT initUseCurrentPrice()
 ;
 
 @extendFormFilterStockAccess(d, updatePriceDashboard);

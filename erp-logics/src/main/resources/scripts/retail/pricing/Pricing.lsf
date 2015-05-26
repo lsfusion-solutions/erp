@@ -849,7 +849,7 @@ supplierPricingPriceBSkuStockDateTime 'Цена поставщика' (sku, stoc
     priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock, dateTime);
 supplierPricingPriceBSkuStockDate 'Цена поставщика' (sku, stock, date) = 
     supplierPricingPriceBSkuStockDateTime(sku, stock, toDateTime(date));    
-currentSupplierPricingPriceSkuStock 'Цена поставщика' = supplierPricingPriceBSkuStockDateTime(sku, stock, currentDateTime());  
+supplierPricingPriceBSkuStock 'Цена поставщика' = supplierPricingPriceBSkuStockDateTime(sku, stock, currentDateTime());  
 
 supplierPricingPriceBBatchStockDateTime 'Цена поставщика' (batch, stock, dateTime) =
     priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, batch, stock, dateTime);
@@ -865,7 +865,7 @@ retailPricingPriceBSkuStockDateTime 'Розничная цена' (sku, stock, d
     priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dateTime);
 retailPricingPriceBSkuStockDate 'Розничная цена' (sku, stock, date) = 
     retailPricingPriceBSkuStockDateTime(sku, stock, toDateTime(date));    
-currentRetailPricingPriceSkuStock 'Розничная цена' = retailPricingPriceBSkuStockDateTime(sku, stock, currentDateTime());  
+retailPricingPriceBSkuStock 'Розничная цена' = retailPricingPriceBSkuStockDateTime(sku, stock, currentDateTime());  
 
 retailPricingPriceBBatchStockDateTime 'Розничная цена' (batch, stock, dateTime) =
     priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
@@ -882,6 +882,12 @@ retailPricingPriceASkuStockDateTime 'Розничная цена' (sku, stock, d
 retailPricingPriceASkuStockDate 'Розничная цена' (sku, stock, date) = 
     retailPricingPriceASkuStockDateTime(sku, stock, toDateTime(date));    
 
+currentRetailPricingPriceListLedgerSkuStock (sku, stock) =
+    currentPriceListLedgerLedgerPriceListTypeSkuStock(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock) PERSISTENT TABLE extraSkuStock;
+
+currentRetailPricingPriceSkuStock 'Розничная цена' (sku, stock) =
+    pricePriceListLedgerLedgerPriceListType(currentRetailPricingPriceListLedgerSkuStock(sku, stock), SystemLedgerPriceListType.retailPricingPriceListType); 
+
 retailPricingPriceASkuStock 'Розничная цена' (sk, st) = retailPricingPriceASkuStockDateTime(sk, st, currentDateTime());
 
 retailPricingDescriptionASkuStockDateTime 'Описание' (sku, stock, dateTime) =
@@ -889,12 +895,18 @@ retailPricingDescriptionASkuStockDateTime 'Описание' (sku, stock, dateTi
 retailPricingDescriptionASkuStockDate 'Описание' (sku, stock, date) = 
     retailPricingDescriptionASkuStockDateTime(sku, stock, toDateTime(date));    
 
+currentRetailPricingDescriptionSkuStock 'Описание' (sku, stock) =
+    descriptionPriceListLedger(currentRetailPricingPriceListLedgerSkuStock(sku, stock)); 
+
 retailPricingDescriptionASkuStock 'Описание' (sk, st) = retailPricingDescriptionASkuStockDateTime(sk, st, currentDateTime()); 
 
 retailPricingFromDateTimeASkuStockDateTime 'Дата/время с' (sku, stock, dateTime) =
     fromDateTimeALedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dateTime);
     
 retailPricingFromDateTimeASkuStock 'Дата/время с' (sk, st) = retailPricingFromDateTimeASkuStockDateTime(sk, st, currentDateTime());    
+
+currentRetailPricingFromDateTimeSkuStock 'Дата/время с' (sku, stock) =
+    fromDateTimePriceListLedger(currentRetailPricingPriceListLedgerSkuStock(sku, stock)); 
 
 retailPricingPriceABatchStockDateTime 'Розничная цена' (batch, stock, dateTime) =
     priceALedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
