@@ -99,6 +99,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
         ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
                 findProperty("itemGroupId").getMapping(idItemGroupField));
+        itemGroupKey.skipKey = skipKeys;
         keys.add(itemGroupKey);
         props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey), true));
         props.add(new ImportProperty(idItemGroupField, findProperty("nameItemGroup").getMapping(itemGroupKey), true));
@@ -145,6 +146,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         ImportField idManufacturerField = new ImportField(findProperty("idManufacturer"));
         ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
                 findProperty("manufacturerId").getMapping(idManufacturerField));
+        manufacturerKey.skipKey = skipKeys;
         keys.add(manufacturerKey);
         props.add(new ImportProperty(idManufacturerField, findProperty("idManufacturer").getMapping(manufacturerKey), true));
         props.add(new ImportProperty(idManufacturerField, findProperty("nameManufacturer").getMapping(manufacturerKey), true));
@@ -168,7 +170,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 findProperty("brandId").getMapping(idBrandField));
         brandKey.skipKey = true;
         keys.add(brandKey);
-        props.add(new ImportProperty(idBrandField, findProperty("idBrand").getMapping(brandKey)));
+        props.add(new ImportProperty(idBrandField, findProperty("idBrand").getMapping(brandKey), true));
         props.add(new ImportProperty(idBrandField, findProperty("nameBrand").getMapping(brandKey), true));
         props.add(new ImportProperty(idBrandField, findProperty("brandItem").getMapping(itemKey),
                 object(findClass("Brand")).getMapping(brandKey), true));
