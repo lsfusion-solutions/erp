@@ -1,0 +1,43 @@
+MODULE WriteOffPurchasePricing;
+
+REQUIRE WriteOffPurchase, PurchaseManufacturingPrice, PricingPurchase;
+
+PRIORITY Purchase; 
+NAMESPACE WriteOff;
+
+
+//------- Подсчет сумм для проводок при списании технологических отходов на приходе товаров ----------//
+
+writeOffRetailMarkupSumInvoiceDetail= roundPriceCurrency(retailMarkupInvoiceDetail(d) * writeOffSumInvoiceDetail(d)/100.0, currencyUserInvoiceDetail(d));
+writeOffRetailVATSumInvoiceDetail= roundPriceCurrency(
+    writeOffSumInvoiceDetail(d) * ( 100.0 (+) retailMarkupInvoiceDetail (d))*valueRetailVATInvoiceDetail(d)/10000.0, 
+    currencyUserInvoiceDetail(d));
+writeOffRetailSumInvoiceDetail= OVERRIDE roundPriceCurrency(retailPriceInvoiceDetail(d) * writeOffQuantityInvoiceDetail(d), currencyInvoiceDetail(d)),
+    roundPriceRoundCondition(retailPriceInvoiceDetail(d) * writeOffQuantityInvoiceDetail(d), roundConditionCalcPriceListTypeSku(retailPriceListTypeInvoiceDetail(d), skuInvoiceDetail(d)));
+
+
+roundWriteOffInvoiceDetail 'Округления' (d) = writeOffRetailSumInvoiceDetail(d) (-) 
+                                              writeOffRetailVATSumInvoiceDetail(d) (-) 
+                                              writeOffRetailMarkupSumInvoiceDetail(d) (-)
+                                              writeOffSumInvoiceDetail(d);
+
+sumWriteOffInvoiceDetailInvoicePercent 'Сумма поставщика' (i) = GROUP SUM sumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+writeOffQuantityInvoiceDetailInvoice 'Списано' (i) = GROUP SUM writeOffQuantityInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+    
+writeOffSumInvoiceDetailInvoicePercent 'Сумма списания' (i) = GROUP SUM writeOffSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+
+writeOffRetailMarkupSumInvoiceDetailInvoicePercent 'Сумма надбавки' (i) = GROUP SUM writeOffRetailMarkupSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+    
+writeOffRetailVATSumInvoiceDetailInvoicePercent 'Сумма НДС' (i) = GROUP SUM writeOffRetailVATSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+    
+writeOffRetailSumInvoiceDetailInvoicePercent 'Сумма розничная' (i) = GROUP SUM writeOffRetailSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+
+roundWriteOffInvoiceDetailInvoicePercent 'Сумма округления' (i) = GROUP SUM roundWriteOffInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
+    BY invoiceInvoiceDetail(d);
+    
