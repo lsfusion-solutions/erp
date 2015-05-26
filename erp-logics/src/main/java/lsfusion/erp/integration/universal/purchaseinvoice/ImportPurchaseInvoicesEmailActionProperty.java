@@ -75,7 +75,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 ObjectValue accountObject = entryValue.get("autoImportAccountImportType");
                 ObjectValue emailObject = entryValue.get("autoImportEmailImportType");
                 boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
-                String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*") : null;
+                String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*").toLowerCase() : null;
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
                 String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetailImportType").read(session, importTypeObject);
                 
@@ -107,7 +107,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         Timestamp dateTimeReceivedEmail = (Timestamp) emailEntryValue.get("dateTimeReceivedEmail").getValue();
                         boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (24*60*60*1000); //старше 24 часов
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
-                        if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
+                        if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                             List<byte[]> files = new ArrayList<byte[]>();
