@@ -32,11 +32,18 @@ nameStockPurchaseLedger 'Склад' (ledger) = nameStock(stockPurchaseLedger(le
 
 descriptionPurchaseLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (PurchaseLedger) PERSISTENT;
 numberDocumentPurchaseLedger 'Номер документа' (ledger) = ABSTRACT STRING[18] (PurchaseLedger) PERSISTENT;
-
+seriesDocumentPurchaseLedger 'Серия документа' (ledger) = ABSTRACT STRING[18] (PurchaseLedger) PERSISTENT;
+seriesNumberDocumentPurchaseLedger 'Серия/Номер документа' (o) = 
+    CONCAT '', seriesDocumentPurchaseLedger(o), numberDocumentPurchaseLedger(o) 
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+        
 quantityPurchaseLedger 'Кол-во' (ledger) = ABSTRACT NUMERIC[14,3] (PurchaseLedger) PERSISTENT;
 shipmentQuantityPurchaseLedger 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERIC[14,3] (PurchaseLedger) PERSISTENT;
 
-sumPurchaseLedger 'Сумма покупки' (ledger) = ABSTRACT NUMERIC[16,2] (PurchaseLedger) PERSISTENT;
+pricePurchaseLedger 'Цена без НДС' (ledger) = ABSTRACT NUMERIC[14,2] (PurchaseLedger) PERSISTENT;
+
+
+sumPurchaseLedger 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[16,2] (PurchaseLedger) PERSISTENT; 
 
 currencyPurchaseLedger = ABSTRACT Currency (PurchaseLedger) PERSISTENT;
 nameCurrencyPurchaseLedger 'Валюта' = nameCurrency(currencyPurchaseLedger(ledger));
@@ -100,7 +107,7 @@ costSumPurchaseLedger 'Себестоимость' = GROUP SUM costPurchaseLedge
 
 //CONSTRAINT quantityPurchaseLedger(purchaseLedger) == 0 MESSAGE 'ошибка: Количество покупки не должно быть равно нулю';
 
-averagePricePurchaseLedger 'Цена покупки (средняя)' (purchaseLedger) = NUMERIC[14,2](sumPurchaseLedger(purchaseLedger)/quantityPurchaseLedger(purchaseLedger) IF quantityPurchaseLedger(purchaseLedger) != 0);
+averagePricePurchaseLedger 'Цена покупки (средняя) с НДС' (purchaseLedger) = NUMERIC[14,2](sumPurchaseLedger(purchaseLedger)/quantityPurchaseLedger(purchaseLedger) IF quantityPurchaseLedger(purchaseLedger) != 0);
 
 VATPurchaseLedger (ledger) = ABSTRACT Range (PurchaseLedger) PERSISTENT;
 valueVATPurchaseLedger 'НДС, %' (ledger) = valueRateRangeDate(VATPurchaseLedger(ledger), datePurchaseLedger(ledger));
@@ -248,7 +255,7 @@ FORM purchaseLedger 'Регистр поступлений'
     PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, numberDocumentPurchaseLedger, nameStockPurchaseLedger, nameSupplierPurchaseLedger, nameOperationPurchaseLedger,
                            canonicalNameSkuGroupPurchaseLedger, nameSkuGroup1SkuPurchaseLedger, nameSkuGroup2SkuPurchaseLedger, nameSkuGroup3SkuPurchaseLedger, nameSkuGroup4SkuPurchaseLedger, nameSkuGroup5SkuPurchaseLedger, 
                            nameSkuPurchaseLedger, idBarcodeSkuPurchaseLedger, descriptionPurchaseLedger,
-                           quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger, nameCurrencyPurchaseLedger,
+                           quantityPurchaseLedger, pricePurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger, nameCurrencyPurchaseLedger,
                            shipmentQuantityPurchaseLedger
     PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
     PROPERTIES(s) editPurchaseLedger SHOWIF allowedEditPurchaseLedger(s)
@@ -305,6 +312,7 @@ META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     isPostedPurchaseLedger (ledger) += isPosted###concrete##Detail(ledger);
     isClosedPurchaseLedger (ledger) += isClosed###concrete##Detail(ledger);
     numberDocumentPurchaseLedger(ledger) += number###concrete##Detail(ledger);
+    seriesDocumentPurchaseLedger(ledger) += series###concrete##Detail(ledger);
     skuPurchaseLedger (ledger) += skuProp###concrete##Detail(ledger);
     stockPurchaseLedger (ledger) += stockProp###concrete##Detail(ledger);
     operationPurchaseLedger (ledger) += operation###concrete##Detail(ledger);
