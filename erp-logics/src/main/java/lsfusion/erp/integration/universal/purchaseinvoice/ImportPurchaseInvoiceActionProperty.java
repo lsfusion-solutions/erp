@@ -120,15 +120,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException | BiffException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -178,9 +170,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         if (notNullNorEmpty(userInvoiceDetailsList)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(userInvoiceDetailsList.size());
 
@@ -565,12 +557,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 if (customProp != null) {
                     ImportField customField = new ImportField(customProp);
                     ImportKey<?> customKey = null;
-                    if (customColumn.key.equals("item"))
-                        customKey = itemKey;
-                    else if (customColumn.key.equals("article"))
-                        customKey = articleKey;
-                    else if (customColumn.key.equals("documentDetail"))
-                        customKey = userInvoiceDetailKey;
+                    switch (customColumn.key) {
+                        case "item":
+                            customKey = itemKey;
+                            break;
+                        case "article":
+                            customKey = articleKey;
+                            break;
+                        case "documentDetail":
+                            customKey = userInvoiceDetailKey;
+                            break;
+                    }
                     if (customKey != null) {
                         props.add(new ImportProperty(customField, customProp.getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
@@ -618,26 +615,34 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         List<String> dateFields = Arrays.asList("dateDocument", "manufactureDate", "dateCompliance", "expiryDate");
 
-        List<String> timeFields = Arrays.asList("timeDocument");
-        
-        if (fileExtension.equals("DBF"))
-            userInvoiceDetailsList = importUserInvoicesFromDBF(context, session, file, defaultColumns, customColumns,
-                    stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
-                    importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
-        else if (fileExtension.equals("XLS"))
-            userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, defaultColumns, customColumns,
-                    stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
-                    importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
-        else if (fileExtension.equals("XLSX"))
-            userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns,
-                    stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
-                    importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
-        else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
-            userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns,
-                    stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence, 
-                    importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
-        else
-            userInvoiceDetailsList = null;
+        List<String> timeFields = Collections.singletonList("timeDocument");
+
+        switch (fileExtension) {
+            case "DBF":
+                userInvoiceDetailsList = importUserInvoicesFromDBF(context, session, file, defaultColumns, customColumns,
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
+                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                break;
+            case "XLS":
+                userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, defaultColumns, customColumns,
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
+                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                break;
+            case "XLSX":
+                userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns,
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
+                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                break;
+            case "CSV":
+            case "TXT":
+                userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns,
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, checkInvoiceExistence,
+                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                break;
+            default:
+                userInvoiceDetailsList = null;
+                break;
+        }
 
         return userInvoiceDetailsList;
     }
@@ -650,8 +655,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
-        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
+        List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
+        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
@@ -672,43 +677,64 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
 
-                Map<String, Object> fieldValues = new HashMap<String, Object>();
+                Map<String, Object> fieldValues = new HashMap<>();
                 for (String field : stringFields) {
                     String value = getXLSFieldValue(sheet, i, defaultColumns.get(field));
-                    if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
-                        fieldValues.put(field, modifyNameCountry(value));
-                    else if (field.equals("valueVAT"))
-                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                    else if (field.equals("barcodeItem"))
-                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                    else if (field.equals("idCustomerStock")) {
-                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
-                        fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(session, value));
-                    } else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "nameCountry":
+                        case "nameOriginCountry":
+                            fieldValues.put(field, modifyNameCountry(value));
+                            break;
+                        case "valueVAT":
+                            fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                            break;
+                        case "barcodeItem":
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                            break;
+                        case "idCustomerStock":
+                            value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                            fieldValues.put("idCustomerStock", value);
+                            fieldValues.put("idCustomer", readIdCustomer(session, value));
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
 
                 for (String field : bigDecimalFields) {
                     BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
-                    if (field.equals("dataIndex")) {
-                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                    } else if (field.equals("price"))
-                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
-                    else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "sumVAT":
+                            fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                            break;
+                        case "dataIndex":
+                            fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                            break;
+                        case "price":
+                            fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
 
                 for (String field : dateFields) {
-                    if (field.equals("dateDocument")) {
-                        Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
-                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                        fieldValues.put(field, dateDocument);
-                        fieldValues.put("dateVAT", dateVAT);
-                    } else if (field.equals("expiryDate"))
-                        fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field), true));
-                    else
-                        fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field)));
+                    switch (field) {
+                        case "dateDocument":
+                            Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
+                            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                            fieldValues.put(field, dateDocument);
+                            fieldValues.put("dateVAT", dateVAT);
+                            break;
+                        case "expiryDate":
+                            fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field), true));
+                            break;
+                        default:
+                            fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field)));
+                            break;
+                    }
                 }
 
                 for(String field : timeFields) {
@@ -726,7 +752,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeightSum"));
                 grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
 
-                LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
+                LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
                 for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                     customValues.put(column.getKey(), getXLSFieldValue(sheet, i, column.getValue()));
                 }
@@ -760,8 +786,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
-        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
+        List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
+        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
@@ -773,50 +799,71 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = getCurrentTimestamp();
 
-        List<String[]> valuesList = new ArrayList<String[]>();
+        List<String[]> valuesList = new ArrayList<>();
         while ((line = br.readLine()) != null) {
                 valuesList.add(line.split(importSettings.getSeparator()));
         }
 
         for (int count = importSettings.getStartRow(); count <= valuesList.size(); count++) {
 
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for (String field : stringFields) {
                 String value = getCSVFieldValue(valuesList, defaultColumns.get(field), count);
-                if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
-                    fieldValues.put(field, modifyNameCountry(value));
-                else if (field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value));
-                else if (field.equals("idCustomerStock")) {
-                    value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
-                    fieldValues.put("idCustomerStock", value);
-                    fieldValues.put("idCustomer", readIdCustomer(session, value));
-                } else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "nameCountry":
+                    case "nameOriginCountry":
+                        fieldValues.put(field, modifyNameCountry(value));
+                        break;
+                    case "valueVAT":
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                        break;
+                    case "barcodeItem":
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value));
+                        break;
+                    case "idCustomerStock":
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                        fieldValues.put("idCustomerStock", value);
+                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
 
             for (String field : bigDecimalFields) {
                 BigDecimal value = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get(field), count);
-                if (field.equals("dataIndex")) {
-                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                } else if (field.equals("price"))
-                    fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
-                else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "sumVAT":
+                        fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                        break;
+                    case "dataIndex":
+                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                        break;
+                    case "price":
+                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
 
             for(String field : dateFields) {
-                if(field.equals("dateDocument")) {
-                    Date dateDocument = getCSVDateFieldValue(valuesList, defaultColumns.get(field), count);
-                    Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                    fieldValues.put(field, dateDocument);
-                    fieldValues.put("dateVAT", dateVAT);
-                } else if(field.equals("expiryDate"))
-                    fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count, true));
-                else
-                    fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count));
+                switch (field) {
+                    case "dateDocument":
+                        Date dateDocument = getCSVDateFieldValue(valuesList, defaultColumns.get(field), count);
+                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                        fieldValues.put(field, dateDocument);
+                        fieldValues.put("dateVAT", dateVAT);
+                        break;
+                    case "expiryDate":
+                        fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count, true));
+                        break;
+                    default:
+                        fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count));
+                        break;
+                }
             }
 
             for(String field : timeFields) {
@@ -834,7 +881,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             BigDecimal grossWeightSum = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("grossWeight"), count);
             grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
 
-            LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
+            LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                 customValues.put(column.getKey(), getCSVFieldValue(valuesList, column.getValue(), count));
             }
@@ -866,8 +913,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                          String staticNameImportType, String staticCaptionImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
-        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
+        List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
+        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
@@ -880,43 +927,64 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         for (int i = importSettings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
 
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for (String field : stringFields) {
                 String value = getXLSXFieldValue(sheet, i, defaultColumns.get(field));
-                if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
-                    fieldValues.put(field, modifyNameCountry(value));
-                else if (field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                else if (field.equals("idCustomerStock")) {
-                    value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
-                    fieldValues.put("idCustomerStock", value);
-                    fieldValues.put("idCustomer", readIdCustomer(session, value));
-                } else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "nameCountry":
+                    case "nameOriginCountry":
+                        fieldValues.put(field, modifyNameCountry(value));
+                        break;
+                    case "valueVAT":
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                        break;
+                    case "barcodeItem":
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                        break;
+                    case "idCustomerStock":
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                        fieldValues.put("idCustomerStock", value);
+                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
 
             for (String field : bigDecimalFields) {
                 BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
-                if (field.equals("dataIndex")) {
-                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                } else if (field.equals("price"))
-                    fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
-                else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "sumVAT":
+                        fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                        break;
+                    case "dataIndex":
+                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                        break;
+                    case "price":
+                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
 
             for (String field : dateFields) {
-                if (field.equals("dateDocument")) {
-                    Date dateDocument = getXLSXDateFieldValue(sheet, i, defaultColumns.get(field));
-                    Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                    fieldValues.put(field, dateDocument);
-                    fieldValues.put("dateVAT", dateVAT);
-                } else if (field.equals("expiryDate"))
-                    fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field), true));
-                else
-                    fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field)));
+                switch (field) {
+                    case "dateDocument":
+                        Date dateDocument = getXLSXDateFieldValue(sheet, i, defaultColumns.get(field));
+                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                        fieldValues.put(field, dateDocument);
+                        fieldValues.put("dateVAT", dateVAT);
+                        break;
+                    case "expiryDate":
+                        fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field), true));
+                        break;
+                    default:
+                        fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field)));
+                        break;
+                }
             }
 
             for(String field : timeFields) {
@@ -934,7 +1002,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             BigDecimal grossWeightSum = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeightSum"));
             grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
 
-            LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
+            LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                 customValues.put(column.getKey(), getXLSXFieldValue(sheet, i, column.getValue()));
             }
@@ -966,8 +1034,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
-        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
+        List<PurchaseInvoiceDetail> primaryList = new ArrayList<>();
+        List<PurchaseInvoiceDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
@@ -999,41 +1067,62 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 for (String field : stringFields) {
 
                     String value = getDBFFieldValue(file, defaultColumns.get(field), i, charset);
-                    if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
-                        fieldValues.put(field, modifyNameCountry(value));
-                    else if (field.equals("valueVAT"))
-                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                    else if (field.equals("barcodeItem"))
-                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                    else if (field.equals("idCustomerStock")) {
-                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
-                        fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(session, value));
-                    } else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "nameCountry":
+                        case "nameOriginCountry":
+                            fieldValues.put(field, modifyNameCountry(value));
+                            break;
+                        case "valueVAT":
+                            fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                            break;
+                        case "barcodeItem":
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                            break;
+                        case "idCustomerStock":
+                            value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                            fieldValues.put("idCustomerStock", value);
+                            fieldValues.put("idCustomer", readIdCustomer(session, value));
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
 
                 }
 
                 for (String field : bigDecimalFields) {
                     BigDecimal value = getDBFBigDecimalFieldValue(file, defaultColumns.get(field), i, charset);
-                    if (field.equals("dataIndex")) {
-                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                    } else if (field.equals("price"))
-                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
-                    else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "sumVAT":
+                            fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                            break;
+                        case "dataIndex":
+                            fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                            break;
+                        case "price":
+                            fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
 
                 for (String field : dateFields) {
-                    if (field.equals("dateDocument")) {
-                        Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get(field), i, charset);
-                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                        fieldValues.put(field, dateDocument);
-                        fieldValues.put("dateVAT", dateVAT);
-                    } else if (field.equals("expiryDate"))
-                        fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset, true));
-                    else
-                        fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset));
+                    switch (field) {
+                        case "dateDocument":
+                            Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get(field), i, charset);
+                            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                            fieldValues.put(field, dateDocument);
+                            fieldValues.put("dateVAT", dateVAT);
+                            break;
+                        case "expiryDate":
+                            fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset, true));
+                            break;
+                        default:
+                            fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset));
+                            break;
+                    }
                 }
 
                 for (String field : timeFields) {
@@ -1051,7 +1140,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 BigDecimal grossWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeightSum"), i, charset);
                 grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
 
-                LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
+                LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
                 for (Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                     customValues.put(column.getKey(), getDBFFieldValue(file, column.getValue(), i, charset));
                 }
@@ -1097,9 +1186,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 LCP<?> idArticleProp = itemArticleLM.findProperty("idArticle");
 
                 List<Object> articles = getArticlesMap(session, idArticleProp, sidProp);
-                Set<String> articleSet = articles == null ? null : (Set<String>) articles.get(0);
-                Map<String, String> articlePropertyMap = articles == null ? null : (Map<String, String>) articles.get(1);
-                Map<String, Object[]> duplicateArticles = new HashMap<String, Object[]>();
+                Set<String> articleSet = (Set<String>) articles.get(0);
+                Map<String, String> articlePropertyMap = (Map<String, String>) articles.get(1);
+                Map<String, Object[]> duplicateArticles = new HashMap<>();
                 primaryList.addAll(secondaryList);
                 for (PurchaseInvoiceDetail invoiceDetail : primaryList) {
                     String oldPropertyArticle = articlePropertyMap.get(invoiceDetail.getFieldValue("idArticle"));
@@ -1130,13 +1219,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     private List<Object> getArticlesMap(DataSession session, LCP<?> idArticleProp, LCP<?> sidProperty)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {        
         
-        Set<String> articleSet = new HashSet<String>();
-        Map<String, String> articlePropertyMap = new HashMap<String, String>();
+        Set<String> articleSet = new HashSet<>();
+        Map<String, String> articlePropertyMap = new HashMap<>();
 
         KeyExpr articleExpr = new KeyExpr("Article");
         ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev((Object) "Article", articleExpr);
 
-        QueryBuilder<Object, Object> articleQuery = new QueryBuilder<Object, Object>(articleKeys);
+        QueryBuilder<Object, Object> articleQuery = new QueryBuilder<>(articleKeys);
         articleQuery.addProperty("idArticle", idArticleProp.getExpr(session.getModifier(), articleExpr));
         articleQuery.addProperty("sid", sidProperty.getExpr(session.getModifier(), articleExpr));
         articleQuery.and(idArticleProp.getExpr(session.getModifier(), articleExpr).getWhere());
@@ -1159,11 +1248,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         if(!checkInvoiceExistence)
             return null;
 
-        Set<String> purchaseInvoiceSet = new HashSet<String>();
+        Set<String> purchaseInvoiceSet = new HashSet<>();
 
         KeyExpr key = new KeyExpr("purchase.invoice");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "Purchase.Invoice", key);
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         query.addProperty("Purchase.idUserInvoice", findProperty("Purchase.idUserInvoice").getExpr(session.getModifier(), key));
         query.and(findProperty("Purchase.idUserInvoice").getExpr(key).getWhere());
