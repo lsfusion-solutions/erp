@@ -1,0 +1,34 @@
+MODULE OperationConsignmentBy;
+
+REQUIRE Operation, ConsignmentBy;
+
+NAMESPACE Operation;
+
+META defineOperationConsignment(dumb)
+
+    DESIGN operation {
+        tabContainer {
+            NEW consignment {
+                caption = 'Оформление накладных';
+            }
+        }    
+    }
+    
+    @defineOperationProperty(shipmentBase, 'Основание отпуска (ТТН)', VARSTRING[100], consignment);
+
+    consignmentTypeOperation 'Тип накладной' = DATA ConsignmentType (Operation);
+    nameConsignmentTypeOperation 'Тип накладной' (o) = staticCaption(consignmentTypeOperation(o));
+    
+    EXTEND FORM operation
+        PROPERTIES nameConsignmentTypeOperation(o);
+    ;
+    
+    DESIGN operation {
+        consignment {
+            MOVE PROPERTY(nameConsignmentTypeOperation(o));
+        }
+    }
+
+    @defineOperationProperty(notUseDriverTruck, 'Не использовать справочники для выбора водителей и машин', consignment);
+
+END

@@ -52,6 +52,30 @@ seriesNumberConsignment 'Серия/Номер' (o) = OVERRIDE
     (CONCAT '', seriesConsignment(o), numberConsignment(o)),
     overSeriesNumberConsignment(o)  MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
 
+
+// ------------- Типы накладной ------------------ //
+CLASS ConsignmentType 'Тип накладной' {
+    ttn1 'ТТН-1',
+    tn2 'ТН-2'
+}
+
+
+FORM consignmentTypes 'Типы накладной'
+    OBJECTS t = ConsignmentType
+    PROPERTIES(t) READONLY staticCaption
+    DIALOG ConsignmentType OBJECT t
+;
+
+DESIGN consignmentTypes {
+    PROPERTY(staticCaption(t)) { caption = 'Тип накладной'; } 
+}
+
+TABLE consignmentType (ConsignmentType);
+
+consignmentTypeConsignment 'Тип накладной' = ABSTRACT ConsignmentType (Consignment);
+showTTN1Consignment (c) = consignmentTypeConsignment(c) == ConsignmentType.ttn1 OR NOT consignmentTypeConsignment(c);   
+showTN2Consignment (c) = consignmentTypeConsignment(c) == ConsignmentType.tn2 OR NOT consignmentTypeConsignment(c);   
+
 // ---------------------------------- Юридические лица ---------------------- //
 
 countRowsSimpleVertical 'Макс. кол-во строк в бланке (ТН-2 вер.)' = DATA INTEGER ();
@@ -581,25 +605,29 @@ reportFilePrintConsignmentHorizontalB () = 'Consignment_consignmentHorizontalB_b
 @defineExtendPrintConsignmentFormAll(horizontal, 'ТТН-1, горизонтальная', a, b);
 
 hidePayerConsignmnet = ABSTRACT BOOLEAN (Consignment);
-showPayerConsignmnet(consignment) = NOT hidePayerConsignmnet(consignment);
+showPayerConsignment(consignment) = showTTN1Consignment(consignment) AND NOT hidePayerConsignmnet(consignment);
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment FIXED PANEL
 
-    PROPERTIES (c) READONLY nameSupplierStockConsignment
-    PROPERTIES (c) numberConsignment, seriesConsignment, dateConsignment, UNPCustomerConsignment READONLY, UNPSupplierConsignment READONLY, 
-                   addressSupplierConsignment READONLY, addressCustomerConsignment READONLY, fullNameSupplierConsignment READONLY,
-                   fullNameCustomerConsignment READONLY, nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
-                   shipmentBaseConsignment, addressSupplierStockConsignment, addressCustomerStockConsignment,
-                   readdressingConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
+    PROPERTIES(c) READONLY nameSupplierStockConsignment
+    PROPERTIES(c)  numberConsignment, seriesConsignment, dateConsignment, UNPCustomerConsignment READONLY, UNPSupplierConsignment READONLY, 
+                   addressSupplierConsignment READONLY, addressCustomerConsignment READONLY, fullNameSupplierConsignment READONLY, fullNameCustomerConsignment READONLY 
+                   
+    PROPERTIES(c)  shipmentBaseConsignment,
+                   nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment
+
+    PROPERTIES(c) SHOWIF showTTN1Consignment(c)
+                   nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
+                   addressSupplierStockConsignment, addressCustomerStockConsignment, readdressingConsignment,
                    forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
                    overNameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
                    overNameUnloadingExecuterConsignment, nameWayOfUnloadingConsignment,
-                   arrivalTimeConsignment, downtimeConsignment, departureTimeConsignment READONLY, raceQuantityConsignment,
-                   quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
+                   arrivalTimeConsignment, downtimeConsignment, departureTimeConsignment READONLY, raceQuantityConsignment
+    PROPERTIES(c)  quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
                    sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
                    countConsignmentDetailConsignment, noteConsignment, shortNameCurrencyConsignment, countPagesConsignment//, SHOWIF isCustomsFlowConsignment(c)
-    PROPERTIES (c) SHOWIF showPayerConsignmnet(c) fullNamePayerConsignment, UNPPayerConsignment, addressPayerConsignment                 
+    PROPERTIES(c) SHOWIF showPayerConsignment(c) fullNamePayerConsignment, UNPPayerConsignment, addressPayerConsignment                 
 
 
     OBJECTS d=ConsignmentDetail
@@ -801,6 +829,7 @@ META defineConsignmentHeaderInner (object, class)
     arrivalTime###object 'Время прибытия' (object) = DATA DATETIME(class) IN carConsignment;
     downtime###object 'Время простоя' (object) = DATA INTEGER (class) IN carConsignment;
     raceQuantity###object 'Количество ездок' (object) = DATA INTEGER (class) IN carConsignment;
+    raceQuantity###object(o) <- 1 WHEN SET(o IS class);
 
     countPages###object 'Кол-во страниц в приложении' (object) = DATA INTEGER (class);
 END
