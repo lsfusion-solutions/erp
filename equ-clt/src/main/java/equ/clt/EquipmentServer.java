@@ -766,7 +766,7 @@ public class EquipmentServer {
                     if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo))) {
                         processTransactionLogger.info(String.format("Task Pool : starting transaction %s", transactionInfo.id));
                         resultTask.transactionEntry.add(transactionInfo);
-                        Integer transactionId = transactionInfo.getUniqueId();
+                        Integer transactionId = getUniqueId(transactionInfo);
                         proceededTaskList.add(transactionId);
                         waitingTaskList.remove(transactionId);
                     }
@@ -780,7 +780,7 @@ public class EquipmentServer {
         //метод, считывающий задания из базы
         synchronized void addTasks(List<TransactionInfo> transactionInfoList) throws Exception {
             for(TransactionInfo transactionInfo : transactionInfoList) {
-                Integer transactionId = transactionInfo.getUniqueId();
+                Integer transactionId = getUniqueId(transactionInfo);
                 if(!succeededTaskList.contains(transactionId) && !proceededTaskList.contains(transactionId) && !waitingTaskList.contains(transactionId)) {
                     processTransactionLogger.info(String.format("Task Pool : adding transaction %s to queue", transactionInfo.id));
                     waitingTaskList.add(transactionId);
@@ -791,14 +791,15 @@ public class EquipmentServer {
         }
 
         //метод, помечающий задание как выполненное
-        synchronized void markProceeded(SingleTransactionTask task) {
-            for (TransactionInfo transactionInfo : task.transactionEntry) {
-                processTransactionLogger.info(String.format("Task Pool : marking transaction %s as succeeded", transactionInfo.id));
-                Integer transactionId = transactionInfo.getUniqueId();
-                succeededTaskList.add(transactionId);
+        synchronized void markProceeded(String groupId, Map<TransactionInfo, Boolean> transactionInfoMap) {
+            for (Map.Entry<TransactionInfo, Boolean> transactionEntry : transactionInfoMap.entrySet()) {
+                processTransactionLogger.info(String.format("Task Pool : marking transaction %s as succeeded", transactionEntry.getKey().id));
+                Integer transactionId = getUniqueId(transactionEntry.getKey());
+                if(transactionEntry.getValue())
+                    succeededTaskList.add(transactionId);
                 proceededTaskList.remove(transactionId);
             }
-            currentlyProceededGroups.remove(task.groupId);
+            currentlyProceededGroups.remove(groupId);
         }
 
         private String getTransactionInfoGroupId(TransactionInfo transactionInfo) {
@@ -812,6 +813,15 @@ public class EquipmentServer {
             }
         }
 
+    }
+
+    public Integer getUniqueId(TransactionInfo transactionInfo) {
+        String result = String.valueOf(transactionInfo.id) + transactionInfo.idGroupMachinery;
+        for(Object machineryInfo : transactionInfo.machineryInfoList)
+            result += ((MachineryInfo)machineryInfo).number;
+        for(Object item : transactionInfo.itemsList)
+            result += ((ItemInfo) item).idBarcode;
+        return result.hashCode();
     }
 
     class SingleTransactionTask implements Runnable {
@@ -832,9 +842,11 @@ public class EquipmentServer {
         public void run() {
 
             processTransactionLogger.info(String.format("   Sending transaction group %s: start, count : %s", groupId, transactionEntry.size()));
+            Map<TransactionInfo, Boolean> transactionInfoMap = new HashMap<>();
             //transactions without handler
             if (groupId != null && groupId.equals("No handler")) {
                 for (TransactionInfo transactionInfo : transactionEntry) {
+                    transactionInfoMap.put(transactionInfo, false);
                     errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
                 }
             } else {
@@ -842,6 +854,7 @@ public class EquipmentServer {
                 // actions before sending transactions
                 for (TransactionInfo transactionInfo : transactionEntry) {
                     try {
+                        transactionInfoMap.put(transactionInfo, false);
                         if (clsHandler instanceof TerminalHandler)
                             ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
 
@@ -878,6 +891,7 @@ public class EquipmentServer {
 
                         if (noErrors) {
                             succeededTransaction(transactionInfo.id);
+                            transactionInfoMap.put(transactionInfo, true);
                         }
                     }
                 } catch (IOException e) {
@@ -885,7 +899,7 @@ public class EquipmentServer {
                 }
 
             }
-            taskPool.markProceeded(this);
+            taskPool.markProceeded(groupId, transactionInfoMap);
             processTransactionLogger.info(String.format("   Sending transaction group %s: finish", groupId));
 
         }
