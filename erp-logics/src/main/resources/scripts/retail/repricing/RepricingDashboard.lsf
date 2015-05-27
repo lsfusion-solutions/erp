@@ -37,30 +37,81 @@ createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распеча�
     apply();
 } TOOLBAR;
 
-createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
+//createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
+//
+//    FOR ADDOBJ t = LabelTransaction DO {
+//        departmentStoreLabelTransaction(t) <- departmentStore;
+//        priceListTypeLabelTransaction(t) <- OVERRIDE retailPriceListTypeDepartmentStore(departmentStore), priceListTypeOperation(operation);    
+//        dateLabelTransaction(t) <- toDate(dateTime);      
+//        timeLabelTransaction(t) <- toTime(dateTime);          
+//
+//        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
+//            labelTransactionLabelTransactionDetail(d) <- t;
+//            skuLabelTransactionDetail(d) <- sku;
+//
+//            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+//            documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
+//
+//            createAttributeLabelTransactionDetail(d);
+//        }
+//        
+//        FORM customLabelTransaction OBJECTS l = t MODAL;
+//        IF formResult() == FormResult.ok THEN {    
+//            printLabelTransaction(t);
+//        }  
+//    }
+//    apply();
+//} TOOLBAR;
 
-    FOR ADDOBJ t = LabelTransaction DO {
-        departmentStoreLabelTransaction(t) <- departmentStore;
-        priceListTypeLabelTransaction(t) <- OVERRIDE retailPriceListTypeDepartmentStore(departmentStore), priceListTypeOperation(operation);    
-        dateLabelTransaction(t) <- toDate(dateTime);      
-        timeLabelTransaction(t) <- toTime(dateTime);          
+createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime)  {
+    IF countSelectSkus() THEN  NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
+        FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;
+        IF formResult() == FormResult.ok THEN { 
 
-        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
-            labelTransactionLabelTransactionDetail(d) <- t;
-            skuLabelTransactionDetail(d) <- sku;
-
-            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-            documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
-
-            createAttributeLabelTransactionDetail(d);
-        }
-        
-        FORM customLabelTransaction OBJECTS l = t MODAL;
-        IF formResult() == FormResult.ok THEN {    
-            printLabelTransaction(t);
-        }  
+            IF NOT countSelectType() THEN {
+                selectType(type) <- TRUE WHERE type == chosenObject('l');
+            }            
+            FOR selectType(type) DO {
+                FOR ADDOBJ t = LabelTransaction DO {
+                    departmentStoreLabelTransaction(t) <- departmentStore;
+                    priceListTypeLabelTransaction(t) <- OVERRIDE retailPriceListTypeDepartmentStore(departmentStore), priceListTypeOperation(operation);    
+                    dateLabelTransaction(t) <- toDate(dateTime);      
+                    timeLabelTransaction(t) <- toTime(dateTime);
+                    labelTypeLabelTransaction(t) <- type;
+            
+                    FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransactionLabelTransactionDetail(d) <- t;
+                        skuLabelTransactionDetail(d) <- sku;
+            
+                        nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+                        documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
+            
+                        createAttributeLabelTransactionDetail(d);                      
+               
+                        priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
+                        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
+                
+                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
+                                                                INTEGER(documentQuantityLabelTransactionDetail(d))
+                                                             ELSE 
+                                                                countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));                                                                                                                             
+                    }
+                    
+                    IF changeDepartmentStore(departmentStore) THEN {
+                        FORM customLabelTransaction OBJECTS l = t MODAL;
+                        IF formResult() == FormResult.ok THEN {    
+                            printLabelTransaction(t);
+                        } ELSE {
+                            cancel();
+                        }             
+                    } ELSE {
+                        printLabelTransaction(t);
+                    }
+                }
+            }                     
+        }                 
+        apply();
     }
-    apply();
 } TOOLBAR;
 
 clearDashboardRepricing = ACTION() {
