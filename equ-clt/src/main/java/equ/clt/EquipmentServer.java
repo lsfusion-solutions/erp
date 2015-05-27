@@ -8,12 +8,10 @@ import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.*;
+import java.net.MalformedURLException;
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -22,7 +20,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
 
 public class EquipmentServer {
 
@@ -39,6 +39,7 @@ public class EquipmentServer {
     Map<String, Object> handlerMap = new HashMap<>();
     EquipmentServerSettings equipmentServerSettings;
 
+    TaskPool taskPool;
     Consumer processTransactionConsumer;
     Thread processTransactionThread;
 
@@ -58,7 +59,7 @@ public class EquipmentServer {
     Thread machineryExchangeThread;
 
     ExecutorService singleTransactionExecutor;
-    
+
     boolean needReconnect = false;
 
     private boolean mergeBatches = false;
@@ -106,7 +107,7 @@ public class EquipmentServer {
                                             sendSalesDelay = equipmentServerSettings.sendSalesDelay;
                                     }
 
-                                    initDaemonThreads(remote, sidEquipmentServer);                                   
+                                    initDaemonThreads(remote, sidEquipmentServer, millis);
                                     
                                 } catch (RemoteException e) {
                                     logger.error("Get remote logics error : ", e);
@@ -115,7 +116,7 @@ public class EquipmentServer {
                         }
 
                         if (remote != null) {
-                            processTransactionConsumer.scheduleIfNotScheduledYet();    
+                            processTransactionConsumer.scheduleIfNotScheduledYet();
 
                             if(remote.enabledStopListInfo())
                                 processStopListConsumer.scheduleIfNotScheduledYet();
@@ -134,7 +135,7 @@ public class EquipmentServer {
                                 sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
 
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
-                            
+
                             if(singleTransactionExecutor.isShutdown())
                                 singleTransactionExecutor = Executors.newFixedThreadPool(5);
                         }
@@ -154,7 +155,7 @@ public class EquipmentServer {
                         sendTerminalDocumentThread = null;
                         machineryExchangeThread.interrupt();
                         machineryExchangeThread = null;
-                        
+
                         singleTransactionExecutor.shutdown();
                         singleTransactionExecutor = null;
                     }
@@ -171,20 +172,40 @@ public class EquipmentServer {
         thread.start();
     }
 
-    private void initDaemonThreads(final EquipmentServerInterface remote, final String sidEquipmentServer) {
+    private void initDaemonThreads(final EquipmentServerInterface remote, final String sidEquipmentServer, final long millis) {
+
+        taskPool = new TaskPool(remote, sidEquipmentServer);
         processTransactionConsumer = new Consumer() {
             @Override
-            void runTask() throws Exception{
-                try {
-                    processTransactionInfo(remote, sidEquipmentServer);
-                } catch (ConnectException e) {
-                    needReconnect = true;
-                }
+            void runTask() throws Exception {
+                taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
             }
-         };
+        };
         processTransactionThread = new Thread(processTransactionConsumer);
         processTransactionThread.setDaemon(true);
         processTransactionThread.start();
+        singleTransactionExecutor = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 5; i++) {
+            singleTransactionExecutor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    while (!Thread.currentThread().isInterrupted()) {
+                        try {
+                            SingleTransactionTask task = taskPool.getTask();
+                            if(task == null)
+                                Thread.sleep(millis);
+                            else {
+                                logger.info("task: "  + task);
+                                task.run();
+                                logger.info("task done: "  + task);
+                            }
+                        } catch (Exception e) {
+                            logger.error("Unhandled exception : ", e);
+                        }
+                    }
+                }
+            });
+        }
 
         processStopListConsumer = new Consumer() {
             @Override
@@ -256,48 +277,6 @@ public class EquipmentServer {
         machineryExchangeThread.setDaemon(true);
         machineryExchangeThread.start();
 
-        singleTransactionExecutor = Executors.newFixedThreadPool(5);
-    }
-
-
-    private void processTransactionInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
-        processTransactionLogger.info("         Process TransactionInfo: Start");
-        List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(sidEquipmentServer);
-        Map<String, List<Object>> groupTransactionInfoMap = groupTransactionInfoList(remote, transactionInfoList);
-        processTransactionLogger.info("         Process TransactionInfo: found " + groupTransactionInfoMap.size() + " groups");
-        if (!groupTransactionInfoMap.isEmpty()) {
-            Collection<Callable<Object>> taskList = new LinkedList<>();
-            for (Map.Entry<String, List<Object>> entry : groupTransactionInfoMap.entrySet()) {
-                String groupId = entry.getKey();
-                List<TransactionInfo> transactionEntry = (List<TransactionInfo>) entry.getValue().get(0);
-                MachineryHandler clsHandler = (MachineryHandler) entry.getValue().get(1);
-                taskList.add(Executors.callable(new SingleTransactionTask(remote, groupId, clsHandler, transactionEntry, sidEquipmentServer)));
-            }
-            
-            try{
-                singleTransactionExecutor.invokeAll(taskList);
-            }catch(InterruptedException e){
-                remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
-            }
-        }
-        processTransactionLogger.info("         Process TransactionInfo : Finish");
-    }
-    
-    private Map<String, List<Object>> groupTransactionInfoList(EquipmentServerInterface remote, List<TransactionInfo> transactionInfoList) throws RemoteException, SQLException {
-        Map<String, List<Object>> result = new HashMap<>();
-        Collections.sort(transactionInfoList, COMPARATOR);
-        for(TransactionInfo transactionInfo : transactionInfoList) {
-            try {
-                Object clsHandler = transactionInfo.handlerModel == null ? null : getHandler(transactionInfo.handlerModel.trim(), remote);
-                String groupId = clsHandler == null ? "No handler" : ((MachineryHandler) clsHandler).getGroupId(transactionInfo);
-                List<TransactionInfo> entry = (List<TransactionInfo>) (result.containsKey(groupId) ? result.get(groupId).get(0) : new ArrayList<TransactionInfo>());
-                entry.add(transactionInfo);
-                result.put(groupId, Arrays.asList(entry, clsHandler));
-            } catch (Exception e) {
-                remote.errorTransactionReport(transactionInfo.id, e);
-            }
-        }
-        return result;
     }
 
     private void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
@@ -651,6 +630,7 @@ public class EquipmentServer {
     }
 
     private Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {
+        if(handlerModel == null) return null;
         Object clsHandler;
         if (handlerMap.containsKey(handlerModel))
             clsHandler = handlerMap.get(handlerModel);
@@ -730,6 +710,110 @@ public class EquipmentServer {
         abstract void runTask() throws Exception;
     }
 
+
+    public class TaskPool {
+
+        EquipmentServerInterface remote;
+        String sidEquipmentServer;
+
+        //groupId заданий, находящихся в обработке
+        Set<String> currentlyProceededGroups;
+        //задания в очереди
+        List<Integer> waitingTaskList;
+        List<TransactionInfo> waitingTaskQueue;
+        //выполняющиеся задания
+        List<Integer> proceededTaskList;
+        //выполненные задания
+        List<Integer> succeededTaskList;
+
+        public TaskPool(EquipmentServerInterface remote, String sidEquipmentServer) {
+            synchronized (this) {
+                this.remote = remote;
+                this.sidEquipmentServer = sidEquipmentServer;
+                currentlyProceededGroups = new HashSet<>();
+                waitingTaskList = new ArrayList<>();
+                waitingTaskQueue = new ArrayList<>();
+                proceededTaskList = new ArrayList<>();
+                succeededTaskList = new ArrayList<>();
+            }
+        }
+
+        //метод, выдающий задания подпотокам
+        synchronized SingleTransactionTask getTask() {
+            SingleTransactionTask resultTask = null;
+
+            //находим первый актуальный transactionInfo в очереди
+            for(TransactionInfo transactionInfo : waitingTaskQueue) {
+
+                String resultTaskGroupId = null;
+                MachineryHandler clsHandler = null;
+                try {
+                    clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
+                    resultTaskGroupId = clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
+
+                } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
+                    logger.error(e);
+                }
+                if(resultTaskGroupId != null && !currentlyProceededGroups.contains(resultTaskGroupId)) {
+                    currentlyProceededGroups.add(resultTaskGroupId);
+                    resultTask = new SingleTransactionTask(remote, resultTaskGroupId, clsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
+                    break;
+                }
+            }
+            //находим все transactionInfo с таким же groupId
+            if(resultTask != null) {
+                for (TransactionInfo transactionInfo : waitingTaskQueue) {
+                    if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo))) {
+                        processTransactionLogger.info(String.format("Task Pool : starting transaction %s", transactionInfo.id));
+                        resultTask.transactionEntry.add(transactionInfo);
+                        Integer transactionId = transactionInfo.getUniqueId();
+                        proceededTaskList.add(transactionId);
+                        waitingTaskList.remove(transactionId);
+                    }
+                }
+                Collections.sort(resultTask.transactionEntry, COMPARATOR);
+                waitingTaskQueue.removeAll(resultTask.transactionEntry);
+            }
+            return resultTask;
+        }
+
+        //метод, считывающий задания из базы
+        synchronized void addTasks(List<TransactionInfo> transactionInfoList) throws Exception {
+            for(TransactionInfo transactionInfo : transactionInfoList) {
+                Integer transactionId = transactionInfo.getUniqueId();
+                if(!succeededTaskList.contains(transactionId) && !proceededTaskList.contains(transactionId) && !waitingTaskList.contains(transactionId)) {
+                    processTransactionLogger.info(String.format("Task Pool : adding transaction %s to queue", transactionInfo.id));
+                    waitingTaskList.add(transactionId);
+                    waitingTaskQueue.add(transactionInfo);
+                }
+            }
+            succeededTaskList.clear();
+        }
+
+        //метод, помечающий задание как выполненное
+        synchronized void markProceeded(SingleTransactionTask task) {
+            for (TransactionInfo transactionInfo : task.transactionEntry) {
+                processTransactionLogger.info(String.format("Task Pool : marking transaction %s as succeeded", transactionInfo.id));
+                Integer transactionId = transactionInfo.getUniqueId();
+                succeededTaskList.add(transactionId);
+                proceededTaskList.remove(transactionId);
+            }
+            currentlyProceededGroups.remove(task.groupId);
+        }
+
+        private String getTransactionInfoGroupId(TransactionInfo transactionInfo) {
+            try {
+                MachineryHandler clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
+                return clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
+
+            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
+                logger.error(e);
+                return "No handler";
+            }
+        }
+
+    }
+
     class SingleTransactionTask implements Runnable {
         EquipmentServerInterface remote;
         String groupId;
@@ -801,6 +885,7 @@ public class EquipmentServer {
                 }
 
             }
+            taskPool.markProceeded(this);
             processTransactionLogger.info(String.format("   Sending transaction group %s: finish", groupId));
 
         }

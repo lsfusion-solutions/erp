@@ -19,4 +19,13 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public List<I> itemsList;
     public List<M> machineryInfoList;
     public Boolean snapshot;
+
+    public Integer getUniqueId() {
+        String result = String.valueOf(id) + idGroupMachinery;
+        for(M machineryInfo : machineryInfoList)
+            result += machineryInfo.number;
+        for(I item : itemsList)
+            result += item.idBarcode;
+        return result.hashCode();
+    }
 }
