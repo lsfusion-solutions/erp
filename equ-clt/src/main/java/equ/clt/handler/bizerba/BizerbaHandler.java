@@ -21,6 +21,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
     //Таблица FOST – этикетки BLD.
 
     //Errors
+    //1615: кончилась память под состав. Очистить и записать заново
     //4470: memory is full
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
