@@ -5,6 +5,9 @@ REQUIRE Pricing, Invoice;
 NAMESPACE Pricing;
 
 @defineDocumentAbstractHeaderProperty (invoice, createPricing, 'Создать акт расценки');
+
+invoiceDetailPricingDetail = ABSTRACT InvoiceDetail (PricingDetail);
+
 backgroundRetailInvoice 'Цвет' (invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
 
 @defineDocumentAbstractDetailMarkupCustomPrefix(invoiceDetail, retail, );
@@ -238,7 +241,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
         BY invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
 
     @defineDocumentAggregation(invoice, concrete###pricing, needToPricing);
-
+    Pricing.invoiceDetailPricingDetail(detail) += invoiceDetail###concrete###pricingDetail(detail);
 
     printPricingInvoice 'Акт расценки' (invoice) = ACTION printPricing(concrete###pricingInvoice(invoice)) IMAGE 'print.png' IN print;
     EXTEND FORM invoices
