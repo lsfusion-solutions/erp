@@ -17,6 +17,10 @@ FORM operationDialogOperations 'Операции'
     DIALOG Operation.Operation OBJECT o
 ;
 
+TABLE userOperation (User, Operation);
+inUserOperation (user, operation) = ABSTRACT BOOLEAN (User, Operation) PERSISTENT;
+countUsersOperation = GROUP SUM 1 IF inUserOperation (user, operation) BY operation;
+
 // -------------------------------------- Макросы по созданию операций ---------------------------------- //
 
 META defineOperation(postfix)
@@ -483,8 +487,9 @@ META defineOperationRole(dumb)
 
     inUserOperation (user, operation) = allRolesOperation(operation) AND user IS User OR 
                                         dataInUserRoleOperation(mainRoleUser(user), operation);
-
+    Operation.inUserOperation(user, operation) += inUserOperation(user, operation);
     countOperationsUser (user) = GROUP SUM 1 IF inUserOperation(user, operation) BY user;
+    countUsersOperation = GROUP SUM 1 IF inUserOperation (user, operation) BY operation;
     defaultOperationUser 'Операция по умолчанию' (user) = GROUP MIN operation IF inUserOperation(user, operation) BY user;
     
     preventChangesDocumentUserRoleOperation 'Запретить редактирование' = DATA BOOLEAN (UserRole, Operation);
@@ -519,6 +524,23 @@ END
 
 META extendFormFilterRole(concrete, form)
     EXTEND FORM form FILTERS inUserOperation(currentUser(), concrete);
+END
+
+META extendFormFilterRoleAccessPrefix(object, concrete, form, prefix)
+    EXTEND FORM form FILTERS (inUserOperation(currentUser(), prefix###operation###object(concrete))) OR 
+                             (TRUE AND NOT prefix###operation###object(concrete)) OR 
+                             (prefix###operation###object(concrete) AND NOT countUsersOperation(prefix###operation###object(concrete)));
+END
+META extendFormFilterRoleAccess(object, concrete, form)
+    @extendFormFilterRoleAccessPrefix(object, concrete, form, );    
+END
+META extendFormFilterRoleAccessNSPrefix(object, concrete, form, prefix, NS)
+    EXTEND FORM form FILTERS (inUserOperation(currentUser(), prefix###operation###object(concrete))) OR 
+                             (TRUE AND NOT prefix###operation###object(concrete)) OR 
+                             (prefix###operation###object(concrete) AND NOT NS.countUsersOperation(prefix###operation###object(concrete)));
+END
+META extendFormFilterRoleAccessNS(object, concrete, form, NS)
+    @extendFormFilterRoleAccessNSPrefix(object, concrete, form, , NS);    
 END
 
 META defineDocumentOperationRole(object, objectClass)
