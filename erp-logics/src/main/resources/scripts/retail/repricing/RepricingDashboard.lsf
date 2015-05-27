@@ -83,6 +83,11 @@ FORM repricingDashboard 'Переоценка'
     OBJECTS t=DATETIME FIXED PANEL
     PROPERTIES(t) OBJVALUE
     
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(sg), skuTreeName = nameSkuGroup(sg)
+    ORDER BY orderSkuGroup(sg), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) DEFAULT
+    
     OBJECTS sk=Sku
     PROPERTIES(sk)          inDashboardRepricingSku, selectSku
     PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku
@@ -91,7 +96,7 @@ FORM repricingDashboard 'Переоценка'
                                               createRepricingLabelTransactionDepartmentStoreOperationDateTime,
                                               createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk                                          
-    FILTERS inDashboardRepricingSku(sk)
+    FILTERS inDashboardRepricingSku(sk), isParentSkuGroupSku(sg, sk) 
 
     OBJECTS p = Repricing
     PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
@@ -128,11 +133,16 @@ DESIGN repricingDashboard {
         NEW bodyContainer{
             type = SPLITV;
             fill = 1;
-            MOVE sk.box {
-                caption = 'Товары, для которых необходима переоценка';
-                PROPERTY(retailPricingPriceBSkuStockDateTime(sk,d,t)) {
-                    caption = 'Цена (текущая)';
-                }
+            NEW skuBox {
+                type = SPLITH;
+                fill = 1;
+                MOVE skuTree.tree.box { caption = 'Группы SKU'; fill=0.5; }
+                MOVE sk.box {
+                    caption = 'Товары, для которых необходима переоценка';
+                    PROPERTY(retailPricingPriceBSkuStockDateTime(sk,d,t)) {
+                        caption = 'Цена (текущая)';
+                    }
+            }
             }   
             NEW tanContainer {
                 fill = 1;
