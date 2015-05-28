@@ -674,6 +674,18 @@ public class EquipmentServer {
     };
 
     public void stop() {
+        if(processTransactionThread != null)
+            processTransactionThread.interrupt();
+        if(processStopListThread != null)
+            processStopListThread.interrupt();
+        if(sendSalesThread != null)
+            sendSalesThread.interrupt();
+        if(sendSoftCheckThread != null)
+            sendSoftCheckThread.interrupt();
+        if(sendTerminalDocumentThread != null)
+            sendTerminalDocumentThread.interrupt();
+        if(machineryExchangeThread != null)
+            machineryExchangeThread.interrupt();
         if (singleTransactionExecutor != null)
             singleTransactionExecutor.shutdownNow();
         thread.interrupt();
