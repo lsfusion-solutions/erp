@@ -705,9 +705,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 try {
                     nameSalesFile = remoteSalesFile.getName();
                     salesFile = File.createTempFile("Sales", ".dbf");
+                    sendSalesLogger.info(String.format("Start copying sales.dbf from %s to %s", remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
                     FileCopyUtils.copy(remoteSalesFile, salesFile);
+                    sendSalesLogger.info(String.format("End copying sales.dbf from %s to %s", remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
                     receiptFile = File.createTempFile("Receipt", ".dbf");
+                    sendSalesLogger.info(String.format("Start copying receipt.dbf from %s to %s", remoteReceiptFile.getAbsolutePath(), receiptFile.getAbsolutePath()));
                     FileCopyUtils.copy(remoteReceiptFile, receiptFile);
+                    sendSalesLogger.info(String.format("End copying receipt.dbf from %s to %s", remoteReceiptFile.getAbsolutePath(), receiptFile.getAbsolutePath()));
                 } catch (Exception e) {
                     copyError = true;
                     sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
@@ -787,8 +791,15 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         if(makeBackup) {
                             String timePostfix = postfix == null ? (getCurrentTimestamp() + ".dbf") : postfix;
                             new File(directory + "/backup").mkdir();
-                            FileCopyUtils.copy(salesFile, new File(directory + "/backup/Sales" + timePostfix));
-                            FileCopyUtils.copy(receiptFile, new File(directory + "/backup/Receipt" + timePostfix));
+                            File backupSalesFile = new File(directory + "/backup/Sales" + timePostfix);
+                            sendSalesLogger.info(String.format("Start copying sales.dbf from %s to %s", salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
+                            FileCopyUtils.copy(salesFile, backupSalesFile);
+                            sendSalesLogger.info(String.format("End copying sales.dbf from %s to %s", salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
+                            File backupReceiptFile = new File(directory + "/backup/Receipt" + timePostfix);
+                            sendSalesLogger.info(String.format("Start copying receipt.dbf from %s to %s", receiptFile.getAbsolutePath(), backupReceiptFile.getAbsolutePath()));
+                            FileCopyUtils.copy(receiptFile, backupReceiptFile);
+                            sendSalesLogger.info(String.format("End copying receipt.dbf from %s to %s", receiptFile.getAbsolutePath(), backupReceiptFile.getAbsolutePath()));
+
                         }
                     }
                 } catch (Throwable e) {
