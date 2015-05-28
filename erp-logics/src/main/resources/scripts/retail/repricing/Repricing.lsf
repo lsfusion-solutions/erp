@@ -433,6 +433,33 @@ FORM repricing 'Акт переоценки (печать)'
 
 printRepricing 'Акт переоценки' (repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT  IMAGE 'print.png' IN print;
 
+//----------------------------------------------- Операции ------------------------+----------------------------//
+
+@defineDocumentInterfaceOperation (repricing, Repricing, );
+
+@defineDocumentOperationConstraint(repricing, repricings, 'акт переоценки', Repricing);
+
+@defineDocumentOperationRolePrefix(userRepricing, );
+
+toFillQuantityUserRepricingDetailUserRepricing 'Записать в кол-во остатки' = ACTION (repricing) {
+    quantityUserRepricingDetail(d) <- IF batchUserRepricingDetail(d) THEN balanceBBatchStockDateTime(batchUserRepricingDetail(d),   
+                                                                            departmentStoreUserRepricingDetail(d), 
+                                                                            dateTimeUserRepricingDetail(d)) 
+                                                                     ELSE balanceBSkuStockDateTime(skuUserRepricingDetail(d), 
+                                                                            departmentStoreUserRepricingDetail(d), 
+                                                                            dateTimeUserRepricingDetail(d))                                                                      
+                                                                     WHERE userRepricingUserRepricingDetail(d) == repricing;    
+}
+
+toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)' = ACTION () NEWSESSION {
+    FOR r IS UserRepricing AND balanceOperation(operationUserRepricing(r)) AND NOT isClosedUserRepricing(r) DO {
+        toFillQuantityUserRepricingDetailUserRepricing(r);    
+    }
+    apply();
+}
+
+allowRecalculatePriceUserRepricing (p) = NOT denyRecalculatePriceOperation(operationUserRepricing(p));
+
 // --------------------------- Формы --------------------------------- //
 editRepricing 'Редактировать' = ABSTRACT ACTION LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editSkuUserRepricingDetail 'Редактировать SKU' (d) = ACTION editSku(skuUserRepricingDetail(d));
@@ -460,7 +487,7 @@ FORM userRepricing 'Акт переоценки'
                    numberVATUserRepricingDetail, valueVATUserRepricingDetail, VATSumUserRepricingDetail,
                    retailPriceUserRepricingDetail ON CHANGE changeRetailPriceUserRepricingDetail(d), retailSumUserRepricingDetail, ADDOBJ, DELETESESSION
 
-    PROPERTIES TODRAW d changePriceUserRepricing(p), recalculatePriceUserRepricing(p) 
+    PROPERTIES TODRAW d changePriceUserRepricing(p), recalculatePriceUserRepricing(p) SHOWIF allowRecalculatePriceUserRepricing(p)
 
     PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRepricingDetailUserRepricing,
                            addDetailInputBarcodeUserRepricingDetailUserRepricing, deleteUserRepricingDetailUserRepricing
@@ -556,6 +583,16 @@ DESIGN userRepricing {
     }
 }
 
+EXTEND FORM userRepricing
+    PROPERTIES(p) nameOperationUserRepricing
+    PROPERTIES(p) TODRAW d toFillQuantityUserRepricingDetailUserRepricing FORCE PANEL TOOLBAR
+;
+DESIGN userRepricing{
+    first {
+        MOVE PROPERTY (nameOperationUserRepricing(p) ) {minimumCharWidth = 30; preferredCharWidth = 40;}
+    }
+}
+
 editRepricingDetail 'Редактировать' = ABSTRACT ACTION LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editUserRepricingDetail(d) = ACTION (d) NEWSESSION {
     FORM userRepricing OBJECTS p = userRepricingUserRepricingDetail(d), d = d MANAGESESSION DOCKEDMODAL;
@@ -595,41 +632,6 @@ DESIGN options {
 
 CONSTRAINT isPostedUserRepricing(i) AND NOT isStockRepricings() AND NOT  departmentStoreUserRepricing(i) 
     MESSAGE 'Для акта переоценки должен быть задан склад'; 
-
-//----------------------------------------------- Операции ------------------------+----------------------------//
-
-@defineDocumentInterfaceOperation (repricing, Repricing, );
-
-@defineDocumentOperationConstraint(repricing, repricings, 'акт переоценки', Repricing);
-
-@defineDocumentOperationRolePrefix(userRepricing, );
-
-toFillQuantityUserRepricingDetailUserRepricing 'Записать в кол-во остатки' = ACTION (repricing) {
-    quantityUserRepricingDetail(d) <- IF batchUserRepricingDetail(d) THEN balanceBBatchStockDateTime(batchUserRepricingDetail(d),   
-                                                                            departmentStoreUserRepricingDetail(d), 
-                                                                            dateTimeUserRepricingDetail(d)) 
-                                                                     ELSE balanceBSkuStockDateTime(skuUserRepricingDetail(d), 
-                                                                            departmentStoreUserRepricingDetail(d), 
-                                                                            dateTimeUserRepricingDetail(d))                                                                      
-                                                                     WHERE userRepricingUserRepricingDetail(d) == repricing;    
-}
-
-toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)' = ACTION () NEWSESSION {
-    FOR r IS UserRepricing AND balanceOperation(operationUserRepricing(r)) AND NOT isClosedUserRepricing(r) DO {
-        toFillQuantityUserRepricingDetailUserRepricing(r);    
-    }
-    apply();
-}
-
-EXTEND FORM userRepricing
-    PROPERTIES(p) nameOperationUserRepricing
-    PROPERTIES(p) TODRAW d toFillQuantityUserRepricingDetailUserRepricing FORCE PANEL TOOLBAR
-;
-DESIGN userRepricing{
-    first {
-        MOVE PROPERTY (nameOperationUserRepricing(p) ) {minimumCharWidth = 30; preferredCharWidth = 40;}
-    }
-}
 
 // Проведение по товарному отчету
 @implementStockDocumentLedgerInc(Repricing, departmentStore);
