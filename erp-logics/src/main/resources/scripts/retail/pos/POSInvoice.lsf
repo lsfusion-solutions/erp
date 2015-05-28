@@ -143,7 +143,7 @@ DESIGN paymentInstallments {
 }
 
 setPassportLegalEntity () += ACTION () {
-    REQUEST STRING[150] INPUT;
+    REQUEST STRING[10] INPUT;
     passportNumberLegalEntity() <- requestedString(); 
     FOR NOT requestCanceled() AND passportNumberLegalEntity(l) == requestedString() AND NOT isReadonly() DO {
         nameLegalEntity() <- nameLegalEntity(l);
@@ -210,13 +210,17 @@ createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCond
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
             DELETE receipt;
             
-            IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
-                printReceiptInvoicePayment(i, p); 
-                IF printReceiptResult() THEN 
-                    zReportPayment(p) <- currentZReport();      
-                    typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;          
-                    apply();
-                    createCurrentReceipt();
+            IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) AND NOT fiscalSkipReceipt(receipt) THEN {
+                check();
+                IF NOT canceled() THEN {
+                    printReceiptInvoicePayment(i, p); 
+                    IF printReceiptResult() THEN {
+                        zReportPayment(p) <- currentZReport();      
+                        typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;          
+                        apply();
+                        createCurrentReceipt();
+                    }   
+                } 
             }                 
             ELSE {
                 apply();

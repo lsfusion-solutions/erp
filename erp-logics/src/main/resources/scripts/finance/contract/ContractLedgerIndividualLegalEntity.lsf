@@ -111,11 +111,15 @@ addPaymentInContractLedger 'Погасить задолженность' = ACTIO
             }
             ELSE {
                 IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
-                    printReceiptInvoicePayment(ledger, p); 
-                    IF printReceiptResult() THEN 
-                        zReportPayment(p) <- currentZReport(); 
-                        typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;                       
-                        apply();
+                    check();
+                    IF NOT canceled() THEN {
+                        printReceiptInvoicePayment(ledger, p); 
+                        IF printReceiptResult() THEN {
+                            zReportPayment(p) <- currentZReport(); 
+                            typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;                       
+                            apply();
+                        }    
+                    }              
                 } 
             }                                      
         }
