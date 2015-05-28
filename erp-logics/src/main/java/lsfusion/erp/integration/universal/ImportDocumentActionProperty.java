@@ -22,6 +22,7 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.commons.lang.StringUtils;
 
 import java.io.File;
 import java.sql.SQLException;
@@ -51,12 +52,12 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
 
     protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<String, ImportColumnDetail>();
-        LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<String, ImportColumnDetail>();
+        LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
+        LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
 
         KeyExpr importTypeDetailExpr = new KeyExpr("importTypeDetail");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
         LCP[] properties = findProperties("staticName", "staticCaption", "canonicalNamePropImportTypeDetail", "nameKeyImportTypeDetail");
         for (int j = 0; j < properties.length; j++) {
@@ -72,12 +73,14 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             String staticNameProperty = trim((String) entry.get("staticName"));
             String field = getSplittedPart(staticNameProperty, "\\.", -1);
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
-            String propertyImportTypeDetail = (String) entry.get("propertyImportTypeDetail");
+            //String propertyImportTypeDetail = (String) entry.get("propertyImportTypeDetail");
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportTypeDetail"), "\\.", 1);
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportTypeImportTypeDetail") != null;
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
             if (indexes != null) {
-                String[] splittedIndexes = indexes.split("\\+");
+                int openingParentheses = StringUtils.countMatches(indexes, "(");
+                int closingParentheses = StringUtils.countMatches(indexes, ")");
+                String[] splittedIndexes = (openingParentheses == 0 || openingParentheses != closingParentheses) ? indexes.split("\\+") : new String[] {indexes};
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].contains("=") ? splittedIndexes[i] : splittedIndexes[i].trim();
                 if(field != null)
@@ -92,11 +95,11 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
 
     protected Map<String, String> readStockMapping(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        Map<String, String> stockMapping = new HashMap<String, String>();
+        Map<String, String> stockMapping = new HashMap<>();
 
         KeyExpr key = new KeyExpr("stockMappingEntry");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "StockMappingEntry", key);
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         
         query.addProperty("idStockMappingEntry", findProperty("idStockMappingEntry").getExpr(session.getModifier(), key));
         query.addProperty("idStockStockMappingEntry", findProperty("idStockStockMappingEntry").getExpr(session.getModifier(), key));
