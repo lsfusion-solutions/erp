@@ -316,7 +316,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("increaseImage");
                     File imageItem = prodImage.size() == 0 ? null : readImage(prodImage.get(0).attr("href"));
-                    BigDecimal price = getPrice(doc);
+                    List<BigDecimal> price = getPrice(doc);
                     Elements descriptionElement = doc.getElementsByClass("description");
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
                     if(onlyImages) {
@@ -336,7 +336,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             if (importItems && imageItem != null)
                                 itemsList.add(Arrays.asList((Object) idBarcode, IOUtils.getFileBytes(imageItem)));
                             if (importUserPriceLists) {
-                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
+                                if(price.size() >= 1)
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
+                                if(price.size() >= 2)
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
                                 idPriceListDetail++;
                             }
                             //to avoid duplicates
@@ -425,7 +428,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                                         fatsItem, carbohydratesItem, energyItem, imageItem == null ? null : IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem,
                                         brandItem)); //, idBarcodePack, quantityPack));
                             if (importUserPriceLists) {
-                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
+                                if(price.size() >= 1)
+                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
+                                if(price.size() >= 2)
+                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
                                 idPriceListDetail++;
                             }
                             //to avoid duplicates
@@ -447,19 +453,22 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         return element.children().size() > child ? Jsoup.parse(element.childNode(child).outerHtml()).text() : "";
     }
 
-    private BigDecimal getPrice(Document doc) {
-        BigDecimal price = null;
+    private List<BigDecimal> getPrice(Document doc) {
+        BigDecimal newPrice = null;
+        BigDecimal oldPrice = null;
         try {
             Element priceElement = doc.getElementsByClass("price").first();
             if(priceElement != null) {
-                Elements oldPrice = priceElement.getElementsByClass("Old_price");
-                String priceValue = (oldPrice != null && oldPrice.size() != 0 ? priceElement.text().replace(oldPrice.first().text(), "") : priceElement.text()).replace(" ", "");
-                price = priceValue == null || priceValue.isEmpty() ? null : new BigDecimal(priceValue);
+                Elements oldPriceElement = priceElement.getElementsByClass("Old_price");
+                String oldPriceValue = oldPriceElement == null ? null : oldPriceElement.text().replace(" ", "");
+                oldPrice = oldPriceValue == null || oldPriceValue.isEmpty() ? null : new BigDecimal(oldPriceValue);
+                String priceValue = (oldPriceElement != null && oldPriceElement.size() != 0 ? priceElement.text().replace(oldPriceElement.first().text(), "") : priceElement.text()).replace(" ", "");
+                newPrice = priceValue == null || priceValue.isEmpty() ? null : new BigDecimal(priceValue);
             }
         } catch (Exception e) {
-            price = null;
+            newPrice = null;
         }
-        return price;
+        return oldPrice == null ? Arrays.asList(null, newPrice) : Arrays.asList(newPrice, oldPrice);
     }
 
     private Set<String> getItemURLSet() throws IOException {
@@ -488,6 +497,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 notLast = !hash.equals(prevHash);
                 prevHash = hash;
             }
+            if(itemsSet.size() > 100)
+                break;
         }
         return itemsSet;
     }
