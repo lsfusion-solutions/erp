@@ -497,8 +497,6 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 notLast = !hash.equals(prevHash);
                 prevHash = hash;
             }
-            if(itemsSet.size() > 100)
-                break;
         }
         return itemsSet;
     }
