@@ -59,13 +59,28 @@ descriptionBarcode 'Описание' = OVERRIDE descriptionItem(skuBarcode(barc
 
 @defineMachineryPriceTransactionAttribute(description, 'Описание', TEXT);
 
+descriptionNumberMachineryPriceTransactionBarcode(t, b) = numberCellScales(cellScalesGroupScalesDescription(groupMachineryMachineryPriceTransaction(t), descriptionMachineryPriceTransactionBarcode(t, b)));
+
+useCellScales 'Использовать автогенерацию ячеек' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES useCellScales()
+;
+
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(useCellScales());
+    }
+}
+
 synchronizeDescriptionMachineryPriceTransactionGroupScales = ACTION (transaction, groupMachinery) {
-    FOR [= GROUP SUM 1 BY transaction, descriptionMachineryPriceTransactionBarcode(transaction, barcode)](transaction, description) IF groupMachinery IS GroupScales
-        AND NOT cellScalesGroupScalesDescription(groupMachinery, description)
-        ADDOBJ c = CellScales DO {
-            groupScalesCellScales(c) <- groupMachinery;
-            descriptionCellScales(c) <- description;
-        }
+    IF useCellScales() AND groupMachinery IS GroupScales THEN {
+        FOR [= GROUP SUM 1 BY transaction, descriptionMachineryPriceTransactionBarcode(transaction, barcode)](transaction, description)
+            AND NOT cellScalesGroupScalesDescription(groupMachinery, description)
+            ADDOBJ c = CellScales DO {
+                groupScalesCellScales(c) <- groupMachinery;
+                descriptionCellScales(c) <- description;
+            }
+    }
 }
 
 snapshotAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += ACTION synchronizeDescriptionMachineryPriceTransactionGroupScales(transaction, groupMachinery);

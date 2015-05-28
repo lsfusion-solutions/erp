@@ -310,9 +310,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 if (scalesItemLM != null) {
                     String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
-                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode"};
+                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
                     LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiryMachineryPriceTransactionBarcode",
-                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode");
+                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
@@ -458,6 +458,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode");
                         String description = (String) row.get("descriptionMachineryPriceTransactionBarcode");
+                        Integer descriptionNumberCellScales = (Integer) row.get("descriptionNumberMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
@@ -465,9 +466,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         
                         String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
-
-                        Integer cellScalesObject = description == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesDescription").read(session, groupMachineryObject, new DataObject(description, StringClass.text));
-                        Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, 
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
