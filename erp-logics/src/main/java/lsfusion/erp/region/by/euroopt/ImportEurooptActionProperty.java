@@ -58,13 +58,18 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
             boolean useTor = findProperty("importEurooptUseTor").read(context) != null;
             boolean importItems = findProperty("importEurooptItems").read(context) != null;
+            boolean onlyImages = findProperty("importEurooptOnlyImages").read(context) != null;
             boolean importUserPriceLists = findProperty("importEurooptUserPriceLists").read(context) != null;
             boolean skipKeys = findProperty("importEurooptSkipKeys").read(context) != null;
 
-            List<List<List<Object>>> data = importDataFromWeb(context, useTor, importItems, importUserPriceLists, skipKeys);
+            List<List<List<Object>>> data = importDataFromWeb(context, useTor, importItems, onlyImages, importUserPriceLists, skipKeys);
 
-            if (importItems)
-                importItems(context, data.get(0), skipKeys);
+            if (importItems) {
+                if(onlyImages)
+                    importImages(context, data.get(0), skipKeys);
+                else
+                    importItems(context, data.get(0), skipKeys);
+            }
             if (importUserPriceLists)
                 importUserPriceLists(context, data.get(1), skipKeys);
 
@@ -203,6 +208,34 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         session.close();
     }
 
+    private void importImages(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        List<ImportProperty<?>> props = new ArrayList<>();
+        List<ImportField> fields = new ArrayList<>();
+        List<ImportKey<?>> keys = new ArrayList<>();
+
+        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
+                findProperty("skuBarcodeId").getMapping(idBarcodeSkuField));
+        itemKey.skipKey = skipKeys;
+        keys.add(itemKey);
+        fields.add(idBarcodeSkuField);
+
+        ImportField dataImageItemField = new ImportField(findProperty("dataImageItem"));
+        props.add(new ImportProperty(dataImageItemField, findProperty("dataImageItem").getMapping(itemKey), true));
+        fields.add(dataImageItemField);
+
+        ImportTable table = new ImportTable(fields, data);
+
+        DataSession session = context.createSession();
+        session.pushVolatileStats("IE_ITI");
+        IntegrationService service = new IntegrationService(session, table, keys, props);
+        service.synchronize(true, false);
+        session.apply(context);
+        session.popVolatileStats();
+        session.close();
+    }
+
     private void importUserPriceLists(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
@@ -264,7 +297,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         session.close();
     }
 
-    private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean useTor, boolean importItems, boolean importUserPriceLists, boolean skipKeys)
+    private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean useTor, boolean importItems, boolean onlyImages, boolean importUserPriceLists, boolean skipKeys)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> itemsList = new ArrayList<>();
         List<List<Object>> userPriceListsList = new ArrayList<>();
@@ -283,59 +316,84 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("increaseImage");
                     File imageItem = prodImage.size() == 0 ? null : readImage(prodImage.get(0).attr("href"));
-                    
-                    String captionItem = doc.getElementsByTag("h1").text();
                     BigDecimal price = getPrice(doc);
                     Elements descriptionElement = doc.getElementsByClass("description");
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
-                    String idBarcode = null;
-                    String idItemGroup = null;
-                    String brandItem = null;
-                    BigDecimal netWeight = null;
-                    String UOMItem = null;
-                    BigDecimal quantityPack = null;
-                    String idBarcodePack = null;
-                    for (Node attribute : descriptionAttributes) {
-                        if (((Element) attribute).children().size() == 2) {
-                        String type = parseChild((Element) attribute, 0);
-                        String value = parseChild((Element) attribute, 1);
-                            switch (type) {
-                                case "Штрих-код:":
-                                    idBarcode = value;
-                                    idItemGroup = barcodeSet.containsKey(idBarcode) ? barcodeSet.get(idBarcode) : "ВСЕ";
-                                    break;
-                                case "Торговая марка:":
-                                    brandItem = value;
-                                    break;
-                                case "Масса:":
-                                    String[] split = value.split(" ");
-                                    netWeight = new BigDecimal(split[0]);
-                                    UOMItem = split.length >= 2 ? split[1] : null;
-                                    break;
-                                case "Кол-во товара в заводской таре:":
-                                    try {
-                                        quantityPack = new BigDecimal(value);
-                                    } catch (Exception e) {
-                                        quantityPack = null;
-                                    }
-                                    idBarcodePack = idBarcode + "pack";
-                                    break;
+                    if(onlyImages) {
+                        String idBarcode = null;
+                        for (Node attribute : descriptionAttributes) {
+                            if (((Element) attribute).children().size() == 2) {
+                                String type = parseChild((Element) attribute, 0);
+                                String value = parseChild((Element) attribute, 1);
+                                switch (type) {
+                                    case "Штрих-код:":
+                                        idBarcode = value;
+                                        break;
+                                }
                             }
                         }
-                    }
-                    Elements propertyAttributes = doc.getElementsByClass("property_group");
-                    String descriptionItem = null;
-                    String compositionItem = null;
-                    BigDecimal proteinsItem = null;
-                    BigDecimal fatsItem = null;
-                    BigDecimal carbohydratesItem = null;
-                    BigDecimal energyItem = null;
-                    String manufacturerItem = null;
-                    for (Element propertyAttribute : propertyAttributes) {
-                        Elements propertyRows = propertyAttribute.select("tr");
-                        for(Element propertyRow : propertyRows) {
-                            String type = parseChild(propertyRow, 0);
-                            String value = parseChild(propertyRow, 1);
+                        if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
+                            if (importItems && imageItem != null)
+                                itemsList.add(Arrays.asList((Object) idBarcode, IOUtils.getFileBytes(imageItem)));
+                            if (importUserPriceLists) {
+                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
+                                idPriceListDetail++;
+                            }
+                            //to avoid duplicates
+                            barcodeSet.remove(idBarcode);
+                        }
+                        if(imageItem != null)
+                            imageItem.delete();
+                    } else {
+                        String captionItem = doc.getElementsByTag("h1").text();
+                        String idBarcode = null;
+                        String idItemGroup = null;
+                        String brandItem = null;
+                        BigDecimal netWeight = null;
+                        String UOMItem = null;
+                        BigDecimal quantityPack = null;
+                        String idBarcodePack = null;
+                        for (Node attribute : descriptionAttributes) {
+                            if (((Element) attribute).children().size() == 2) {
+                                String type = parseChild((Element) attribute, 0);
+                                String value = parseChild((Element) attribute, 1);
+                                switch (type) {
+                                    case "Штрих-код:":
+                                        idBarcode = value;
+                                        idItemGroup = barcodeSet.containsKey(idBarcode) ? barcodeSet.get(idBarcode) : "ВСЕ";
+                                        break;
+                                    case "Торговая марка:":
+                                        brandItem = value;
+                                        break;
+                                    case "Масса:":
+                                        String[] split = value.split(" ");
+                                        netWeight = new BigDecimal(split[0]);
+                                        UOMItem = split.length >= 2 ? split[1] : null;
+                                        break;
+                                    case "Кол-во товара в заводской таре:":
+                                        try {
+                                            quantityPack = new BigDecimal(value);
+                                        } catch (Exception e) {
+                                            quantityPack = null;
+                                        }
+                                        idBarcodePack = idBarcode + "pack";
+                                        break;
+                                }
+                            }
+                        }
+                        Elements propertyAttributes = doc.getElementsByClass("property_group");
+                        String descriptionItem = null;
+                        String compositionItem = null;
+                        BigDecimal proteinsItem = null;
+                        BigDecimal fatsItem = null;
+                        BigDecimal carbohydratesItem = null;
+                        BigDecimal energyItem = null;
+                        String manufacturerItem = null;
+                        for (Element propertyAttribute : propertyAttributes) {
+                            Elements propertyRows = propertyAttribute.select("tr");
+                            for (Element propertyRow : propertyRows) {
+                                String type = parseChild(propertyRow, 0);
+                                String value = parseChild(propertyRow, 1);
                                 switch (type) {
                                     case "Краткое описание":
                                         descriptionItem = value;
@@ -359,21 +417,22 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                                         manufacturerItem = value;
                                         break;
                                 }
+                            }
+                        }
+                        if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
+                            if (importItems)
+                                itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
+                                        fatsItem, carbohydratesItem, energyItem, imageItem == null ? null : IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem,
+                                        brandItem)); //, idBarcodePack, quantityPack));
+                            if (importUserPriceLists) {
+                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
+                                idPriceListDetail++;
+                            }
+                            //to avoid duplicates
+                            barcodeSet.remove(idBarcode);
                         }
                     }
-                    if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
-                        if (importItems)
-                            itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
-                                    fatsItem, carbohydratesItem, energyItem, imageItem == null ? null : IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem,
-                                    brandItem)); //, idBarcodePack, quantityPack));
-                        if (importUserPriceLists) {
-                            userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
-                            idPriceListDetail++;
-                        }
-                        //to avoid duplicates
-                        barcodeSet.remove(idBarcode);
-                    }
-                    if(imageItem != null)
+                    if (imageItem != null)
                         imageItem.delete();
                 }
                 i++;
