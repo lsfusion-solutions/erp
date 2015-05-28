@@ -178,7 +178,9 @@ public class EquipmentServer {
         processTransactionConsumer = new Consumer() {
             @Override
             void runTask() throws Exception {
+                processTransactionLogger.info("ReadTransactionInfo started");
                 taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
+                processTransactionLogger.info("ReadTransactionInfo finished");
             }
         };
         processTransactionThread = new Thread(processTransactionConsumer);
@@ -739,15 +741,13 @@ public class EquipmentServer {
         List<Integer> succeededTaskList;
 
         public TaskPool(EquipmentServerInterface remote, String sidEquipmentServer) {
-            synchronized (this) {
-                this.remote = remote;
-                this.sidEquipmentServer = sidEquipmentServer;
-                currentlyProceededGroups = new HashSet<>();
-                waitingTaskList = new ArrayList<>();
-                waitingTaskQueue = new ArrayList<>();
-                proceededTaskList = new ArrayList<>();
-                succeededTaskList = new ArrayList<>();
-            }
+            this.remote = remote;
+            this.sidEquipmentServer = sidEquipmentServer;
+            currentlyProceededGroups = new HashSet<>();
+            waitingTaskList = new ArrayList<>();
+            waitingTaskQueue = new ArrayList<>();
+            proceededTaskList = new ArrayList<>();
+            succeededTaskList = new ArrayList<>();
         }
 
         //метод, выдающий задания подпотокам
