@@ -76,6 +76,9 @@ consignmentTypeConsignment 'Тип накладной' = ABSTRACT ConsignmentTyp
 showTTN1Consignment (c) = consignmentTypeConsignment(c) == ConsignmentType.ttn1 OR NOT consignmentTypeConsignment(c);   
 showTN2Consignment (c) = consignmentTypeConsignment(c) == ConsignmentType.tn2 OR NOT consignmentTypeConsignment(c);   
 
+isTTN1Consignment (c) = consignmentTypeConsignment(c) == ConsignmentType.ttn1;   
+isTN2Consignment (c) = consignmentTypeConsignment(c) == ConsignmentType.tn2;   
+
 // ---------------------------------- Юридические лица ---------------------- //
 
 countRowsSimpleVertical 'Макс. кол-во строк в бланке (ТН-2 вер.)' = DATA INTEGER ();
@@ -144,12 +147,54 @@ GROUP carConsignment 'Автомобиль' : base;
 defaultTruckConsignment = ABSTRACT Truck(Consignment);
 dataTruckConsignment = ABSTRACT Truck(Consignment);
 truckConsignment(consignment) = OVERRIDE defaultTruckConsignment(consignment), dataTruckConsignment(consignment);  
-nameTruckConsignment 'Автомобиль' (consignment) = nameTruck(truckConsignment(consignment)) IN carConsignment;
+
+dataNameTruckConsignment = DATA VARSTRING[70](Consignment);
+nameTruckConsignment 'Автомобиль' (consignment) = OVERRIDE nameTruck(truckConsignment(consignment)), dataNameTruckConsignment(consignment) IN carConsignment;
+
+notUseDriverTruckConsignment = ABSTRACT BOOLEAN(Consignment);
+
+changeTruckConsignment = ACTION (consignment){
+    
+    IF notUseDriverTruckConsignment(consignment) THEN {
+        REQUEST VARSTRING[70] INPUT;
+        dataNameTruckConsignment(consignment) <- requestedString();
+    } ELSE {
+        REQUEST OBJECT t FORM trucks DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            dataTruckConsignment(consignment) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            dataTruckConsignment(consignment) <- NULL;
+        }
+    }
+        
+}
+
+CLASS OwnerTrackType 'Владелец автомобиля' {
+    supplier 'Грузоотравитель',
+    customer 'Грузополучатель'
+}
+
+FORM ownerTrackTypes 'Типы владельца автомобиля'
+    OBJECTS t = OwnerTrackType
+    PROPERTIES(t) READONLY staticCaption
+    DIALOG OwnerTrackType OBJECT t
+;
+
+DESIGN ownerTrackTypes {
+    PROPERTY(staticCaption(t)) { caption = 'Владелец автомобиля'; } 
+}
+
+TABLE ownerTrackType (OwnerTrackType);
+
+ownerTrackTypeConsignment 'Владелец автомобиля' = ABSTRACT OwnerTrackType (Consignment);
 
 dataOwnerTruckConsignment 'Владелец автомобиля' = DATA VARISTRING[200] (Consignment);
-ownerTruckConsignment 'Владелец автомобиля' (consignment) = OVERRIDE nameLegalEntityTruck(truckConsignment(consignment)), 
-                                                                     ownerTruck(truckConsignment(consignment)),
-                                                                     dataOwnerTruckConsignment(consignment) IN carConsignment;
+
+ownerTruckConsignment 'Владелец автомобиля' (consignment) = OVERRIDE  (CASE 
+    WHEN supplierConsignment(consignment) == legalEntityTruck(truckConsignment(consignment)) OR ownerTrackTypeConsignment(consignment) == OwnerTrackType.supplier THEN 'Грузоотравитель'
+    WHEN customerConsignment(consignment) == legalEntityTruck(truckConsignment(consignment)) OR ownerTrackTypeConsignment(consignment) == OwnerTrackType.customer THEN 'Грузополучатель'
+    ELSE 
+    OVERRIDE nameLegalEntityTruck(truckConsignment(consignment)), ownerTruck(truckConsignment(consignment))), dataOwnerTruckConsignment(consignment)  IN carConsignment;
 
 dataTrailerConsignment = ABSTRACT VARSTRING[100] (Consignment);
 trailerConsignment 'Прицеп' (consignment) = OVERRIDE trailerTruck(truckConsignment(consignment)),
@@ -157,8 +202,26 @@ trailerConsignment 'Прицеп' (consignment) = OVERRIDE trailerTruck(truckCon
 
 driverConsignment = ABSTRACT Driver(Consignment);
 dataEmployeeConsignment = ABSTRACT Employee(Consignment);
+
+dataNameDriverConsignment = DATA VARSTRING[30] (Consignment);
 nameDriverConsignment 'Водитель' (consignment) = OVERRIDE shortNameContact(driverConsignment(consignment)),
-                                                          shortNameContact(dataEmployeeConsignment(consignment)) IN carConsignment;
+                                                          shortNameContact(dataEmployeeConsignment(consignment)), dataNameDriverConsignment(consignment) IN carConsignment;
+                                                          
+changeDriverConsignment = ACTION (consignment){
+    
+    IF notUseDriverTruckConsignment(consignment) THEN {
+        REQUEST VARSTRING[70] INPUT;
+        dataNameDriverConsignment(consignment) <- requestedString();
+    } ELSE {
+        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            dataEmployeeConsignment(consignment) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            dataEmployeeConsignment(consignment) <- NULL;
+        }
+    }
+        
+}
 
 dataWaybillConsignment 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Consignment) IN carConsignment;
 
@@ -437,6 +500,26 @@ sumRetailVATConsignmentDetailConsignment 'Сумма НДС' (consignment) = GRO
 sumRetailConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumRetailConsignmentDetail(d) IF NOT skipConsignmentDetail(d)
                                                                                    BY consignmentConsignmentDetail(d) IN sumConsignment;
 
+//----------проверка на заполнение атрибутов ---------
+
+stopPrintConsignment = DATA LOCAL BOOLEAN ();
+
+checkMandatoryAttributeConsignment = ABSTRACT ACTION LIST (Consignment);
+
+META checkConsignmentAttribute(type,attrib, msg)
+
+checkMandatoryAttributeConsignment(c) += ACTION (c) {
+    IF is##type##Consignment(c) AND NOT attrib##(c) THEN {
+        stopPrintConsignment() <- TRUE;
+        MESSAGE NO WAIT msg;
+    }
+}
+END
+
+@checkConsignmentAttribute(TTN1, nameDriverConsignment, 'Для накладной должен быть заполнен водитель');
+@checkConsignmentAttribute(TTN1, nameTruckConsignment, 'Для накладной должен быть заполнен автомобиль');
+@checkConsignmentAttribute(TTN1, overWaybillConsignment, 'Для накладной должен быть заполнен путевой лист');
+
 // ---------------------------- Формы для накладных --------------------------------- //
 
 META defineConsignmentFormSimple(form, caption)
@@ -542,13 +625,25 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
           
 END 
 META definePrintConsignmentForm(form, caption, prefix)  //печать накладной по сторонам
-        printConsignment###form caption (consignment) = ACTION FORM consignment###form OBJECTS prefix = consignment PRINT IMAGE 'print.png' IN print;
-        printConsignment###form###Auto caption (consignment) = ACTION FORM consignment###form OBJECTS prefix = consignment PRINT AUTO IMAGE 'print.png' IN print; 
+        printConsignment###form caption (consignment) = ACTION {
+            checkMandatoryAttributeConsignment(consignment);
+            IF NOT stopPrintConsignment() THEN FORM consignment###form OBJECTS prefix = consignment PRINT;
+        } IMAGE 'print.png' IN print;
+        printConsignment###form###Auto caption (consignment) = ACTION {
+            checkMandatoryAttributeConsignment(consignment);
+            IF NOT stopPrintConsignment() THEN FORM consignment###form OBJECTS prefix = consignment PRINT AUTO;
+        } IMAGE 'print.png' IN print; 
 END  
   
 META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       //печать накладной сквозная
-        printConsignment###form caption (consignment) = ACTION FORM consignment###form OBJECTS prefixA = consignment, prefixB = consignment PRINT IMAGE 'print.png' IN print;
-        printConsignment###form###Auto caption (consignment) = ACTION FORM consignment###form OBJECTS prefixA = consignment, prefixB = consignment PRINT AUTO IMAGE 'print.png' IN print; 
+        printConsignment###form caption (consignment) = ACTION {
+            checkMandatoryAttributeConsignment(consignment);
+            IF NOT stopPrintConsignment() THEN FORM consignment###form OBJECTS prefixA = consignment, prefixB = consignment PRINT;            
+        } IMAGE 'print.png' IN print;
+        printConsignment###form###Auto caption (consignment) = ACTION {
+            checkMandatoryAttributeConsignment(consignment);
+            FORM consignment###form OBJECTS prefixA = consignment, prefixB = consignment PRINT AUTO;
+        } IMAGE 'print.png' IN print; 
 END   
 
 //-------------------  Создание накладной по сторонам ----------------------//
@@ -618,7 +713,7 @@ FORM consignment 'Атрибуты накладной'
                    nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment
 
     PROPERTIES(c) SHOWIF showTTN1Consignment(c)
-                   nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
+                   nameTruckConsignment ON CHANGE changeTruckConsignment(c), ownerTruckConsignment, trailerConsignment, nameDriverConsignment ON CHANGE changeDriverConsignment(c), overWaybillConsignment,
                    addressSupplierStockConsignment, addressCustomerStockConsignment, readdressingConsignment,
                    forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
                    overNameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
