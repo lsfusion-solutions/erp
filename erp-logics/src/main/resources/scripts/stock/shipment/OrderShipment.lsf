@@ -130,15 +130,16 @@ META defineOrderShipment(sign, stockProp)
             }
         }
     } IN order;
-
+    notShowShippedOrder = ABSTRACT BOOLEAN (Order);
+    toShowShippedOrder = o IS Order AND NOT notShowShippedOrder(o);
     EXTEND FORM userOrder
         PROPERTIES(o) READONLY BACKGROUND backgroundShippedOrder(o) shippedOrderDetailOrder
-        PROPERTIES(d) READONLY BACKGROUND backgroundShippedOrder(o) shippedOrderDetail BEFORE namePriceListTypeUserOrderDetail(d)
+        PROPERTIES(d) READONLY BACKGROUND backgroundShippedOrder(o)  SHOWIF toShowShippedOrder(o) shippedOrderDetail BEFORE namePriceListTypeUserOrderDetail(d)
     ;
 
     EXTEND FORM orders
         PROPERTIES(o) READONLY BACKGROUND backgroundShippedOrder(o) shippedOrderDetailOrder AFTER quantityOrderDetailOrder(o)
-        PROPERTIES(d) READONLY BACKGROUND backgroundShippedOrder(o) shippedOrderDetail BEFORE namePriceListTypeOrderDetail(d)
+        PROPERTIES(d) READONLY BACKGROUND backgroundShippedOrder(o) SHOWIF toShowShippedOrder(o) shippedOrderDetail BEFORE namePriceListTypeOrderDetail(d)
         FILTERGROUP  filter10
             FILTER   'Непоставленные товары' NOT shippedOrderDetail (d) ==  quantityOrderDetail (d) 'F10'            
     ;

@@ -1,0 +1,100 @@
+MODULE OrderShipmentAggregation;
+
+REQUIRE InvoiceOrderAggregation;
+
+NAMESPACE Shipment;
+
+META defineInvoiceOrderShipment(sign, NS)
+    
+    @defineDocumentInterfaceDetailQuantityPrefix (order, shipment, ' (поставлено)');
+    @defineDocumentInterfaceDetailPricePrefix(order, shipment, ' (учетная)');
+    @defineDocumentInterfaceDetailDataSumPrefix (order, shipment, ' (учетная)');
+    @deriveDocumentDetailSumPrefix(userOrder, shipment, currency, shipmentQuantity);  
+    @defineDocumentInterfaceHeaderSumPrefix (order, shipment, ' (учетная)'); 
+     
+    @defineDocumentInterfaceHeaderCreateShipment (order); 
+    skipChangedShipmentQuantityUserOrderDetail = ABSTRACT BOOLEAN (UserOrderDetail);
+    shipmentQuantityUserOrderDetail(detail) <- IF invoiceQuantityUserOrderDetail(detail) 
+                                                    THEN invoiceQuantityUserOrderDetail(detail)
+                                                    ELSE quantityUserOrderDetail(detail) 
+        WHEN (CHANGED(quantityUserOrderDetail(detail)) OR CHANGED(invoiceQuantityUserOrderDetail(detail))) AND NOT skipChangedShipmentQuantityUserOrderDetail(detail);
+        
+    @defineDocumentInterfaceDetailExpiryDate(order);
+    @defineDocumentInterfaceDetailManufactureDate(order);
+    
+    overExpiryDateOrderDetail = ABSTRACT DATE (OrderDetail);
+    calcExpiryDateOrderDetail (d) = OVERRIDE 
+        (IF expiryMonthSku(skuUserOrderDetail(d)) 
+            THEN sumDateMonth(manufactureDateOrderDetail(d), expiryMonthSku(skuOrderDetail(d)))
+            ELSE sumDate(manufactureDateOrderDetail(d), expiryDaysSku(skuOrderDetail(d)))),
+        overExpiryDateOrderDetail(d);
+        
+    WHEN SESSION FORMS userOrder (CHANGED(manufactureDateOrderDetail(d)) OR CHANGED(skuUserOrderDetail(d))) AND NOT batchUserOrderDetail(d) AND manufactureDateOrderDetail(d) DO {
+        expiryDateUserOrderDetail(d) <- calcExpiryDateOrderDetail(d);            
+    } 
+    overManufactureDateOrderDetail = ABSTRACT DATE (OrderDetail);
+    calcManufactureDateOrderDetail (d) = OVERRIDE 
+        (IF expiryMonthSku(skuUserOrderDetail(d)) 
+            THEN sumDateMonth(expiryDateOrderDetail(d), -expiryMonthSku(skuOrderDetail(d)))
+            ELSE sumDate(expiryDateOrderDetail(d), -expiryDaysSku(skuOrderDetail(d)))),
+        overManufactureDateOrderDetail(d);     
+           
+    WHEN SESSION FORMS userOrder (CHANGED(expiryDateOrderDetail(d)) OR CHANGED(skuUserOrderDetail(d))) AND NOT batchUserOrderDetail(d) AND expiryDateOrderDetail(d) DO {
+        manufactureDateUserOrderDetail(d) <- calcManufactureDateOrderDetail(d);            
+    } 
+    expiryDateUserOrderDetail(detail) <- prevExpiryDateBatch(batchUserOrderDetail(detail)) WHEN CHANGED (batchUserOrderDetail(detail));
+    manufactureDateUserOrderDetail(detail) <- prevManufactureDateBatch(batchUserOrderDetail(detail)) WHEN CHANGED (batchUserOrderDetail(detail));
+        
+    backgroundShippedOrder 'Цвет' (order) = RGB(255, 224, 255) IF order IS Order;
+    notShowShippedOrder(o) += createShipmentOrder(o);
+    EXTEND FORM userOrder
+
+        PROPERTIES(o) BACKGROUND backgroundShippedOrder(o) createShipmentUserOrder 
+        PROPERTIES(o) BACKGROUND backgroundShippedOrder(o) SHOWIF createShipmentUserOrder(o) shipmentSumUserOrderDetailUserOrder
+        PROPERTIES(o) BACKGROUND backgroundShippedOrder(o) SHOWIF createShipmentUserOrder(o) shipDate = shipmentDateUserOrder, shipTime = shipmentTimeUserOrder
+        
+        PROPERTIES(d) shipmentQuantityUserOrderDetail AFTER invoiceQuantityUserOrderDetail(d) SHOWIF createShipmentUserOrder(o) BACKGROUND backgroundShippedOrder(o)
+        
+        PROPERTIES(d) SHOWIF createShipmentUserOrder(o) BACKGROUND backgroundShippedOrder(o) manufactureDateUserOrderDetail, expiryDateUserOrderDetail, 
+                      shipmentPriceUserOrderDetail, shipmentSumUserOrderDetail              
+    ;
+    DESIGN userOrder {
+        headerCreateDocuments {
+            type = CONTAINERV;
+            NEW headerShopment {
+                type = CONTAINERH;
+                caption = 'Поставка';
+                MOVE PROPERTY(createShipmentUserOrder(o));
+                MOVE PROPERTY(shipDate);
+                MOVE PROPERTY(shipTime);
+            }
+        }
+    }    
+    EXTEND FORM orders
+        PROPERTIES(o) BACKGROUND backgroundShippedOrder(o) shipmentSumOrderDetailOrder
+        PROPERTIES(d) READONLY AFTER invoiceQuantityOrderDetail(d) SHOWIF createShipmentOrder(o) BACKGROUND backgroundShippedOrder(o) shipmentQuantityOrderDetail
+        
+        PROPERTIES(d) READONLY SHOWIF createShipmentOrder(o) BACKGROUND backgroundShippedOrder(o)  manufactureDateOrderDetail, expiryDateOrderDetail, 
+                      shipmentPriceOrderDetail, shipmentSumOrderDetail   
+    ;
+    
+    createShipmentInvoice(i) += createShipmentOrder(orderOrderInvoice(i));
+    shipmentDateInvoice(i) += shipmentDateOrder(orderOrderInvoice(i));
+    shipmentTimeInvoice(i) += shipmentTimeOrder(orderOrderInvoice(i));   
+    
+    shipmentQuantityInvoiceDetail(d) += shipmentQuantityOrderDetail(orderDetailOrderInvoiceDetail(d));
+    shipmentPriceInvoiceDetail(d) += shipmentPriceOrderDetail(orderDetailOrderInvoiceDetail(d));
+    shipmentSumInvoiceDetail(d) += shipmentSumOrderDetail(orderDetailOrderInvoiceDetail(d));
+
+    manufactureDateInvoiceDetail(d) += manufactureDateOrderDetail(orderDetailOrderInvoiceDetail(d));
+    expiryDateInvoiceDetail(d) += expiryDateOrderDetail(orderDetailOrderInvoiceDetail(d));   
+     
+    overCopyOrder(s, d) += ACTION (s, d) {
+        ASSIGN createShipmentUserOrder(d) <- createShipmentUserOrder(s);
+    }   
+    overCopyUserOrderDetail(d, detail) += ACTION (d, detail) {
+        manufactureDateUserOrderDetail(d) <- manufactureDateUserOrderDetail(detail);  
+        expiryDateUserOrderDetail(d) <- expiryDateUserOrderDetail(detail);       
+    } 
+     
+END

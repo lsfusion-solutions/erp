@@ -6,6 +6,10 @@ NAMESPACE Invoice;
 
 META defineInvoiceOrder(sign, NS)
 
+    @defineDocumentInterfaceDataTimePrefix(order, invoice, ' накладной');
+    invoiceDateUserOrder(i) <- dateUserOrder(i) WHEN CHANGED(dateUserOrder(i));
+    invoiceTimeUserOrder(i) <- timeUserOrder(i) WHEN CHANGED(timeUserOrder(i));
+
     @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
     invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
     @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
@@ -14,7 +18,9 @@ META defineInvoiceOrder(sign, NS)
     
     
     EXTEND FORM userOrder
+    
         PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
+        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) invoiceDateUserOrder, invoiceTimeUserOrder
 
         PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
         PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
@@ -25,11 +31,13 @@ META defineInvoiceOrder(sign, NS)
                 type = CONTAINERH;
                 caption = 'Накладная';
                 MOVE PROPERTY(createInvoiceUserOrder(o));
+                MOVE PROPERTY(invoiceDateUserOrder(o));
+                MOVE PROPERTY(invoiceTimeUserOrder(o));
                 MOVE PROPERTY(seriesNumberContractSkuUserOrder(o));
                 MOVE PROPERTY(isCommissionUserOrder(o));
             }
         }
-    }
+    } 
 
     EXTEND FORM orders
         PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreementOrder(o) BACKGROUND backgroundInvoiceOrder(o) isCommissionOrder, seriesNumberContractSkuOrder
@@ -54,9 +62,9 @@ META defineInvoiceOrder(sign, NS)
     
     operationOrderInvoice (invoice) = operationOrder(orderOrderInvoice(invoice));
     operationInvoice(invoice) += operationOrderInvoice(invoice);
-
-    dateInvoice(invoice) += dateOrderInvoice(invoice);
-    timeInvoice(invoice) += timeOrderInvoice(invoice);
+    @defineDocumentAggregationHeaderTimePrefix (order, OrderInvoice, invoice);
+    dateInvoice(invoice) += invoiceDateOrderInvoice(invoice);
+    timeInvoice(invoice) += invoiceTimeOrderInvoice(invoice);
     
     indexInvoiceDetail(detail) += indexOrderInvoiceDetail(detail);
 
@@ -126,4 +134,5 @@ META defineInvoiceOrder(sign, NS)
     orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
     editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
+    editInvoiceDetail(d) += ACTION EXEC editOrderDetail(orderDetailOrderInvoiceDetail(d));
 END
