@@ -9,6 +9,23 @@ META defineInvoiceOrder(sign, NS)
     @defineDocumentInterfaceDataTimePrefix(order, invoice, ' накладной');
     invoiceDateUserOrder(i) <- dateUserOrder(i) WHEN CHANGED(dateUserOrder(i));
     invoiceTimeUserOrder(i) <- timeUserOrder(i) WHEN CHANGED(timeUserOrder(i));
+    
+    invoiceNumberOrder 'Номер' = ABSTRACT STRING[18] (Order) IN numbered MINCHARWIDTH 7;
+    invoiceSeriesOrder 'Серия' = ABSTRACT STRING[2] (Order) IN numbered FIXEDCHARWIDTH 3; 
+
+    invoiceSeriesNumberOrder 'Серия/Номер' (o) = 
+        CONCAT '', seriesOrder(o), numberOrder(o) 
+        MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
+        
+    invoiceNumberUserOrder 'Номер' = DATA STRING[18] (UserOrder) IN numbered MINCHARWIDTH 7;
+    invoiceSeriesUserOrder 'Серия' = DATA STRING[2] (UserOrder) IN numbered FIXEDCHARWIDTH 3; 
+
+    invoiceSeriesNumberUserOrder 'Серия/Номер' (o) = 
+        CONCAT '', seriesUserOrder(o), numberUserOrder(o) 
+        MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;   
+        
+    invoiceNumberOrder(o) += invoiceNumberUserOrder(o); 
+    invoiceSeriesOrder(o) += invoiceSeriesUserOrder(o);    
 
     @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
     invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
@@ -20,7 +37,8 @@ META defineInvoiceOrder(sign, NS)
     EXTEND FORM userOrder
     
         PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
-        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) invoiceDateUserOrder, invoiceTimeUserOrder
+        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) invoiceDateUserOrder, invoiceTimeUserOrder,
+                      invoiceNumberUserOrder, invoiceSeriesUserOrder
 
         PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
         PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
@@ -28,13 +46,22 @@ META defineInvoiceOrder(sign, NS)
     DESIGN userOrder {
         headerCreateDocuments {
             NEW headerInvoice {
-                type = CONTAINERH;
+                type = CONTAINERV;
                 caption = 'Накладная';
-                MOVE PROPERTY(createInvoiceUserOrder(o));
-                MOVE PROPERTY(invoiceDateUserOrder(o));
-                MOVE PROPERTY(invoiceTimeUserOrder(o));
-                MOVE PROPERTY(seriesNumberContractSkuUserOrder(o));
-                MOVE PROPERTY(isCommissionUserOrder(o));
+                NEW headerInvoice1 {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(createInvoiceUserOrder(o));
+                    MOVE PROPERTY(invoiceDateUserOrder(o));
+                    MOVE PROPERTY(invoiceTimeUserOrder(o));    
+                    MOVE PROPERTY(invoiceNumberUserOrder(o));
+                    MOVE PROPERTY(invoiceSeriesUserOrder(o));                                        
+                                    
+                }
+//                NEW headerInvoice2 {
+//                    type = CONTAINERH;
+//                    MOVE PROPERTY(seriesNumberContractSkuUserOrder(o));
+//                    MOVE PROPERTY(isCommissionUserOrder(o));                    
+//                }              
             }
         }
     } 
@@ -86,13 +113,13 @@ META defineInvoiceOrder(sign, NS)
     @defineDocumentAggregationClosed(order, orderInvoice);
     isClosedInvoice(invoice) += isClosedOrderInvoice(invoice);    
 
-    numberOrderInvoice 'Номер документа' (orderInvoice) = numberOrder(orderOrderInvoice(orderInvoice));
+    numberOrderInvoice 'Номер документа' (orderInvoice) = invoiceNumberOrder(orderOrderInvoice(orderInvoice));
     numberInvoice(invoice) += numberOrderInvoice(invoice);
 
-    seriesOrderInvoice 'Серия документа' (orderInvoice) = seriesOrder(orderOrderInvoice(orderInvoice));
+    seriesOrderInvoice 'Серия документа' (orderInvoice) = invoiceSeriesOrder(orderOrderInvoice(orderInvoice));
     seriesInvoice(invoice) += seriesOrderInvoice(invoice);
 
-    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = seriesNumberOrder(orderOrderInvoice(orderInvoice));
+    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = invoiceSeriesNumberOrder(orderOrderInvoice(orderInvoice));
 
     noteInvoiceOrderInvoice 'Примечание' (orderInvoice) = noteOrder(orderOrderInvoice(orderInvoice));
     noteInvoice(invoice) += noteInvoiceOrderInvoice(invoice);
