@@ -117,6 +117,24 @@ EXTEND FORM legalEntity
 // Добавляем Dashboard для работы с графиками закупок
 @defineScheduleOrderDashboard(' (закупка)', supplier, company);
 
+autoCloseScheduleOrderInterval 'За сколько дней аннулировать точки заказов по графику' = DATA INTEGER ();
+autoCloseScheduleOrderDetails 'Аннулировать точки заказов' = ACTION () {
+    isClosedScheduleOrderDetail(o) <- TRUE WHERE dateOrderScheduleOrderDetail(o) <= subtractDate(currentDate(), autoCloseScheduleOrderInterval());
+}
+
+EXTEND FORM options
+    PROPERTIES() autoCloseScheduleOrderInterval, autoCloseScheduleOrderDetails 
+;
+DESIGN options {
+    orders {
+        NEW schedule {
+            caption = 'Графики заказов';
+            MOVE PROPERTY(autoCloseScheduleOrderInterval());
+            MOVE PROPERTY(autoCloseScheduleOrderDetails());
+        }
+    }
+}
+
 NAVIGATOR {
     purchaseDashboardNavigator {
         ADD scheduleOrderDashboard;
