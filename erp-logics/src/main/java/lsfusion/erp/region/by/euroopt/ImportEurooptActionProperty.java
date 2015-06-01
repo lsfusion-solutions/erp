@@ -302,6 +302,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         List<List<Object>> itemsList = new ArrayList<>();
         List<List<Object>> userPriceListsList = new ArrayList<>();
         Map<String, String> barcodeSet = getBarcodeSet(context);
+        int imageCount = 0;
         //Set<String> amountPackSkuSet = getAmountPackSkuSet(context);
         try {
 
@@ -316,6 +317,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("increaseImage");
                     File imageItem = prodImage.size() == 0 ? null : readImage(prodImage.get(0).attr("href"));
+                    byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
+                    ServerLoggers.systemLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
                     List<BigDecimal> price = getPrice(doc);
                     Elements descriptionElement = doc.getElementsByClass("description");
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
@@ -333,8 +336,10 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                         }
                         if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
-                            if (importItems && imageItem != null)
-                                itemsList.add(Arrays.asList((Object) idBarcode, IOUtils.getFileBytes(imageItem)));
+                            if (importItems && imageBytes != null) {
+                                imageCount++;
+                                itemsList.add(Arrays.asList((Object) idBarcode, imageBytes));
+                            }
                             if (importUserPriceLists) {
                                 if(price.size() >= 1)
                                     userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
@@ -345,8 +350,6 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
                         }
-                        if(imageItem != null)
-                            imageItem.delete();
                     } else {
                         String captionItem = doc.getElementsByTag("h1").text();
                         String idBarcode = null;
@@ -423,9 +426,11 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                         }
                         if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
+                            if(imageBytes != null)
+                                imageCount++;
                             if (importItems)
                                 itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
-                                        fatsItem, carbohydratesItem, energyItem, imageItem == null ? null : IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem,
+                                        fatsItem, carbohydratesItem, energyItem, imageBytes, manufacturerItem, UOMItem,
                                         brandItem)); //, idBarcodePack, quantityPack));
                             if (importUserPriceLists) {
                                 if(price.size() >= 1)
@@ -446,6 +451,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
+        ServerLoggers.systemLogger.info(String.format("Read %s items (%s with images), %s priceLists", itemsList.size(), imageCount, userPriceListsList.size()));
         return Arrays.asList(itemsList, userPriceListsList);
     }
 
@@ -663,6 +669,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             }
             output.close();
         } catch (IOException e) {
+            ServerLoggers.systemLogger.error(e);
             file = null;
         }
         return file;
