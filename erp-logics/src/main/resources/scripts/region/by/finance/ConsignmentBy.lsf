@@ -357,10 +357,14 @@ consignmentConsignmentDetail (d) = ABSTRACT Consignment (ConsignmentDetail);
 
 quantityConsignmentDetail 'Количество' (d) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
 
+invoicePriceConsignmentDetail 'Цена с НДС' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+isInvoicePriceConsignmentDetail 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT BOOLEAN (ConsignmentDetail);
+
 dataPriceConsignmentDetail 'Цена' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
 overPriceConsignmentDetail 'Цена' (d) = ABSTRACT CASE NUMERIC[14,2] (ConsignmentDetail);
-priceConsignmentDetail 'Цена' (d) = OVERRIDE dataPriceConsignmentDetail(d), 
-                                                             overPriceConsignmentDetail(d);
+priceConsignmentDetail 'Цена' (d) = IF NOT isInvoicePriceConsignmentDetail(d) 
+                                                        THEN (OVERRIDE dataPriceConsignmentDetail(d), overPriceConsignmentDetail(d))
+                                                        ELSE invoicePriceConsignmentDetail(d);
 
 shipmentPriceConsignmentDetail 'Цена поставщика' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
 purchaseRetailPriceConsignmentDetail 'Цена розничная' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
@@ -368,10 +372,13 @@ purchaseRetailPriceConsignmentDetail 'Цена розничная' (d) = ABSTRAC
 retailMarkupConsignmentDetail 'Надбавка розн.' (d) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
 wholesaleMarkupConsignmentDetail 'Надбавка опт.' (d) = ABSTRACT NUMERIC[16,3] (ConsignmentDetail);
 
+
+invoiceSumConsignmentDetail 'Сумма с НДС' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 dataSumConsignmentDetail 'Стоимость' (d) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 overSumConsignmentDetail 'Стоимость' (d) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
-sumConsignmentDetail 'Стоимость' (d) = OVERRIDE dataSumConsignmentDetail(d),
-                                                                overSumConsignmentDetail(d);
+sumConsignmentDetail 'Стоимость' (d) = IF NOT isInvoicePriceConsignmentDetail(d)  
+                                                            THEN (OVERRIDE dataSumConsignmentDetail(d), overSumConsignmentDetail(d))
+                                                            ELSE invoiceSumConsignmentDetail(d);
 
 notVatConsignmentDetail 'Не надо проставлять ставку' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);  
 useEmptyVATConsignmentDetail 'Печатать пустой строку с НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
