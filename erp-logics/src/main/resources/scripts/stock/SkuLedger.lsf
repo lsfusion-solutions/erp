@@ -926,11 +926,11 @@ FORM currentBalanceSkuStock 'Текущие остатки'
                         st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
                       ELSE 
                         st == ss,
-                      isCompanyStock(st)
+                      isCompanyStock(st) OR NOT multipleStores()
     ORDER BY          nameSku(s)
     FILTERGROUP inactiveStock 
-        FILTER 'Активный' activeStock(st) AND activeSku(s) 'ctrl F10' DEFAULT
-        FILTER 'Неактивный' inactiveStock(st) OR inactiveSku(s) 'shift F10'
+        FILTER 'Активный' (activeStock(st) OR NOT multipleStores()) AND activeSku(s) 'ctrl F10' DEFAULT
+        FILTER 'Неактивный' (inactiveStock(st) OR NOT multipleStores()) OR inactiveSku(s) 'shift F10'
     FILTERGROUP container 
         FILTER 'Товар' isItemSku(s) 
         FILTER 'Тара' isContainerSku(s)
@@ -1041,13 +1041,14 @@ FORM balanceSkuStock 'Остатки на дату'
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY nameSku(s), nameCountrySku(s), stockName = nameStock(st) SHOWIF multipleStores()  //  idBarcodeSku
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
     FILTERS           isParentSkuGroupSku(sk, s),
                       IF multipleStores() THEN 
                           st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
                         ELSE 
                             st == ss,
-                      isCompanyStock(st)
+                      isCompanyStock(st) OR NOT multipleStores()
+
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) OR NOT multipleStores() 'ctrl F10' DEFAULT
 
     PROPERTIES(s, st, t) READONLY balanceBSkuStockDateTime, averagePriceBSkuStockDateTime, sumBSkuStockDateTime
     PROPERTIES(s, st) READONLY dateTimeLastMovedSkuStock
@@ -1155,8 +1156,8 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
                         ELSE 
                             st == ss,    
 //                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
-                      isCompanyStock(st)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
+                      isCompanyStock(st) OR NOT multipleStores()
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) OR NOT multipleStores() 'ctrl F10' DEFAULT
     ORDER BY          dateTimeBatch(bt)
 
     OBJECTS bil=SkuLedger
@@ -1257,8 +1258,8 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, shippedQuantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
-                      isCompanyStock(st)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
+                      isCompanyStock(st) OR NOT multipleStores()
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) OR NOT multipleStores() 'ctrl F10' DEFAULT
     ORDER BY          dateTimeBatch(bt)
 
     OBJECTS bil=SkuLedger
