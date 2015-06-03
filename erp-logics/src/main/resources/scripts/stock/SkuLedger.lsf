@@ -1257,7 +1257,10 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     PROPERTIES        READONLY  balanceBBatchStockDateTime(bt, st, t)
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, shippedQuantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      IF multipleStores() THEN 
+                          st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                        ELSE 
+                            st == ss,    
                       isCompanyStock(st) OR NOT multipleStores()
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) OR NOT multipleStores() 'ctrl F10' DEFAULT
     ORDER BY          dateTimeBatch(bt)
