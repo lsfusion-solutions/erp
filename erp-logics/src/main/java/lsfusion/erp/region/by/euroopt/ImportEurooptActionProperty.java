@@ -20,6 +20,7 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.commons.io.FileUtils;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
@@ -100,6 +101,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 object(findClass("Item")).getMapping(itemKey)));
         props.add(new ImportProperty(idBarcodeSkuField, findProperty("extIdBarcode").getMapping(barcodeKey), true));
         props.add(new ImportProperty(idBarcodeSkuField, findProperty("idBarcode").getMapping(barcodeKey), true));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("idItem").getMapping(itemKey), true));
 
         ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
         ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
@@ -223,6 +225,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         ImportField dataImageItemField = new ImportField(findProperty("dataImageItem"));
         props.add(new ImportProperty(dataImageItemField, findProperty("dataImageItem").getMapping(itemKey), true));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("idItem").getMapping(itemKey), true));
         fields.add(dataImageItemField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -316,9 +319,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 Document doc = useTor ? getDocumentTor(lowerNetLayer, itemURL) : getDocument(itemURL);
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("increaseImage");
-                    File imageItem = prodImage.size() == 0 ? null : readImage(prodImage.get(0).attr("href"));
-                    byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
-                    ServerLoggers.systemLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
+                    File imageItem = null;
                     List<BigDecimal> price = getPrice(doc);
                     Elements descriptionElement = doc.getElementsByClass("description");
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
@@ -336,8 +337,12 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                         }
                         if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
-                            if (importItems && imageBytes != null) {
-                                imageCount++;
+                            if (importItems) {
+                                imageItem = prodImage.size() == 0 ? null : useTor ? readImageTor(lowerNetLayer, prodImage.get(0).attr("href")) : readImage(prodImage.get(0).attr("href"));
+                                byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
+                                ServerLoggers.systemLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
+                                if(imageBytes != null)
+                                    imageCount++;
                                 itemsList.add(Arrays.asList((Object) idBarcode, imageBytes));
                             }
                             if (importUserPriceLists) {
@@ -349,6 +354,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
+                        } else {
+                            ServerLoggers.systemLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
                         }
                     } else {
                         String captionItem = doc.getElementsByTag("h1").text();
@@ -426,21 +433,28 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                         }
                         if (idBarcode != null && (!skipKeys || barcodeSet.containsKey(idBarcode))) {
-                            if(imageBytes != null)
-                                imageCount++;
-                            if (importItems)
+
+                            if (importItems) {
+                                imageItem = prodImage.size() == 0 ? null : useTor ? readImageTor(lowerNetLayer, prodImage.get(0).attr("href")) : readImage(prodImage.get(0).attr("href"));
+                                byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
+                                ServerLoggers.systemLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
+                                if (imageBytes != null)
+                                    imageCount++;
                                 itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
                                         fatsItem, carbohydratesItem, energyItem, imageBytes, manufacturerItem, UOMItem,
                                         brandItem)); //, idBarcodePack, quantityPack));
+                            }
                             if (importUserPriceLists) {
-                                if(price.size() >= 1)
-                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
-                                if(price.size() >= 2)
-                                userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
+                                if (price.size() >= 1)
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
+                                if (price.size() >= 2)
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
                                 idPriceListDetail++;
                             }
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
+                        } else {
+                            ServerLoggers.systemLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
                         }
                     }
                     if (imageItem != null)
@@ -673,6 +687,37 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             file = null;
         }
         return file;
+    }
+
+    protected File readImageTor(NetLayer lowerNetLayer, String url) throws IOException {
+
+        int count = 2;
+        while (count > 0) {
+            File file = null;
+            try {
+                Thread.sleep(50);
+
+                // prepare parameters
+                TcpipNetAddress httpServerNetAddress = new TcpipNetAddress(mainPage2, 80);
+                long timeoutInMs = 5000;
+
+                // do the request and wait for the response
+                byte[] responseBody = new HttpUtil().get(lowerNetLayer, httpServerNetAddress, url, timeoutInMs);
+                file = File.createTempFile("image", ".tmp");
+                FileUtils.writeByteArrayToFile(file, responseBody);
+
+            } catch (HttpStatusException e) {
+                file = null;
+                count--;
+                if(count <= 0)
+                    ServerLoggers.systemLogger.error(e);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+            if(file != null)
+                return file;
+        }
+        return null;
     }
 
     private BigDecimal parseBigDecimalWeight(String input) {
