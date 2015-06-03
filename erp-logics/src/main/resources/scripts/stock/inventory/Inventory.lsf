@@ -1548,3 +1548,31 @@ NAVIGATOR {
          ADD inventoryCommittees;
      }
 }
+
+//----------------
+
+skipStockDocumentLedgerInventory 'Не проводить по товарному отчету'  = DATA BOOLEAN (Inventory) IN documentPrm;
+
+EXTEND FORM inventories
+    PROPERTIES(in) READONLY skipStockDocumentLedgerInventory
+;
+
+EXTEND FORM inventory
+    PROPERTIES (in) skipStockDocumentLedgerInventory
+;
+
+skipStockDocumentLedgerOperation 'Не проводить по товарному отчету' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+     PROPERTIES(o) skipStockDocumentLedgerOperation
+ ;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(skipStockDocumentLedgerOperation(o));
+    }
+}
+    
+@deriveDocumentOperationProperty(Inventory, skipStockDocumentLedger);
+
+skipStockDocumentLedgerCollationSheet (cs) = skipStockDocumentLedgerInventory(inventoryCollationSheet(cs));
+skipStockDocumentLedger(l) += skipStockDocumentLedgerCollationSheet(l);
