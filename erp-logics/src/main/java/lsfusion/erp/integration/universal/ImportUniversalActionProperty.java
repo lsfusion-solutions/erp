@@ -1015,7 +1015,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     private boolean isConstantValue(String input) {
         return input != null && input.startsWith("=") && !isColumnRowValue(input) && !isRoundedValue(input)
                 && !isDivisionValue(input) && !isMultiplyValue(input) && !(isSumValue(input)) && !(isSubtractValue(input))
-                && !isOrValue(input) && !isSubstringValue(input) && !isPatternedDateTimeValue(input);
+                && !isOrValue(input) && !isSubstringValue(input) && !isPatternedDateTimeValue(input) && !isParenthesisedValue(input);
     }
 
     private boolean isColumnRowValue(String input) {
