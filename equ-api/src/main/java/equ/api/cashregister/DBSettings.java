@@ -13,11 +13,13 @@ public class DBSettings implements Serializable{
     public String sqlDBName;
     private Boolean useIdItem;
     private Integer lastDaysCashDocument;
+    private String importPrefixPath;
+    private String exportPrefixPath;
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
         this.sqlPassword = sqlPassword;       
-        this.sqlHost = new HashMap<String, String>();
+        this.sqlHost = new HashMap<>();
         if(!sqlHost.isEmpty()) {
             String[] hosts = sqlHost.split(",");
             for (String host : hosts) {
@@ -43,5 +45,21 @@ public class DBSettings implements Serializable{
 
     public void setLastDaysCashDocument(Integer lastDaysCashDocument) {
         this.lastDaysCashDocument = lastDaysCashDocument;
+    }
+
+    public String getImportPrefixPath() {
+        return importPrefixPath;
+    }
+
+    public void setImportPrefixPath(String importPrefixPath) {
+        this.importPrefixPath = importPrefixPath;
+    }
+
+    public String getExportPrefixPath() {
+        return exportPrefixPath;
+    }
+
+    public void setExportPrefixPath(String exportPrefixPath) {
+        this.exportPrefixPath = exportPrefixPath;
     }
 }

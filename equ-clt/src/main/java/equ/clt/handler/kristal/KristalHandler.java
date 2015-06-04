@@ -57,7 +57,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     protected List<String> getDirectoriesList(List<CashRegisterInfo> machineryInfoList) {
-        List<String> directoriesList = new ArrayList<String>();
+        List<String> directoriesList = new ArrayList<>();
         for (CashRegisterInfo machinery : machineryInfoList) {
             if (machinery.directory != null && !directoriesList.contains(machinery.directory.trim()))
                 directoriesList.add(machinery.directory.trim());
@@ -68,7 +68,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transactionInfo : transactionInfoList) {
 
@@ -79,8 +79,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
                 boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
+                String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
 
-                List<String> directoriesList = new ArrayList<String>();
+                List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
                     if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
                         directoriesList.add(cashRegisterInfo.port.trim());
@@ -90,7 +91,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 for (String directory : directoriesList) {
 
-                    String exchangeDirectory = directory.trim() + "/ImpExp/Import/";
+                    String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
 
                     if (!new File(exchangeDirectory).exists())
                         new File(exchangeDirectory).mkdirs();
@@ -259,11 +260,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
 
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
+
         for (String directory : softCheckInfo.directorySet) {
 
             String timestamp = new SimpleDateFormat("ddMMyyyyHHmmss").format(Calendar.getInstance().getTime());
 
-            String exchangeDirectory = directory + "/ImpExp/Import/";
+            String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
 
             File flagSoftFile = new File(exchangeDirectory + "WAITSOFT");
 
@@ -316,6 +320,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
 
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
+
         for (RequestExchange entry : requestExchangeList) {
             if(entry.isSalesInfoExchange()) {
                 int count = 0;
@@ -333,7 +340,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     cal.add(Calendar.DATE, 1);
                     String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
 
-                    String exchangeDirectory = directory + "/export/request/";
+                    String exchangeDirectory = directory + (exportPrefixPath == null ?  "/export" : exportPrefixPath) + "/request/";
 
                     if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                         Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
@@ -593,10 +600,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
         boolean useIdItem = kristalSettings == null || kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
+        String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
 
         for (String directory : directorySet) {
 
-            String exchangeDirectory = directory.trim() + "/ImpExp/Import/";
+            String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
 
             if (!new File(exchangeDirectory).exists())
                 new File(exchangeDirectory).mkdirs();
@@ -636,9 +644,12 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-        Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
-        Map<String, Boolean> directoryNotDetailedMap = new HashMap<String, Boolean>();
+        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
+
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+        Map<String, Date> directoryStartDateMap = new HashMap<>();
+        Map<String, Boolean> directoryNotDetailedMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("KristalHandler")) {
                 directoryNotDetailedMap.put(c.directory, c.notDetailed != null && c.notDetailed);
@@ -649,11 +660,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
         }
 
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<String>();
         final Boolean notDetailed = directoryNotDetailedMap.get(directory);//entry.getValue() != null && entry.getValue();
 
-        String exchangeDirectory = directory + "/Export/";
+        String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export/" : exportPrefixPath);
 
         File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
             @Override
@@ -741,7 +752,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 }
                                             }
 
-                                            List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
+                                            List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                                             BigDecimal currentPaymentSum = BigDecimal.ZERO;
                                             Integer numberReceiptDetail = 0;
                                             for (Object receiptDetailNode : receiptDetailsList) {
@@ -804,7 +815,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     }
                                                 }
 
-                                                List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
+                                                List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                                                 BigDecimal currentPaymentSum = BigDecimal.ZERO;
                                                 for (Object receiptDetailNode : receiptDetailsList) {
 
