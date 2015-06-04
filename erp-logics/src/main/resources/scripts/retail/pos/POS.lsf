@@ -231,19 +231,12 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
                     WHERE takenReceiptSaleDetailPromotionCondition(detail, condition);
 
                 promotionSumReceiptSaleDetailPromotionCondition (detail, condition) <-
-                    IF sumReceiptPromotionCondition(condition) THEN
-                        takenReceiptSaleDetailPromotionCondition(detail, condition) * (priceReceiptSaleDetail(detail) (-) sumReceiptPromotionCondition(condition) / quantityDiscountPromotionCondition (condition))
-                    ELSE
-                        IF sumDiscountPromotionCondition(condition) THEN
-                            takenReceiptSaleDetailPromotionCondition(detail, condition) * sumDiscountPromotionCondition(condition)
-                        ELSE
-                            IF resultPricePromotionCondition(condition) THEN
-                                takenReceiptSaleDetailPromotionCondition(detail, condition) * (leftSumReceiptSaleDetail(detail) / quantityReceiptSaleDetail(detail) - resultPricePromotionCondition(condition))
-                            ELSE 
-                                IF priceListTypePromotionCondition(condition) THEN
-                                    takenReceiptSaleDetailPromotionCondition(detail, condition) * (priceReceiptSaleDetail(detail) (-) priceAPriceListTypeSkuStockDateTime(priceListTypePromotionCondition(condition), skuReceiptSaleDetail(detail), departmentStoreReceiptSaleDetail(detail), dateTimeReceiptSaleDetail(detail)))                                    
-                                ELSE
-                                    takenReceiptSaleDetailPromotionCondition(detail, condition) * (leftSumReceiptSaleDetail(detail) / quantityReceiptSaleDetail(detail) * percentPromotionCondition(condition) / 100)
+                    CASE WHEN sumReceiptPromotionCondition(condition) THEN takenReceiptSaleDetailPromotionCondition(detail, condition) * (priceReceiptSaleDetail(detail) (-) sumReceiptPromotionCondition(condition) / quantityDiscountPromotionCondition (condition))
+                         WHEN sumDiscountPromotionCondition(condition) THEN takenReceiptSaleDetailPromotionCondition(detail, condition) * sumDiscountPromotionCondition(condition)
+                         WHEN resultPricePromotionConditionSku(condition, skuReceiptSaleDetail(detail)) THEN takenReceiptSaleDetailPromotionCondition(detail, condition) * (leftSumReceiptSaleDetail(detail) / quantityReceiptSaleDetail(detail) - resultPricePromotionConditionSku(condition, skuReceiptSaleDetail(detail)))
+                         WHEN resultPricePromotionCondition(condition) THEN takenReceiptSaleDetailPromotionCondition(detail, condition) * (leftSumReceiptSaleDetail(detail) / quantityReceiptSaleDetail(detail) - resultPricePromotionCondition(condition))
+                         WHEN priceListTypePromotionCondition(condition) THEN takenReceiptSaleDetailPromotionCondition(detail, condition) * (priceReceiptSaleDetail(detail) (-) priceAPriceListTypeSkuStockDateTime(priceListTypePromotionCondition(condition), skuReceiptSaleDetail(detail), departmentStoreReceiptSaleDetail(detail), dateTimeReceiptSaleDetail(detail)))
+                         WHEN condition IS PromotionCondition THEN takenReceiptSaleDetailPromotionCondition(detail, condition) * (leftSumReceiptSaleDetail(detail) / quantityReceiptSaleDetail(detail) * percentPromotionCondition(condition) / 100)
                     WHERE takenReceiptSaleDetailPromotionCondition(detail, condition);
             }
         }

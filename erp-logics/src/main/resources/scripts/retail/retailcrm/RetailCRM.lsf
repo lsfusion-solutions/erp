@@ -175,6 +175,7 @@ CONSTRAINT minSumPromotionCondition(promotionCondition) <= 0.0 MESSAGE 'Сумм
 quantityDiscountPromotionCondition 'Кол-во товаров со скидкой' = DATA NUMERIC[14,3] (PromotionCondition);
 percentPromotionCondition 'Процент скидки'  = DATA NUMERIC[8,3] (PromotionCondition);
 resultPricePromotionCondition 'Цена со скидкой' = DATA NUMERIC[14,2] (PromotionCondition);
+resultPricePromotionConditionSku 'Цена со скидкой' = DATA NUMERIC[14,2] (PromotionCondition, Sku);
 sumDiscountPromotionCondition 'Сумма скидки' (promotionCondition) = DATA NUMERIC[14,2] (PromotionCondition);
 sumReceiptPromotionCondition 'Сумма чека' (promotionCondition) = DATA NUMERIC[14,2] (PromotionCondition);
 
@@ -242,7 +243,7 @@ FORM promotion 'Акция'
     OBJECTS sk = Sku
     PROPERTIES(sk)    READONLY idBarcodeSku, nameSku
     FILTERS           isParentSkuGroupSku(skg, sk)
-    PROPERTIES(sg, sk)   inPromotionConditionSku
+    PROPERTIES(sg, sk)   resultPricePromotionConditionSku, inPromotionConditionSku
 
     FILTERGROUP filterSku
         FILTER 'Только отмеченные' inPromotionConditionSku(sg, sk) 'F10'
@@ -403,6 +404,7 @@ copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
             percentPromotionCondition(pc) <- percentPromotionCondition(promotionCondition);
             priceListTypePromotionCondition(pc) <- priceListTypePromotionCondition(promotionCondition);
             resultPricePromotionCondition(pc) <- resultPricePromotionCondition(promotionCondition);
+            resultPricePromotionConditionSku(pc, sku) <- resultPricePromotionConditionSku(promotionCondition, sku);
             sumDiscountPromotionCondition(pc) <- sumDiscountPromotionCondition(promotionCondition);
             sumReceiptPromotionCondition(pc) <- sumReceiptPromotionCondition(promotionCondition);
 
