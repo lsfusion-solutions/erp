@@ -103,8 +103,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         firstType = first.substring(first.length() - 1);
                         first = first.substring(0, first.length() - 1);
                     }
-                    String second = cell.substring(indexes.first, indexes.second);
-                    String third = cell.substring(indexes.second);
+                    String second = cell.substring(indexes.first + 1, indexes.second);
+                    String third = cell.substring(indexes.second + 1);
                     String thirdType = "";
                     if(!third.isEmpty()) {
                         thirdType = third.substring(third.length() - 1);
@@ -141,11 +141,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSumValue(cell)) {
-                    String[] splittedField = splitCell(cell, "\\+");
-                    BigDecimal summedValue = null;
+                    String[] splittedField = splitCell(cell, "\\+", false);
+                    String summedValue = null;
                     int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg), row), c);
+                        summedValue = checkedSum(summedValue, getCSVFieldValue(valuesList, importColumnDetail.clone(arg), row), c, isNumeric);
                         c++;
                     }
                     value = formatValue(summedValue);
@@ -262,8 +262,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         firstType = first.substring(first.length() - 1);
                         first = first.substring(0, first.length() - 1);
                     }
-                    String second = cell.substring(indexes.first, indexes.second);
-                    String third = cell.substring(indexes.second);
+                    String second = cell.substring(indexes.first + 1, indexes.second);
+                    String third = cell.substring(indexes.second + 1);
                     String thirdType = "";
                     if(!third.isEmpty()) {
                         thirdType = third.substring(third.length() - 1);
@@ -300,11 +300,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSumValue(cell)) {
-                    String[] splittedField = splitCell(cell, "\\+");
-                    BigDecimal summedValue = null;
+                    String[] splittedField = splitCell(cell, "\\+", false);
+                    String summedValue = null;
                     int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)), c);
+                        summedValue = checkedSum(summedValue, getXLSFieldValue(sheet, row, importColumnDetail.clone(arg)), c, isNumeric);
                         c++;
                     }
                     value = formatValue(summedValue);
@@ -434,8 +434,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         firstType = first.substring(first.length() - 1);
                         first = first.substring(0, first.length() - 1);
                     }
-                    String second = cell.substring(indexes.first, indexes.second);
-                    String third = cell.substring(indexes.second);
+                    String second = cell.substring(indexes.first + 1, indexes.second);
+                    String third = cell.substring(indexes.second + 1);
                     String thirdType = "";
                     if(!third.isEmpty()) {
                         thirdType = third.substring(third.length() - 1);
@@ -472,11 +472,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSumValue(cell)) {
-                    String[] splittedField = splitCell(cell, "\\+");
-                    BigDecimal summedValue = null;
+                    String[] splittedField = splitCell(cell, "\\+", false);
+                    String summedValue = null;
                     int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)), c);
+                        summedValue = checkedSum(summedValue, getXLSXFieldValue(sheet, row, importColumnDetail.clone(arg)), c, isNumeric);
                         c++;
                     }
                     value = formatValue(summedValue);
@@ -648,11 +648,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSumValue(column)) {
-                    String[] splittedField = splitCell(column, "\\+");
-                    BigDecimal summedValue = null;
+                    String[] splittedField = splitCell(column, "\\+", false);
+                    String summedValue = null;
                     int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg), row, charset), c);
+                        summedValue = checkedSum(summedValue, getDBFFieldValue(importFile, importColumnDetail.clone(arg), row, charset), c, isNumeric);
                         c++;
                     }
                     value = formatValue(summedValue);
@@ -767,8 +767,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         firstType = first.substring(first.length() - 1);
                         first = first.substring(0, first.length() - 1);
                     }
-                    String second = column.substring(indexes.first, indexes.second);
-                    String third = column.substring(indexes.second);
+                    String second = column.substring(indexes.first + 1, indexes.second);
+                    String third = column.substring(indexes.second + 1);
                     String thirdType = "";
                     if(!third.isEmpty()) {
                         thirdType = third.substring(third.length() - 1);
@@ -803,11 +803,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSumValue(column)) {
-                    String[] splittedField = splitCell(column, "\\+");
-                    BigDecimal summedValue = null;
+                    String[] splittedField = splitCell(column, "\\+", false);
+                    String summedValue = null;
                     int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row), c);
+                        summedValue = checkedSum(summedValue, getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row), c, isNumeric);
                         c++;
                     }
                     value = formatValue(summedValue);
@@ -1009,7 +1009,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     private boolean isParenthesisedValue(String input) {
         int openingParentheses = StringUtils.countMatches(input, "(");
         int closingParentheses = StringUtils.countMatches(input, ")");
-        return !isSubstringValue(input) && openingParentheses != 0 && openingParentheses == closingParentheses;
+        int substrSign = StringUtils.countMatches(input, "^");
+        return (openingParentheses - substrSign) > 0 && openingParentheses == closingParentheses;
     }
 
     private boolean isConstantValue(String input) {
@@ -1039,9 +1040,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private boolean isSumValue(String input) {
-        return input != null && input.contains("+") && !input.equals("=+") && !isSubstringValue(input);
+        return input != null && input.contains("+") && !input.equals("=+");
     }
 
+    //при использовании одновременно subtract и substring будут проблемы
     private boolean isSubtractValue(String input) {
         return input != null && input.contains("-") && !input.equals("=-") && !isSubstringValue(input);
     }
@@ -1104,6 +1106,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return splittedCell;
     }
 
+    private String[] splitCell(String cell, String pattern, boolean trim) {
+        String[] splittedCell = cell.split(pattern);
+        for (int i = 0; i < splittedCell.length; i++)
+            if(trim)
+                splittedCell[i] = trim(splittedCell[i]);
+        return splittedCell;
+    }
+
     private String[] splitCellSubstring(String cell) {
         Pattern p = Pattern.compile(substringPattern);
         Matcher m = p.matcher(cell);
@@ -1117,8 +1127,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         } else return String.valueOf(value);
     }
 
-    private BigDecimal checkedSum(BigDecimal summedValue, BigDecimal argument, int c) {
-        return summedValue == null ? argument : safeSubtract(summedValue, argument);
+    private String checkedSum(String summedValue, String argument, int c, boolean isNumeric) {
+        return summedValue == null ? argument : trySum(summedValue, argument, isNumeric);
     }
 
     private BigDecimal checkedSubtract(BigDecimal subtractedValue, BigDecimal argument, int c) {
