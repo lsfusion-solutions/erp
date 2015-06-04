@@ -132,8 +132,8 @@ public class InventoryTechHandler extends TerminalHandler {
 
         try {
 
-            Set<String> directorySet = new HashSet<String>();
-            Map<String, Integer> groupIds = new HashMap<String, Integer>();
+            Set<String> directorySet = new HashSet<>();
+            Map<String, Integer> groupIds = new HashMap<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
                 if (t.directory != null) {
@@ -142,9 +142,8 @@ public class InventoryTechHandler extends TerminalHandler {
                 }
             }
 
-
-            List<TerminalDocumentDetail> terminalDocumentDetailList = new ArrayList<TerminalDocumentDetail>();
-            Map<String, Set<Integer>> docRecordsMap = new HashMap<String, Set<Integer>>();
+            List<TerminalDocumentDetail> terminalDocumentDetailList = new ArrayList<>();
+            Map<String, Set<Integer>> docRecordsMap = new HashMap<>();
             
             for (String directory : directorySet) {
                 
@@ -155,7 +154,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     sendTerminalDocumentLogger.info("InventoryTech: doc.dbf or pos.dbf not found in " + directory);
                 else {
                     sendTerminalDocumentLogger.info("InventoryTech: found doc.dbf and pos.dbf in " + directory);
-
+                    int count = 0;
                     Map<String, List<Object>> docDataMap = readDocFile(docFile);
 
                     DBF dbfFile = null;
@@ -182,25 +181,28 @@ public class InventoryTechHandler extends TerminalHandler {
                                 BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
                                 BigDecimal sum = safeMultiply(price, quantity);
                                 Integer numberGroup = groupIds.get(directory);
-                                
+
+                                count++;
                                 terminalDocumentDetailList.add(new TerminalDocumentDetail("" + numberGroup + "/" + idDoc, title, directory,
                                         idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType, quantityDocument, 
                                         "" + numberGroup + "/" + idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
                             }
-
                         }
                     } finally {
                         if (dbfFile != null)
                             dbfFile.close();
                     }
 
-                    Set<Integer> docRecordsSet = new HashSet<Integer>();
+                    Set<Integer> docRecordsSet = new HashSet<>();
                     for (Map.Entry<String, List<Object>> entry : docDataMap.entrySet()) {
                         Integer recordNumber = (Integer) entry.getValue().get(5);
                         if (recordNumber != null)
                             docRecordsSet.add(recordNumber);
                     }
                     docRecordsMap.put(docFile.getAbsolutePath(), docRecordsSet);
+                    if (count > 0) {
+                        sendTerminalDocumentLogger.info(String.format("InventoryTech: processed %s records in %s", count, directory));
+                    }
                 }
             }
 
