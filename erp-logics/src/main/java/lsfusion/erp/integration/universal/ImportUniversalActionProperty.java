@@ -1009,7 +1009,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     private boolean isParenthesisedValue(String input) {
         int openingParentheses = StringUtils.countMatches(input, "(");
         int closingParentheses = StringUtils.countMatches(input, ")");
-        return openingParentheses != 0 && openingParentheses == closingParentheses;
+        return !isSubstringValue(input) && openingParentheses != 0 && openingParentheses == closingParentheses;
     }
 
     private boolean isConstantValue(String input) {
