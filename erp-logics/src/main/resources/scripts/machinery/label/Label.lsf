@@ -743,12 +743,15 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                             documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
                             
                             priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
-                            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
-                    
-                            quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
-                                                                    INTEGER(documentQuantityLabelTransactionDetail(d))
-                                                                 ELSE 
-                                                                    countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));    
+                            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);                       
+                                                                       
+                            quantityLabelTransactionDetail(d) <- IF NOT countLabelDepartmentStore(departmentStoreLabelTransactionDetail(d)) 
+                                                                     THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
+                                                                        THEN INTEGER(documentQuantityLabelTransactionDetail(d))
+                                                                         ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
+                                                                     ELSE countLabelDepartmentStore(departmentStoreLabelTransactionDetail(d));                                              
+                                                                       
+                                                                       
                             
                             
                             createAttributeLabelTransactionDetail(d);
@@ -909,6 +912,7 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
 
 selectType 'Вкл.' = DATA LOCAL BOOLEAN (LabelType);
 changeDepartmentStore 'Изменить данные' = DATA LOCAL BOOLEAN (DepartmentStore);
+countLabelDepartmentStore 'Количесво ценников' = DATA LOCAL INTEGER (DepartmentStore);
 countSelectType = GROUP SUM 1 IF selectType(t);
 
 
@@ -931,10 +935,11 @@ createSnapshotLabelTransactionDepartmentStoreLabelType 'Перепечатать
             priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
             retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
     
-            quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
-                                                    INTEGER(documentQuantityLabelTransactionDetail(d))
-                                                 ELSE 
-                                                    countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));                                                              
+            quantityLabelTransactionDetail(d) <- IF NOT countLabelDepartmentStore(departmentStore) 
+                                                     THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
+                                                        THEN INTEGER(documentQuantityLabelTransactionDetail(d))
+                                                         ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
+                                                     ELSE countLabelDepartmentStore(departmentStore);                                                              
         }
         IF changeDepartmentStore(departmentStore) THEN {
             FORM customLabelTransaction OBJECTS l = t MODAL;
@@ -980,7 +985,7 @@ createSelectedSkuStockLabelTransaction 'Распечатать ценники' =
 FORM selectLabelTypes 'Доступные типы ценников'
     OBJECTS ds = DepartmentStore  FIXED PANEL   
     PROPERTIES(ds) SELECTOR nameDepartmentStore
-    PROPERTIES changeDepartmentStore(ds)
+    PROPERTIES changeDepartmentStore(ds), countLabelDepartmentStore(ds) 
     OBJECTS l = LabelType FIXED GRID
     PROPERTIES(l) selectType
     PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
