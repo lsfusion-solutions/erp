@@ -1067,15 +1067,36 @@ isVATSupplierBalanceADateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanc
 
 TABLE snapshotTypeDOW(SnapshotType, DOW);
 inSnapshotTypeDOW 'Вкл.' = DATA BOOLEAN (SnapshotType, DOW);
+countDOWsInSnapshotType = GROUP SUM 1 IF inSnapshotTypeDOW(t,d) BY t;
 oneReportSnapshotType 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotType);
 idReportSnapshotType 'Идентификатор для планировщика' = DATA STRING[100] (SnapshotType);
 countDaysSnapshotType 'Количество дней' = DATA INTEGER (SnapshotType);
+
+inSnapshotTypeDays 'Вкл.' = DATA BOOLEAN (SnapshotType, INTEGER);
+countDaysInSnapshotType = GROUP SUM 1 IF inSnapshotTypeDays(t,i) BY t;
+
+daysInSnapshotType 'Числа'  = GROUP CONCAT VARSTRING[2](i) IF inSnapshotTypeDays(t,i), ', '
+    BY t
+    ORDER i MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    
+DOWsInSnapshotType 'Дни недели'  = GROUP CONCAT staticCaption(DOW) IF inSnapshotTypeDOW(t,DOW), ', '
+    BY t
+    ORDER numberDOW(DOW) MINCHARWIDTH 15 PREFCHARWIDTH 30;    
+    
+EXTEND FORM snapshotTypes
+    PROPERTIES READONLY AFTER nameSnapshotType(t) DOWsInSnapshotType(t), daysInSnapshotType(t)
+;
 
 EXTEND FORM snapshotType
     OBJECTS dow = DOW    
     PROPERTIES numberDOW(dow) READONLY, staticCaption(dow) READONLY, inSnapshotTypeDOW(t,dow)
     PROPERTIES(t) oneReportSnapshotType, countDaysSnapshotType, idReportSnapshotType
     ORDER BY numberDOW(dow)
+    
+    OBJECTS i = INTEGER    
+    PROPERTIES OBJVALUE(i) READONLY , inSnapshotTypeDays(t,i)
+    FILTERS iterate(i,1,31)
+    
 ;
 DESIGN snapshotType {
     NEW paramContainerTab BEFORE functions.box{
@@ -1090,14 +1111,22 @@ DESIGN snapshotType {
                 MOVE PROPERTY (countDaysSnapshotType(t));
                 MOVE PROPERTY (idReportSnapshotType(t));
             }
-            MOVE dow.box;
+            NEW tabContainer {
+                fill = 1;
+                type = SPLITH;
+                MOVE dow.box;
+                MOVE i.box {caption = 'Числа месяца';}
+            }
         }         
     }
 }
+   
+inSnapshotTypeDate (type, date) = ((countDOWsInSnapshotType(type) AND inSnapshotTypeDOW(type, extractDOW(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDOWsInSnapshotType(type))) AND
+                              ((countDaysInSnapshotType(type) AND inSnapshotTypeDays(type, extractDay(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDaysInSnapshotType(type)));            
   
 createSnapshotString 'Создать отчет' = ACTION (string, dateTo) NEWSESSION { 
     FOR idReportSnapshotType(type) == string  DO {
-        IF inSnapshotTypeDOW(type, extractDOW(currentDate())) AND countDaysSnapshotType(type) THEN {     
+        IF inSnapshotTypeDate(type, currentDate()) AND countDaysSnapshotType(type) THEN {     
 
             IF NOT oneReportSnapshotType(type)   THEN {
 
