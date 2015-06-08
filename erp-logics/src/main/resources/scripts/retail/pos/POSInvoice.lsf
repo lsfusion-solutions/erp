@@ -7,7 +7,7 @@ NAMESPACE Sale;
 passportPartyBContract 'Паспорт' = passportNumberLegalEntity(partyBContract(contract));
 shortNameOwnershipPartyBContract 'Форма собственности (сокр.)' = shortNameOwnershipLegalEntity(partyBContract(contract));
 balanceAContractCurrentDate 'Задолженность' = balanceAContractDate(contract, currentDate());
-lastPaymentContract 'Платеж' = GROUP LAST payment BY contractPayment(payment) ORDER payment;
+lastPaymentContract 'Платеж' = GROUP LAST payment BY contractPayment(payment) ORDER payment WHERE isCostedOutContractLedger(payment);
 
 fiscalTypePayment 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment); 
 dataFiscalTypePayment 'Тип платежа' = DATA INTEGER (Payment.Payment);
@@ -313,8 +313,8 @@ createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
                 createShipmentUserInvoice(i) <- TRUE;
                 isPostedUserInvoice(i) <- TRUE;
                 FOR p == lastPaymentContract(chosenObject('c')) DO {
-                    IF Payment.sumPayment(p) < sumReceiptDetailReceipt(receipt) THEN {
-                        costOutContractLedgerInContractLedger(p, i) <- Payment.sumPayment(p);    
+                    IF isCostedOutContractLedger(p) < sumReceiptDetailReceipt(receipt) THEN {
+                        costOutContractLedgerInContractLedger(p, i) <- isCostedOutContractLedger(p);    
                     } ELSE {
                         costOutContractLedgerInContractLedger(p, i) <- sumReceiptDetailReceipt(receipt);                     
                     }
