@@ -71,7 +71,8 @@ FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS sk = Sku
     PROPERTIES(sk) selectSku
     PROPERTIES(sk) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku
-    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, updateDescriptionSkuStock, updateFromDateTimeSkuStock, updatePriceSkuStock, priceLabelTransactionDetailSkuDepartmentStore, transactionPriceSkuStock
+    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, updateDescriptionSkuStock, updateFromDateTimeSkuStock, updatePriceSkuStock, 
+                      priceLabelTransactionDetailSkuDepartmentStore,  transactionPriceSkuStock BACKGROUND backgroundLastTransactionSkuStock(sk, d)
     PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransactionDepartmentStore, printSelectedSkuSnapshotLabelTransactionDepartmentStore, createSelectedSkuPriceTransactionDocumentStock
     FILTERS isParentSkuGroupSku(sg, sk),
             isItemSku(sk)
@@ -83,6 +84,11 @@ FORM updatePriceDashboard 'Обновление розничных цен'
         FILTER 'Ценники и оборуд.' updatePriceSkuStock(sk, d) 
                                                             AND (NOT (updatePriceSkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d)) OR 
                                                                  (barcodeSku(sk) AND NOT updatePriceSkuStock(sk, d) == transactionPriceSkuStock(sk, d))) 'F9' DEFAULT 
+                                                                 
+    FILTERGROUP error
+        FILTER 'С ошибками' quantityMachineryPriceTransactionErrorMachineryPriceTransaction(lastTransactionBarcodeStock(barcodeSku(sk), d)) AND NOT
+                                succeededMachineryPriceTransaction(lastTransactionBarcodeStock(barcodeSku(sk), d)) 'F6'                                                                  
+                                                                 
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk
                                                                                      
     EVENTS

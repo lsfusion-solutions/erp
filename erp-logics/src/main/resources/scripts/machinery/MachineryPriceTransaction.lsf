@@ -154,6 +154,15 @@ errorTraceMachineryPriceTransactionError 'След исключения' = DATA 
 machineryPriceTransactionMachineryPriceTransactionError 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) IN base;
 quantityMachineryPriceTransactionErrorMachineryPriceTransaction 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransactionMachineryPriceTransactionError (machineryPriceTransactionError) IN base;
 
+lastTransactionBarcodeStock (barcode, stock) =
+    GROUP LAST lastTransactionBarcodeGroupMachinery(b, g)
+          BY b, stockGroupMachinery(g)
+          ORDER orderMachineryPriceTransaction(lastTransactionBarcodeGroupMachinery(b, g))
+          WHERE lastTransactionBarcodeGroupMachinery(b, g);
+
+backgroundLastTransactionSkuStock (sku, stock) = RGB (255,0,0) IF quantityMachineryPriceTransactionErrorMachineryPriceTransaction(lastTransactionBarcodeStock(barcodeSku(sku), stock)) AND NOT
+    succeededMachineryPriceTransaction(lastTransactionBarcodeStock (barcodeSku(sku), stock));  
+
 @defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log, toDate);
 
 // Загрузка в конкретные устройства
