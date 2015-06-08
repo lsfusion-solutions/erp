@@ -179,6 +179,12 @@ departmentStoreReceiptDetail (d) += departmentStoreReceiptReturnDetail(d);
 skuReceiptDetail (receiptDetail) = MULTI skuReceiptReturnDetail(receiptDetail), skuReceiptSaleDetail(receiptDetail) PERSISTENT INDEXED;
 idSkuReceiptDetail 'Код' (receiptDetail) = idSku(skuReceiptDetail(receiptDetail));
 idSkuGroupReceiptDetail 'Код' (receiptDetail) = idSkuGroup(skuGroupSku(skuReceiptDetail(receiptDetail)));
+nameSkuGroup1SkuReceiptDetail 'Классификация' (receiptDetail) = nameSkuGroup1Sku(skuReceiptDetail(receiptDetail));
+nameSkuGroup2SkuReceiptDetail 'Категория' (receiptDetail) = nameSkuGroup2Sku(skuReceiptDetail(receiptDetail));
+nameSkuGroup3SkuReceiptDetail 'Направление' (receiptDetail) = nameSkuGroup3Sku(skuReceiptDetail(receiptDetail));
+nameSkuGroup4SkuReceiptDetail 'Группа' (receiptDetail) = nameSkuGroup4Sku(skuReceiptDetail(receiptDetail));
+nameSkuGroup5SkuReceiptDetail 'Подгруппа' (receiptDetail) = nameSkuGroup5Sku(skuReceiptDetail(receiptDetail));
+nameSkuGroup6SkuReceiptDetail 'Субгруппа' (receiptDetail) = nameSkuGroup6Sku(skuReceiptDetail(receiptDetail));
 shortNameUOMSkuReceiptDetail 'Ед. изм.' (receiptDetail) = shortNameUOMSku(skuReceiptDetail(receiptDetail));
 
 
@@ -398,26 +404,40 @@ VATReceiptReturnDetail(d) <- VATSkuStock(skuReceiptReturnDetail(d), departmentSt
     WHEN CHANGED(skuReceiptReturnDetail(d)) OR CHANGED(departmentStoreReceiptReturnDetail(d));
 
 VATReceiptDetail 'НДС' = ABSTRACT Range(ReceiptDetail) PERSISTENT;
+VATReceiptDetail(d) += VATReceiptSaleDetail(d);
+VATReceiptDetail(d) += VATReceiptReturnDetail(d);
+
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
+
 valueVATReceiptDetail 'НДС, %' (receiptDetail) = DATA NUMERIC[10,5] (ReceiptDetail) PERSISTENT;
-WHEN SESSION CHANGED(VATReceiptDetail(receiptDetail)) OR CHANGED(dateReceiptDetail(receiptDetail)) DO {
-    valueVATReceiptDetail(receiptDetail) <- valueRateRangeDate(VATReceiptDetail(receiptDetail), dateReceiptDetail(receiptDetail));
+WHEN SESSION CHANGED(VATReceiptDetail(d)) OR CHANGED(dateReceiptDetail(d)) DO {
+    valueVATReceiptDetail(d) <- valueRateRangeDate(VATReceiptDetail(d), dateReceiptDetail(d));
 }
 // todo: после запуска у  всех клиентов удалить
 isDataValueVATReceiptDetail = DATA BOOLEAN ();
 onStarted() += ACTION () {
-    FOR d IS ReceiptDetail AND NOT isDataValueVATReceiptDetail() DO {
+    IF NOT isDataValueVATReceiptDetail() THEN {
         valueVATReceiptDetail(d) <- valueRateRangeDate(VATReceiptDetail(d), dateReceiptDetail(d));    
+        isDataValueVATReceiptDetail() <- TRUE;
+        apply();
     }    
-    isDataValueVATReceiptDetail() <- TRUE;
-    apply();
 }
 
-sumVATReceiptDetail 'Сумма НДС' (d) = NUMERIC[16,2](roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)));
-signedSumVATReceiptDetail 'Сумма НДС' (d) = NUMERIC[16,2](roundPriceCurrency(signedSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d))) PERSISTENT;
+sumVATReceiptDetail 'Сумма НДС' (d) = DATA NUMERIC[16,2] (ReceiptDetail);
+WHEN SESSION CHANGED(valueVATReceiptDetail(d)) OR CHANGED(sumReceiptDetail(d)) OR CHANGED(currencyReceiptDetail(d)) DO {
+    sumVATReceiptDetail(d) <- roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
+}
 
-VATReceiptDetail(d) += VATReceiptSaleDetail(d);
-VATReceiptDetail(d) += VATReceiptReturnDetail(d);
+isSumVATReceiptDetail = DATA BOOLEAN ();
+onStarted() += ACTION () {
+    IF NOT isSumVATReceiptDetail() THEN {
+        sumVATReceiptDetail(d) <- roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));    
+        isSumVATReceiptDetail() <- TRUE;
+        apply();
+    }    
+}
+
+signedSumVATReceiptDetail 'Сумма НДС' (d) = IF d IS ReceiptReturnDetail THEN -sumVATReceiptDetail(d) ELSE sumVATReceiptDetail(d);
 
 // используется только для приема реализации из внешних касс
 descriptionReceipt 'Название документа' (receipt) = 'Чек № ' + numberReceipt(receipt) + ' от ' + dateTimeReceipt(receipt);
