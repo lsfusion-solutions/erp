@@ -50,20 +50,14 @@ FORM saleSkuStock 'Продажи по неделям'
     PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)
 
     FILTERS           isParentSkuGroupSku(sk, s),
-                      (st == ts AND sg IS StockGroup) OR (isParentStockGroupStock(sg, st) AND NOT ts)
+                      (st == ts AND sg IS StockGroup) OR (isParentStockGroupStock(sg, st) AND NOT ts),
+                      quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo)
     FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
     ORDER BY          nameSku(s)
 
     PROPERTIES        balanceBSkuStockDate(s, st, dFrom), quantitySoldSkuStockWeekDateFromTo(s, st, w, dFrom, dTo)  COLUMNS (w) HEADER toString4 (w),
                       quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo),
                       balanceASkuStockDate(s, st, dTo), sumSoldSkuStockDateFromTo (s, st, dFrom, dTo),  sumSoldTypeExchangeSkuStockDateFromTo(te,s, st, dFrom, dTo)
-
-    FILTERGROUP filtersSold
-        FILTER 'Показывать проданные за интервал' quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo) 'F11'
-
-    FILTERGROUP filtersSold2
-        FILTER 'Показывать с остатками' balanceASkuStockDate(s, st, dTo) 'F10'
-
 ;
 @extendFormFilterStockAccess(st, saleSkuStock);
 @extendFormFilterStockAccess(ts, saleSkuStock);
