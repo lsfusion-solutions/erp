@@ -150,13 +150,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_PG");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_PG");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -189,13 +189,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_IG");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_IG");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -234,13 +234,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_WRE");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_WRE");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -299,13 +299,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        session.pushVolatileStats("IA_UOM");
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.popVolatileStats();
-        session.close();
+        try (DataSession session = context.createSession()) {
+            session.pushVolatileStats("IA_UOM");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+        }
     }
 
 
@@ -641,13 +641,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        session.pushVolatileStats("IA_POI");
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.popVolatileStats();
-        session.close();
+        try (DataSession session = context.createSession()) {
+            session.pushVolatileStats("IA_POI");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+        }
     }
 
     private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys,
@@ -1131,13 +1131,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportTable table = new ImportTable(fields, data);
 
-                DataSession session = context.createSession();
-                session.pushVolatileStats("IA_UI");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
-                session.close();
+                try(DataSession session = context.createSession()) {
+                    session.pushVolatileStats("IA_UI");
+                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    service.synchronize(true, false);
+                    session.apply(context);
+                    session.popVolatileStats();
+                }
             }
         }
     }
@@ -1159,103 +1159,102 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ServerLoggers.systemLogger.info("importPriceListStores " + dataPriceListStores.size());
 
-                DataSession session = context.createSession();
-                session.pushVolatileStats("IA_PLSE");
+                try (DataSession session = context.createSession()) {
+                    session.pushVolatileStats("IA_PLSE");
 
-                ObjectValue dataPriceListTypeObject = findProperty("dataPriceListTypeId").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
-                if (dataPriceListTypeObject instanceof NullValue) {
-                    dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                    Object defaultCurrency = findProperty("currencyShortName").read(session, new DataObject("BLR", StringClass.get(3)));
-                    findProperty("namePriceListType").change("Поставщика (согласованная)", session, (DataObject) dataPriceListTypeObject);
-                    findProperty("currencyDataPriceListType").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
-                    findProperty("idDataPriceListType").change("Coordinated", session, (DataObject) dataPriceListTypeObject);
+                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListTypeId").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
+                    if (dataPriceListTypeObject instanceof NullValue) {
+                        dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
+                        Object defaultCurrency = findProperty("currencyShortName").read(session, new DataObject("BLR", StringClass.get(3)));
+                        findProperty("namePriceListType").change("Поставщика (согласованная)", session, (DataObject) dataPriceListTypeObject);
+                        findProperty("currencyDataPriceListType").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
+                        findProperty("idDataPriceListType").change("Coordinated", session, (DataObject) dataPriceListTypeObject);
+                    }
+
+                    List<ImportProperty<?>> props = new ArrayList<>();
+                    List<ImportField> fields = new ArrayList<>();
+                    List<ImportKey<?>> keys = new ArrayList<>();
+
+                    List<List<Object>> data = initData(priceListStoresList.size());
+
+                    ImportField idItemField = new ImportField(findProperty("idItem"));
+                    ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
+                    ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
+                            findProperty("itemId").getMapping(idItemField));
+                    itemKey.skipKey = true;
+                    keys.add(itemKey);
+                    ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
+                            importUserPriceListLM.findProperty("userPriceListDetailIdSkuIdUserPriceList").getMapping(idItemField, idUserPriceListField));
+                    keys.add(userPriceListDetailKey);
+                    ImportKey<?> userPriceListKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceList"),
+                            findProperty("userPriceListId").getMapping(idUserPriceListField));
+                    keys.add(userPriceListKey);
+                    props.add(new ImportProperty(idItemField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
+                            LM.object(findClass("Item")).getMapping(itemKey)));
+                    props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListKey)));
+                    props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey),
+                            LM.object(findClass("UserPriceList")).getMapping(userPriceListKey)));
+                    fields.add(idItemField);
+                    fields.add(idUserPriceListField);
+                    for (int i = 0; i < priceListStoresList.size(); i++) {
+                        data.get(i).add(priceListStoresList.get(i).idItem);
+                        data.get(i).add(priceListStoresList.get(i).idPriceList);
+                    }
+
+                    ImportField idLegalEntityField = new ImportField(findProperty("idLegalEntity"));
+                    ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
+                            findProperty("legalEntityId").getMapping(idLegalEntityField));
+                    legalEntityKey.skipKey = skipKeys;
+                    keys.add(legalEntityKey);
+                    props.add(new ImportProperty(idLegalEntityField, findProperty("companyUserPriceList").getMapping(userPriceListKey),
+                            LM.object(findClass("LegalEntity")).getMapping(legalEntityKey)));
+                    fields.add(idLegalEntityField);
+                    for (int i = 0; i < priceListStoresList.size(); i++)
+                        data.get(i).add(priceListStoresList.get(i).idSupplier);
+
+                    ImportField idDepartmentStoreField = new ImportField(storeLM.findProperty("idDepartmentStore"));
+                    ImportKey<?> departmentStoreKey = new ImportKey((ConcreteCustomClass) storeLM.findClass("DepartmentStore"),
+                            storeLM.findProperty("departmentStoreId").getMapping(idDepartmentStoreField));
+                    keys.add(departmentStoreKey);
+                    fields.add(idDepartmentStoreField);
+                    for (int i = 0; i < priceListStoresList.size(); i++)
+                        data.get(i).add(priceListStoresList.get(i).idDepartmentStore);
+
+                    ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
+                    ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                            findProperty("currencyShortName").getMapping(shortNameCurrencyField));
+                    keys.add(currencyKey);
+                    props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserPriceList").getMapping(userPriceListKey),
+                            LM.object(findClass("Currency")).getMapping(currencyKey)));
+                    fields.add(shortNameCurrencyField);
+                    for (int i = 0; i < priceListStoresList.size(); i++)
+                        data.get(i).add(priceListStoresList.get(i).shortNameCurrency);
+
+                    ImportField pricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
+                    props.add(new ImportProperty(pricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
+                    fields.add(pricePriceListDetailField);
+                    for (int i = 0; i < priceListStoresList.size(); i++)
+                        data.get(i).add(priceListStoresList.get(i).pricePriceListDetail);
+
+                    ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
+                    props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
+                    fields.add(inPriceListPriceListTypeField);
+                    for (int i = 0; i < priceListStoresList.size(); i++)
+                        data.get(i).add(true);
+
+                    ImportField inPriceListStockField = new ImportField(findProperty("inPriceListStock"));
+                    props.add(new ImportProperty(inPriceListStockField, findProperty("inPriceListStock").getMapping(userPriceListKey, departmentStoreKey)));
+                    fields.add(inPriceListStockField);
+                    for (int i = 0; i < priceListStoresList.size(); i++)
+                        data.get(i).add(true);
+
+                    ImportTable table = new ImportTable(fields, data);
+
+                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    service.synchronize(true, false);
+                    session.apply(context);
+                    session.popVolatileStats();
                 }
-
-                List<ImportProperty<?>> props = new ArrayList<>();
-                List<ImportField> fields = new ArrayList<>();
-                List<ImportKey<?>> keys = new ArrayList<>();
-
-                List<List<Object>> data = initData(priceListStoresList.size());
-
-                ImportField idItemField = new ImportField(findProperty("idItem"));
-                ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
-                ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
-                        findProperty("itemId").getMapping(idItemField));
-                itemKey.skipKey = true;
-                keys.add(itemKey);
-                ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
-                        importUserPriceListLM.findProperty("userPriceListDetailIdSkuIdUserPriceList").getMapping(idItemField, idUserPriceListField));
-                keys.add(userPriceListDetailKey);
-                ImportKey<?> userPriceListKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceList"),
-                        findProperty("userPriceListId").getMapping(idUserPriceListField));
-                keys.add(userPriceListKey);
-                props.add(new ImportProperty(idItemField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
-                        LM.object(findClass("Item")).getMapping(itemKey)));
-                props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListKey)));
-                props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey),
-                        LM.object(findClass("UserPriceList")).getMapping(userPriceListKey)));
-                fields.add(idItemField);
-                fields.add(idUserPriceListField);
-                for (int i = 0; i < priceListStoresList.size(); i++) {
-                    data.get(i).add(priceListStoresList.get(i).idItem);
-                    data.get(i).add(priceListStoresList.get(i).idPriceList);
-                }
-
-                ImportField idLegalEntityField = new ImportField(findProperty("idLegalEntity"));
-                ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
-                        findProperty("legalEntityId").getMapping(idLegalEntityField));
-                legalEntityKey.skipKey = skipKeys;
-                keys.add(legalEntityKey);
-                props.add(new ImportProperty(idLegalEntityField, findProperty("companyUserPriceList").getMapping(userPriceListKey),
-                        LM.object(findClass("LegalEntity")).getMapping(legalEntityKey)));
-                fields.add(idLegalEntityField);
-                for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(priceListStoresList.get(i).idSupplier);
-
-                ImportField idDepartmentStoreField = new ImportField(storeLM.findProperty("idDepartmentStore"));
-                ImportKey<?> departmentStoreKey = new ImportKey((ConcreteCustomClass) storeLM.findClass("DepartmentStore"),
-                        storeLM.findProperty("departmentStoreId").getMapping(idDepartmentStoreField));
-                keys.add(departmentStoreKey);
-                fields.add(idDepartmentStoreField);
-                for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(priceListStoresList.get(i).idDepartmentStore);
-
-                ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
-                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                        findProperty("currencyShortName").getMapping(shortNameCurrencyField));
-                keys.add(currencyKey);
-                props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserPriceList").getMapping(userPriceListKey),
-                        LM.object(findClass("Currency")).getMapping(currencyKey)));
-                fields.add(shortNameCurrencyField);
-                for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(priceListStoresList.get(i).shortNameCurrency);
-
-                ImportField pricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
-                props.add(new ImportProperty(pricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
-                fields.add(pricePriceListDetailField);
-                for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(priceListStoresList.get(i).pricePriceListDetail);
-
-                ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
-                props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
-                fields.add(inPriceListPriceListTypeField);
-                for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(true);
-
-                ImportField inPriceListStockField = new ImportField(findProperty("inPriceListStock"));
-                props.add(new ImportProperty(inPriceListStockField, findProperty("inPriceListStock").getMapping(userPriceListKey, departmentStoreKey)));
-                fields.add(inPriceListStockField);
-                for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(true);
-
-                ImportTable table = new ImportTable(fields, data);
-
-                IntegrationService service = new IntegrationService(session, table, Arrays.asList(userPriceListKey,
-                        departmentStoreKey, userPriceListDetailKey, itemKey, legalEntityKey, currencyKey), props);
-                service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
-                session.close();
             }
         }
     }
@@ -1277,94 +1276,94 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ServerLoggers.systemLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
 
-                DataSession session = context.createSession();
-                session.pushVolatileStats("IA_PLSR");
+                try (DataSession session = context.createSession()) {
+                    session.pushVolatileStats("IA_PLSR");
 
-                ObjectValue dataPriceListTypeObject = findProperty("dataPriceListTypeId").readClasses(session, new DataObject("Offered", StringClass.get(100)));
-                if (dataPriceListTypeObject instanceof NullValue) {
-                    dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                    Object defaultCurrency = findProperty("currencyShortName").read(session, new DataObject("BLR", StringClass.get(3)));
-                    findProperty("namePriceListType").change("Поставщика (предлагаемая)", session, (DataObject) dataPriceListTypeObject);
-                    findProperty("currencyDataPriceListType").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
-                    findProperty("idDataPriceListType").change("Offered", session, (DataObject) dataPriceListTypeObject);
+                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListTypeId").readClasses(session, new DataObject("Offered", StringClass.get(100)));
+                    if (dataPriceListTypeObject instanceof NullValue) {
+                        dataPriceListTypeObject = session.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
+                        Object defaultCurrency = findProperty("currencyShortName").read(session, new DataObject("BLR", StringClass.get(3)));
+                        findProperty("namePriceListType").change("Поставщика (предлагаемая)", session, (DataObject) dataPriceListTypeObject);
+                        findProperty("currencyDataPriceListType").change(defaultCurrency, session, (DataObject) dataPriceListTypeObject);
+                        findProperty("idDataPriceListType").change("Offered", session, (DataObject) dataPriceListTypeObject);
+                    }
+
+                    List<ImportProperty<?>> props = new ArrayList<>();
+                    List<ImportField> fields = new ArrayList<>();
+                    List<ImportKey<?>> keys = new ArrayList<>();
+
+                    List<List<Object>> data = initData(priceListSuppliersList.size());
+
+                    ImportField idItemField = new ImportField(findProperty("idItem"));
+                    ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
+                    ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
+                            findProperty("itemId").getMapping(idItemField));
+                    itemKey.skipKey = true;
+                    keys.add(itemKey);
+                    ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
+                            importUserPriceListLM.findProperty("userPriceListDetailIdSkuIdUserPriceList").getMapping(idItemField, idUserPriceListField));
+                    keys.add(userPriceListDetailKey);
+                    ImportKey<?> userPriceListKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceList"),
+                            findProperty("userPriceListId").getMapping(idUserPriceListField));
+                    keys.add(userPriceListKey);
+                    props.add(new ImportProperty(idItemField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
+                            LM.object(findClass("Item")).getMapping(itemKey)));
+                    props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListKey)));
+                    props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey),
+                            LM.object(findClass("UserPriceList")).getMapping(userPriceListKey)));
+                    fields.add(idItemField);
+                    fields.add(idUserPriceListField);
+                    for (int i = 0; i < priceListSuppliersList.size(); i++) {
+                        data.get(i).add(priceListSuppliersList.get(i).idItem);
+                        data.get(i).add(priceListSuppliersList.get(i).idPriceList);
+                    }
+
+                    ImportField idLegalEntityField = new ImportField(findProperty("idLegalEntity"));
+                    ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
+                            findProperty("legalEntityId").getMapping(idLegalEntityField));
+                    legalEntityKey.skipKey = skipKeys;
+                    keys.add(legalEntityKey);
+                    props.add(new ImportProperty(idLegalEntityField, findProperty("companyUserPriceList").getMapping(userPriceListKey),
+                            LM.object(findClass("LegalEntity")).getMapping(legalEntityKey)));
+                    fields.add(idLegalEntityField);
+                    for (int i = 0; i < priceListSuppliersList.size(); i++)
+                        data.get(i).add(priceListSuppliersList.get(i).idSupplier);
+
+                    ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
+                    ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                            findProperty("currencyShortName").getMapping(shortNameCurrencyField));
+                    keys.add(currencyKey);
+                    props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserPriceList").getMapping(userPriceListKey),
+                            LM.object(findClass("Currency")).getMapping(currencyKey)));
+                    fields.add(shortNameCurrencyField);
+                    for (int i = 0; i < priceListSuppliersList.size(); i++)
+                        data.get(i).add(priceListSuppliersList.get(i).shortNameCurrency);
+
+                    ImportField pricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
+                    props.add(new ImportProperty(pricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
+                    fields.add(pricePriceListDetailField);
+                    for (int i = 0; i < priceListSuppliersList.size(); i++)
+                        data.get(i).add(priceListSuppliersList.get(i).pricePriceListDetail);
+
+                    ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
+                    props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
+                    fields.add(inPriceListPriceListTypeField);
+                    for (int i = 0; i < priceListSuppliersList.size(); i++)
+                        data.get(i).add(true);
+
+                    ImportField allStocksUserPriceListField = new ImportField(findProperty("allStocksUserPriceList"));
+                    props.add(new ImportProperty(allStocksUserPriceListField, findProperty("allStocksUserPriceList").getMapping(userPriceListKey)));
+                    fields.add(allStocksUserPriceListField);
+                    for (int i = 0; i < priceListSuppliersList.size(); i++)
+                        data.get(i).add(true);
+
+                    ImportTable table = new ImportTable(fields, data);
+
+                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    service.synchronize(true, false);
+                    session.apply(context);
+                    session.popVolatileStats();
                 }
-
-                List<ImportProperty<?>> props = new ArrayList<>();
-                List<ImportField> fields = new ArrayList<>();
-                List<ImportKey<?>> keys = new ArrayList<>();
-
-                List<List<Object>> data = initData(priceListSuppliersList.size());
-
-                ImportField idItemField = new ImportField(findProperty("idItem"));
-                ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
-                ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) findClass("Item"),
-                        findProperty("itemId").getMapping(idItemField));
-                itemKey.skipKey = true;
-                keys.add(itemKey);
-                ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
-                        importUserPriceListLM.findProperty("userPriceListDetailIdSkuIdUserPriceList").getMapping(idItemField, idUserPriceListField));
-                keys.add(userPriceListDetailKey);
-                ImportKey<?> userPriceListKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceList"),
-                        findProperty("userPriceListId").getMapping(idUserPriceListField));
-                keys.add(userPriceListKey);
-                props.add(new ImportProperty(idItemField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
-                        LM.object(findClass("Item")).getMapping(itemKey)));
-                props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListKey)));
-                props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey),
-                        LM.object(findClass("UserPriceList")).getMapping(userPriceListKey)));
-                fields.add(idItemField);
-                fields.add(idUserPriceListField);
-                for (int i = 0; i < priceListSuppliersList.size(); i++) {
-                    data.get(i).add(priceListSuppliersList.get(i).idItem);
-                    data.get(i).add(priceListSuppliersList.get(i).idPriceList);
-                }
-
-                ImportField idLegalEntityField = new ImportField(findProperty("idLegalEntity"));
-                ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
-                        findProperty("legalEntityId").getMapping(idLegalEntityField));
-                legalEntityKey.skipKey = skipKeys;
-                keys.add(legalEntityKey);
-                props.add(new ImportProperty(idLegalEntityField, findProperty("companyUserPriceList").getMapping(userPriceListKey),
-                        LM.object(findClass("LegalEntity")).getMapping(legalEntityKey)));
-                fields.add(idLegalEntityField);
-                for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(priceListSuppliersList.get(i).idSupplier);
-
-                ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
-                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                        findProperty("currencyShortName").getMapping(shortNameCurrencyField));
-                keys.add(currencyKey);
-                props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserPriceList").getMapping(userPriceListKey),
-                        LM.object(findClass("Currency")).getMapping(currencyKey)));
-                fields.add(shortNameCurrencyField);
-                for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(priceListSuppliersList.get(i).shortNameCurrency);
-
-                ImportField pricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
-                props.add(new ImportProperty(pricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
-                fields.add(pricePriceListDetailField);
-                for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(priceListSuppliersList.get(i).pricePriceListDetail);
-
-                ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
-                props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
-                fields.add(inPriceListPriceListTypeField);
-                for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(true);
-
-                ImportField allStocksUserPriceListField = new ImportField(findProperty("allStocksUserPriceList"));
-                props.add(new ImportProperty(allStocksUserPriceListField, findProperty("allStocksUserPriceList").getMapping(userPriceListKey)));
-                fields.add(allStocksUserPriceListField);
-                for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(true);
-
-                ImportTable table = new ImportTable(fields, data);
-
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
-                session.close();
             }
         }
     }
@@ -1543,13 +1542,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
             
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_LE");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_LE");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1605,13 +1604,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_EE");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_EE");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1644,13 +1643,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_WG");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_WG");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1710,13 +1709,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_WE");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_WE");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1787,13 +1786,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_SE");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_SE");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1836,13 +1835,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_DS");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_DS");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1899,13 +1898,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_BK");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_BK");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1954,13 +1953,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_RW");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_RW");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -2037,13 +2036,13 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("IA_CT");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try(DataSession session = context.createSession()) {
+                session.pushVolatileStats("IA_CT");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 

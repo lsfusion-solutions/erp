@@ -77,20 +77,18 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
     private void importDeclaration(ExecutionContext context, DataObject declarationObject, byte[] entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
-        DataSession session = context.createSession();
-        
-        List<List<Object>> data = readDeclarationFromDBF(session, declarationObject, entry);
+        List<List<Object>> data = readDeclarationFromDBF(context, declarationObject, entry);
 
         KeyExpr declarationDetailExpr = new KeyExpr("DeclarationDetail");
         ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(declarationDetailKeys);
-        
+
         query.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         if(result.size() != data.size())
             context.requestUserInteraction(new MessageClientAction(String.format("Разное количество строк во входном файле G47 (%s) и в базе (%s)", data.size(), result.size()), "Ошибка"));
-        
+
         else {
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
@@ -118,19 +116,21 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
             ImportTable table = new ImportTable(fields, data);
 
-            session.pushVolatileStats("DBF_DN");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            String resultMessage = session.applyMessage(context);
-            session.popVolatileStats();
-            session.close();
+            String resultMessage;
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("DBF_DN");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                resultMessage = session.applyMessage(context);
+                session.popVolatileStats();
+            }
             if(resultMessage == null) {
                 context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт из декларанта"));
             }
         }
     }
 
-    private List<List<Object>> readDeclarationFromDBF(DataSession session, DataObject declarationObject, byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
+    private List<List<Object>> readDeclarationFromDBF(ExecutionContext context, DataObject declarationObject, byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
         
         List<List<Object>> data = new ArrayList<List<Object>>();
         File tempFile = null;
@@ -176,7 +176,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                         VATSum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
                     } else if (g471.equals("1010")) {
                         BigDecimal g474 = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);  //dutySum - VATSum
-                        findProperty("registrationSumDeclaration").change(g474, session, declarationObject);
+                        findProperty("registrationSumDeclaration").change(g474, context, declarationObject);
                     }
                 }
             }

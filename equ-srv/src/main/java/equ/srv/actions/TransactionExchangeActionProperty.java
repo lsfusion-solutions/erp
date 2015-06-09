@@ -179,13 +179,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_DC");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_DC");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
     
@@ -238,13 +238,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_PQ");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_PQ");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -286,13 +286,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_PS");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_PS");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -350,13 +350,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_PT");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_PT");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
     
@@ -575,13 +575,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_IG");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_IG");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -608,13 +608,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_PG");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_PG");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -784,13 +784,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             
             ImportTable table = new ImportTable(fields, cashRegisterData);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_CT");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_CT");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -939,13 +939,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, scalesData);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_ST");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_ST");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1037,13 +1037,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             ImportTable table = new ImportTable(fields, terminalData);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_TT");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_TT");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
 
@@ -1135,13 +1135,13 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             
             ImportTable table = new ImportTable(fields, priceCheckerData);
 
-            DataSession session = context.createSession();
-            session.pushVolatileStats("TE_PT");
-            IntegrationService service = new IntegrationService(session, table, keys, props);
-            service.synchronize(true, false);
-            session.apply(context);
-            session.popVolatileStats();
-            session.close();
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("TE_PT");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                session.apply(context);
+                session.popVolatileStats();
+            }
         }
     }
     

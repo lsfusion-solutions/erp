@@ -149,13 +149,13 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
                 ImportTable table = new ImportTable(fields, data);
 
-                DataSession session = context.createSession();
-                session.pushVolatileStats("EO_PL");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context);
-                session.popVolatileStats();
-                session.close();
+                try(DataSession session = context.createSession()) {
+                    session.pushVolatileStats("EO_PL");
+                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    service.synchronize(true, false);
+                    session.apply(context);
+                    session.popVolatileStats();
+                }
             }
         }
     }

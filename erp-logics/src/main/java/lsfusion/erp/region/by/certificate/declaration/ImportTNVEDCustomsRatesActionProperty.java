@@ -4,7 +4,6 @@ import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.DateClass;
@@ -51,29 +50,23 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
                     List<List<List<Object>>> data = importDutiesFromDBF(context, file);
 
-                    if (data != null && data.size() >= 1)
+                    if (data.size() >= 1)
                         importDuty(context, data.get(0));
-                    if (data != null && data.size() >= 2)
+                    if (data.size() >= 2)
                         importVAT(context, data.get(1));
                 }
             }
 
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
 
     private void importDuty(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
-        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-        List<ImportField> fields = new ArrayList<ImportField>();
-        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+        List<ImportProperty<?>> props = new ArrayList<>();
+        List<ImportField> fields = new ArrayList<>();
+        List<ImportKey<?>> keys = new ArrayList<>();
 
         ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroup"));
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
@@ -124,18 +117,18 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.close();
+        try (DataSession session = context.createSession()) {
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+        }
     }
 
     private void importVAT(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
-        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-        List<ImportField> fields = new ArrayList<ImportField>();
-        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+        List<ImportProperty<?>> props = new ArrayList<>();
+        List<ImportField> fields = new ArrayList<>();
+        List<ImportKey<?>> keys = new ArrayList<>();
 
         ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroup"));
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
@@ -152,7 +145,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         props.add(new ImportProperty(idCustomsRateField, findProperty("idVATCustomsRate").getMapping(VATCustomsRateKey)));
        
         ImportField rangeField = new ImportField(findProperty("dataValueSupplierVATCustomsGroupDate"));
-        ImportKey<?> rangeKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+        ImportKey<?> rangeKey = new ImportKey((CustomClass) findClass("Range"),
                 findProperty("valueCurrentVATDefaultValue").getMapping(rangeField));
         props.add(new ImportProperty(rangeField, findProperty("rangeVATCustomsRate").getMapping(VATCustomsRateKey),
                 object(findClass("Range")).getMapping(rangeKey)));
@@ -170,55 +163,61 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.close();
+        try (DataSession session = context.createSession()) {
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+        }
     }
 
     private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = getTNVEDSet(context);
+        Map<String, BigDecimal> registrationMap = new HashMap<>();
+        List<List<Object>> dataDuty = new ArrayList<>();
+        List<List<Object>> dataVAT = new ArrayList<>();
+        Map<String, List<Object>> dataVATMap = new HashMap<>();
 
-        File tempFile = File.createTempFile("tempTnved", ".dbf");
-        IOUtils.putFileBytes(tempFile, fileBytes);
+        File tempFile = null;
+        DBF dbfFile = null;
+        try {
 
-        DBF file = new DBF(tempFile.getPath());
+            tempFile = File.createTempFile("tempTnved", ".dbf");
+            IOUtils.putFileBytes(tempFile, fileBytes);
 
-        Map<String, BigDecimal> registrationMap = new HashMap<String, BigDecimal>();
+            dbfFile = new DBF(tempFile.getPath());
+            int recordCount = dbfFile.getRecordCount();
 
-        List<List<Object>> dataDuty = new ArrayList<List<Object>>();
-        List<List<Object>> dataVAT = new ArrayList<List<Object>>();
-        Map<String, List<Object>> dataVATMap = new HashMap<String, List<Object>>();
+            for (int i = 1; i <= recordCount; i++) {
+                dbfFile.read();
 
-        int recordCount = file.getRecordCount();
-        for (int i = 1; i <= recordCount; i++) {
-            file.read();
+                Integer type = Integer.parseInt(new String(dbfFile.getField("PP").getBytes(), "Cp866").trim());
+                String codeCustomsGroup = new String(dbfFile.getField("KOD").getBytes(), "Cp866").trim();
+                BigDecimal stav_a = new BigDecimal(new String(dbfFile.getField("STAV_A").getBytes(), "Cp866").trim());
+                BigDecimal stav_s = new BigDecimal(new String(dbfFile.getField("STAV_S").getBytes(), "Cp866").trim());
+                Date dateFrom = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE1").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
+                Date dateTo = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE2").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
 
-            Integer type = Integer.parseInt(new String(file.getField("PP").getBytes(), "Cp866").trim());
-            String codeCustomsGroup = new String(file.getField("KOD").getBytes(), "Cp866").trim();
-            BigDecimal stav_a = new BigDecimal(new String(file.getField("STAV_A").getBytes(), "Cp866").trim());
-            BigDecimal stav_s = new BigDecimal(new String(file.getField("STAV_S").getBytes(), "Cp866").trim());
-            Date dateFrom = new Date(DateUtils.parseDate(new String(file.getField("DATE1").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
-            Date dateTo = new Date(DateUtils.parseDate(new String(file.getField("DATE2").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
-
-            switch (type) {
-                case 1:
-                    if (codeCustomsGroup.length() == 2)
-                        registrationMap.put(codeCustomsGroup, stav_a);
-                    break;
-                case 2:
-                    dataDuty.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */dateFrom, dateTo));
-                    break;
-                case 4:
-                    dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), null, null, null, stav_a, dateFrom, dateTo));
-                    break;
+                switch (type) {
+                    case 1:
+                        if (codeCustomsGroup.length() == 2)
+                            registrationMap.put(codeCustomsGroup, stav_a);
+                        break;
+                    case 2:
+                        dataDuty.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */dateFrom, dateTo));
+                        break;
+                    case 4:
+                        dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), null, null, null, stav_a, dateFrom, dateTo));
+                        break;
+                }
             }
+        } finally {
+            if(dbfFile != null)
+                dbfFile.close();
+            if(tempFile != null)
+                tempFile.delete();
         }
-        file.close();
-        tempFile.delete();
-
+        
         Date defaultDateFrom = new Date(2010 - 1900, 0, 1);
         Date defaultDateTo = new Date(2040 - 1900, 11, 31);
 
@@ -232,12 +231,12 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
     private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        Set<String> tnvedSet = new HashSet<String>();
+        Set<String> tnvedSet = new HashSet<>();
 
         LCP<?> isCustomsGroup = is(findClass("CustomsGroup"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isCustomsGroup.getMapKeys();
         KeyExpr key = keys.singleValue();
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("codeCustomsGroup", findProperty("codeCustomsGroup").getExpr(context.getModifier(), key));
         query.and(isCustomsGroup.getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);

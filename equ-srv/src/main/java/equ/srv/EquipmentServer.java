@@ -1445,13 +1445,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 ImportTable table = new ImportTable(fields, data);
 
-                DataSession session = getDbManager().createSession();
-                session.pushVolatileStats("ES_TI");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                String result = session.applyMessage(getBusinessLogics());
-                session.popVolatileStats();
-                session.close();
+                String result = null;
+                try (DataSession session = getDbManager().createSession()) {
+                    session.pushVolatileStats("ES_TI");
+                    IntegrationService service = new IntegrationService(session, table, keys, props);
+                    service.synchronize(true, false);
+                    result = session.applyMessage(getBusinessLogics());
+                    session.popVolatileStats();
+                }
 
                 return result;
             } else return null;
@@ -2484,26 +2485,28 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 
                 ImportTable table = new ImportTable(fieldsIncome, dataIncome);
-                DataSession session = getDbManager().createSession();
-                session.pushVolatileStats("ES_CDI");
-                IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
-                service.synchronize(true, false);
-                String resultIncome = session.applyMessage(getBusinessLogics());
-                session.popVolatileStats();
-                session.close();
-
+                String resultIncome = null;
+                try (DataSession session = getDbManager().createSession()) {
+                    session.pushVolatileStats("ES_CDI");
+                    IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
+                    service.synchronize(true, false);
+                    resultIncome = session.applyMessage(getBusinessLogics());
+                    session.popVolatileStats();
+                }
                 if(resultIncome != null)
                     return resultIncome;
                 
                 table = new ImportTable(fieldsOutcome, dataOutcome);
-                session = getDbManager().createSession();
-                session.pushVolatileStats("ES_CDI");
-                service = new IntegrationService(session, table, keysOutcome, propsOutcome);
-                service.synchronize(true, false);
-                String resultOutcome = session.applyMessage(getBusinessLogics());
-                session.popVolatileStats();
-                session.close();
-                
+                String resultOutcome = null;
+
+                try (DataSession session = getDbManager().createSession()) {
+                    session.pushVolatileStats("ES_CDI");
+                    IntegrationService service = new IntegrationService(session, table, keysOutcome, propsOutcome);
+                    service.synchronize(true, false);
+                    resultOutcome = session.applyMessage(getBusinessLogics());
+                    session.popVolatileStats();
+                }
+
                 return resultOutcome;
             } catch (Exception e) {
                 throw Throwables.propagate(e);

@@ -201,13 +201,13 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        session.pushVolatileStats("IE_IT");
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.popVolatileStats();
-        session.close();
+        try (DataSession session = context.createSession()) {
+            session.pushVolatileStats("IE_IT");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+        }
     }
 
     private void importImages(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -230,13 +230,13 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        session.pushVolatileStats("IE_ITI");
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.popVolatileStats();
-        session.close();
+        try (DataSession session = context.createSession()) {
+            session.pushVolatileStats("IE_ITI");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+        }
     }
 
     private void importUserPriceLists(ExecutionContext context, List<List<Object>> data, boolean skipKeys) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -291,13 +291,13 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
-        session.pushVolatileStats("IE_PL");
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        session.popVolatileStats();
-        session.close();
+        try(DataSession session = context.createSession()) {
+            session.pushVolatileStats("IE_PL");
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.popVolatileStats();
+        }
     }
 
     private List<List<List<Object>>> importDataFromWeb(ExecutionContext context, boolean useTor, boolean importItems, boolean onlyImages, boolean importUserPriceLists, boolean skipKeys)
