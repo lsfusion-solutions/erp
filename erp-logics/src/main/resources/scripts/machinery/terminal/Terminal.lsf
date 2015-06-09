@@ -230,6 +230,9 @@ idTerminalDocumentTypeTerminalDocument (terminalDocument) = idTerminalDocumentTy
 usedTerminalDocument 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
 notUsedTerminalDocument 'Неиспользован' (terminalDocument) = terminalDocument IS TerminalDocument AND NOT usedTerminalDocument(terminalDocument);
 
+createdUserTerminalDocument = DATA CustomUser (TerminalDocument);
+createdNameUserTerminalDocument 'Создан пользователем' (td) = nameContact(createdUserTerminalDocument(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
 terminalDocumentTerminalDocumentDetail = DATA TerminalDocument(TerminalDocumentDetail);
 
 CLASS TerminalDocumentDetail 'Строка документа ТСД';
@@ -253,7 +256,7 @@ terminalDocumentDetailIdTerminalDocumentId (documentDetail, document) = GROUP AG
 FORM terminalDocument 'Документ ТСД'
     OBJECTS td=TerminalDocument FIXED PANEL
     PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameStockTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
-                    idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, usedTerminalDocument READONLY
+                    idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, usedTerminalDocument READONLY, createdNameUserTerminalDocument
 
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) numberTerminalDocumentDetail, barcodeTerminalDocumentDetail, nameTerminalDocumentDetail,
@@ -274,6 +277,7 @@ DESIGN terminalDocument {
             MOVE PROPERTY(nameGroupTerminalTerminalDocument(td));
             MOVE PROPERTY(nameTerminalDocumentTypeTerminalDocument(td));
             MOVE PROPERTY(titleTerminalDocument(td));
+            MOVE PROPERTY(createdNameUserTerminalDocument(td));
         }
         NEW row2 {
             type = CONTAINERH;
@@ -290,7 +294,8 @@ DESIGN terminalDocument {
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
     PROPERTIES(td)  READONLY idTerminalDocument, nameGroupTerminalTerminalDocument, nameTerminalDocumentTypeTerminalDocument, 
-                    idTerminalHandbookType1TerminalDocument, idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument
+                    idTerminalHandbookType1TerminalDocument, idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, 
+                    createdNameUserTerminalDocument
     PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS tdd=TerminalDocumentDetail
