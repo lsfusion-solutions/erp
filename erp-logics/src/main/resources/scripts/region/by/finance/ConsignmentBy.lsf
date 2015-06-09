@@ -271,7 +271,25 @@ nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = 
 
 //forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
 dataForwarderConsignment  = ABSTRACT Employee (Consignment);
-forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = positionShortNameEmployee(dataForwarderConsignment(consignment)) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 30;
+
+dataNameForwarderConsignment = DATA VARSTRING[100](Consignment);
+forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = OVERRIDE  positionShortNameEmployee(dataForwarderConsignment(consignment)), dataNameForwarderConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 30;
+
+changeForwarderConsignment = ACTION (consignment){
+    
+    IF notUseDriverTruckConsignment(consignment) THEN {
+        REQUEST VARSTRING[70] INPUT;
+        dataNameForwarderConsignment(consignment) <- requestedString();
+    } ELSE {
+        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            dataForwarderConsignment(consignment) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            dataForwarderConsignment(consignment) <- NULL;
+        }
+    }
+        
+}
 
 warrantConsignment 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment;
 warrantHolderConsignment 'По доверенности выданной (наименование орг-ии)' (consignment) = ABSTRACT VARSTRING[200] (Consignment) IN issuanceConsignment;
@@ -726,7 +744,7 @@ FORM consignment 'Атрибуты накладной'
     PROPERTIES(c) SHOWIF showTTN1Consignment(c)
                    nameTruckConsignment ON CHANGE changeTruckConsignment(c), ownerTruckConsignment, trailerConsignment, nameDriverConsignment ON CHANGE changeDriverConsignment(c), overWaybillConsignment,
                    addressSupplierStockConsignment, addressCustomerStockConsignment, readdressingConsignment,
-                   forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
+                   forwarderConsignment ON CHANGE changeForwarderConsignment(c), warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
                    overNameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
                    overNameUnloadingExecuterConsignment, nameWayOfUnloadingConsignment,
                    arrivalTimeConsignment, downtimeConsignment, departureTimeConsignment READONLY, raceQuantityConsignment
@@ -786,13 +804,6 @@ DESIGN consignment {
         MOVE c.carConsignment {
             columns = 4;
         }
-        NEW misc {
-            caption = 'Дополнительно';
-            
-            type = CONTAINERH;
-            MOVE PROPERTY (noteConsignment(c));
-            MOVE PROPERTY (shortNameCurrencyConsignment(c));
-        }
         MOVE c.issuanceConsignment {
             columns = 3;
         }
@@ -815,6 +826,13 @@ DESIGN consignment {
                 caption = 'Приложение';
                 MOVE PROPERTY(countPagesConsignment(c));
             }
+        }
+        NEW misc {
+            caption = 'Дополнительно';
+            
+            type = CONTAINERH;
+            MOVE PROPERTY (noteConsignment(c));
+            MOVE PROPERTY (shortNameCurrencyConsignment(c));
         }
     }
         
