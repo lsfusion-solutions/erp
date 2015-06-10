@@ -223,7 +223,7 @@ groupTerminalTerminalDocument = DATA GroupTerminal (TerminalDocument);
 nameGroupTerminalTerminalDocument 'Группа ТСД' (terminalDocument) = nameGroupMachinery(groupTerminalTerminalDocument(terminalDocument));
 
 stockTerminalDocument (document) = stockGroupTerminal(groupTerminalTerminalDocument(document));
-nameStockTerminalDocument 'Склад' (document) = nameStock(stockTerminalDocument (document));
+nameStockTerminalDocument 'Склад' (document) = nameStock(stockTerminalDocument (document)) IN documentHeader;
 
 idTerminalDocumentTypeTerminalDocument (terminalDocument) = idTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument));
 
@@ -231,9 +231,16 @@ usedTerminalDocument 'Использован' (terminalDocument) = DATA BOOLEAN 
 notUsedTerminalDocument 'Неиспользован' (terminalDocument) = terminalDocument IS TerminalDocument AND NOT usedTerminalDocument(terminalDocument);
 
 createdUserTerminalDocument = DATA CustomUser (TerminalDocument);
-createdNameUserTerminalDocument 'Создан пользователем' (td) = nameContact(createdUserTerminalDocument(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+createdNameUserTerminalDocument 'Создан пользователем' (td) = nameContact(createdUserTerminalDocument(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+createdUserTerminalDocument (o) <- currentUser() WHEN SET(o IS TerminalDocument);
+
+createdTimeTerminalDocument 'Время создания'= DATA DATETIME (TerminalDocument) IN created;
+createdTimeTerminalDocument (o) <- currentDateTime() WHEN SET(o IS TerminalDocument);
 
 terminalDocumentTerminalDocumentDetail = DATA TerminalDocument(TerminalDocumentDetail);
+
+@defineDocumentTimePrefix(terminalDocument, , ' документа');
+@deriveDocumentHeaderTimePrefix(TerminalDocument, );
 
 CLASS TerminalDocumentDetail 'Строка документа ТСД';
 TABLE terminalDocumentDetail (TerminalDocumentDetail);
@@ -251,12 +258,29 @@ isNewTerminalDocumentDetail 'Новый товар' = DATA BOOLEAN (TerminalDocu
 terminalDocumentDetailIdTerminalDocumentId (documentDetail, document) = GROUP AGGR terminalDocumentDetail 
     BY idTerminalDocument (terminalDocumentTerminalDocumentDetail(terminalDocumentDetail)), idTerminalDocumentDetail(terminalDocumentDetail);    
 
+descriptionTerminalDocument 'Название документа' (o) =
+    'Документ ТСД' + ' № ' + idTerminalDocument(o) + ' от ' + dateTerminalDocument(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    
+@defineDocumentIs(TerminalDocument, TerminalDocumentDetail);
+@defineDocumentHeaderClosed(TerminalDocument);
+//@defineDocumentDetailClosed(terminalDocument){
+//    @defineDocumentDetailClosed(terminalDocument, TerminalDocumentDetail){
+//    isClosedTerminalDocumentDetail 'Закрыт' (d) = isClosedTerminalDocument(terminalDocumentTerminalDocumentDetail(d));
+//    isOpenedTerminalDocumentDetail 'Не закрыт' (d) = isPostedTerminalDocumentDetail(d) AND NOT isClosedTerminalDocumentDetail(d);
+//};
+//};
+
+@defineDocumentHeaderCount(terminalDocument);
+@defineDocumentHeaderQuantity(terminalDocument);
+
 // ----------------------------------------------- Формы документов ------------------------------------------ //
 
 FORM terminalDocument 'Документ ТСД'
     OBJECTS td=TerminalDocument FIXED PANEL
-    PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameStockTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
-                    idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, usedTerminalDocument READONLY, createdNameUserTerminalDocument
+    PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameStockTerminalDocument, dateTerminalDocument, timeTerminalDocument,
+                    nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
+                    idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument,  
+                    usedTerminalDocument READONLY, createdNameUserTerminalDocument
 
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) numberTerminalDocumentDetail, barcodeTerminalDocumentDetail, nameTerminalDocumentDetail,
@@ -293,11 +317,12 @@ DESIGN terminalDocument {
 
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
-    PROPERTIES(td)  READONLY idTerminalDocument, nameGroupTerminalTerminalDocument, nameTerminalDocumentTypeTerminalDocument, 
+    PROPERTIES(td)  READONLY idTerminalDocument, dateTerminalDocument, timeTerminalDocument, nameGroupTerminalTerminalDocument, nameTerminalDocumentTypeTerminalDocument, 
                     idTerminalHandbookType1TerminalDocument, idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, 
-                    createdNameUserTerminalDocument
+                    countTerminalDocumentDetailTerminalDocument, quantityTerminalDocumentDetailTerminalDocument,
+                    createdNameUserTerminalDocument FORCE PANEL, createdTimeTerminalDocument FORCE PANEL
     PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-
+    PROPERTIES (td) closeTerminalDocument SHOWIF isOpenedTerminalDocument(td), openTerminalDocument SHOWIF isClosedTerminalDocument(td)
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) READONLY numberTerminalDocumentDetail, barcodeTerminalDocumentDetail, nameTerminalDocumentDetail,
     isNewTerminalDocumentDetail, priceTerminalDocumentDetail, quantityTerminalDocumentDetail, sumTerminalDocumentDetail
@@ -305,6 +330,8 @@ FORM terminalDocuments 'Документы ТСД'
     FILTERS terminalDocumentTerminalDocumentDetail(tdd) == td
     FILTERGROUP filterUse
         FILTER 'Неиспользованные' notUsedTerminalDocument(td) 'F10' DEFAULT
+        
+    FILTERGROUP open FILTER 'Открыт' isOpenedTerminalDocument(td) 'F6' DEFAULT
 ;
 
 @extendFormFilterAccessStock(TerminalDocument, td, terminalDocuments, stock, company);
@@ -318,7 +345,32 @@ DESIGN terminalDocuments {
             fill = 1;
 
             MOVE td.box;
-            MOVE tdd.box;
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE tdd.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+                    MOVE td.created;
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                        type = CONTAINERV;
+                    }
+                    NEW machineryContainer {
+                        caption = 'Загрузка';
+                        type = CONTAINERV;
+                    }
+                }
+            }
         }
     }
     MOVE functions.box;
