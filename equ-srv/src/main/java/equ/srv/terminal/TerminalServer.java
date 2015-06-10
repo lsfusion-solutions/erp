@@ -235,7 +235,7 @@ public class TerminalServer extends LifecycleAdapter {
                             List<String[]> params = readDocumentParams(inFromClient);
                             if(params != null && params.size() >= 1) {
                                 String[] document = params.get(0);
-                                if(document.length < 7) {
+                                if(document.length < 8) {
                                     error = WRONG_PARAMETER_COUNT;
                                 } else {
                                     List<List<Object>> terminalDocumentDetailList = new ArrayList<>();
@@ -248,10 +248,11 @@ public class TerminalServer extends LifecycleAdapter {
                                         String dateDocument = document[1];
                                         String numberDocument = document[2];
                                         String idDocument = numberDocument + " " + dateDocument;
-                                        //String ana1 = document[3];
-                                        //String ana2 = document[4];
-                                        //String ana3 = document[5];
-                                        //String comment = document[6];
+                                        String idTerminalDocumentType = document[3];
+                                        //String ana1 = document[4];
+                                        //String ana2 = document[5];
+                                        //String ana3 = document[6];
+                                        //String comment = document[7];
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
                                             if (line.length < 5) {
@@ -263,14 +264,14 @@ public class TerminalServer extends LifecycleAdapter {
                                                 //String numberDocumentDetail = line[3];
                                                 String idDocumentDetail = idDocument + i;
                                                 //String commentLine = line[4];
-                                                terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument,
+                                                terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType,
                                                         idDocumentDetail, String.valueOf(i), barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail));
                                             }
                                         }
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if(emptyDocument)
-                                            terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument));
+                                            terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType));
                                         result = importTerminalDocumentDetail(idDocument, user, terminalDocumentDetailList, emptyDocument);
                                         if (result != null)
                                             error = PROCESS_DOCUMENT_ERROR;

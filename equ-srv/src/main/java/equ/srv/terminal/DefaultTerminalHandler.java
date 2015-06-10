@@ -71,6 +71,15 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 props.add(new ImportProperty(numberTerminalDocumentField, terminalHandlerLM.findProperty("titleTerminalDocument").getMapping(terminalDocumentKey)));
                 fields.add(numberTerminalDocumentField);
 
+                ImportField idTerminalDocumentTypeField = new ImportField(terminalHandlerLM.findProperty("idTerminalDocumentType"));
+                ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalHandlerLM.findClass("TerminalDocumentType"),
+                        terminalHandlerLM.findProperty("terminalDocumentTypeId").getMapping(idTerminalDocumentTypeField));
+                terminalDocumentTypeKey.skipKey = true;
+                keys.add(terminalDocumentTypeKey);
+                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalHandlerLM.findProperty("terminalDocumentTypeTerminalDocument").getMapping(terminalDocumentKey),
+                        terminalHandlerLM.object(terminalHandlerLM.findClass("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
+                fields.add(idTerminalDocumentTypeField);
+
                 if (!emptyDocument) {
 
                     ImportField idTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("idTerminalDocumentDetail"));
