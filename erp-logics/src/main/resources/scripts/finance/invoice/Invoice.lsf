@@ -667,7 +667,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     filterComputerInvoice (i) = createdComputerUserInvoice(i) == filterInvoiceComputer() OR (i IS Invoice AND NOT filterInvoiceComputer());
     
     overShowEditInvoice = ABSTRACT BOOLEAN (Invoice);
-    overShowDeleteInvoice = ABSTRACT BOOLEAN (Invoice); 
+    overShowDeleteInvoice = ABSTRACT BOOLEAN (Invoice);
+    
+    overPreventCloseUserInvoice = ABSTRACT BOOLEAN (UserInvoice);
+    showCloseUserInvoice (i) = isOpenedUserInvoice(i) AND NOT overPreventCloseUserInvoice(i);   
+    showOpenUserInvoice (i) = isClosedUserInvoice(i) AND NOT overPreventCloseUserInvoice(i);   
     backgroundDraftInvoice 'Цвет'  (i)= RGB(212,255,212) IF isDraftInvoice(i); 
     
     FORM invoices 'Накладные' 
@@ -692,7 +696,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
         PROPERTIES ()  addUserInvoice TODRAW i
         PROPERTIES (i) editInvoice SHOWIF overShowEditInvoice(i),//isOpenedInvoice(i), 
                        copyInvoice
-        PROPERTIES (i) closeUserInvoice SHOWIF isOpenedUserInvoice(i), openUserInvoice SHOWIF isClosedUserInvoice(i)
+        PROPERTIES (i) closeUserInvoice SHOWIF showCloseUserInvoice(i), openUserInvoice SHOWIF showOpenUserInvoice(i)
         PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF overShowDeleteInvoice(i)//isUserOpenedInvoice(i)
 
         OBJECTS d = InvoiceDetail
