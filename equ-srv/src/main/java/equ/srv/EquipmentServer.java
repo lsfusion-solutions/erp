@@ -431,6 +431,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     scalesQuery.addProperty("inMachineryPriceTransactionMachinery", 
                             scalesLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, scalesExpr));
                     scalesQuery.and(scalesLM.findProperty("groupScalesScales").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
+                    scalesQuery.and(scalesLM.findProperty("activeScales").getExpr(scalesExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session);
 
