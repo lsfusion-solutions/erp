@@ -74,13 +74,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             
             readDiscountCard(context, remote);
             
-        } catch (RemoteException e) {
-            throw Throwables.propagate(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
-        } catch (NotBoundException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | NotBoundException | IOException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -105,7 +99,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, null);
         if (result == null) {
-            List<String> succeededReceiptList = new ArrayList<String>();
+            List<String> succeededReceiptList = new ArrayList<>();
             for (SalesInfo sale : salesInfoList) {
                 succeededReceiptList.add(sale.getIdReceipt(null));
             }
@@ -132,9 +126,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             List<DiscountCard> discountCardList = remote.readDiscountCardList();
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(discountCardList.size());
 
@@ -251,9 +245,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     private void importPromotionSumList(ExecutionContext context, List<PromotionSum> promotionSumList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (notNullNorEmpty(promotionSumList)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(promotionSumList.size());
             
@@ -299,9 +293,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     private void importPromotionTimeList(ExecutionContext context, List<PromotionTime> promotionTimeList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (notNullNorEmpty(promotionTimeList)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(promotionTimeList.size());
             
@@ -367,7 +361,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
         ImRevMap<Object, KeyExpr> receiptKeys = MapFact.toRevMap((Object) "receipt", receiptExpr, "receiptDetail", receiptDetailExpr);
 
-        QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
+        QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<>(receiptKeys);
 
         String[] receiptNames = new String[]{"numberZReportReceipt", "numberReceipt", "dateReceipt", "timeReceipt", "discountSumReceipt", "idEmployeeReceipt",
                 "firstNameEmployeeReceipt", "lastNameEmployeeReceipt", "numberGroupCashRegisterReceipt", "numberCashRegisterReceipt"};
@@ -393,7 +387,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> receiptResult = receiptQuery.executeClasses(context);
 
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
         for (int i = 0, size = receiptResult.size(); i < size; i++) {
             Object receiptObject = receiptResult.getKey(i).get("receipt").object;
             ImMap<Object, ObjectValue> entry = receiptResult.getValue(i);
@@ -450,7 +444,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         KeyExpr receiptExpr = new KeyExpr("receipt");
         ImRevMap<Object, KeyExpr> paymentKeys = MapFact.toRevMap((Object) "payment", paymentExpr, "receipt", receiptExpr);
 
-        QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
+        QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
 
         String[] paymentNames = new String[]{"sidPaymentTypePayment", "sumPayment"};
         LCP<?>[] paymentProperties = findProperties("sidPaymentTypePayment", "sumPayment");
@@ -462,7 +456,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> paymentResult = paymentQuery.executeClasses(context);
 
-        Map<Object, List<Pair<String, BigDecimal>>> paymentMap = new HashMap<Object, List<Pair<String, BigDecimal>>>();
+        Map<Object, List<Pair<String, BigDecimal>>> paymentMap = new HashMap<>();
         for (int i = 0, size = paymentResult.size(); i < size; i++) {
             Object receiptObject = paymentResult.getKey(i).get("receipt").object;
             ImMap<Object, ObjectValue> entryValue = paymentResult.getValue(i);
@@ -477,8 +471,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     }
 
     public void finishSendSalesInfo(ExecutionContext context, List<String> succeededReceiptList) throws IOException, SQLException {
-        try {
-            DataSession session = context.createSession();
+        try (DataSession session = context.createSession()) {
             for (String idReceipt : succeededReceiptList) {
                 ObjectValue receiptObject = findProperty("receiptId").readClasses(session, new DataObject(idReceipt));
                 if (receiptObject instanceof DataObject)
@@ -491,12 +484,12 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     }
     
     private List<List<List<Object>>> getTransactionData(List<TransactionInfo> transactionList) {
-        List<List<Object>> itemGroupData = new ArrayList<List<Object>>();
-        List<List<Object>> parentGroupData = new ArrayList<List<Object>>();
-        List<List<Object>> cashRegisterData = new ArrayList<List<Object>>();
-        List<List<Object>> scalesData = new ArrayList<List<Object>>();
-        List<List<Object>> terminalData = new ArrayList<List<Object>>();
-        List<List<Object>> priceCheckerData = new ArrayList<List<Object>>();
+        List<List<Object>> itemGroupData = new ArrayList<>();
+        List<List<Object>> parentGroupData = new ArrayList<>();
+        List<List<Object>> cashRegisterData = new ArrayList<>();
+        List<List<Object>> scalesData = new ArrayList<>();
+        List<List<Object>> terminalData = new ArrayList<>();
+        List<List<Object>> priceCheckerData = new ArrayList<>();
 
         for(TransactionInfo transaction : transactionList) {
 
@@ -558,9 +551,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         if (notNullNorEmpty(data)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
@@ -588,9 +581,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     private void importParentGroups(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (notNullNorEmpty(data)) {
             
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
             
             ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
@@ -624,9 +617,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         if (notNullNorEmpty(cashRegisterData)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("CashRegisterPriceTransaction"),
@@ -798,9 +791,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         if (notNullNorEmpty(scalesData)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             
             ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
@@ -953,9 +946,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         if (notNullNorEmpty(terminalData)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("TerminalPriceTransaction"),
@@ -1051,9 +1044,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         if (notNullNorEmpty(priceCheckerData)) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("ScalesPriceTransaction"),
@@ -1150,9 +1143,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     }
 
     protected List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
+        List<List<Object>> data = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
+            data.add(new ArrayList<>());
         }
         return data;
     }

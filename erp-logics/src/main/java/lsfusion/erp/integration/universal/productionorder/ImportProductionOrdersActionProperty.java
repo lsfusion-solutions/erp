@@ -74,18 +74,17 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
 
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                DataSession currentSession = context.createSession();
-                                
-                                try {
+                                try (DataSession currentSession = context.createSession()) {
+                                    try {
+                                        boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), currentSession, null,
+                                                importColumns, IOUtils.getFileBytes(f), settings, fileExtension, operationObject);
 
-                                    boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), currentSession, null,
-                                            importColumns, IOUtils.getFileBytes(f), settings, fileExtension, operationObject);                                                                                                        
+                                        if (importResult)
+                                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
-                                    if (importResult)
-                                        renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
-                                    
-                                } catch (Exception e) {
-                                    ServerLoggers.systemLogger.error(e);
+                                    } catch (Exception e) {
+                                        ServerLoggers.systemLogger.error(e);
+                                    }
                                 }
                             }
                         }

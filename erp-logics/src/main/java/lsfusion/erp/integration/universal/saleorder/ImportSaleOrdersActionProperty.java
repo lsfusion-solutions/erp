@@ -79,21 +79,21 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
 
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                DataSession currentSession = context.createSession();
-                                DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
+                                try (DataSession currentSession = context.createSession()) {
+                                    DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
+                                    try {
 
-                                try {
+                                        boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(),
+                                                currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
+                                                fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
+                                                customerStockObject);
 
-                                    boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(),
-                                            currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
-                                            fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
-                                            customerStockObject);                                                                                                        
+                                        if (importResult)
+                                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
-                                    if (importResult)
-                                        renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
-
-                                } catch (Exception e) {
-                                    ServerLoggers.systemLogger.error(e);
+                                    } catch (Exception e) {
+                                        ServerLoggers.systemLogger.error(e);
+                                    }
                                 }
                             }
                         }

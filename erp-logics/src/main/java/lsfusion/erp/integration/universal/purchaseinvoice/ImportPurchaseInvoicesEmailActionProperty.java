@@ -125,34 +125,37 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                             } 
                             
                             for(byte[] file : files) {
-                                DataSession currentSession = context.createSession();
-                                DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                try (DataSession currentSession = context.createSession()) {
+                                    DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
-                                try {
+                                    try {
 
-                                    int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
-                                            currentSession, invoiceObject, importTypeObject, file, fileExtension,
-                                            importDocumentSettings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
+                                        int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
+                                                currentSession, invoiceObject, importTypeObject, file, fileExtension,
+                                                importDocumentSettings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
 
-                                    findProperty("originalInvoice").change(
-                                            new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
+                                        findProperty("originalInvoice").change(
+                                                new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
 
-                                    if (importResult >= IMPORT_RESULT_OK)
-                                        currentSession.apply(context);
+                                        if (importResult >= IMPORT_RESULT_OK)
+                                            currentSession.apply(context);
 
-                                    if (importResult >= IMPORT_RESULT_OK) {
-                                        DataSession postImportSession = context.createSession();
-                                        findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                        postImportSession.apply(context);
-                                    } else if (isOld) {
-                                        DataSession postImportSession = context.createSession();
-                                        findProperty("importErrorAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
-                                        postImportSession.apply(context);
+                                        if (importResult >= IMPORT_RESULT_OK) {
+                                            try (DataSession postImportSession = context.createSession()) {
+                                                findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                                postImportSession.apply(context);
+                                            }
+                                        } else if (isOld) {
+                                            try (DataSession postImportSession = context.createSession()) {
+                                                findProperty("importErrorAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                                postImportSession.apply(context);
+                                            }
+                                        }
+
+                                    } catch (Exception e) {
+                                        logImportError(context, attachmentEmailObject, e.toString(), isOld);
+                                        ServerLoggers.systemLogger.error(e);
                                     }
-
-                                } catch (Exception e) {
-                                    logImportError(context, attachmentEmailObject, e.toString(), isOld);
-                                    ServerLoggers.systemLogger.error(e);
                                 }
                             }
                         }
@@ -165,11 +168,12 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
     }
 
     private void logImportError(ExecutionContext context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        DataSession postImportSession = context.createSession();
-        findProperty("lastErrorAttachmentEmail").change(error, postImportSession, (DataObject) attachmentEmailObject);
-        if(isOld)
-            findProperty("importErrorAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
-        postImportSession.apply(context);
+        try (DataSession postImportSession = context.createSession()) {
+            findProperty("lastErrorAttachmentEmail").change(error, postImportSession, (DataObject) attachmentEmailObject);
+            if (isOld)
+                findProperty("importErrorAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+            postImportSession.apply(context);
+        }
     }
     
     private List<byte[]> unpackRARFile(byte[] fileBytes, String extensionFilter) {

@@ -137,9 +137,8 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 DataOutputStream outToClient = new DataOutputStream(socket.getOutputStream());
                 String barcode = inFromClient.readLine();
-                
-                DataSession session = dbManager.createSession();
-                byte[] message = readMessage(BL, session, barcode);
+
+                byte[] message = readMessage(BL, barcode);
                 byte[] answer = new byte[length + 3];
                 answer[0] = (byte) 0xAB; //command
                 answer[1] = 0; //error code
@@ -159,39 +158,41 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
             return null;
         }
 
-        private byte[] readMessage(BusinessLogics BL, DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-            int textLength = 44;
-            int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
-            Date date = new Date(Calendar.getInstance().getTime().getTime());
-            ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
-            if (skuObject instanceof NullValue) {
-                String notFound = "Штрихкод не найден";
-                while (notFound.length() < textLength)
-                    notFound += " ";
-                return notFound.getBytes("cp1251");
-            } else {
-                ObjectValue priceListTypeObject = BL.getModule("PriceListType").findProperty("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
-                ObjectValue stockObject = BL.getModule("Stock").findProperty("stockId").readClasses(session, new DataObject(idStock));
-                String captionItem = (String) BL.getModule("Item").findProperty("captionItem").read(session, skuObject);
-                if (priceListTypeObject instanceof NullValue || stockObject instanceof NullValue) {
-                    String notFound = "Неверные параметры сервера";
+        private byte[] readMessage(BusinessLogics BL, String idBarcode) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+            try (DataSession session = dbManager.createSession()) {
+                int textLength = 44;
+                int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
+                Date date = new Date(Calendar.getInstance().getTime().getTime());
+                ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
+                if (skuObject instanceof NullValue) {
+                    String notFound = "Штрихкод не найден";
                     while (notFound.length() < textLength)
                         notFound += " ";
                     return notFound.getBytes("cp1251");
                 } else {
-                    BigDecimal price = (BigDecimal) BL.getModule("PriceListType").findProperty("priceAPriceListTypeSkuStockDateTime").read(session,
-                            priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
-                    String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
-                    while (captionItem.length() + priceMessage.length() < (textLength - 1)) {
-                        priceMessage = " " + priceMessage;
+                    ObjectValue priceListTypeObject = BL.getModule("PriceListType").findProperty("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
+                    ObjectValue stockObject = BL.getModule("Stock").findProperty("stockId").readClasses(session, new DataObject(idStock));
+                    String captionItem = (String) BL.getModule("Item").findProperty("captionItem").read(session, skuObject);
+                    if (priceListTypeObject instanceof NullValue || stockObject instanceof NullValue) {
+                        String notFound = "Неверные параметры сервера";
+                        while (notFound.length() < textLength)
+                            notFound += " ";
+                        return notFound.getBytes("cp1251");
+                    } else {
+                        BigDecimal price = (BigDecimal) BL.getModule("PriceListType").findProperty("priceAPriceListTypeSkuStockDateTime").read(session,
+                                priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
+                        String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
+                        while (captionItem.length() + priceMessage.length() < (textLength - 1)) {
+                            priceMessage = " " + priceMessage;
+                        }
+                        captionItem = captionItem.substring(0, Math.min(captionItem.length(), (textLength - priceMessage.length() - 1)));
+                        String message = captionItem + " " + priceMessage;
+                        String gap = "";
+                        for (int i = 0; i < gapLength; i++) {
+                            gap += " ";
+                        }
+                        return (message.substring(0, textLength / 2) + gap + message.substring(textLength / 2, textLength) + gap).getBytes("cp1251");
                     }
-                    captionItem = captionItem.substring(0, Math.min(captionItem.length(), (textLength - priceMessage.length() - 1)));
-                    String message = captionItem + " " + priceMessage;
-                    String gap = "";
-                    for (int i = 0; i < gapLength; i++) {
-                        gap += " ";
-                    }
-                    return (message.substring(0, textLength / 2) + gap + message.substring(textLength / 2, textLength) + gap).getBytes("cp1251");
                 }
             }
         }

@@ -161,9 +161,10 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
     }
 
     private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        DataSession session = context.createSession();
-        findProperty("importedOrderAttachmentEmail").change(true, session, (DataObject) orderObject);
-        session.apply(context.getBL());        
+        try (DataSession session = context.createSession()) {
+            findProperty("importedOrderAttachmentEmail").change(true, session, (DataObject) orderObject);
+            session.apply(context.getBL());
+        }
     }
 
     private List<List<Object>> importOrderFromXLSX(byte[] file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException, ParseException {

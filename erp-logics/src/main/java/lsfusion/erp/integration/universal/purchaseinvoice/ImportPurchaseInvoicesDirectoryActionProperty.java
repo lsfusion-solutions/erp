@@ -68,23 +68,23 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                         if (listFiles != null) {
                             for (File f : listFiles) {
                                 if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                    DataSession currentSession = context.createSession();
-                                    DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                    try (DataSession currentSession = context.createSession()) {
+                                        DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                        try {
 
-                                    try {
+                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
+                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, importDocumentSettings,
+                                                    staticNameImportType, staticCaptionImportType, false);
 
-                                        int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                                importTypeObject, IOUtils.getFileBytes(f), fileExtension, importDocumentSettings, 
-                                                staticNameImportType, staticCaptionImportType, false);
+                                            if (importResult != IMPORT_RESULT_ERROR)
+                                                renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
-                                        if (importResult != IMPORT_RESULT_ERROR)
-                                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
+                                        } catch (Exception e) {
+                                            ServerLoggers.systemLogger.error(e);
+                                        }
 
-                                    } catch (Exception e) {
-                                        ServerLoggers.systemLogger.error(e);
+                                        currentSession.apply(context);
                                     }
-                                    
-                                    currentSession.apply(context);
                                 }
                             }
                         }

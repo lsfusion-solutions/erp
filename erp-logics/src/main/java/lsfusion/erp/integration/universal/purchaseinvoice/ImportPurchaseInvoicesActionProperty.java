@@ -48,29 +48,20 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                     List<byte[]> listFiles = valueClass.getFiles(objectValue.getValue());
                     if (listFiles != null) {
                         for (byte[] file : listFiles) {
-                            DataSession currentSession = context.createSession();
-                            DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                            try (DataSession currentSession = context.createSession()) {
+                                DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
-                            new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                    (DataObject) importTypeObject, file, fileExtension, importDocumentSettings, 
-                                    staticNameImportType, staticCaptionImportType, false);
+                                new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
+                                        (DataObject) importTypeObject, file, fileExtension, importDocumentSettings,
+                                        staticNameImportType, staticCaptionImportType, false);
 
-                            currentSession.apply(context);
+                                currentSession.apply(context);
+                            }
                         }
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (BiffException e) {
-            throw Throwables.propagate(e);
-        } catch (UniversalImportException e) {
-            throw Throwables.propagate(e);
-        } catch (xBaseJException e) {
-            throw Throwables.propagate(e);
-        } catch (ParseException e) {
-            throw Throwables.propagate(e);
-        } catch (IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | BiffException | UniversalImportException | ParseException | xBaseJException | IOException e) {
             throw Throwables.propagate(e);
         }
     }
