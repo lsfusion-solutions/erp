@@ -134,12 +134,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     public DataObject getUserObject(DataSession session, String login, String password) throws RemoteException, SQLException {
         try {
 
-            ScriptingLogicsModule systemEventsLM = getLogicsInstance().getBusinessLogics().systemEventsLM;
-            if(systemEventsLM != null) {
-                systemEventsLM.findAction("calculateBase64Hash").execute(session, new DataObject("SHA-256"), new DataObject(password));
-                String calculatedHash = (String) systemEventsLM.findProperty("calculatedHash").read(session);
-                ObjectValue customUser = systemEventsLM.findProperty("customUserLogin").readClasses(session, new DataObject(login));
-                String sha256PasswordCustomUser = (String) systemEventsLM.findProperty("sha256PasswordCustomUser").read(session, customUser);
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+            if(terminalHandlerLM != null) {
+                terminalHandlerLM.findAction("calculateBase64Hash").execute(session, new DataObject("SHA-256"), new DataObject(password));
+                String calculatedHash = (String) terminalHandlerLM.findProperty("calculatedHash").read(session);
+                ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcaseLogin").readClasses(session, new DataObject(login));
+                String sha256PasswordCustomUser = (String) terminalHandlerLM.findProperty("sha256PasswordCustomUser").read(session, customUser);
                 boolean check = customUser instanceof DataObject && sha256PasswordCustomUser != null && calculatedHash != null && sha256PasswordCustomUser.equals(calculatedHash);
                 return check ? (DataObject) customUser : null;
             } else return null;
