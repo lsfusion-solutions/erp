@@ -864,17 +864,18 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
                 taskList.add(new RequestSalesInfoTask(directory, requestExchanges));
             }
+            if(!taskList.isEmpty()) {
+                ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
 
-            ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
+                List<Future<Map<Integer, String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
 
-            List<Future<Map<Integer, String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-
-            for (Future<Map<Integer, String>> threadResult : threadResults) {
-                for (Map.Entry<Integer, String> entry : threadResult.get().entrySet()) {
-                    if (entry.getValue() == null)
-                        succeededRequests.add(entry.getKey());
-                    else
-                        ignoredRequests.put(entry.getKey(), entry.getValue());
+                for (Future<Map<Integer, String>> threadResult : threadResults) {
+                    for (Map.Entry<Integer, String> entry : threadResult.get().entrySet()) {
+                        if (entry.getValue() == null)
+                            succeededRequests.add(entry.getKey());
+                        else
+                            ignoredRequests.put(entry.getKey(), entry.getValue());
+                    }
                 }
             }
 
