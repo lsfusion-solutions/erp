@@ -470,6 +470,14 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     filterShipmentSupplierStock  = DATA LOCAL Stock ();
     nameFilterShipmentSupplierStock 'Склад поставщика' = nameStock(filterShipmentSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
     filterSupplierStockShipment (s) = supplierStockShipment(s) == filterShipmentSupplierStock() OR (s IS Shipment AND NOT filterShipmentSupplierStock());      
+
+    filterShipmentCustomUser  = DATA LOCAL CustomUser ();
+    nameFilterShipmentCustomUser 'Создан пользователем' = nameContact(filterShipmentCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomUserShipment (i) = createdUserUserShipment(i) == filterShipmentCustomUser() OR (i IS Shipment AND NOT filterShipmentCustomUser());  
+
+    filterShipmentComputer = DATA LOCAL Computer ();
+    nameFilterShipmentComputer 'Создан на компьютере' = hostnameComputer(filterShipmentComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterComputerShipment (i) = createdComputerUserShipment(i) == filterShipmentComputer() OR (i IS Shipment AND NOT filterOrderComputer());    
     
     overShowEditShipment = ABSTRACT BOOLEAN (Shipment);
     overShowDeleteShipment = ABSTRACT BOOLEAN (Shipment); 
@@ -477,7 +485,8 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     backgroundDraftShipment 'Цвет' (s) = RGB(212,255,212) IF isDraftShipment(s); 
     FORM shipments captions 
     
-        PROPERTIES() filterShipmentDateFrom, filterShipmentDateTo, nameFilterShipmentSupplier, nameFilterShipmentSupplierStock, nameFilterShipmentCustomer, nameFilterShipmentCustomerStock
+        PROPERTIES() filterShipmentDateFrom, filterShipmentDateTo, nameFilterShipmentSupplier, nameFilterShipmentSupplierStock, 
+                     nameFilterShipmentCustomer, nameFilterShipmentCustomerStock, nameFilterShipmentCustomUser, nameFilterShipmentComputer 
     
         OBJECTS s = Shipment LAST
         PROPERTIES (s) READONLYIF isReadonly() isClosedShipment 
@@ -506,7 +515,9 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 filterSupplierShipment(s),
                 filterSupplierStockShipment(s),
                 filterCustomerShipment(s),
-                filterCustomerStockShipment(s)
+                filterCustomerStockShipment(s),
+                filterCustomUserShipment(s),
+                filterComputerShipment(s)                
                 
         DIALOG Shipment OBJECT s
     ;
@@ -520,13 +531,21 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 fill = 1;
                 NEW topFilters {
                     caption = 'Фильтры';
-                    type = CONTAINERH;          
-                    MOVE PROPERTY(filterShipmentDateFrom());
-                    MOVE PROPERTY(filterShipmentDateTo());
-                    MOVE PROPERTY(nameFilterShipmentSupplier());
-                    MOVE PROPERTY(nameFilterShipmentSupplierStock());
-                    MOVE PROPERTY(nameFilterShipmentCustomer());
-                    MOVE PROPERTY(nameFilterShipmentCustomerStock());                   
+                    type = CONTAINERV; 
+                    NEW topFilters1 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(filterShipmentDateFrom());
+                        MOVE PROPERTY(filterShipmentDateTo());                            
+                        MOVE PROPERTY(nameFilterShipmentSupplier());
+                        MOVE PROPERTY(nameFilterShipmentSupplierStock());    
+                        MOVE PROPERTY(nameFilterShipmentCustomer());
+                        MOVE PROPERTY(nameFilterShipmentCustomerStock());                                               
+                    }
+                    NEW topFilters2 {
+                        type = CONTAINERH;  
+                        MOVE PROPERTY(nameFilterShipmentCustomUser());
+                        MOVE PROPERTY(nameFilterShipmentComputer());                            
+                    }            
                 }
                 MOVE s.box {
                     fill = 1;

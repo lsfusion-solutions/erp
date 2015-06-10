@@ -658,6 +658,13 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     nameFilterInvoiceSupplierStock 'Склад поставщика' = nameStock(filterInvoiceSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
     filterSupplierStockInvoice (i) = supplierStockInvoice(i) == filterInvoiceSupplierStock() OR (i IS Invoice AND NOT filterInvoiceSupplierStock());      
     
+    filterInvoiceCustomUser  = DATA LOCAL CustomUser ();
+    nameFilterInvoiceCustomUser 'Создан пользователем' = nameContact(filterInvoiceCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomUserInvoice (i) = createdUserUserInvoice(i) == filterInvoiceCustomUser() OR (i IS Invoice AND NOT filterInvoiceCustomUser());  
+
+    filterInvoiceComputer = DATA LOCAL Computer ();
+    nameFilterInvoiceComputer 'Создан на компьютере' = hostnameComputer(filterInvoiceComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterComputerInvoice (i) = createdComputerUserInvoice(i) == filterInvoiceComputer() OR (i IS Invoice AND NOT filterInvoiceComputer());
     
     overShowEditInvoice = ABSTRACT BOOLEAN (Invoice);
     overShowDeleteInvoice = ABSTRACT BOOLEAN (Invoice); 
@@ -665,7 +672,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     
     FORM invoices 'Накладные' 
     
-        PROPERTIES() filterInvoiceDateFrom, filterInvoiceDateTo, nameFilterInvoiceSupplier, nameFilterInvoiceSupplierStock, nameFilterInvoiceCustomer, nameFilterInvoiceCustomerStock
+        PROPERTIES() filterInvoiceDateFrom, filterInvoiceDateTo, nameFilterInvoiceSupplier, nameFilterInvoiceSupplierStock, 
+                     nameFilterInvoiceCustomer, nameFilterInvoiceCustomerStock, nameFilterInvoiceCustomUser, nameFilterInvoiceComputer
         
         OBJECTS i = Invoice LAST
         PROPERTIES (i) READONLYIF isReadonly() isClosedInvoice 
@@ -699,7 +707,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
                 filterSupplierInvoice(i),
                 filterSupplierStockInvoice(i),
                 filterCustomerInvoice(i),
-                filterCustomerStockInvoice(i)
+                filterCustomerStockInvoice(i),
+                filterCustomUserInvoice(i),
+                filterComputerInvoice(i)
                 
         DIALOG Invoice OBJECT i
     ;
@@ -719,13 +729,21 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
                     fill = 1;
                     NEW topFilters {
                         caption = 'Фильтры';
-                        type = CONTAINERH;          
-                        MOVE PROPERTY(filterInvoiceDateFrom());
-                        MOVE PROPERTY(filterInvoiceDateTo());
-                        MOVE PROPERTY(nameFilterInvoiceSupplier());
-                        MOVE PROPERTY(nameFilterInvoiceSupplierStock());
-                        MOVE PROPERTY(nameFilterInvoiceCustomer());
-                        MOVE PROPERTY(nameFilterInvoiceCustomerStock());                   
+                        type = CONTAINERV; 
+                        NEW topFilters1 {
+                            type = CONTAINERH; 
+                            MOVE PROPERTY(filterInvoiceDateFrom());
+                            MOVE PROPERTY(filterInvoiceDateTo());                            
+                            MOVE PROPERTY(nameFilterInvoiceSupplier());
+                            MOVE PROPERTY(nameFilterInvoiceSupplierStock());    
+                            MOVE PROPERTY(nameFilterInvoiceCustomer());
+                            MOVE PROPERTY(nameFilterInvoiceCustomerStock());                                                    
+                        }
+                        NEW topFilters2 {
+                            type = CONTAINERH; 
+                            MOVE PROPERTY(nameFilterInvoiceCustomUser());
+                            MOVE PROPERTY(nameFilterInvoiceComputer());                            
+                        }                                                                                         
                     }
                     MOVE i.box {
                         fill = 1;
@@ -1229,3 +1247,24 @@ META defineInvoicePayment(dumb)
     }
 END
 
+META defineDocumentExtraFilters(object, objectClass, form, container)
+    filter###object###CustomUser  = DATA LOCAL CustomUser ();
+    nameFilter###object###CustomUser 'Создан пользователем' = nameContact(filter###object###CustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomUser###object### (i) = createdNameUserUser###object###(i) == filter###object###CustomUser() OR (i IS objectClass AND NOT filter###object###CustomUser());  
+
+    filter###object###Computer = DATA LOCAL Computer ();
+    nameFilter###object###Computer 'Создан на компьютере' = hostnameComputer(filter###object###Computer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterComputer###object### (i) = createdComputerUser###object###(i) == filter###object###Computer() OR (i IS objectClass AND NOT filter###object###Computer());           
+        
+    EXTEND FORM form 
+    
+        PROPERTIES() nameFilter###object###CustomUser, nameFilter###object###Computer
+    ;
+    
+    DESIGN form {
+        container { 
+            MOVE PROPERTY(nameFilter###object###CustomUser());
+            MOVE PROPERTY(nameFilter###object###Computer());                
+        }         
+    }    
+END

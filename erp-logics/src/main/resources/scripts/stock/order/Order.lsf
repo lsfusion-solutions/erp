@@ -642,8 +642,16 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     filterOrderSupplierStock  = DATA LOCAL Stock ();
     nameFilterOrderSupplierStock 'Склад поставщика' = nameStock(filterOrderSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
-    filterSupplierStockOrder (o) = supplierStockOrder(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock());        
+    filterSupplierStockOrder (o) = supplierStockOrder(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock()); 
+           
+    filterOrderCustomUser  = DATA LOCAL CustomUser ();
+    nameFilterOrderCustomUser 'Создан пользователем' = nameContact(filterOrderCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomUserOrder (i) = createdUserUserOrder(i) == filterOrderCustomUser() OR (i IS Order AND NOT filterOrderCustomUser());  
 
+    filterOrderComputer = DATA LOCAL Computer ();
+    nameFilterOrderComputer 'Создан на компьютере' = hostnameComputer(filterOrderComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterComputerOrder (i) = createdComputerUserOrder(i) == filterOrderComputer() OR (i IS Order AND NOT filterOrderComputer());
+    
     overShowEditOrder = ABSTRACT BOOLEAN (Order);
     overShowDeleteOrder = ABSTRACT BOOLEAN (Order);          
     backgroundDraftOrder 'Цвет' (o) = RGB(212,255,212) IF isDraftOrder(o);      
@@ -651,7 +659,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     
     FORM orders 'Заказы' 
     
-        PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderSupplier, nameFilterOrderSupplierStock, nameFilterOrderCustomer, nameFilterOrderCustomerStock
+        PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderSupplier, nameFilterOrderSupplierStock, 
+                     nameFilterOrderCustomer, nameFilterOrderCustomerStock, nameFilterOrderCustomUser, nameFilterOrderComputer
         FILTERS is###supplierFilter###legalEntity(filterOrderSupplier())    
             
         OBJECTS o = Order LAST
@@ -686,7 +695,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                 filterSupplierOrder(o),
                 filterSupplierStockOrder(o),
                 filterCustomerOrder(o),
-                filterCustomerStockOrder(o)        
+                filterCustomerStockOrder(o),
+                filterCustomUserOrder(o),
+                filterComputerOrder(o)                            
         
         DIALOG Order OBJECT o
     ;
@@ -702,15 +713,23 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
             NEW filtersBox {                       
                 fill = 1;
-                NEW topFilters {
+                NEW topFilters {  
                     caption = 'Фильтры';
-                    type = CONTAINERH;          
-                    MOVE PROPERTY(filterOrderDateFrom());
-                    MOVE PROPERTY(filterOrderDateTo());
-                    MOVE PROPERTY(nameFilterOrderSupplier());
-                    MOVE PROPERTY(nameFilterOrderSupplierStock());
-                    MOVE PROPERTY(nameFilterOrderCustomer());
-                    MOVE PROPERTY(nameFilterOrderCustomerStock());                      
+                    type = CONTAINERV; 
+                    NEW topFilters1 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(filterOrderDateFrom());
+                        MOVE PROPERTY(filterOrderDateTo());                            
+                        MOVE PROPERTY(nameFilterOrderSupplier());
+                        MOVE PROPERTY(nameFilterOrderSupplierStock());     
+                        MOVE PROPERTY(nameFilterOrderCustomer());
+                        MOVE PROPERTY(nameFilterOrderCustomerStock());                                               
+                    }
+                    NEW topFilters2 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(nameFilterOrderCustomUser());
+                        MOVE PROPERTY(nameFilterOrderComputer());                            
+                    }                
                 }
                 MOVE o.box {
                     fill = 1;
