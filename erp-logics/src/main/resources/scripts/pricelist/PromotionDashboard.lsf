@@ -84,6 +84,21 @@ filterPromotionStock  = DATA LOCAL DepartmentStore ();
 nameFilterPromotionStock 'Склад' = nameStock(filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
 notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
 
+changeCompanyFilterPromotionStock = ACTION () {
+    REQUEST OBJECT s
+    IF filterPromotionStock() THEN {            
+        FORM companysStock OBJECTS s = filterPromotionStock() DIALOG SHOWDROP;        
+    } ELSE {
+        FORM companysStock DIALOG SHOWDROP;        
+    }
+    IF formResult() == FormResult.ok THEN {
+        filterPromotionStock() <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        filterPromotionStock() <- NULL;
+    }
+}
+
 overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation  (type, sku, company, dateTime, operation) = IF filterPromotionStock() 
     THEN activePriceListDetailAPriceListTypeSkuStockCompanyDateTimeOperation(type, sku, filterPromotionStock(), company, dateTime, operation)
     ELSE activePriceListDetailAPriceListTypeSkuCompanyDateTimeOperation (type, sku, company, dateTime, operation);
@@ -105,7 +120,7 @@ EXTEND FORM promotionDashboard
     PROPERTIES(c) nameLegalEntity SELECTOR
     FILTERS isCompanyLegalEntity(c)
     
-    PROPERTIES nameFilterPromotionStock()
+    PROPERTIES nameFilterPromotionStock() ON CHANGE changeCompanyFilterPromotionStock()
 
     TREE cskg cskg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(cskg), cskgName = nameSkuGroup(cskg)
@@ -200,6 +215,7 @@ DESIGN promotionDashboard {
         }
     }
 }
+@extendFormFilterStockAccess(cst, promotionDashboard, company);
 
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
@@ -288,3 +304,6 @@ DESIGN promotionDashboard {
         }
     }
 }
+//@extendFormFilterStockAccess(ts, promotionDashboard, company){
+//    EXTEND FORM promotionDashboard FILTERS accessCompanyEmployeeStock(currentUser(), ts);
+//};
