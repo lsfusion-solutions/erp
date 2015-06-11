@@ -441,13 +441,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 scheduleOrderScheduleOrderTime(t) <- scheduleOrder;
                 shipmentDOWScheduleOrderTime(t) <- dow; 
 
-                IF numberDOW(dow) < dayBeforeScheduleOrder(scheduleOrder) THEN transfer() <- 7 ELSE transfer() <- 0;
-
-                IF transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder) == 0 OR transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder) == 6 THEN {
-                    orderDOWScheduleOrderTime(t) <- DOW.friday;   
-                } ELSE {
-                    orderDOWScheduleOrderTime(t) <- DOWNumber(transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder));      
-                }                   
+                IF numberDOW(dow) == 0 THEN transfer() <- 7 ELSE IF numberDOW(dow) < dayBeforeScheduleOrder(scheduleOrder) THEN transfer() <- 5 ELSE transfer() <- 0; //+7-2
+                
+                CASE WHEN transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder) == 0 THEN orderDOWScheduleOrderTime(t) <- DOW.friday
+                WHEN transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder) == 6 THEN orderDOWScheduleOrderTime(t) <- DOW.tuesday
+                ELSE orderDOWScheduleOrderTime(t) <- DOWNumber(transfer() + numberDOW(dow) - dayBeforeScheduleOrder(scheduleOrder));       
             }
         }
     }
