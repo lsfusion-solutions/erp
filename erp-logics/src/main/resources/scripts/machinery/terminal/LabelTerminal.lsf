@@ -34,6 +34,8 @@ EXTEND CLASS TerminalDocument : Label.PriceTransactionDocument;
 Label.descriptionPriceTransactionDocument (document) += descriptionTerminalDocument(document);
 
 createAttributeTerminalDocumentDetailLabelTransactionDetail = ABSTRACT ACTION LIST (TerminalDocumentDetail, LabelTransactionDetail);
+dataStockTerminalDocument = ABSTRACT Stock(TerminalDocument);
+overStockTerminalDocument (d) = OVERRIDE stockTerminalDocument(d), dataStockTerminalDocument(d);
 
 createTerminalDocumentLabelTransaction 'Распечатать ценники' = ACTION (terminalDocument) NEWSESSION {           
 
@@ -42,15 +44,15 @@ createTerminalDocumentLabelTransaction 'Распечатать ценники' =
 
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR ([= GROUP SUM 1 IF inSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) BY labelType, departmentStore](labelType, stockTerminalDocument(terminalDocument)))
+    FOR ([= GROUP SUM 1 IF inSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) BY labelType, departmentStore](labelType, overStockTerminalDocument(terminalDocument)))
         ADDOBJ t = LabelTransaction DO {
-            departmentStoreLabelTransaction(t) <- stockTerminalDocument(terminalDocument);
+            departmentStoreLabelTransaction(t) <- overStockTerminalDocument(terminalDocument);
             priceTransactionDocumentLabelTransaction(t) <- terminalDocument;
             labelTypeLabelTransaction(t) <- labelType;
             
             FOR terminalDocumentTerminalDocumentDetail(dd) == terminalDocument AND 
                 inSku(sku) AND sku == skuTerminalDocumentDetail(dd) AND 
-                inLabelTypeSkuDepartmentStore(labelType, sku, stockTerminalDocument(terminalDocument))
+                inLabelTypeSkuDepartmentStore(labelType, sku, overStockTerminalDocument(terminalDocument))
                 ADDOBJ d = LabelTransactionDetail DO {
                 labelTransactionLabelTransactionDetail(d) <- t;
                 skuLabelTransactionDetail(d) <- sku;
@@ -58,9 +60,10 @@ createTerminalDocumentLabelTransaction 'Распечатать ценники' =
                 nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
                 createAttributeLabelTransactionDetail(d);
 
-                quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-                                                        THEN INTEGER(quantityTerminalDocumentDetail(dd))
-                                                     ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                quantityLabelTransactionDetail(d) <- INTEGER(quantityTerminalDocumentDetail(dd));
+//                                                     IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
+//                                                        THEN INTEGER(quantityTerminalDocumentDetail(dd))
+//                                                     ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
 
                 priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
                 retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
@@ -81,13 +84,13 @@ createSnapshotTerminalDocumentLabelTransaction 'Перепечатать цен�
     LOCAL inSku = BOOLEAN (Sku);    
     inSku(sku) <- TRUE IF countTerminalDocumentDetailSkuTerminalDocument(sku, terminalDocument);
     
-    FORM selectLabelTypes OBJECTS ds =  stockTerminalDocument(terminalDocument) MODAL;
+    FORM selectLabelTypes OBJECTS ds =  overStockTerminalDocument(terminalDocument) MODAL;
     IF formResult() == FormResult.ok THEN { 
         IF NOT countSelectType() THEN {  
             selectType(type) <- TRUE WHERE type == chosenObject('l');
         }                                        
         FOR selectType(type) ADDOBJ t = LabelTransaction DO {              
-            departmentStoreLabelTransaction(t) <- stockTerminalDocument(terminalDocument);
+            departmentStoreLabelTransaction(t) <- overStockTerminalDocument(terminalDocument);
             priceTransactionDocumentLabelTransaction(t) <- terminalDocument;
             labelTypeLabelTransaction(t) <- type;
 
@@ -103,9 +106,10 @@ createSnapshotTerminalDocumentLabelTransaction 'Перепечатать цен�
                     retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);                       
                                                                
                     quantityLabelTransactionDetail(d) <- IF NOT countLabelDepartmentStore(departmentStoreLabelTransactionDetail(d)) 
-                                                             THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
-                                                                THEN INTEGER(documentQuantityLabelTransactionDetail(d))
-                                                                 ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
+                                                             THEN INTEGER(documentQuantityLabelTransactionDetail(d))
+//                                                             THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
+//                                                                THEN INTEGER(documentQuantityLabelTransactionDetail(d))
+//                                                                 ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
                                                              ELSE countLabelDepartmentStore(departmentStoreLabelTransactionDetail(d));                                              
                                                                
                                                                
@@ -114,7 +118,7 @@ createSnapshotTerminalDocumentLabelTransaction 'Перепечатать цен�
                     createAttributeLabelTransactionDetail(d);
                     createAttributeTerminalDocumentDetailLabelTransactionDetail(dd, d);
             }
-            IF changeDepartmentStore(stockTerminalDocument(terminalDocument)) THEN {
+            IF changeDepartmentStore(overStockTerminalDocument(terminalDocument)) THEN {
                 FORM customLabelTransaction OBJECTS l = t MODAL;
                 IF formResult() == FormResult.ok THEN {    
                     printLabelTransaction(t);
@@ -125,9 +129,8 @@ createSnapshotTerminalDocumentLabelTransaction 'Перепечатать цен�
                 printLabelTransaction(t);
             }                        
         }
-         
-    }                                                                                                        
-                
+        apply(); 
+    }                                                                                                                        
     
 } TOOLBAR;
 
