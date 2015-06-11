@@ -477,10 +477,11 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         BigDecimal newPrice = null;
         BigDecimal oldPrice = null;
         try {
+            boolean redPrice = doc.getElementsByClass("product_card").first().classNames().contains("red");
             Element priceElement = doc.getElementsByClass("price").first();
             if(priceElement != null) {
                 Elements oldPriceElement = priceElement.getElementsByClass("Old_price");
-                String oldPriceValue = oldPriceElement == null ? null : oldPriceElement.text().replace(" ", "");
+                String oldPriceValue = oldPriceElement == null || !redPrice ? null : oldPriceElement.text().replace(" ", "");
                 oldPrice = oldPriceValue == null || oldPriceValue.isEmpty() ? null : new BigDecimal(oldPriceValue);
                 String priceValue = (oldPriceElement != null && oldPriceElement.size() != 0 ? priceElement.text().replace(oldPriceElement.first().text(), "") : priceElement.text()).replace(" ", "");
                 newPrice = priceValue == null || priceValue.isEmpty() ? null : new BigDecimal(priceValue);
