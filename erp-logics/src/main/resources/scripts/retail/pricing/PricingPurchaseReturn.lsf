@@ -26,7 +26,25 @@ retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y
 // Проставляем НДС розничный, равный НДС входному
 retailVATUserInvoiceDetail (detail) <- VATUserInvoiceDetail(detail) WHEN CHANGED(VATUserInvoiceDetail(detail));
 
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, retailPricingPriceListType, retail, sku, customerStock);
+
+extraRetailPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail); 
+WHEN SESSION (CHANGED(customerStockUserInvoiceDetail(detail)) OR
+              CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+              CHANGED(batchUserInvoiceDetail(detail))) AND batchUserInvoiceDetail(detail) DO {
+    retailPriceUserInvoiceDetail (detail)  <- prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                                       batchUserInvoiceDetail(detail),
+                                                                                                       customerStockUserInvoiceDetail(detail),
+                                                                                                       dateTimeUserInvoiceDetail(detail)) (-) extraRetailPriceUserInvoiceDetail(detail);
+}
+
+WHEN SESSION (CHANGED(customerStockUserInvoiceDetail(detail)) OR
+              CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+              CHANGED(skuUserInvoiceDetail(detail))) AND NOT batchUserInvoiceDetail(detail) DO {
+    retailPriceUserInvoiceDetail (detail)  <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                      skuUserInvoiceDetail(detail),
+                                                                                      customerStockUserInvoiceDetail(detail),
+                                                                                      dateTimeUserInvoiceDetail(detail)) (-) extraRetailPriceUserInvoiceDetail(detail);
+}
 
 // Не изменять цену и является обратным
 skipChangeLedgerPricing(pricing) += pricing IS InvoicePricing;
