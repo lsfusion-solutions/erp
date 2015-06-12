@@ -1777,17 +1777,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                         List<List<Object>> dataPayment = new ArrayList<List<Object>>();
 
-                        Map<Integer, String> barcodeMap = new HashMap<Integer, String>();
+                        Map<Object, String> barcodeMap = new HashMap<>();
                         for (SalesInfo sale : data) {
 
-                            String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem : (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : null);
+                            String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
+                                    (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
                             if (barcode == null && sale.itemObject != null) {
                                 barcode = trim((String) itemLM.findProperty("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
                                 barcodeMap.put(sale.itemObject, barcode);
                             }
                             if (barcode == null && sale.idItem != null) {
                                 barcode = trim((String) itemLM.findProperty("idBarcodeIdSku").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
-                                barcodeMap.put(sale.itemObject, barcode);
+                                barcodeMap.put(sale.idItem, barcode);
                             }
 
                             String idReceipt = sale.getIdReceipt(startDate);
