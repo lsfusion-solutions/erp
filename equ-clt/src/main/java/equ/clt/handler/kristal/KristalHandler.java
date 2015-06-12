@@ -646,10 +646,12 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
+        boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
 
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         Map<String, Date> directoryStartDateMap = new HashMap<>();
         Map<String, Boolean> directoryNotDetailedMap = new HashMap<>();
+        Map<String, String> weightCodeDirectoryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("KristalHandler")) {
                 directoryNotDetailedMap.put(c.directory, c.notDetailed != null && c.notDetailed);
@@ -657,6 +659,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
                 if (c.number != null && c.startDate != null)
                     directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
+                if (c.number != null && c.weightCodeGroupCashRegister != null)
+                    weightCodeDirectoryMap.put(c.directory + "_" + c.number, c.weightCodeGroupCashRegister);
             }
         }
 
@@ -760,6 +764,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 Element receiptDetailElement = (Element) receiptDetailNode;
 
                                                 String barcode = receiptDetailElement.getAttributeValue("BARCODE");
+                                                String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
+                                                if (barcode != null && weightCode != null && barcode.length() == 13 && barcode.startsWith(weightCode))
+                                                    barcode = barcode.substring(2, 7);
+                                                String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
                                                 BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
                                                 BigDecimal price = readBigDecimalXMLAttribute(receiptDetailElement, "PRICE");
                                                 BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA");
@@ -769,7 +777,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                 if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                     currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
-                                                            numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode,
+                                                            numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode, idItem,
                                                             null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName));
                                             }
 
@@ -822,6 +830,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     Element receiptDetailElement = (Element) receiptDetailNode;
 
                                                     String barcode = receiptDetailElement.getAttributeValue("BARCODE");
+                                                    String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
+                                                    if (barcode != null && weightCode != null && barcode.length() == 13 && barcode.startsWith(weightCode))
+                                                        barcode = barcode.substring(2, 7);
+                                                    String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
                                                     BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
                                                     BigDecimal price = readBigDecimalXMLAttribute(receiptDetailElement, "PRICE");
                                                     BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA");
@@ -833,7 +845,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                         currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode,
-                                                                null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
+                                                                idItem, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                                 numberReceiptDetail, fileName));
                                                 }
 

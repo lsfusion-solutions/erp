@@ -718,7 +718,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                sumGiftCard, barcode, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, discountCard,
+                                                sumGiftCard, barcode, null, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, discountCard,
                                                 numberReceiptDetail, fileName));
                                     }
                                     count++;

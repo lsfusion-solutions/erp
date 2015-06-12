@@ -1785,6 +1785,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 barcode = trim((String) itemLM.findProperty("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
                                 barcodeMap.put(sale.itemObject, barcode);
                             }
+                            if (barcode == null && sale.idItem != null) {
+                                barcode = trim((String) itemLM.findProperty("idBarcodeIdSku").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                                barcodeMap.put(sale.itemObject, barcode);
+                            }
 
                             String idReceipt = sale.getIdReceipt(startDate);
                             if (sale.isGiftCard) {
@@ -2180,6 +2184,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem : (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : null);
                             if (barcode == null && sale.itemObject != null) {
                                 barcode = trim((String) itemLM.findProperty("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
+                                barcodeMap.put(sale.itemObject, barcode);
+                            }
+                            if (barcode == null && sale.idItem != null) {
+                                barcode = trim((String) itemLM.findProperty("idBarcodeIdSku").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
                                 barcodeMap.put(sale.itemObject, barcode);
                             }
 

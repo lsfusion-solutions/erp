@@ -433,7 +433,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt,
                     dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCard,
-                    barcodeReceiptDetail, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
+                    barcodeReceiptDetail, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
                     discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, null));
         }
         return salesInfoList;
