@@ -165,6 +165,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                         for (int i = 0; i < recordCount; i++) {
                             dbfFile.read();
+                            if (dbfFile.deleted()) continue; 
                             String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
                             List<Object> docEntry = docDataMap.get(idDoc);
                             if(docEntry != null) {
@@ -223,9 +224,8 @@ public class InventoryTechHandler extends TerminalHandler {
             int recordCount = dbfFile.getRecordCount();
 
             for (int i = 0; i < recordCount; i++) {
-
                 dbfFile.read();
-
+                if (dbfFile.deleted()) continue;
                 String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
                 String title = getDBFFieldValue(dbfFile, "TITLE", charset);
                 String idTerminalHandbookType1 = getDBFFieldValue(dbfFile, "CSPR1", charset);
