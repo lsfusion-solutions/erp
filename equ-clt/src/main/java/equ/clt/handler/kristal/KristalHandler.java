@@ -128,6 +128,33 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
                     }
 
+                    //restriction.txt
+                    File restrictionFile = new File(exchangeDirectory + "restriction.txt");
+                    File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICT");
+                    if (restrictionFile.exists() && flagRestrictionFile.exists()) {
+                        throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                    } else if (flagRestrictionFile.createNewFile()) {
+                        processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
+                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(restrictionFile), "windows-1251"));
+
+                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                boolean isWeightItem = item.passScalesItem && item.splitItem;
+                                Object code = useIdItem ? item.idItem : item.idBarcode;
+                                String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                boolean notDeleted = item.flags != null && ((item.flags & 16) == 0);
+                                String record = (notDeleted ? "-" : "+") + "|" + code + "|" + barcode + "|" + "20010101" + "|" + "20210101";
+                                writer.println(record);
+                            }
+                        }
+                        writer.close();
+
+                        processTransactionLogger.info(String.format("Kristal: waiting for deletion of Restriction file (Transaction #%s)", transactionInfo.id));
+                        waitForDeletion(restrictionFile, flagRestrictionFile);
+                    } else {
+                        throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                    }
+
                     //message.txt
                     boolean messageEmpty = true;
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
