@@ -716,7 +716,17 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 customerStockOrder(o) == customerStock() OR (o IS Order AND NOT customerStock())            
         
         FILTERGROUP object##dateFilter
-            FILTER 'На дату' dateOrder(o) == d 'F10' DEFAULT                       
+            FILTER 'На дату' dateOrder(o) == d 'F10' DEFAULT         
+                          
+        OBJECTS dd=OrderDetail
+        PROPERTIES (dd) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
+        PROPERTIES (dd) READONLY quantityOrderDetail, priceOrderDetail, sumOrderDetail,
+                       numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
+                       nameCustomerStockOrderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail
+        ORDER BY indexOrderDetail(dd)
+
+        FILTERS orderOrderDetail(dd) == o                  
+                          
     ;
 
     DESIGN scheduleOrderDetails {
@@ -729,7 +739,16 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             MOVE PROPERTY(nameCustomerStock());
         }
         MOVE sd.box;
-        MOVE o.box;
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+            MOVE o.box;
+            MOVE dd.box {
+                fill = 1;
+                caption = 'Спецификация';
+            }
+        
+        }    
         MOVE functions.box;
     }
     @extendFormFilterAccessStock(ScheduleOrderDetail, sd, scheduleOrderDetails, supplierStock, supplierFilter);
