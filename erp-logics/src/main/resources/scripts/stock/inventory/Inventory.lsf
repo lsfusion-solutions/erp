@@ -340,6 +340,8 @@ recalculateBalanceInventory 'Заполнить остатки' (inventory) = AC
     }
 } CONFIRM IN inventoryAction;
 
+
+overPriceBalanceCollationSheetSku = ABSTRACT NUMERIC[14,2](CollationSheet, Sku);
 recalculatePriceCollationSheet 'Пересчитать цены в сличительной ведомости' (collationSheet) = ACTION (collationSheet) {
     IF isBatchCollationSheet (collationSheet) THEN {
         pricePageInventoryDetail(pageInventoryDetail)
@@ -350,9 +352,8 @@ recalculatePriceCollationSheet 'Пересчитать цены в сличит�
             <- priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuPageInventoryDetail(pageInventoryDetail), stockPageInventoryDetail(pageInventoryDetail), dateTimePageInventoryDetail(pageInventoryDetail))
             WHERE collationSheetPageInventoryDetail(pageInventoryDetail) == collationSheet;
     }
-
     priceBalanceCollationSheetSku(collationSheet, sku)
-        <- priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
+        <- OVERRIDE overPriceBalanceCollationSheetSku(collationSheet, sku), priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
 
     IF NOT isPriceInventory(inventoryCollationSheet(collationSheet)) THEN {
         sumBalanceCollationSheetSku(collationSheet, sku)
@@ -475,7 +476,7 @@ includeCollationSheetSku(collationSheet, sku) = MULTI
     (OVERRIDE inManyCollationSheetSku(collationSheet, sku), collationSheet IS ManyCollationSheet IF quantityPageInventoryDetailCollationSheetSku(collationSheet, sku)),
     (collationSheet IS RemainsCollationSheet IF (quantityBalanceCollationSheetSku(collationSheet, sku) != 0 OR sumBalanceCollationSheetSku(collationSheet, sku) OR quantityPageInventoryDetailCollationSheetSku(collationSheet, sku)));
 
-priceBalanceCollationSheetSku(collationSheet, sku) <- prevPriceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+priceBalanceCollationSheetSku(collationSheet, sku) <- OVERRIDE overPriceBalanceCollationSheetSku(collationSheet, sku), prevPriceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
                 sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
                 WHEN SET(includeCollationSheetSku(collationSheet, sku));
 
