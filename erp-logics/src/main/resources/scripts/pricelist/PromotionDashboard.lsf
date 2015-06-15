@@ -112,10 +112,10 @@ activePricePriceListTypeSkuCompanyDateTimeOperation 'Цена' (type, sku, compa
 descriptionPriceListTypeSkuCompanyDateTimeOperation 'Описание' (type, sku, company, dateTime, operation) = descriptionPriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation));                                            
 editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation'Редактировать' (type, sku, company, dateTime, operation) = ACTION editPriceListDetail(overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(type, sku, company, dateTime, operation)) IMAGE 'edit.png';     
 
-balanceBPriceListTypeSkuCompanyDateTimeOperation 'Остаток (до акции)' (type, sku, company, dateTime, operation) = balanceBSkuStockDateTime(sku, filterPromotionStock(), fromDateTimePriceListDetail(activePriceListDetailAPriceListTypeSkuStockCompanyDateTimeOperation(type, sku, filterPromotionStock(), company, dateTime, operation)));
+balanceBPriceListDetail 'Остаток (до акции)' (detail) = balanceBSkuStockDateTime(skuPriceListDetail(detail), filterPromotionStock(), fromDateTimePriceListDetail(detail));
+notePriceListDetail 'Примечание' = notePriceList(priceListPriceListDetail(d));
 
-EXTEND FORM promotionDashboard
-   
+EXTEND FORM promotionDashboard   
     OBJECTS c = LegalEntity FIXED PANEL
     PROPERTIES(c) nameLegalEntity SELECTOR
     FILTERS isCompanyLegalEntity(c)
@@ -127,43 +127,24 @@ EXTEND FORM promotionDashboard
     ORDER BY orderSkuGroup(cskg), cskgName
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(cskg) 'F5' DEFAULT
 
-    OBJECTS csk = Sku
-//    PROPERTIES(csk)          inSku
-    PROPERTIES(csk) READONLY nameSku, idBarcodeSku
-    ORDER BY nameSku(csk)
-    FILTERS isParentSkuGroupSku(cskg, csk),
-            overPriceListDetailAPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
-
-    PROPERTIES READONLY  balanceBPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) SHOWIF filterPromotionStock(), 
-                         priceBeforePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
-                         activePricePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
-                         fromDatePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), toDatePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
-    PROPERTIES READONLY  stocksPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), notePriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o), 
-                         descriptionPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) ON SHORTCUT editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o)
-
-    PROPERTIES  editActiveLedgerALedgerPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) TOOLBAR 
-    // на больших объемах возможно будет тормозить
-    FILTERS countStockAPriceListTypeSkuCompanyDateTimeOperation(pt,csk,c,dt,o) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
-
-    OBJECTS cst = Stock FIXED GRID
-    PROPERTIES(cst)           SHOWIF notFilterPromotionStock() READONLY nameStock
-    PROPERTIES(csk, cst, dt)  SHOWIF notFilterPromotionStock() READONLY balanceASkuStockDateTime
-    PROPERTIES                SHOWIF notFilterPromotionStock() READONLY cPriceStock = activePricePriceListTypeSkuStockCompanyDateTimeOperation(pt, csk, cst, c, dt, o)
-    ORDER BY nameStock(cst)
-    FILTERS activePricePriceListTypeSkuStockCompanyDateTimeOperation(pt, csk, cst, c, dt, o)
-    FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(cst) 'ctrl F10' DEFAULT 
-       
-    OBJECTS cpl = PriceListDetail
-    PROPERTIES(cpl) READONLY isPostedPriceListDetail, fromDateTimePriceListDetail, toDateTimePriceListDetail, descriptionPriceListDetail, 
-                             nameCompanyPriceListDetail, priceListTypesPriceListDetail, stocksPriceListDetail, 
-                             createdTimePriceListDetail, createdNameUserPriceListDetail, createdHostnameComputerPriceListDetail
-    PROPERTIES(cpl) editPriceListDetail                         
-    PROPERTIES      READONLY pricePriceListDetailDataPriceListType(cpl, pt)
-    FILTERS inPriceListDetailDataPriceListType(cpl, pt),
-            skuPriceListDetail(cpl) == csk,
-            companyPriceListDetail(cpl) == c,
-            operationPriceListDetail(cpl) == o,
-            inPriceListStock(priceListPriceListDetail(cpl),filterPromotionStock()) OR (cpl IS PriceListDetail AND NOT filterPromotionStock())
+    OBJECTS csk = PriceListDetail
+    PROPERTIES(csk) READONLY nameSkuPriceListDetail, idBarcodeSkuPriceListDetail, fromDateTimePriceListDetail, toDateTimePriceListDetail
+    ORDER BY nameSkuPriceListDetail(csk), fromDateTimePriceListDetail(csk)
+    FILTERS isParentSkuGroupSku(cskg, skuPriceListDetail(csk)),
+            fromDatePriceListDetail(csk) <= toDate(dt) AND NOT (toDatePriceListDetail(csk) < toDate(dt)),
+            inPriceListDetailDataPriceListType(csk,pt) AND pricePriceListDetailDataPriceListType(csk,pt),
+            companyPriceListDetail(csk) == c,
+            operationPriceListDetail(csk) == o,
+            inPriceListStock(priceListPriceListDetail(csk),filterPromotionStock()) OR (csk IS PriceListDetail AND NOT filterPromotionStock())
+            
+    PROPERTIES READONLY  balanceBPriceListDetail(csk) SHOWIF filterPromotionStock(), 
+                         priceBeforePriceListDetail(csk), 
+                         pricePriceListDetailDataPriceListType(csk,pt), 
+                         fromDatePriceListDetail(csk), 
+                         toDatePriceListDetail(csk)
+    PROPERTIES READONLY  stocksPriceListDetail(csk), priceListTypesPriceListDetail(csk), notePriceListDetail(csk), 
+                         descriptionPriceListDetail(csk)
+    PROPERTIES editPriceListDetail(csk)           
             
 ;
 
@@ -177,7 +158,6 @@ DESIGN promotionDashboard {
                 type = SPLITH;
                 NEW c.skuFilters {
                     fill = 1;
-//                    ADD c.box;
                     MOVE PROPERTY(nameLegalEntity(c));
                     MOVE cskg.tree.box {
                         caption = 'Товарные группы';
@@ -192,30 +172,12 @@ DESIGN promotionDashboard {
                     MOVE csk.box {caption = 'Товары';}                                                                    
                 }
             }
-            NEW c.detail {
-                fill = 1;
-                type = TABBED;
-                NEW c.stocks {
-                    caption = 'Склады';
-                    type = CONTAINERH;
-                    MOVE cst.box {
-                        caption = 'Склады';
-                    }
-                }
-                NEW companyActions {
-                    caption = 'Действия';
-                    NEW companyActionsContainer {
-                        type = CONTAINERH;
-                    }
-                    MOVE cpl.box {
-                        caption = 'История';
-                    }
-                }
-            }
         }
     }
 }
-@extendFormFilterStockAccess(cst, promotionDashboard, company);
+//@extendFormFilterStockAccess(cst, promotionDashboard, company){
+//    EXTEND FORM promotionDashboard FILTERS accessCompanyEmployeeStock(currentUser(), cst);
+//};
 
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
