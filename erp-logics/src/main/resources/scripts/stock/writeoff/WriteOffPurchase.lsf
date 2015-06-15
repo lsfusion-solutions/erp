@@ -100,7 +100,7 @@ percentWriteOffRateUserInvoiceDetail (detail) <- percentWriteOffRate(writeOffRat
 writeOffQuantityUserInvoiceDetail (detail) <- round3(shipmentQuantityUserInvoiceDetail(detail)*percentWriteOffRateUserInvoiceDetail (detail)/100)   WHEN
     CHANGED(shipmentQuantityUserInvoiceDetail(detail)) OR CHANGED(percentWriteOffRateUserInvoiceDetail (detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
 
-writeOffPriceUserInvoiceDetail (detail) <- priceUserInvoiceDetail(detail) WHEN CHANGED(priceUserInvoiceDetail(detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
+writeOffPriceUserInvoiceDetail (detail) <- shipmentPriceUserInvoiceDetail(detail) WHEN CHANGED(shipmentPriceUserInvoiceDetail(detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
 
 writeOffRateInvoiceDetail (detail) += writeOffRateUserInvoiceDetail(detail);
 percentWriteOffRateInvoiceDetail (detail) += percentWriteOffRateUserInvoiceDetail(detail);
@@ -423,8 +423,13 @@ batchWriteOffDetail(writeOffDetail) += ledgerBatchShipmentDetail(shipmentDetailS
 writeOffPriceShipmentWriteOffDetail(shipmentWriteOffDetail) = writeOffPriceShipmentDetail(shipmentDetailShipmentWriteOffDetail(shipmentWriteOffDetail));
 priceWriteOffDetail(writeOffDetail) += writeOffPriceShipmentWriteOffDetail(writeOffDetail);
 
-writeOffShipmentWriteOffDetail(shipmentWriteOffDetail) = writeOffSumShipmentDetail(shipmentDetailShipmentWriteOffDetail(shipmentWriteOffDetail));
-sumWriteOffDetail(writeOffDetail) += writeOffShipmentWriteOffDetail(writeOffDetail);
+sumWriteOffShipmentWriteOffDetail(shipmentWriteOffDetail) = writeOffSumShipmentDetail(shipmentDetailShipmentWriteOffDetail(shipmentWriteOffDetail));
+sumWriteOffDetail(writeOffDetail) += sumWriteOffShipmentWriteOffDetail(writeOffDetail);
+
+priceShipmentWriteOffDetail 'Цена поставщика' (shipmentWriteOffDetail)= priceInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetailShipmentWriteOffDetail(shipmentWriteOffDetail)));
+
+sumVATShipmentWriteOffDetail(shipmentWriteOffDetail) = sumWriteOffShipmentWriteOffDetail(shipmentWriteOffDetail) * valueVATInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetailShipmentWriteOffDetail(shipmentWriteOffDetail))) 
+    / (100 + valueVATInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetailShipmentWriteOffDetail(shipmentWriteOffDetail))));
 
 shipmentDetailWriteOffDetail(writeOffDetail) += shipmentDetailShipmentWriteOffDetail(writeOffDetail);
 
