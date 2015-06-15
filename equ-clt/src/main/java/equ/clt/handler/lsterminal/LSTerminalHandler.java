@@ -5,12 +5,14 @@ import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.sql.*;
+import java.sql.Date;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -34,7 +36,7 @@ public class LSTerminalHandler extends TerminalHandler {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List transactionInfoList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(Object transactionInfo : transactionInfoList) {
             Exception exception = null;
@@ -183,16 +185,16 @@ public class LSTerminalHandler extends TerminalHandler {
 
             Class.forName("org.sqlite.JDBC");
 
-            Set<String> directorySet = new HashSet<String>();
+            Set<String> directorySet = new HashSet<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
                 if (t.directory != null)
                     directorySet.add(t.directory);
             }
 
-            List<String> filePathList = new ArrayList<String>();
+            List<String> filePathList = new ArrayList<>();
 
-            List<TerminalDocumentDetail> terminalDocumentDetailList = new ArrayList<TerminalDocumentDetail>();
+            List<TerminalDocumentDetail> terminalDocumentDetailList = new ArrayList<>();
 
             for (String directory : directorySet) {
 
@@ -224,23 +226,27 @@ public class LSTerminalHandler extends TerminalHandler {
 
                                     for (List<Object> entry : dokData) {
 
-                                        String dateTime = (String) entry.get(0); //DV
-                                        String numberTerminalDocument = (String) entry.get(1); //NUM
-                                        String idTerminalDocument = dateTime + "/" + numberTerminalDocument;
-                                        String idTerminalDocumentType = (String) entry.get(2); //VOP
+                                        String dateTimeValue = (String) entry.get(0); //DV
+                                        Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, new String[]{"yyyy-MM-dd HH:mm:ss"}).getTime());
+                                        Date date = dateTime == null ? null : new Date(dateTime.getTime());
+                                        Time time = dateTime == null ? null : new Time(dateTime.getTime());
+                                        String numberDocument = (String) entry.get(1); //NUM
+                                        String idDocument = dateTimeValue + "/" + numberDocument;
+                                        String idDocumentType = (String) entry.get(2); //VOP
                                         String idTerminalHandbookType1 = (String) entry.get(3); //ANA1
                                         String idTerminalHandbookType2 = (String) entry.get(4); //ANA2
                                         String barcode = (String) entry.get(5); //BARCODE
                                         BigDecimal quantity = (BigDecimal) entry.get(6); //QUANT
                                         BigDecimal price = (BigDecimal) entry.get(7); //PRICE
-                                        String numberTerminalDocumentDetail = (String) entry.get(8); //npp
+                                        String numberDocumentDetail = (String) entry.get(8); //npp
+                                        String commentDocument = (String) entry.get(9); //PRIM
                                         BigDecimal sum = safeMultiply(quantity, price);
-                                        String idTerminalDocumentDetail = idTerminalDocument + numberTerminalDocumentDetail;
+                                        String idDocumentDetail = idDocument + numberDocumentDetail;
 
                                         if (quantity != null && !quantity.equals(BigDecimal.ZERO))
-                                            terminalDocumentDetailList.add(new TerminalDocumentDetail(idTerminalDocument, numberTerminalDocument,
-                                                    directory, idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType,
-                                                    null, idTerminalDocumentDetail, numberTerminalDocumentDetail, barcode, null,
+                                            terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, numberDocument,
+                                                    date, time, commentDocument, directory, idTerminalHandbookType1, idTerminalHandbookType2,
+                                                    idDocumentType, null, idDocumentDetail, numberDocumentDetail, barcode, null,
                                                     price, quantity, sum));
                                     }
                                 } finally {
@@ -265,16 +271,17 @@ public class LSTerminalHandler extends TerminalHandler {
 
     private List<List<Object>> readDokFile(Connection connection) throws SQLException {
 
-        List<List<Object>> itemsList = new ArrayList<List<Object>>();
+        List<List<Object>> itemsList = new ArrayList<>();
 
         String dv = null;
         String num = null;
         String vop = null;
         String ana1 = null;
         String ana2 = null;
+        String comment = null;
 
         Statement statement = connection.createStatement();
-        String sql = "SELECT dv, num, vop, ana1, ana2 FROM dok LIMIT 1;";
+        String sql = "SELECT dv, num, vop, ana1, ana2, prim FROM dok LIMIT 1;";
         ResultSet resultSet = statement.executeQuery(sql);
         if (resultSet.next()) {
             dv = resultSet.getString("dv");
@@ -282,6 +289,7 @@ public class LSTerminalHandler extends TerminalHandler {
             vop = resultSet.getString("vop");
             ana1 = resultSet.getString("ana1");
             ana2 = resultSet.getString("ana2");
+            comment = resultSet.getString("prim");
         }
         resultSet.close();
         statement.close();
@@ -297,7 +305,7 @@ public class LSTerminalHandler extends TerminalHandler {
             Integer npp = resultSet.getInt("npp");
             npp = npp == 0 ? count : npp;
             count++;
-            itemsList.add(Arrays.asList((Object) dv, num, vop, ana1, ana2, barcode, quantity, price, String.valueOf(npp)));
+            itemsList.add(Arrays.asList((Object) dv, num, vop, ana1, ana2, barcode, quantity, price, String.valueOf(npp), comment));
         }
         resultSet.close();
         statement.close();

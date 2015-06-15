@@ -5,6 +5,7 @@ import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.CharField;
@@ -16,7 +17,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.Date;
+import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.text.ParseException;
 import java.util.*;
 
 public class InventoryTechHandler extends TerminalHandler {
@@ -37,7 +42,7 @@ public class InventoryTechHandler extends TerminalHandler {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(Object transaction : transactionList) {
 
@@ -46,7 +51,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                 processTransactionLogger.info("InventoryTechTerminal: send Transaction #" + ((TransactionInfo)transaction).id);
 
-                Set<String> directorySet = new HashSet<String>();
+                Set<String> directorySet = new HashSet<>();
                 for (Object m : ((TransactionInfo) transaction).machineryInfoList) {
                     TerminalInfo t = (TerminalInfo) m;
                     if (t.directory != null)
@@ -174,7 +179,10 @@ public class InventoryTechHandler extends TerminalHandler {
                                 String idTerminalHandbookType2 = (String) docEntry.get(2);
                                 BigDecimal quantityDocument = (BigDecimal) docEntry.get(3);
                                 String idDocumentType = (String) docEntry.get(4);
-                                
+                                Timestamp dateTime = (Timestamp) docEntry.get(5);
+                                Date date = dateTime == null ? null : new Date(dateTime.getTime());
+                                Time time = dateTime == null ? null : new Time(dateTime.getTime());
+
                                 String idBarcode = getDBFFieldValue(dbfFile, "ARTICUL", charset);
                                 String name = getDBFFieldValue(dbfFile, "NAME", charset);
                                 String number = getDBFFieldValue(dbfFile, "NOMPOS", charset);
@@ -184,9 +192,9 @@ public class InventoryTechHandler extends TerminalHandler {
                                 Integer numberGroup = groupIds.get(directory);
 
                                 count++;
-                                terminalDocumentDetailList.add(new TerminalDocumentDetail("" + numberGroup + "/" + idDoc, title, directory,
-                                        idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType, quantityDocument, 
-                                        "" + numberGroup + "/" + idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
+                                terminalDocumentDetailList.add(new TerminalDocumentDetail("" + numberGroup + "/" + idDoc,
+                                        title, date, time, null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
+                                        quantityDocument, numberGroup + "/" + idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
                             }
                         }
                     } finally {
@@ -196,7 +204,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                     Set<Integer> docRecordsSet = new HashSet<>();
                     for (Map.Entry<String, List<Object>> entry : docDataMap.entrySet()) {
-                        Integer recordNumber = (Integer) entry.getValue().get(5);
+                        Integer recordNumber = (Integer) entry.getValue().get(6);
                         if (recordNumber != null)
                             docRecordsSet.add(recordNumber);
                     }
@@ -214,9 +222,9 @@ public class InventoryTechHandler extends TerminalHandler {
         }
     }
 
-    private Map<String, List<Object>> readDocFile(File file) throws SQLException, IOException, xBaseJException {
+    private Map<String, List<Object>> readDocFile(File file) throws SQLException, IOException, xBaseJException, ParseException {
 
-        Map<String, List<Object>> data = new HashMap<String, List<Object>>();
+        Map<String, List<Object>> data = new HashMap<>();
         DBF dbfFile = null;
         try {
 
@@ -228,6 +236,8 @@ public class InventoryTechHandler extends TerminalHandler {
                 if (dbfFile.deleted()) continue;
                 String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
                 String title = getDBFFieldValue(dbfFile, "TITLE", charset);
+                String dateTimeValue = getDBFFieldValue(dbfFile, "CRE_DTST", charset);
+                Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, new String[] {"yyyyMMddHHmmss"}).getTime());
                 String idTerminalHandbookType1 = getDBFFieldValue(dbfFile, "CSPR1", charset);
                 String idTerminalHandbookType2 = getDBFFieldValue(dbfFile, "CSPR2", charset);
                 BigDecimal quantityDocument = getDBFBigDecimalFieldValue(dbfFile, "QUANDOC", charset);
@@ -235,7 +245,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 String accepted = getDBFFieldValue(dbfFile, "ACCEPTED", charset);
                 if(accepted != null && accepted.equals("0"))
                     data.put(idDoc, Arrays.asList((Object) title, idTerminalHandbookType1, idTerminalHandbookType2, 
-                            quantityDocument, idDocumentType, i + 1));
+                            quantityDocument, idDocumentType, dateTime, i + 1));
 
             }
         } finally {
@@ -277,7 +287,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (!append)
                         dbfWriter.addField(new Field[]{ARTICUL, NAME, QUAN, PRICE, PRICE2, GR_NAME, FLAGS, INBOX, IDSET});
 
-                    Map<String, Integer> barcodeRecordMap = new HashMap<String, Integer>();
+                    Map<String, Integer> barcodeRecordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
                         String barcode = getDBFFieldValue(dbfWriter, "ARTICUL", charset);
@@ -285,7 +295,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     }
                     dbfWriter.startTop();
 
-                    Set<String> usedBarcodes = new HashSet<String>();
+                    Set<String> usedBarcodes = new HashSet<>();
                     for (TerminalItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedBarcodes.contains(item.idBarcode)) {
@@ -349,7 +359,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (!append)
                         dbfWriter.addField(new Field[]{ARTICUL, BARCODE, IDSET});
 
-                    Map<String, Integer> barcodeRecordMap = new HashMap<String, Integer>();
+                    Map<String, Integer> barcodeRecordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
                         String barcode = getDBFFieldValue(dbfWriter, "ARTICUL", charset);
@@ -357,7 +367,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     }
                     dbfWriter.startTop();
 
-                    Set<String> usedBarcodes = new HashSet<String>();
+                    Set<String> usedBarcodes = new HashSet<>();
                     for (TerminalItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedBarcodes.contains(item.idBarcode)) {
@@ -426,7 +436,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (!append)
                         dbfWriter.addField(new Field[]{CODE, NAME, VIDSPR, COMMENT, IDTERM, MTERM, DISCOUNT, ROUND, FLAGS, IDSET});
 
-                    Map<String, Integer> recordMap = new HashMap<String, Integer>();
+                    Map<String, Integer> recordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
                         String code = getDBFFieldValue(dbfWriter, "CODE", charset);
@@ -434,7 +444,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     }
                     dbfWriter.startTop();
 
-                    Set<String> usedCodes = new HashSet<String>();
+                    Set<String> usedCodes = new HashSet<>();
                     putField(dbfWriter, VIDSPR, "10", append);
                     for (TerminalLegalEntity le : transaction.terminalLegalEntityList) {
                         if (!Thread.currentThread().isInterrupted()) {
@@ -509,7 +519,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (!append)
                         dbfWriter.addField(new Field[]{CODE, NAME, SPRT1, VIDSPR1, SPRT2, VIDSPR2, IDTERM, MTERM, DISCOUNT, COEF, ROUND, FLAGS, IDSET});
 
-                    Map<String, Integer> recordMap = new HashMap<String, Integer>();
+                    Map<String, Integer> recordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
                         String code = getDBFFieldValue(dbfWriter, "CODE", charset);
@@ -517,7 +527,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     }
                     dbfWriter.startTop();
 
-                    Set<String> usedCodes = new HashSet<String>();
+                    Set<String> usedCodes = new HashSet<>();
                     for (TerminalDocumentType tdt : transaction.terminalDocumentTypeList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedCodes.contains(tdt.id)) {

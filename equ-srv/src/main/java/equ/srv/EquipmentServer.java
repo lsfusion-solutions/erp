@@ -1319,13 +1319,31 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("idTerminalDocument").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocument);
+                    data.get(i).add(terminalDocumentDetailList.get(i).idDocument);
 
                 ImportField titleTerminalDocumentField = new ImportField(terminalLM.findProperty("titleTerminalDocument"));
                 props.add(new ImportProperty(titleTerminalDocumentField, terminalLM.findProperty("titleTerminalDocument").getMapping(terminalDocumentKey)));
                 fields.add(titleTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocument);
+                    data.get(i).add(terminalDocumentDetailList.get(i).numberDocument);
+
+                ImportField dateTerminalDocumentField = new ImportField(terminalLM.findProperty("dateTerminalDocument"));
+                props.add(new ImportProperty(dateTerminalDocumentField, terminalLM.findProperty("dateTerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(dateTerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).dateDocument);
+
+                ImportField timeTerminalDocumentField = new ImportField(terminalLM.findProperty("timeTerminalDocument"));
+                props.add(new ImportProperty(timeTerminalDocumentField, terminalLM.findProperty("timeTerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(timeTerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).timeDocument);
+
+                ImportField commentTerminalDocumentField = new ImportField(terminalLM.findProperty("commentTerminalDocument"));
+                props.add(new ImportProperty(commentTerminalDocumentField, terminalLM.findProperty("commentTerminalDocument").getMapping(terminalDocumentKey)));
+                fields.add(commentTerminalDocumentField);
+                for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                    data.get(i).add(terminalDocumentDetailList.get(i).commentDocument);
 
                 ImportField directoryGroupTerminalField = new ImportField(terminalLM.findProperty("directoryGroupTerminal"));
                 ImportKey<?> groupTerminalKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("GroupTerminal"),
@@ -1365,7 +1383,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 props.add(new ImportProperty(quantityTerminalDocumentField, terminalLM.findProperty("quantityTerminalDocument").getMapping(terminalDocumentKey)));
                 fields.add(quantityTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).quantityTerminalDocument);
+                    data.get(i).add(terminalDocumentDetailList.get(i).quantityDocument);
 
                 ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("idTerminalDocumentDetail"));
                 ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentDetail"),
@@ -1376,43 +1394,43 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         terminalLM.object(terminalLM.findClass("TerminalDocument")).getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).idDocumentDetail);
 
                 ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("numberTerminalDocumentDetail"));
                 props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findProperty("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
                 fields.add(numberTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).numberDocumentDetail);
 
                 ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("barcodeTerminalDocumentDetail"));
                 props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findProperty("barcodeTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
                 fields.add(barcodeTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).barcodeTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).barcodeDocumentDetail);
 
                 ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("nameTerminalDocumentDetail"));
                 props.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findProperty("nameTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
                 fields.add(nameTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).nameTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).nameDocumentDetail);
 
                 ImportField priceTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("priceTerminalDocumentDetail"));
                 props.add(new ImportProperty(priceTerminalDocumentDetailField, terminalLM.findProperty("priceTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
                 fields.add(priceTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).priceTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).priceDocumentDetail);
 
                 ImportField quantityTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("quantityTerminalDocumentDetail"));
                 props.add(new ImportProperty(quantityTerminalDocumentDetailField, terminalLM.findProperty("quantityTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
                 fields.add(quantityTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).quantityTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).quantityDocumentDetail);
 
                 ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("sumTerminalDocumentDetail"));
                 props.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findProperty("sumTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
                 fields.add(sumTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).sumTerminalDocumentDetail);
+                    data.get(i).add(terminalDocumentDetailList.get(i).sumDocumentDetail);
 
                 ImportTable table = new ImportTable(fields, data);
 
