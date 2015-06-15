@@ -114,6 +114,25 @@ DESIGN updatePriceDashboard {
     
     MOVE functions.box;
 }
+filterSupplierDepartmentStore = DATA LOCAL LegalEntity (DepartmentStore);
+nameFilterSupplierDepartmentStore 'Поставщик' (departmentStore) = nameLegalEntity(filterSupplierDepartmentStore(departmentStore));
+filterSupplierDepartmentStoreSku (departmentStore, sku) = prevInSupplierSku(filterSupplierDepartmentStore(departmentStore), sku) OR
+                                              (sku IS Sku AND NOT filterSupplierDepartmentStore(departmentStore));
+
+EXTEND FORM updatePriceDashboard
+    PROPERTIES nameFilterSupplierDepartmentStore(d) FORCE PANEL
+    FILTERS    filterSupplierDepartmentStoreSku(d, sk)
+;
+DESIGN updatePriceDashboard {
+    header {
+        
+        NEW header1 {
+            type = CONTAINERH;
+            caption = 'Фильтр';
+            MOVE PROPERTY (nameFilterSupplierDepartmentStore(d));
+        } 
+    }    
+}
 
 NAVIGATOR { 
     purchaseDashboardNavigator {
