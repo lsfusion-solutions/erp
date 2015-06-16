@@ -15,6 +15,7 @@ public class DBSettings implements Serializable{
     private Integer lastDaysCashDocument;
     private String importPrefixPath;
     private String exportPrefixPath;
+    private Boolean noMessageAndScaleFiles;
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -61,5 +62,13 @@ public class DBSettings implements Serializable{
 
     public void setExportPrefixPath(String exportPrefixPath) {
         this.exportPrefixPath = exportPrefixPath;
+    }
+
+    public void setNoMessageAndScaleFiles(Boolean noMessageAndScaleFiles) {
+        this.noMessageAndScaleFiles = noMessageAndScaleFiles;
+    }
+
+    public Boolean getNoMessageAndScaleFiles() {
+        return noMessageAndScaleFiles;
     }
 }
