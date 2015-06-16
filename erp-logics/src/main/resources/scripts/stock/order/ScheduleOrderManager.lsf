@@ -1,0 +1,36 @@
+MODULE ScheduleOrderManager;
+
+META defineScheduleOrderManager(managed, filter)
+
+managerScheduleOrder = DATA Employee (ScheduleOrder);
+nameManagerScheduleOrder 'Менеджер' (scheduleOrder) = shortNameContact(managerScheduleOrder(scheduleOrder));
+
+managerScheduleOrderDetail (scheduleOrderDetail) = managerScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
+
+inManagerEmployeeScheduleOrder (e, s) = e == managerScheduleOrder(s) OR managerEmployee(e) == managerScheduleOrder(s);
+
+inManagerEmployeeOrder (e, o) = e == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o)) OR managerEmployee(e) == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o));
+
+EXTEND FORM scheduleOrder PROPERTIES (s) nameManagerScheduleOrder;
+
+DESIGN scheduleOrder {
+    header {
+        NEW managerContainer {
+            caption = 'Менеджмент';
+            MOVE PROPERTY (nameManagerScheduleOrder(s));
+        }
+    }
+}
+
+WHEN SETCHANGED (managed##ScheduleOrder(s)) DO managerScheduleOrder(s) <- managerLegalEntity(managed##ScheduleOrder(s));
+
+EXTEND FORM scheduleOrderDashboard
+    FILTERS inManagerEmployeeScheduleOrder(currentUser(), s) OR NOT managerScheduleOrder(s)
+    FILTERS inManagerEmployeeScheduleOrder(currentUser(), ss) OR NOT managerScheduleOrder(ss);
+
+EXTEND FORM scheduleOrderDetails
+    FILTERS inManagerEmployeeScheduleOrder(currentUser(), scheduleOrderScheduleOrderDetail(sd)) OR NOT managerScheduleOrderDetail(sd)
+    FILTERS inManagerEmployeeOrder(currentUser(),o) OR NOT overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o));
+    
+
+END

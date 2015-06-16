@@ -1,0 +1,72 @@
+MODULE StockManager;
+
+REQUIRE Stock, LegalEntityManager;
+
+NAMESPACE Stock;
+
+managerLegalEntityStock = DATA Employee (LegalEntity, Stock);
+nameManagerLegalEntityStock 'Менеджер' (l, s) = shortNameContact(managerLegalEntityStock(l, s));
+overManagerLegalEntityStock(l, s) = OVERRIDE managerLegalEntity(l) IF s IS Stock, managerLegalEntityStock(l, s);
+
+inManagerEmployeeLegalEntityStock 'Отм' (e, l, s) = e ==  managerLegalEntityStock(l, s);
+
+EXTEND FORM legalEntity 
+    TREE stockTreeM bm=STRING[3], sgm = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(bm), sgmTreeName = nameStockGroup(sgm)
+    ORDER BY sgmTreeName
+    FILTERS stringEqualsAll(bm)
+
+    OBJECTS stm=Stock
+    PROPERTIES(stm) READONLY nameStock
+    PROPERTIES nameManagerLegalEntityStock(l, stm)
+    FILTERS isParentStockGroupStock(sgm, stm) OR (stm IS Stock AND NOT sgm),
+            isCompanyStock(stm)
+;
+
+DESIGN legalEntity {
+    managerContainer {
+        NEW managerStock{
+            type = SPLITH;
+            fill = 1;
+            MOVE stockTreeM.tree.box {
+                fill = 1;
+                caption = 'Группа складов';
+            }
+            MOVE stm.box {
+                fill = 3;
+            }
+        }
+    }
+}
+
+EXTEND FORM employee
+    OBJECTS stm=Stock FIXED PANEL 
+    PROPERTIES READONLY nameStock(stm) SELECTOR
+    FILTERS isCompanyStock(stm)
+    
+    TREE legalEntityTreeMS lgms = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY  lgmsTreeName = nameLegalEntityGroup(lgms)
+    ORDER BY lgmsTreeName
+
+    OBJECTS lms = LegalEntity FIXED GRID
+    PROPERTIES READONLY nameLegalEntity(lms), nameManagerLegalEntityStock(lms, stm)
+    PROPERTIES inManagerEmployeeLegalEntityStock(e, lms, stm)
+    ORDER BY nameLegalEntity(lms)
+    FILTERS isParentLegalEntityGroupLegalEntity(lgms, lms) OR (lms IS LegalEntity AND NOT lgms)
+;
+
+DESIGN employee {
+    managerTabContainer {
+        NEW managerStockContainer {
+            caption = 'По складу';
+            fill = 1;
+            MOVE stm.box;
+            NEW managerStockSplit {
+                fill = 1;
+                type = SPLITH;
+                MOVE legalEntityTreeMS.tree.box {fill = 1;};
+                MOVE lms.box {fill = 3;};
+            }
+        }
+    }
+}

@@ -1,0 +1,46 @@
+MODULE LegalEntityManager;
+
+REQUIRE LegalEntity, EmployeeManager;
+
+NAMESPACE LegalEntity;
+
+managerLegalEntity = DATA Employee (LegalEntity);
+nameManagerLegalEntity 'Менеджер' (l) = shortNameContact(managerLegalEntity(l));
+inManagerEmployeeLegalEntity 'Отм' (e, l) = e == managerLegalEntity(l);
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) nameManagerLegalEntity
+;
+
+DESIGN legalEntity {
+    extendContainer {
+        NEW managerContainer {
+            caption = 'Менеджмент';
+            MOVE PROPERTY(nameManagerLegalEntity(l));
+        }
+    } 
+}
+
+EXTEND FORM employee
+    TREE legalEntityTreeM lgm = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY  lgmTreeName = nameLegalEntityGroup(lgm)
+    ORDER BY lgmTreeName
+
+    OBJECTS lm = LegalEntity FIXED GRID
+    PROPERTIES(lm) READONLY nameLegalEntity, nameManagerLegalEntity
+    PROPERTIES (e, lm) inManagerEmployeeLegalEntity
+    ORDER BY nameLegalEntity(lm)
+    FILTERS isParentLegalEntityGroupLegalEntity(lgm, lm) OR (lm IS LegalEntity AND NOT lgm)
+;
+
+DESIGN employee {
+    managerTabContainer {
+        NEW managerContainer {
+            caption = 'По организации';
+            fill = 1;
+            type = SPLITH;
+            MOVE legalEntityTreeM.tree.box {fill = 1;};
+            MOVE lm.box {fill = 3;};
+        }
+    }
+}
