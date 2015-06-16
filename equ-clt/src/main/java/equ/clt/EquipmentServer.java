@@ -4,6 +4,7 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.terminal.*;
+import lsfusion.base.OrderedMap;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -733,8 +734,7 @@ public class EquipmentServer {
         //groupId заданий, находящихся в обработке
         Set<String> currentlyProceededGroups;
         //задания в очереди
-        List<Integer> waitingTaskList;
-        List<TransactionInfo> waitingTaskQueue;
+        Map<Integer, TransactionInfo> waitingTaskQueueMap;
         //выполняющиеся задания
         List<Integer> proceededTaskList;
         //выполненные задания
@@ -744,8 +744,7 @@ public class EquipmentServer {
             this.remote = remote;
             this.sidEquipmentServer = sidEquipmentServer;
             currentlyProceededGroups = new HashSet<>();
-            waitingTaskList = new ArrayList<>();
-            waitingTaskQueue = new ArrayList<>();
+            waitingTaskQueueMap = new OrderedMap<>();
             proceededTaskList = new ArrayList<>();
             succeededTaskList = new ArrayList<>();
         }
@@ -755,7 +754,7 @@ public class EquipmentServer {
             SingleTransactionTask resultTask = null;
 
             //находим первый актуальный transactionInfo в очереди
-            for(TransactionInfo transactionInfo : waitingTaskQueue) {
+            for(TransactionInfo transactionInfo : waitingTaskQueueMap.values()) {
 
                 String resultTaskGroupId = null;
                 MachineryHandler clsHandler = null;
@@ -774,31 +773,44 @@ public class EquipmentServer {
             }
             //находим все transactionInfo с таким же groupId
             if(resultTask != null) {
-                for (TransactionInfo transactionInfo : waitingTaskQueue) {
-                    if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo))) {
-                        processTransactionLogger.info(String.format("Task Pool : starting transaction %s", transactionInfo.id));
-                        resultTask.transactionEntry.add(transactionInfo);
-                        Integer transactionId = getUniqueId(transactionInfo);
-                        proceededTaskList.add(transactionId);
-                        waitingTaskList.remove(transactionId);
+                Set<Integer> removingTaskSet = new HashSet<>();
+                for (Map.Entry<Integer, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
+                    if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo.getValue()))) {
+                        processTransactionLogger.info(String.format("Task Pool : starting transaction %s", transactionInfo.getValue().id));
+                        resultTask.transactionEntry.add(transactionInfo.getValue());
+                        proceededTaskList.add(transactionInfo.getKey());
+                        removingTaskSet.add(transactionInfo.getKey());
                     }
                 }
                 Collections.sort(resultTask.transactionEntry, COMPARATOR);
-                waitingTaskQueue.removeAll(resultTask.transactionEntry);
+                for(Integer task : removingTaskSet)
+                    waitingTaskQueueMap.remove(task);
             }
             return resultTask;
         }
 
         //метод, считывающий задания из базы
         synchronized void addTasks(List<TransactionInfo> transactionInfoList) throws Exception {
+            //считаем uniqueId для всех прочитанных транзакций
+            Map<Integer, TransactionInfo> uniqueIdTransactionMap = new OrderedMap<>();
             for(TransactionInfo transactionInfo : transactionInfoList) {
                 Integer transactionId = getUniqueId(transactionInfo);
-                if(!succeededTaskList.contains(transactionId) && !proceededTaskList.contains(transactionId) && !waitingTaskList.contains(transactionId)) {
-                    processTransactionLogger.info(String.format("Task Pool : adding transaction %s to queue", transactionInfo.id));
-                    waitingTaskList.add(transactionId);
-                    waitingTaskQueue.add(transactionInfo);
+                uniqueIdTransactionMap.put(transactionId, transactionInfo);
+            }
+            //удаляем все транзакции из очереди, которых нет в прочитанных
+            Map<Integer, TransactionInfo> newWaitingTaskQueueMap = new OrderedMap<>();
+            for(Map.Entry<Integer, TransactionInfo> task : waitingTaskQueueMap.entrySet()) {
+                if(uniqueIdTransactionMap.containsKey(task.getKey()))
+                    newWaitingTaskQueueMap.put(task.getKey(), task.getValue());
+            }
+            //добавляем прочитанные транзакции в очередь
+            for(Map.Entry<Integer, TransactionInfo> transaction : uniqueIdTransactionMap.entrySet()) {
+                if(!succeededTaskList.contains(transaction.getKey()) && !proceededTaskList.contains(transaction.getKey()) && !newWaitingTaskQueueMap.containsKey(transaction.getKey())) {
+                    processTransactionLogger.info(String.format("Task Pool : adding transaction %s to queue", transaction.getValue().id));
+                    newWaitingTaskQueueMap.put(transaction.getKey(), transaction.getValue());
                 }
             }
+            waitingTaskQueueMap = newWaitingTaskQueueMap;
             succeededTaskList.clear();
         }
 
