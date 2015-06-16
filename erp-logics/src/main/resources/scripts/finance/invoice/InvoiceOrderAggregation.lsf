@@ -24,13 +24,17 @@ META defineInvoiceOrder(sign, NS)
         CONCAT '', seriesUserOrder(o), numberUserOrder(o) 
         MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;   
         
-    invoiceNumberOrder(o) += invoiceNumberUserOrder(o); 
+    invoiceNumberOrder(o) += invoiceNumberUserOrder(o);  
     invoiceSeriesOrder(o) += invoiceSeriesUserOrder(o);    
 
     @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
     invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
     @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
 
+    overCopyOrder(s, d) += ACTION (s, d) {
+        createInvoiceUserOrder(d) <- createInvoiceUserOrder(s);
+    }  
+        
     showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
     
     
