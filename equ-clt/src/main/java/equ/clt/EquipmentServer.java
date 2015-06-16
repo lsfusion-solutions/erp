@@ -192,7 +192,7 @@ public class EquipmentServer {
             singleTransactionExecutor.submit(new Runnable() {
                 @Override
                 public void run() {
-                    while (!Thread.currentThread().isInterrupted()) {
+                    while (!Thread.currentThread().isInterrupted() && !singleTransactionExecutor.isShutdown()) {
                         try {
                             SingleTransactionTask task = taskPool.getTask();
                             if(task == null)
