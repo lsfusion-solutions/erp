@@ -703,10 +703,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 }
 
                 for (String field : bigDecimalFields) {
-                    BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
+                    ImportColumnDetail column = defaultColumns.get(field);
+                    BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, column);
                     switch (field) {
                         case "sumVAT":
-                            fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                            fieldValues.put(field, value == null && column != null ? BigDecimal.ZERO : value);
                             break;
                         case "dataIndex":
                             fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
@@ -832,10 +833,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             for (String field : bigDecimalFields) {
-                BigDecimal value = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get(field), count);
+                ImportColumnDetail column = defaultColumns.get(field);
+                BigDecimal value = getCSVBigDecimalFieldValue(valuesList, column, count);
                 switch (field) {
                     case "sumVAT":
-                        fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                        fieldValues.put(field, value == null && column != null ? BigDecimal.ZERO : value);
                         break;
                     case "dataIndex":
                         fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
@@ -953,10 +955,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             for (String field : bigDecimalFields) {
-                BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
+                ImportColumnDetail column = defaultColumns.get(field);
+                BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, column);
                 switch (field) {
                     case "sumVAT":
-                        fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                        fieldValues.put(field, value == null && column != null ? BigDecimal.ZERO : value);
                         break;
                     case "dataIndex":
                         fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
@@ -1091,10 +1094,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 }
 
                 for (String field : bigDecimalFields) {
-                    BigDecimal value = getDBFBigDecimalFieldValue(file, defaultColumns.get(field), i, charset);
+                    ImportColumnDetail column = defaultColumns.get(field);
+                    BigDecimal value = getDBFBigDecimalFieldValue(file, column, i, charset);
                     switch (field) {
                         case "sumVAT":
-                            fieldValues.put(field, value != null ? value : BigDecimal.ZERO);
+                            fieldValues.put(field, value == null && column != null ? BigDecimal.ZERO : value);
                             break;
                         case "dataIndex":
                             fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
