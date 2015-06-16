@@ -1588,7 +1588,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (!notNullNorEmpty(data))
                         return null;
 
-                    logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
+                    logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
                     try (DataSession session = getDbManager().createSession()) {
 
@@ -1961,7 +1961,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (!notNullNorEmpty(data))
                         return null;
 
-                    logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
+                    logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
                     try (DataSession session = getDbManager().createSession()) {
 

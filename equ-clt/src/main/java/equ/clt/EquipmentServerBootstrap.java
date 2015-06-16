@@ -6,6 +6,8 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 
 public class EquipmentServerBootstrap {
 
@@ -52,6 +54,60 @@ public class EquipmentServerBootstrap {
             equ.stop();
             equ = null;
         }
+
+        Thread dumpThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                boolean exit = false;
+
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    exit = true;
+                }
+
+                while (!exit) {
+                    ThreadInfo[] threadsInfo = ManagementFactory.getThreadMXBean().dumpAllThreads(true, false);
+                    logger.info("--------------------------Active threads--------------------------");
+                    int active = 0;
+                    for (ThreadInfo threadInfo : threadsInfo) {
+                        int id = (int) threadInfo.getThreadId();
+                        String status = String.valueOf(threadInfo.getThreadState());
+                        String name = threadInfo.getThreadName();
+                        String lockName = threadInfo.getLockName();
+                        String lockOwnerId = String.valueOf(threadInfo.getLockOwnerId());
+                        String lockOwnerName = threadInfo.getLockOwnerName();
+                        String stackTrace = stackTraceToString(threadInfo.getStackTrace());
+                        if (!stackTrace.startsWith("sun.management.ThreadImpl.dumpThreads")) {
+                            logger.info(String.format("ID: %s, status: %s, name: %s, lockName: %s, lockOwnerId: %s, lockOwnerName: %s\n%s",
+                                    id, status, name, lockName, lockOwnerId, lockOwnerName, stackTrace));
+                            active++;
+                        }
+                    }
+                    logger.info("--------------------------Active threads count: " + active + "--------------------------");
+                    if (active == 0)
+                        exit = true;
+                    else {
+                        try {
+                            Thread.sleep(30000);
+                        } catch (InterruptedException e) {
+                            exit = true;
+                        }
+                    }
+                }
+            }
+        });
+        dumpThread.setDaemon(true);
+        dumpThread.start();
+    }
+
+    private static String stackTraceToString(StackTraceElement[] stackTrace) {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : stackTrace) {
+            sb.append(element.toString());
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 
     // -------------------------------

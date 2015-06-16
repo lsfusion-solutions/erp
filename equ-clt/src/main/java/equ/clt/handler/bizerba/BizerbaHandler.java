@@ -119,7 +119,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                                 } else {
                                                     processTransactionLogger.info(String.format("Bizerba: Transaction #%s, item #%s: incorrect barcode %s", transaction.id, count, item.idBarcode));
                                                 }
-                                            }
+                                            } else break;
                                         }
                                     }
                                     port.close();
@@ -216,7 +216,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 logError(errors, "Scales reply timeout");
                 return "-1";
             }
-        } catch (Exception e) {
+        } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logError(errors, "Receive Reply Error", e);
+        }catch (Exception e) {
             logError(errors, "Receive Reply Error", e);
         }
         return "-1";

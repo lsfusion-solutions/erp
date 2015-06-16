@@ -23,6 +23,7 @@ import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 
 public class EquipmentServer {
@@ -60,6 +61,7 @@ public class EquipmentServer {
     Thread machineryExchangeThread;
 
     ExecutorService singleTransactionExecutor;
+    List<Future> futures;
 
     boolean needReconnect = false;
 
@@ -159,6 +161,11 @@ public class EquipmentServer {
 
                         singleTransactionExecutor.shutdown();
                         singleTransactionExecutor = null;
+                        if(futures != null)
+                            for(Future future : futures) {
+                                logger.error("future cancel");
+                                future.cancel(true);
+                            }
                     }
 
                     try {
@@ -188,26 +195,27 @@ public class EquipmentServer {
         processTransactionThread.setDaemon(true);
         processTransactionThread.start();
         singleTransactionExecutor = Executors.newFixedThreadPool(5);
+        futures = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            singleTransactionExecutor.submit(new Runnable() {
+            futures.add(singleTransactionExecutor.submit(new Runnable() {
                 @Override
                 public void run() {
                     while (!Thread.currentThread().isInterrupted() && !singleTransactionExecutor.isShutdown()) {
                         try {
                             SingleTransactionTask task = taskPool.getTask();
-                            if(task == null)
+                            if (task == null)
                                 Thread.sleep(millis);
                             else {
-                                logger.info("task: "  + task);
+                                logger.info("task: " + task);
                                 task.run();
-                                logger.info("task done: "  + task);
+                                logger.info("task done: " + task);
                             }
                         } catch (Exception e) {
                             logger.error("Unhandled exception : ", e);
                         }
                     }
                 }
-            });
+            }));
         }
 
         processStopListConsumer = new Consumer() {
@@ -690,7 +698,11 @@ public class EquipmentServer {
         if(machineryExchangeThread != null)
             machineryExchangeThread.interrupt();
         if (singleTransactionExecutor != null)
-            singleTransactionExecutor.shutdownNow();
+            singleTransactionExecutor.shutdown();
+        if(futures != null)
+            for(Future future : futures) {
+                future.cancel(true);
+            }
         thread.interrupt();
     }
 
