@@ -799,9 +799,10 @@ public class EquipmentServer {
             }
             //удаляем все транзакции из очереди, которых нет в прочитанных
             Map<Integer, TransactionInfo> newWaitingTaskQueueMap = new OrderedMap<>();
-            for(Map.Entry<Integer, TransactionInfo> task : waitingTaskQueueMap.entrySet()) {
-                if(uniqueIdTransactionMap.containsKey(task.getKey()))
-                    newWaitingTaskQueueMap.put(task.getKey(), task.getValue());
+            for(Integer taskId : waitingTaskQueueMap.keySet()) {
+                TransactionInfo newTask = uniqueIdTransactionMap.get(taskId);
+                if(newTask != null)
+                    newWaitingTaskQueueMap.put(taskId, newTask);
             }
             //добавляем прочитанные транзакции в очередь
             for(Map.Entry<Integer, TransactionInfo> transaction : uniqueIdTransactionMap.entrySet()) {
