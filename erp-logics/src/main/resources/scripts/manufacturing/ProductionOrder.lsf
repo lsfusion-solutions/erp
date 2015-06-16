@@ -92,6 +92,7 @@ CONSTRAINT skuProductDetail(d) AND NOT isProductGroupSku(skuProductDetail(d)) CH
 productProductDetail = DATA Product (ProductDetail);
 nameProductProductDetail 'Изделие' (productDetail) = nameMaterial(productProductDetail(productDetail)) IN recognize;
 idProductProductDetail 'Код изделия' (d) = idProduct(productProductDetail(d));
+BOMProductDetail 'Спецификация' (d) = BOMProduct(productProductDetail(d));
 
 UOMProductDetail = UOMProduct(productProductDetail(productDetail));
 shortNameUOMProductDetail 'Ед.изм.' (productDetail) = shortNameUOM(UOMProductDetail(productDetail)) IN recognize;
@@ -126,6 +127,7 @@ countProductDetailSkuOrder 'Кол-во строк изделий в докум�
     
 //Процент и коэффициент цены
 pricePercentProductDetail 'Удельный вес цены,%' = DATA NUMERIC[16,5] (ProductDetail);
+coeffPercentProductDetail = [= GROUP SUM pricePercentProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d)] (BOMProductDetail(d), orderProductDetail(d)) / 100.0;
 
 isPricePercentOrder 'Удельный вес цены,%' = DATA BOOLEAN (Order);
 isPriceCoeffOrder 'Коэффициент цены' = DATA BOOLEAN (Order);
@@ -629,19 +631,18 @@ bruttoSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quanti
 bruttoSumComponentsBOMOrder =  GROUP SUM bruttoSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
 //premiumSumComponentsBOMSkuOrder 'Сума с надбавкой' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * premiumPriceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
-coeffbruttoSumComponentsProductDetail = overNettoNetWeightProductBOM(BOMProduct(productProductDetail(detail)))/overNettoNetWeightComponentBOM(BOMProduct(productProductDetail(detail))); 
-
-calcComponentsPriceProductDetail'Цена расчетная с/с' (productDetail)= [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order)/ 
-    (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
-    quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);
+calcComponentsPriceProductDetail'Цена расчетная с/с' (d)= bruttoSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
+                                                                           * (pricePercentProductDetail(d) / 100.0) // удельная цена
+                                                                           / quantityProductDetail(d) // за единицу
+                                                                           / coeffPercentProductDetail(d); // поправка на неточный процент
                     
 bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
+bruttoCostSumComponentsBOMOrder =  GROUP SUM bruttoCostSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
 
-calcCostProductDetail 'Себестоимость расчетная' (productDetail)= [ = GROUP SUM (bruttoCostSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) / 
-    (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
-    quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);
+calcCostProductDetail 'Себестоимость расчетная' (d)= bruttoCostSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
+                                                                      * (pricePercentProductDetail(d) / 100.0) // удельная цена
+                                                                      / quantityProductDetail(d) // за единицу
+                                                                      / coeffPercentProductDetail(d); 
         
 //-- Подсчет цены изделия с учетом замен
 //recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
@@ -749,19 +750,19 @@ WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
     valueVATSkuOrder(sku, order) <- valueVATSkuCountryDate(sku, componentsCountryOrder(order), dateOrder(order));
 }
      
-calcPriceVATProductDetail 'Цена НДС' (productDetail)= [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) *(valueVATSkuOrder(sku, order)/(100+valueVATSkuOrder(sku, order)))/ 
-    (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
-    quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);   
+calcPriceVATProductDetail 'Цена НДС' (d) = [= GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) / (100.0 + valueVATSkuOrder(s, o)) BY b, o] (BOMProductDetail(d), orderProductDetail(d)) 
+                                                            * (pricePercentProductDetail(d) / 100.0) // удельная цена
+                                                            / quantityProductDetail(d) // за единицу
+                                                            / coeffPercentProductDetail(d); 
               
 calcValueVATProductDetail 'НДС, %' (productDetail)= [= 100*X/(Y-X)](
     calcPriceVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail));
     
 //--  если стоит галочка isVATOrder    
-calcPriceIsVATProductDetail 'Цена НДС' (productDetail) = [ = GROUP SUM (bruttoSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) *(valueVATSkuOrder(sku, order)/100)/ 
-    (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
-    quantityProduct(product) IF quantityProduct(product)!= 0)  
-    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail))* pricePercentProductDetail(productDetail)*coeffbruttoSumComponentsProductDetail(productDetail);       
+calcPriceIsVATProductDetail 'Цена НДС' (d) = [= GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) / 100.0 BY b, o] (BOMProductDetail(d), orderProductDetail(d)) 
+                                                         * (pricePercentProductDetail(d) / 100.0) // удельная цена
+                                                         / quantityProductDetail(d) // за единицу
+                                                         / coeffPercentProductDetail(d);       
    
 calcValueIsVATProductDetail 'НДС, %' (productDetail)= [= 100*X/Y](
     calcPriceIsVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail) IF calcComponentsPriceProductDetail(productDetail)!= 0);    
