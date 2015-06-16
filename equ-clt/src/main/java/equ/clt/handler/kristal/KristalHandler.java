@@ -131,7 +131,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     //restriction.txt
                     File restrictionFile = new File(exchangeDirectory + "restriction.txt");
-                    File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICT");
+                    File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICTION");
                     if (restrictionFile.exists() && flagRestrictionFile.exists()) {
                         throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
                     } else if (flagRestrictionFile.createNewFile()) {
