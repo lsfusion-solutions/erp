@@ -114,7 +114,7 @@ public class TerminalServer extends LifecycleAdapter {
             serverSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
 
         } catch (IOException e) {
-            logger.error(e);
+            logger.error("Error occured: ", e);
             executorService.shutdownNow();
         }
 
@@ -127,7 +127,7 @@ public class TerminalServer extends LifecycleAdapter {
                             Socket socket = finalServerSocket.accept();
                             executorService.submit(new SocketCallable(socket));
                         } catch (IOException e) {
-                            logger.error(e);
+                            logger.error("Error occured: ", e);
                         }
                     }
                 }
@@ -201,7 +201,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 error = WRONG_PARAMETER_COUNT;
                             }
                         } catch (Exception e) {
-                            logger.error(e);
+                            logger.error("Error occured: ", e);
                             error = UNKNOWN_ERROR;
                         }
                         break;
@@ -225,7 +225,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 error = WRONG_PARAMETER_COUNT;
                             }
                         } catch (Exception e) {
-                            logger.error(e);
+                            logger.error("Error occured: ", e);
                             error = UNKNOWN_ERROR;
                         }
                         break;
@@ -321,7 +321,7 @@ public class TerminalServer extends LifecycleAdapter {
                 Thread.sleep(1000);
                 return null;
             } catch (Exception e) {
-                logger.error(e);
+                logger.error("Error occured: ", e);
             } finally {
                 try {
                     if(outToClient != null)
@@ -330,7 +330,7 @@ public class TerminalServer extends LifecycleAdapter {
                         inFromClient.close();
                     //socket.close();
                 } catch (IOException e) {
-                    logger.error(e);
+                    logger.error("Error occured: ", e);
                 }
             }
             return null;
@@ -342,7 +342,7 @@ public class TerminalServer extends LifecycleAdapter {
         try {
             return value == null || value.isEmpty() ? null : new BigDecimal(value);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error occured: ", e);
             return null;
         }
     }
