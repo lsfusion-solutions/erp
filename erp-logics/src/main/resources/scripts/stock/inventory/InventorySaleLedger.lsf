@@ -10,15 +10,19 @@ soldQuantityCollationSheetBatch 'Объем продаж (к-во)' = DATA NUMER
 
 fillSoldSumCollationSheet 'Заполнить объем продаж'  = ACTION (cs) {
     IF prevDateCollationSheet(cs) THEN {
-        soldSumCollationSheetSku(cs,i) <- sumSoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                WHERE sumSoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND includeCollationSheetSku(cs, i);      
-        soldQuantityCollationSheetSku(cs,i) <- quantitySoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                WHERE quantitySoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND includeCollationSheetSku(cs, i);           
+        soldSumCollationSheetSku(cs, i) <- NULL;
+        soldSumCollationSheetSku(cs, i) <- sumSoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
+                WHERE sumSoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetSku(cs, i) OR cs IS RemainsCollationSheet) ;      
+        soldQuantityCollationSheetSku(cs, i) <- NULL;
+        soldQuantityCollationSheetSku(cs, i) <- quantitySoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
+                WHERE quantitySoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetSku(cs, i) OR cs IS RemainsCollationSheet);           
         IF isBatchCollationSheet(cs) THEN {
-            soldSumCollationSheetBatch(cs,bt) <- sumSoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                    WHERE sumSoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND includeCollationSheetBatch(cs, bt);      
-            soldQuantityCollationSheetBatch(cs,bt) <- quantitySoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                    WHERE quantitySoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND includeCollationSheetBatch(cs, bt);          
+            soldSumCollationSheetBatch(cs, i) <- NULL;
+            soldSumCollationSheetBatch(cs, bt) <- sumSoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
+                    WHERE sumSoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetBatch(cs, bt) OR cs IS RemainsCollationSheet);      
+            soldQuantityCollationSheetBatch(cs, bt) <- NULL;
+            soldQuantityCollationSheetBatch(cs, bt) <- quantitySoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
+                    WHERE quantitySoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetBatch(cs, bt) OR cs IS RemainsCollationSheet);          
         }                    
     } ELSE {
         MESSAGE 'Не задана дата предыдущей инвентаризации.';
