@@ -677,6 +677,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
         boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
+        String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
 
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         Map<String, Date> directoryStartDateMap = new HashMap<>();
@@ -793,7 +794,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                 Element receiptDetailElement = (Element) receiptDetailNode;
 
-                                                String barcode = receiptDetailElement.getAttributeValue("BARCODE");
+                                                String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
                                                 String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
                                                 if (barcode != null && weightCode != null && barcode.length() == 13 && barcode.startsWith(weightCode))
                                                     barcode = barcode.substring(2, 7);
@@ -859,7 +860,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                     Element receiptDetailElement = (Element) receiptDetailNode;
 
-                                                    String barcode = receiptDetailElement.getAttributeValue("BARCODE");
+                                                    String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
                                                     String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
                                                     if (barcode != null && weightCode != null && barcode.length() == 13 && barcode.startsWith(weightCode))
                                                         barcode = barcode.substring(2, 7);
@@ -902,6 +903,16 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new KristalSalesBatch(salesInfoList, filePathList);
+    }
+
+    private String transformUPCBarcode(String idBarcode, String transformUPCBarcode) {
+        if(idBarcode != null && transformUPCBarcode != null) {
+            if(transformUPCBarcode.equals("13to12") && idBarcode.length() == 13 && idBarcode.startsWith("0"))
+                idBarcode = idBarcode.substring(0, 12);
+            else if(transformUPCBarcode.equals("12to13") && idBarcode.length() == 12 && idBarcode.startsWith("0"))
+                idBarcode += "0";
+        }
+        return idBarcode;
     }
 
     private String trimLeadingZeroes(String input) {

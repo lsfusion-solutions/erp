@@ -62,7 +62,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
                 boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-                boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -94,7 +93,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             //parent: rootElement
                             Element good = new Element("good");
 
-                            String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, transformUPCBarcode);
+                            String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem);
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                             setAttribute(good, "marking-of-the-good", idItem);
@@ -450,7 +449,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
 
         for (String directory : directorySet) {
 
@@ -470,7 +468,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     //parent: rootElement
                     Element good = new Element("good");
-                    idBarcode = transformBarcode(idBarcode, null, false, transformUPCBarcode);
+                    idBarcode = transformBarcode(idBarcode, null, false);
                     setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     addStringElement(good, "name", item.name);
                     rootElement.addContent(good);
@@ -577,7 +575,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean transformUPCBarcode = kristalSettings != null && kristalSettings.isTransformUPCBarcode() != null && kristalSettings.isTransformUPCBarcode();
+        String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
@@ -685,9 +683,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 String departNumber = null;
                                 for (Object positionEntryNode : positionEntryList) {
 
-                                    String barcode = readStringXMLAttribute(positionEntryNode, "barCode");
-                                    if(barcode.length() == 12 && transformUPCBarcode)
-                                        barcode = "0" + barcode;
+                                    String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
 
                                     //обнаруживаем продажу сертификатов
                                     boolean isGiftCard = false;
@@ -854,11 +850,20 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 
-    private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem, boolean transformUPCBarcode) {
+    private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem) {
         //временное решение для весовых товаров
-        String barcodeItem = passScalesItem && idBarcode.length() <= 6 ? (weightCode + idBarcode) : idBarcode;
-        barcodeItem = barcodeItem.length() == 13 && barcodeItem.startsWith("0") && transformUPCBarcode ? barcodeItem.substring(1) : barcodeItem;
-        return barcodeItem;
+        return passScalesItem && idBarcode.length() <= 6 && weightCode != null ? (weightCode + idBarcode) : idBarcode;
+    }
+
+    private String transformUPCBarcode(String idBarcode, String transformUPCBarcode) {
+        if(idBarcode != null && transformUPCBarcode != null) {
+            if(transformUPCBarcode.equals("13to12") && idBarcode.length() == 13 && idBarcode.startsWith("0"))
+                idBarcode = idBarcode.substring(0, 12);
+            else if(transformUPCBarcode.equals("12to13") && idBarcode.length() == 12 && idBarcode.startsWith("0"))
+                idBarcode += "0";
+
+        }
+        return idBarcode;
     }
 
     private String readStringXMLValue(Object element, String field) {

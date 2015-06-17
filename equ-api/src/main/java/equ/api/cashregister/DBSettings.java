@@ -16,6 +16,7 @@ public class DBSettings implements Serializable{
     private String importPrefixPath;
     private String exportPrefixPath;
     private Boolean noMessageAndScaleFiles;
+    private String transformUPCBarcode; //12to13 or 13to12
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -70,5 +71,13 @@ public class DBSettings implements Serializable{
 
     public Boolean getNoMessageAndScaleFiles() {
         return noMessageAndScaleFiles;
+    }
+
+    public void setTransformUPCBarcode(String transformUPCBarcode) {
+        this.transformUPCBarcode = transformUPCBarcode;
+    }
+
+    public String getTransformUPCBarcode() {
+        return transformUPCBarcode;
     }
 }
