@@ -268,28 +268,6 @@ changeBatchComponentDetail = ACTION (d) {
     }
 }
 
-calcBatchComponentDetail(d) = prevLastOrderBatchSkuStock(skuComponentDetail(d), componentsStockComponentDetail(d));
-
-TABLE batchOrder(Batch, Order);
-// цены по партии
-dataBruttoPriceBatchOrder 'Цена' = DATA NUMERIC[14,2] (Batch, Order);
-costBatchOrder 'Себестоимость' = DATA NUMERIC[14,2] (Batch, Order);
-
-quantityComponentDetailBatchOrder 'Кол-во (всего) (компонент)' (batch, order) = 
-    GROUP SUM quantityComponentDetail(idetail) BY batchComponentDetail(idetail), orderComponentDetail(idetail) IN documentSum PERSISTENT;
-
-dataBruttoPriceBatchOrder (batch, order) <- prevPriceBPriceListTypeBatchStockDateTime(priceListTypeOrder(order),
-                                                                                batch,
-                                                                                componentsStockOrder(order),
-                                                                                dateTimeOrder(order)) IF quantityComponentDetailBatchOrder(batch, order)
-    WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) 
-      OR CHANGED(quantityComponentDetailBatchOrder(batch, order));
-
-calcCostBatchStock 'Себестоимость' (batch, stock) = costBatch(batch)*currentBalanceBatchStock(batch,stock) /
-    (currentBalanceBatchStock(batch, stock) IF currentBalanceBatchStock(batch, stock) != 0);   
-
-costBatchOrder (batch, order) <- calcCostBatchStock(batch, componentsStockOrder(order)) IF quantityComponentDetailBatchOrder(batch, order)
-    WHEN CHANGED (quantityComponentDetailSkuOrder(skuBatch(batch), order)) OR CHANGED (componentsStockOrder(order)) OR CHANGED(quantityComponentDetailBatchOrder(batch, order)); 
 
 CONSTRAINT skuBatch(batchComponentDetail(cd)) != skuComponentDetail(cd) CHECKED BY batchComponentDetail
     MESSAGE 'Товар партии строки компонента должен соответствовать SKU строки строки компонента для производственного заказа';  
@@ -698,17 +676,7 @@ changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
 }
 
 //пересчет цены изделия
-overCalcPriceComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
-overSetPriceComponentDetail (detail) = OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
-                                                overCalcPriceComponentDetail(detail);
-
-overCalcCostComponentDetail = ABSTRACT NUMERIC[14,2](ComponentDetail); 
-overSetCostComponentDetail (detail) = OVERRIDE costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)),
-                                                overCalcCostComponentDetail(detail);    
-   
-overCalcPriceComponentDetail(detail) += dataBruttoPriceBatchOrder(batchComponentDetail(detail), orderComponentDetail(detail));
-overCalcCostComponentDetail(detail) += costBatchOrder(batchComponentDetail(detail), orderComponentDetail(detail));                                                                                                
-                                                                                                
+                                                                                             
 notRecalculateMarkupOrder = ABSTRACT BOOLEAN (Order);
 
 changeProductsPriceProductDetail (detail) = ACTION (detail) {
@@ -1197,11 +1165,6 @@ editOrder 'Редактировать' (order) = ACTION EDITFORM Order;
 //    CHANGED(multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO 
 //        substituteQuantityComponentDetail (detail) <- NUMERIC[14,3](multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))* bruttoQuantityComponentDetail(detail));
 
-WHEN SESSION FORMS order 
-    CHANGED(skuComponentDetail(cd)) OR CHANGED (componentsStockComponentDetail(cd)) DO {
-        batchComponentDetail (cd) <- calcBatchComponentDetail(cd);
-    }
-
 useSubstituteComponentDetail 'Можно использовать замену' (detail) = useSubstituteBOM(
     uniqueSubstituteFromToSku(bruttoSkuComponentDetail(detail), substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))), 
     BOMComponentDetail(detail));    
@@ -1230,14 +1193,23 @@ WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(de
         substituteQuantityComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail);    
     }   
  
-WHEN SESSION FORMS order CHANGED(overSetPriceComponentDetail(detail)) OR CHANGED(overCalcPriceComponentDetail(detail)) DO
-    priceComponentDetail (detail) <- overSetPriceComponentDetail(detail); 
+calcPriceComponentDetail(detail) =  OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)), 
+                                                              prevPriceBPriceListTypeBatchStockDateTime(priceListTypeOrder(orderComponentDetail(detail)),
+                                                                                                        batchComponentDetail(detail),
+                                                                                                        componentsStockOrder(orderComponentDetail(detail)),
+                                                                                                        dateTimeOrder(orderComponentDetail(detail)));
+WHEN SESSION FORMS order CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) OR 
+                         CHANGED(batchComponentDetail(detail)) OR 
+                         CHANGED(componentsStockOrder(orderComponentDetail(detail))) OR 
+                         CHANGED(dateTimeOrder(orderComponentDetail(detail))) DO
+    priceComponentDetail (detail) <- calcPriceComponentDetail(detail); 
          
-WHEN SESSION FORMS order CHANGED(overSetCostComponentDetail(detail)) DO
-    costComponentDetail (detail) <- overSetCostComponentDetail(detail);           
+calcCostComponentDetail = OVERRIDE costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)), costBatch(batchComponentDetail(detail));    
+WHEN SESSION FORMS order CHANGED(costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) OR CHANGED(batchComponentDetail(detail)) DO
+    costComponentDetail (detail) <- calcCostComponentDetail(detail);           
        
 WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
-    skuProductDetail(detail) <-  skuProduct(productProductDetail(detail));                 
+    skuProductDetail(detail) <- skuProduct(productProductDetail(detail));                 
               
 countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
 defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
