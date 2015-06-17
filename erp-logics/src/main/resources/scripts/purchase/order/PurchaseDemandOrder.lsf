@@ -13,7 +13,7 @@ REQUIRE System,
 
 NAMESPACE Purchase;
 
-createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, priceListType, dateTime) NEWSESSION {
+createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, priceListType, dateTime, dFrom, dTo) NEWSESSION {
     FOR ADDOBJ o = Purchase.UserOrder DO {
         dateUserOrder(o) <- toDate(dateTime);
         timeUserOrder(o) <- toTime(dateTime);
@@ -28,6 +28,9 @@ createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, pri
             operationUserOrder(o) <- defaultOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser());
         
         priceListTypeUserOrder(o) <- priceListType;
+        
+        dateFromSoldPeriodUserOrder(o) <- dFrom;
+        dateToSoldPeriodUserOrder (o) <- dTo;
 
         fillRecommendedQuantityStockUserOrder(o);
 //        FOR priceALedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
@@ -45,9 +48,7 @@ createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, pri
 recQuantityDemandOrderSkuStockDateTimeDateDate  (sku, stock, dateTime, dFrom, dTo) =    purchaseReserveStockSkuDate(stock, sku, DATE(dateTime AS DATETIME)) (+) 
                                                                             quantitySoldSkuStockDateFromTo(sku, stock, dFrom, dTo) (-)
                                                                             currentReservePurchaseSkuStock(sku, stock) (-) 
-                                                                            (IF NOT negativeBalanceQuantity() 
-                                                                                THEN currentBalanceSkuStock(sku, stock) 
-                                                                                ELSE IF currentBalanceSkuStock(sku, stock) <0 THEN 0.0 ELSE currentBalanceSkuStock(sku, stock)); 
+                                                                           (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) > 0.0) ; 
 
 recommendedQuantityDemandOrderSkuStockDateTimeDateDate 'Рекомендуемое к закупке кол-во' (sku, stock, dateTime, dFrom, dTo) = (recQuantityDemandOrderSkuStockDateTimeDateDate(sku, stock, dateTime, dFrom, dTo)) IF recQuantityDemandOrderSkuStockDateTimeDateDate(sku, stock, dateTime, dFrom, dTo) > 0;
 
@@ -62,18 +63,21 @@ FORM demandOrder 'Заказы по потребностям'
     OBJECTS p = PriceListType FIXED PANEL
     PROPERTIES (p) SELECTOR namePriceListType
     
+    OBJECTS i = INTEGER FIXED PANEL 
+    PROPERTIES valI = OBJVALUE (i)
+    
     OBJECTS dFrom = DATE FIXED PANEL, dTo = DATE FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY nameLegalEntity
-    PROPERTIES createDemandUserOrder(l, st, p, dt) FORCE PANEL TODRAW l TOOLBAR
+    PROPERTIES createDemandUserOrder(l, st, p, dt, dFrom, dTo) FORCE PANEL TODRAW l TOOLBAR
     ORDER BY nameLegalEntity(l)
     FILTERS isSupplierLegalEntity(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    PROPERTIES numberSkuPurchaseReserveSupplierStockPriceListTypeDateTime(l, st, p, dt)
+    PROPERTIES numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime(l, st, p, i, dt)
     FILTERGROUP filtersLegalEntity
-        FILTER 'Необходим заказ' numberSkuPurchaseReserveSupplierStockPriceListTypeDateTime(l, st, p, dt)>0 'F10'
+        FILTER 'Необходим заказ' numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime(l, st, p,i, dt)>0 'F10'
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES orderSkuGroup(sk) READONLY, skuTreeName = nameSkuGroup(sk) READONLY
@@ -85,8 +89,8 @@ FORM demandOrder 'Заказы по потребностям'
     ORDER BY nameSku(s)
     FILTERS isParentSkuGroupSku(sk, s)
 
-    PROPERTIES READONLY overPurchaseReserveStockSkuDateTime(st, s, dt), quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo), currentBalanceSkuStock(s, st), currentReserveSkuStock(s, st),
-        diffPurchaseReserveStockSkuDateTime(st, s, dt), recommendedQuantityDemandOrderSkuStockDateTimeDateDate(s, st, dt, dFrom, dTo), nameCompanyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt),
+    PROPERTIES READONLY overPurchaseReserveStockSkuDateTime(st, s, dt), averageSoldSkuStock(s, st), quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo), currentBalanceSkuStock(s, st), currentReserveSkuStock(s, st),
+        diffPurchaseReserveStockSkuIntegerDateTime(st, s, i, dt), recommendedQuantityDemandOrderSkuStockDateTimeDateDate(s, st, dt, dFrom, dTo), nameCompanyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt),
         priceALedgerPriceListTypeSkuStockDateTime(p, s, st, dt), retailPricingPriceASkuStockDateTime(s, st, dt),dateTimeLastOrderBatchSkuStock(s,st), dateTimeLastMovedSkuStock(s, st) 
 
     FILTERGROUP filterActive
@@ -96,7 +100,8 @@ FORM demandOrder 'Заказы по потребностям'
        FILTER 'В ассортименте' countRangeSkuDepartmentStoreDate(s, st, DATE(dt))
 
     FILTERGROUP filterdiff
-        FILTER 'С потребностью ' diffPurchaseReserveStockSkuDateTime(st, s, dt) > 0 DEFAULT 
+        FILTER 'С потребностью' diffPurchaseReserveStockSkuIntegerDateTime(st, s, i, dt) DEFAULT 
+        FILTER 'С рекомендацией' recommendedQuantityDemandOrderSkuStockDateTimeDateDate(s, st, dt, dFrom, dTo)
         FILTER 'С остатком' currentBalanceSkuStock(s, st)
         FILTER 'С продажами' quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo)
         FILTER 'С остатком или продажами' currentBalanceSkuStock(s, st) OR quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo)
@@ -152,6 +157,7 @@ DESIGN demandOrder {
                     MOVE dt.box;
                     MOVE st.box;
                     MOVE p.box;
+                    MOVE i.box{caption = 'Количество дней до поставки';};
                     NEW period{
                         caption = 'Период для реализации';                   
                         type = CONTAINERH;
@@ -186,4 +192,12 @@ NAVIGATOR {
     purchaseDashboardNavigator {
         ADD demandOrder;
     }
+}
+
+DESIGN demandOrder {
+        PROPERTY(amountPackSku(s)) { background = #9AFC9A;}
+        PROPERTY(overPurchaseReserveStockSkuDateTime(st, s, dt)) { background = #FFEEEE; }
+        PROPERTY(currentBalanceSkuStock(s, st)) { background = #F4FFBD; }
+        PROPERTY(diffPurchaseReserveStockSkuIntegerDateTime(st, s, i, dt)) { background = #D4FFD4; }
+        PROPERTY(recommendedQuantityDemandOrderSkuStockDateTimeDateDate(s, st, dt, dFrom, dTo)) { background = #BDE3FF; }
 }
