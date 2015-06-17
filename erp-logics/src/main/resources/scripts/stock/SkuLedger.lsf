@@ -254,6 +254,10 @@ signedCostSkuLedgerBatch (ledger, batch) = IF ledger IS OutSkuLedger
 costedDataSkuLedger 'Расписано' (ledger) = GROUP SUM costDataSkuLedgerBatch (ledger, batch) BY ledger PERSISTENT;
 costedSkuLedger 'Расписано' (ledger) = GROUP SUM costSkuLedgerBatch (ledger, batch) BY ledger PERSISTENT;
 notCostedSkuLedger 'Не расписано' (ledger) = quantitySkuLedger(ledger) (-) costedSkuLedger(ledger);
+signedNotCostedSkuLedger 'Не расписано' (ledger) = IF ledger IS OutSkuLedger THEN
+                                                                        quantitySkuLedger(ledger) (-) costedSkuLedger(ledger)
+                                                                    ELSE
+                                                                        costedSkuLedger(ledger) (-) quantitySkuLedger(ledger);
 
 needToCostDataSkuLedger 'Требуется расчет себестоимости' (ledger) = quantitySkuLedger(ledger) > 0 AND isPostedDataSkuLedger(ledger)
                                                                         AND NOT quantitySkuLedger(ledger) == costedDataSkuLedger(ledger);
