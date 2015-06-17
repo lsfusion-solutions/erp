@@ -839,6 +839,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
                                                 Date dateReceipt = new Date(dateTimeReceipt);
                                                 Time timeReceipt = new Time(dateTimeReceipt);
+                                                String idEmployee = receiptElement.getAttributeValue("CASSIR");
 
                                                 List receiptDetailsList = (receiptElement).getChildren("POS");
                                                 List paymentsList = (receiptElement).getChildren("PAY");
@@ -872,12 +873,19 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM");
                                                     Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
 
+                                                    String discountCard = null;
+                                                    List discountCardList = receiptDetailElement.getChildren("DSC");
+                                                    for (Object card : discountCardList) {
+                                                        if(discountCard == null || discountCard.isEmpty())
+                                                            discountCard = ((Element) card).getAttributeValue("CARDNUMBER");
+                                                    }
+
                                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                        currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
-                                                                numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode,
-                                                                idItem, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
-                                                                numberReceiptDetail, fileName));
+                                                        currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
+                                                                numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard,
+                                                                sumCash, null, barcode, idItem, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
+                                                                discountSumReceipt, discountCard, numberReceiptDetail, fileName));
                                                 }
 
                                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
