@@ -6,10 +6,10 @@ REQUIRE System,
         Stock,
         Barcode,
         PurchaseOrder,
-        StockReserve,
-        PurchaseReserve,
-        PriceList,
-        Document;
+        PurchaseDemand,
+        PriceList,Pricing,
+        Document,
+        Range;
 
 NAMESPACE Purchase;
 
@@ -42,6 +42,15 @@ createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, pri
     }
 }
 
+recQuantityDemandOrderSkuStockDateTimeDateDate  (sku, stock, dateTime, dFrom, dTo) =    purchaseReserveStockSkuDate(stock, sku, DATE(dateTime AS DATETIME)) (+) 
+                                                                            quantitySoldSkuStockDateFromTo(sku, stock, dFrom, dTo) (-)
+                                                                            currentReservePurchaseSkuStock(sku, stock) (-) 
+                                                                            (IF NOT negativeBalanceQuantity() 
+                                                                                THEN currentBalanceSkuStock(sku, stock) 
+                                                                                ELSE IF currentBalanceSkuStock(sku, stock) <0 THEN 0.0 ELSE currentBalanceSkuStock(sku, stock)); 
+
+recommendedQuantityDemandOrderSkuStockDateTimeDateDate 'Рекомендуемое к закупке кол-во' (sku, stock, dateTime, dFrom, dTo) = (recQuantityDemandOrderSkuStockDateTimeDateDate(sku, stock, dateTime, dFrom, dTo)) IF recQuantityDemandOrderSkuStockDateTimeDateDate(sku, stock, dateTime, dFrom, dTo) > 0;
+
 FORM demandOrder 'Заказы по потребностям'
     OBJECTS dt = DATETIME FIXED PANEL
     PROPERTIES valDt = OBJVALUE(dt)
@@ -52,6 +61,9 @@ FORM demandOrder 'Заказы по потребностям'
 
     OBJECTS p = PriceListType FIXED PANEL
     PROPERTIES (p) SELECTOR namePriceListType
+    
+    OBJECTS dFrom = DATE FIXED PANEL, dTo = DATE FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY nameLegalEntity
@@ -59,9 +71,9 @@ FORM demandOrder 'Заказы по потребностям'
     ORDER BY nameLegalEntity(l)
     FILTERS isSupplierLegalEntity(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    PROPERTIES numberSkuStockReserveSupplierStockPriceListTypeDateTime(l, st, p, dt)
+    PROPERTIES numberSkuPurchaseReserveSupplierStockPriceListTypeDateTime(l, st, p, dt)
     FILTERGROUP filtersLegalEntity
-        FILTER 'Необходим заказ' numberSkuStockReserveSupplierStockPriceListTypeDateTime(l, st, p, dt)>0 'F10'
+        FILTER 'Необходим заказ' numberSkuPurchaseReserveSupplierStockPriceListTypeDateTime(l, st, p, dt)>0 'F10'
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES orderSkuGroup(sk) READONLY, skuTreeName = nameSkuGroup(sk) READONLY
@@ -69,18 +81,28 @@ FORM demandOrder 'Заказы по потребностям'
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
 
     OBJECTS s = Sku
-    PROPERTIES READONLY nameSku(s), idBarcodeSku(s), shortNameUOMSku(s)
+    PROPERTIES READONLY idBarcodeSku(s), nameSku(s), shortNameUOMSku(s), amountPackSku(s)
     ORDER BY nameSku(s)
     FILTERS isParentSkuGroupSku(sk, s)
 
-    PROPERTIES overStockReserveStockSkuDateTime(st, s, dt)
-    PROPERTIES currentBalanceSkuStock(s, st)
-    PROPERTIES diffStockReserveStockSkuDateTime(st, s, dt)
+    PROPERTIES READONLY overPurchaseReserveStockSkuDateTime(st, s, dt), quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo), currentBalanceSkuStock(s, st), currentReserveSkuStock(s, st),
+        diffPurchaseReserveStockSkuDateTime(st, s, dt), recommendedQuantityDemandOrderSkuStockDateTimeDateDate(s, st, dt, dFrom, dTo), nameCompanyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt),
+        priceALedgerPriceListTypeSkuStockDateTime(p, s, st, dt), retailPricingPriceASkuStockDateTime(s, st, dt),dateTimeLastOrderBatchSkuStock(s,st), dateTimeLastMovedSkuStock(s, st) 
 
-    FILTERS companyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt) == l
+    FILTERGROUP filterActive
+        FILTER 'Активные' activeSku(s) DEFAULT 
+    
+    FILTERGROUP filteInRange
+       FILTER 'В ассортименте' countRangeSkuDepartmentStoreDate(s, st, DATE(dt))
 
     FILTERGROUP filterdiff
-        FILTER 'С потребностью ' diffStockReserveStockSkuDateTime(st, s, dt) > 0 'F11' DEFAULT            
+        FILTER 'С потребностью ' diffPurchaseReserveStockSkuDateTime(st, s, dt) > 0 DEFAULT 
+        FILTER 'С остатком' currentBalanceSkuStock(s, st)
+        FILTER 'С продажами' quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo)
+        FILTER 'С остатком или продажами' currentBalanceSkuStock(s, st) OR quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo)
+
+    FILTERGROUP filterSupplier
+        FILTER 'По поставщику' companyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt) == l
         
     OBJECTS o = Order
     PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
@@ -130,22 +152,27 @@ DESIGN demandOrder {
                     MOVE dt.box;
                     MOVE st.box;
                     MOVE p.box;
+                    NEW period{
+                        caption = 'Период для реализации';                   
+                        type = CONTAINERH;
+                        MOVE PROPERTY (valFrom);
+                        MOVE PROPERTY (valTo);
+                    }
                 }                   
                 MOVE l.box{fill = 2;}
             }            
             
             NEW colum {
-                fill = 2;
+                fill = 3;
                 type = TABBED;
-                MOVE o.box {
-                    caption = 'Заказы';
-                }
                 NEW column1 {
                     caption = 'Товары';                   
-                    
                     type = CONTAINERH;
                     MOVE skuTree.tree.box;
                     MOVE s.box { fill = 3; }
+                }
+                MOVE o.box {
+                    caption = 'Заказы';
                 }
             }            
         }

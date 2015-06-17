@@ -1,6 +1,6 @@
-MODULE PurchaseReserve;
+MODULE PurchaseDemand;
 
-REQUIRE StockReserve, PurchaseShipment;
+REQUIRE PurchaseOrder;
 
 NAMESPACE Purchase;
 
@@ -17,7 +17,6 @@ WHEN SESSION CHANGED (dateUserOrder(o)) AND NOT CHANGED(dateToSoldPeriodUserOrde
 }
 
 quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantitySoldSkuStockDateFromTo(sku, stock, dateFromSoldPeriodUserOrder(userOrder), dateToSoldPeriodUserOrder(userOrder));
-overRecQuantitySkuStockDate = ABSTRACT NUMERIC[14,3] (Sku, Stock, DATE);  
 
 negativeBalanceQuantity 'Не учитывать отрицательный остаток при расчете рекомендуемого кол-ва' = DATA BOOLEAN ();
 
@@ -25,29 +24,30 @@ EXTEND FORM options
     PROPERTIES negativeBalanceQuantity()       
 ;
 DESIGN options {
-    commons {
+    purchase {
         MOVE PROPERTY (negativeBalanceQuantity());
     }    
 }
 
-recQuantitySkuStockUserOrder  (sku, stock, userOrder) =    stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder)) (+) 
+purchaseReserveStockSkuDate 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[14,3](Stock, Sku, DATE);
+
+recQuantitySkuStockUserOrder  (sku, stock, userOrder) =    purchaseReserveStockSkuDate(stock, sku, dateUserOrder(userOrder)) (+) 
                                                                             quantitySoldSkuStockUserOrder(sku, stock, userOrder) (-)
                                                                             currentReservePurchaseSkuStock(sku, stock) (-) 
                                                                             (IF NOT negativeBalanceQuantity() 
                                                                                 THEN currentBalanceSkuStock(sku, stock) 
-                                                                                ELSE IF currentBalanceSkuStock(sku, stock) <0 THEN 0.0 ELSE currentBalanceSkuStock(sku, stock)) (+)
-                                                                            overRecQuantitySkuStockDate(sku, stock, dateUserOrder(userOrder)); 
+                                                                                ELSE IF currentBalanceSkuStock(sku, stock) <0 THEN 0.0 ELSE currentBalanceSkuStock(sku, stock)); 
 
 recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = (recQuantitySkuStockUserOrder(sku, stock, userOrder)) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
-stockReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
+purchaseReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = purchaseReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
 
-diffStockReserveStockSkuDate 'Потребность' (stock, sku, date) = (overStockReserveStockSkuDate(stock, sku, date) (-) (currentBalanceSkuStock(sku, stock) IF date IS DATE)) IF overStockReserveStockSkuDate(stock, sku, date)>0;
-diffStockReserveStockSkuDateTime 'Потребность' (stock, sku, dateTime) = diffStockReserveStockSkuDate(stock, sku, toDate(dateTime));
+diffPurchaseReserveStockSkuDate 'Потребность' (stock, sku, date) = (purchaseReserveStockSkuDate(stock, sku, date) (-) (currentBalanceSkuStock(sku, stock) IF date IS DATE)) IF purchaseReserveStockSkuDate(stock, sku, date)>0;
+diffPurchaseReserveStockSkuDateTime 'Потребность' (stock, sku, dateTime) = diffPurchaseReserveStockSkuDate(stock, sku, toDate(dateTime));
 
-overStockReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = overStockReserveStockSkuDate(stock, sku, toDate(dateTime));
+overPurchaseReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = purchaseReserveStockSkuDate(stock, sku, toDate(dateTime));
 
-numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товаров' (supplier, stock, priceListType, dateTime) =
-    GROUP SUM 1 IF (diffStockReserveStockSkuDateTime(stock, sku, dateTime) > 0 AND
+numberSkuPurchaseReserveSupplierStockPriceListTypeDateTime 'Кол-во товаров' (supplier, stock, priceListType, dateTime) =
+    GROUP SUM 1 IF (diffPurchaseReserveStockSkuDateTime(stock, sku, dateTime) > 0 AND
                     companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime) == supplier)
           BY supplier, stock, priceListType, dateTime;
 
@@ -72,7 +72,7 @@ fillRecommendedQuantityStockUserOrder 'Заполнить рекомендуем
 EXTEND FORM userOrder
     PROPERTIES(o) TODRAW sts FORCE PANEL dateFromSoldPeriodUserOrder, dateToSoldPeriodUserOrder
 
-    PROPERTIES READONLY AFTER prevCurrentBalanceSkuStock(ks,st) stockReserveSkuStockUserOrder(ks,st,o), quantitySoldSkuStockUserOrder(ks,st,o)
+    PROPERTIES READONLY AFTER prevCurrentBalanceSkuStock(ks,st) purchaseReserveSkuStockUserOrder(ks,st,o), quantitySoldSkuStockUserOrder(ks,st,o)
     PROPERTIES READONLY AFTER quantitySkuUserOrderCustomerStock(ks, o, st)
         recommendedQuantitySkuStockUserOrder(ks,st,o) ON SHORTCUT fillRecommendedQuantityStockUserOrder(o)
 ;
