@@ -281,7 +281,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 error = WRONG_PARAMETER_COUNT;
                             }
                         } catch (Exception e) {
-                            logger.error(e);
+                            logger.error("Unkown error", e);
                             error = UNKNOWN_ERROR;
                         }
                         break;
