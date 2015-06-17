@@ -916,8 +916,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     private String transformUPCBarcode(String idBarcode, String transformUPCBarcode) {
         if(idBarcode != null && transformUPCBarcode != null) {
             if(transformUPCBarcode.equals("13to12") && idBarcode.length() == 13 && idBarcode.startsWith("0"))
-                idBarcode = idBarcode.substring(0, 12);
-            else if(transformUPCBarcode.equals("12to13") && idBarcode.length() == 12 && idBarcode.startsWith("0"))
+                idBarcode = idBarcode.substring(1);
+            else if(transformUPCBarcode.equals("12to13") && idBarcode.length() == 12)
                 idBarcode += "0";
         }
         return idBarcode;
