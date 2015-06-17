@@ -89,7 +89,7 @@ currencyProductDetail (productDetail) = currencyProductOrder(orderProductDetail(
 CONSTRAINT skuProductDetail(d) AND NOT isProductGroupSku(skuProductDetail(d)) CHECKED  BY skuProductDetail
     MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';
 
-productProductDetail = DATA Product (ProductDetail);
+productProductDetail 'Изделие' = DATA Product (ProductDetail) NOT NULL;
 nameProductProductDetail 'Изделие' (productDetail) = nameMaterial(productProductDetail(productDetail)) IN recognize;
 idProductProductDetail 'Код изделия' (d) = idProduct(productProductDetail(d));
 BOMProductDetail 'Спецификация' (d) = BOMProduct(productProductDetail(d));
@@ -301,7 +301,7 @@ quantityProductOrder 'Кол-во изделий в заказе' (product, orde
     BY productProductDetail(productDetail), orderProductDetail(productDetail) PERSISTENT;
 
 TABLE BOMOrder(BOM, Order);
-quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [= GROUP MAX quantityProductOrder(product, order)/ quantityProduct(product)
+quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [= GROUP MAX NUMERIC[17,6](quantityProductOrder(product, order)) / quantityProduct(product)
     BY BOMProduct(product), order](BOM, order) PERSISTENT;
     
 BOMComponentDetail= DATA BOM (ComponentDetail); 
@@ -316,7 +316,7 @@ createComponentsOrder 'Заполнить компоненты из специф
             FOR ADDOBJ d=ComponentDetail DO {
                 orderComponentDetail(d) <- order;
                 componentComponentDetail(d) <- component;
-                bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order))*quantityProductsBOMOrder(BOM,order);
+                bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order)) * quantityProductsBOMOrder(BOM,order);
                 BOMComponentDetail(d) <- BOM; 
                 
                 IF materialComponent(component) IS Sku THEN {
@@ -361,21 +361,16 @@ updateComponentsOrder 'Пересчитать кол-во для всех' = ACT
 // ------------- Заполнение изделий из спецификаций --------------- //
 
 quantityComponentsBOMOrder 'Кол-во спецификаций' (BOM, order) =
-    [= GROUP MAX bruttoQuantityComponentDetail(componentDetail) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
+    [= GROUP MAX NUMERIC[17,6](bruttoQuantityComponentDetail(componentDetail)) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
     BY BOMComponent(componentComponentDetail(componentDetail)), orderComponentDetail(componentDetail)](BOM, order);
 
 createProductsOrder 'Заполнить изделия из спецификации ' = ACTION (order)  {
 
-    FOR quantityComponentsBOMOrder(BOM, order) DO {
-
-        FOR  BOM == BOMProduct(product)  DO {
-            FOR ADDOBJ d=ProductDetail DO {
-                orderProductDetail(d) <- order;
-                skuProductDetail(d) <- skuProduct(product);
-                productProductDetail(d) <- product;
-                quantityProductDetail(d) <- quantityProduct(product)*quantityComponentsBOMOrder(BOM,order);
-            }
-        }
+    FOR q == quantityComponentsBOMOrder(BOMProduct(product), order) ADDOBJ d = ProductDetail DO {
+        orderProductDetail(d) <- order;
+        skuProductDetail(d) <- skuProduct(product);
+        productProductDetail(d) <- product;
+        quantityProductDetail(d) <- quantityProduct(product) * q;
     }
 
 } TOOLBAR;
@@ -386,8 +381,8 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
         FOR ADDOBJ d=ComponentDetail DO {
             orderComponentDetail(d) <- orderComponentDetail(componentDetail);
             componentComponentDetail(d) <- component;
-            bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(orderComponentDetail(componentDetail)))*
-                bruttoQuantityComponentDetail(componentDetail)/quantityProduct(productComponentDetail(componentDetail));    //ceil
+            bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(orderComponentDetail(componentDetail))) *
+                bruttoQuantityComponentDetail(componentDetail) / quantityProduct(productComponentDetail(componentDetail));    //ceil
             BOMComponentDetail(d) <- BOMComponentDetail(componentDetail);     
 
             IF materialComponent(component) IS Sku THEN {
@@ -462,7 +457,7 @@ dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(
                                                                                 dateTimeOrder(order)) IF quantityComponentDetailSkuOrder(sku, order)
     WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) OR CHANGED(quantityComponentDetailSkuOrder(sku, order));
 
-calcCostSkuStock 'Себестоимость' (sku, stock) = [= GROUP SUM costBatch(b)*currentBalanceBatchStock(b,stock) BY skuBatch(b), stock](sku, stock)/
+calcCostSkuStock 'Себестоимость' (sku, stock) = [= GROUP SUM costBatch(b) * currentBalanceBatchStock(b,stock) BY skuBatch(b), stock](sku, stock) /
     (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) != 0);   
 
 costSkuOrder (sku, order) <- calcCostSkuStock(sku, componentsStockOrder(order)) IF quantityComponentDetailSkuOrder(sku, order)
@@ -631,8 +626,8 @@ bruttoSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quanti
 bruttoSumComponentsBOMOrder =  GROUP SUM bruttoSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
 //premiumSumComponentsBOMSkuOrder 'Сума с надбавкой' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * premiumPriceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
-calcComponentsPriceProductDetail'Цена расчетная с/с' (d)= bruttoSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
-                                                                           * (pricePercentProductDetail(d) / 100.0) // удельная цена
+calcComponentsPriceProductDetail 'Цена расчетная с/с' (d)= bruttoSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
+                                                                           * pricePercentProductDetail(d) / 100.0 // удельная цена
                                                                            / quantityProductDetail(d) // за единицу
                                                                            / coeffPercentProductDetail(d); // поправка на неточный процент
                     
@@ -640,7 +635,7 @@ bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM qu
 bruttoCostSumComponentsBOMOrder =  GROUP SUM bruttoCostSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
 
 calcCostProductDetail 'Себестоимость расчетная' (d)= bruttoCostSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
-                                                                      * (pricePercentProductDetail(d) / 100.0) // удельная цена
+                                                                      * pricePercentProductDetail(d) / 100.0 // удельная цена
                                                                       / quantityProductDetail(d) // за единицу
                                                                       / coeffPercentProductDetail(d); 
         
@@ -694,11 +689,11 @@ changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
     IF addVATProductDetail(detail) THEN {
         markupProductDetail(detail) <- calcMarkupIsVATProductDetail(detail);
         pricePercentProductDetail(detail) <- 
-                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProduct(productProductDetail(detail)),orderProductDetail(detail));
+                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProductDetail(detail),orderProductDetail(detail));
     } ELSE {
         markupProductDetail(detail) <- calcMarkupProductDetail(detail);
         pricePercentProductDetail(detail) <- 
-                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProduct(productProductDetail(detail)),orderProductDetail(detail));
+                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProductDetail(detail),orderProductDetail(detail));
     }
 }
 
@@ -722,7 +717,7 @@ changeProductsPriceProductDetail (detail) = ACTION (detail) {
         priceProductDetail (detail) <- requestedNumeric();
         IF notRecalculateMarkupOrder(orderProductDetail(detail)) THEN {
             pricePercentProductDetail(detail) <- 
-                            100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProduct(productProductDetail(detail)),orderProductDetail(detail));
+                            100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProductDetail(detail),orderProductDetail(detail));
             componentsPriceProductDetail(d) <- calcComponentsPriceProductDetail(d);
             costPriceProductDetail(d) <- calcCostProductDetail(d);                
         } ELSE {
@@ -801,8 +796,8 @@ fillPriceProductsOrder 'Заполнить цены для изделий' = ACT
     }
 } TOOLBAR;
 
-calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityProductDetail(d) BY BOMProduct(productProductDetail(d)), orderProductDetail(d);
-calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProduct(productProductDetail(detail)), orderProductDetail(detail));
+calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d);
+calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProductDetail(detail), orderProductDetail(detail));
             
 calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantityComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
     / ((quantityProductDetail(productDetail) IF quantityProductDetail(productDetail)!=0)*100);  
@@ -980,7 +975,7 @@ backgroundMarkupProductDetail = ABSTRACT CASE COLOR (ProductDetail);
   
   //toSkuSubstitute(substitute)
 bruttoBalanceSkuOrder 'Текущий остаток с учетом замен' (sku,order) = currentBalanceSkuStock(sku, componentsStockOrder(order)) (+) 
-    [ = GROUP SUM currentBalanceSubstituteOrder(substitute, order) / (multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0) 
+    [ = GROUP SUM NUMERIC[17,6](currentBalanceSubstituteOrder(substitute, order)) / (multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0) 
         BY fromSkuSubstitute(substitute), order](sku,order);  
  
 bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом замен' (su, order)= bruttoBalanceSkuOrder(toSkuSubstitute(su), order); 
@@ -1434,7 +1429,7 @@ FORM requestSkusProductOrder 'Требование на сырье по изде
                    idBarcodeSkuComponentDetail, quantityComponentDetail
 
     FILTERS orderComponentDetail(cd)==o,
-            BOMComponentDetail(cd) == BOMProduct(productProductDetail(pd))
+            BOMComponentDetail(cd) == BOMProductDetail(pd)
 ;
 printRequestSkusProductOrder'Требование на сырье по изделиям' (order) = ACTION FORM requestSkusProductOrder OBJECTS o = order PRINT IMAGE 'print.png' IN print;
 
