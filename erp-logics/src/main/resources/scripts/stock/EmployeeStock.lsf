@@ -46,6 +46,15 @@ countAccessCompanyEmployeeStockGroup 'Кол-во доступных подра�
     GROUP SUM 1 IF accessCompanyEmployeeStock(employee, stock)
                 AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
           BY employee, stockGroup PERSISTENT;
+          
+dataStockEmployee = DATA Stock (Employee);
+stockEmployee (e) = OVERRIDE defaultCompanyStockEmployee(e) IF countAccessCompanyStockEmployee (e) == 1, dataStockEmployee(e);
+nameStockEmployee 'Основной склад' (e) = nameStock(stockEmployee(e));
+
+CONSTRAINT s == dataStockEmployee(e) AND NOT accessCompanyEmployeeStock(e, s) CHECKED BY dataStockEmployee MESSAGE 'Не разрешен доступ к складу выбранному в качестве основного';
+
+EXTEND FORM employees PROPERTIES(e) READONLY nameStockEmployee;
+
 //-- Поставщик
 dataAccessSupplierEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Employee);
 dataAccessSupplierStockEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Stock, Employee);
@@ -102,6 +111,8 @@ countAccessCustomerEmployeeStockGroup 'Кол-во доступных подра
 
 EXTEND FORM employee
 
+    PROPERTIES nameStockEmployee(e)
+
     TREE stockTree a = STRING[3], sg = StockGroup  PARENT parentStockGroup
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
     ORDER BY sgTreeName
@@ -118,30 +129,34 @@ EXTEND FORM employee
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT
     PROPERTIES(e,s) accessSupplierEmployeeStock, accessCompanyEmployeeStock, accessCustomerEmployeeStock
 ;
+
 DESIGN employee {
     pane {
         NEW stockContainer {
             caption = 'Склады';
-            type = SPLITH;
-            MOVE stockTree.tree.box { 
-                caption = 'Группы складов';
-                PROPERTY (accessSupplierEmployeeStockGroup(e,sg)) {minimumWidth = 100; }
-                PROPERTY (accessCompanyEmployeeStockGroup(e,sg)) {minimumWidth = 100; }
-                PROPERTY (accessCustomerEmployeeStockGroup(e,sg)) {minimumWidth = 100; }
-                
-            };
-            MOVE s.box {
-                s.grid {
-                    defaultComponent = TRUE;
-                    PROPERTY (inStockEmployee(s,e)) {minimumWidth = 90;  preferredWidth = 90;}
-                    PROPERTY (accessSupplierEmployeeStock(e,s)) {minimumWidth = 100;  preferredWidth = 100;}
-                    PROPERTY (accessCompanyEmployeeStock(e,s)) {minimumWidth = 100;  preferredWidth = 100;}
-                    PROPERTY (accessCustomerEmployeeStock(e,s)) {minimumWidth = 100;  preferredWidth = 100;}                   
+            MOVE PROPERTY(nameStockEmployee(e));
+            NEW stockSplitContainer{
+                fill = 1;
+                type = SPLITH;
+                MOVE stockTree.tree.box { 
+                    caption = 'Группы складов';
+                    PROPERTY (accessSupplierEmployeeStockGroup(e,sg)) {minimumWidth = 100; }
+                    PROPERTY (accessCompanyEmployeeStockGroup(e,sg)) {minimumWidth = 100; }
+                    PROPERTY (accessCustomerEmployeeStockGroup(e,sg)) {minimumWidth = 100; }
+                    
+                };
+                MOVE s.box {
+                    s.grid {
+                        defaultComponent = TRUE;
+                        PROPERTY (inStockEmployee(s,e)) {minimumWidth = 90;  preferredWidth = 90;}
+                        PROPERTY (accessSupplierEmployeeStock(e,s)) {minimumWidth = 100;  preferredWidth = 100;}
+                        PROPERTY (accessCompanyEmployeeStock(e,s)) {minimumWidth = 100;  preferredWidth = 100;}
+                        PROPERTY (accessCustomerEmployeeStock(e,s)) {minimumWidth = 100;  preferredWidth = 100;}                   
+                    }
                 }
             }
         }
     }
-
 }
 
 // ----------------------------------- Комиссии ---------------------------------------------------------- //
