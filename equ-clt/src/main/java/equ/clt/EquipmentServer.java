@@ -803,24 +803,12 @@ public class EquipmentServer {
 
         //метод, считывающий задания из базы
         synchronized void addTasks(List<TransactionInfo> transactionInfoList) throws Exception {
-            //считаем uniqueId для всех прочитанных транзакций
-            Map<Integer, TransactionInfo> uniqueIdTransactionMap = new OrderedMap<>();
-            for(TransactionInfo transactionInfo : transactionInfoList) {
-                Integer transactionId = getUniqueId(transactionInfo);
-                uniqueIdTransactionMap.put(transactionId, transactionInfo);
-            }
-            //удаляем все транзакции из очереди, которых нет в прочитанных
             Map<Integer, TransactionInfo> newWaitingTaskQueueMap = new OrderedMap<>();
-            for(Integer taskId : waitingTaskQueueMap.keySet()) {
-                TransactionInfo newTask = uniqueIdTransactionMap.get(taskId);
-                if(newTask != null)
-                    newWaitingTaskQueueMap.put(taskId, newTask);
-            }
-            //добавляем прочитанные транзакции в очередь
-            for(Map.Entry<Integer, TransactionInfo> transaction : uniqueIdTransactionMap.entrySet()) {
-                if(!succeededTaskList.contains(transaction.getKey()) && !proceededTaskList.contains(transaction.getKey()) && !newWaitingTaskQueueMap.containsKey(transaction.getKey())) {
-                    processTransactionLogger.info(String.format("Task Pool : adding transaction %s to queue", transaction.getValue().id));
-                    newWaitingTaskQueueMap.put(transaction.getKey(), transaction.getValue());
+            for(TransactionInfo transaction : transactionInfoList) {
+                if(!succeededTaskList.contains(transaction.id) && !proceededTaskList.contains(transaction.id)) {
+                    if(!waitingTaskQueueMap.containsKey(transaction.id))
+                        processTransactionLogger.info(String.format("Task Pool : adding transaction %s to queue", transaction.id));
+                    newWaitingTaskQueueMap.put(transaction.id, transaction);
                 }
             }
             waitingTaskQueueMap = newWaitingTaskQueueMap;
@@ -831,10 +819,9 @@ public class EquipmentServer {
         synchronized void markProceeded(String groupId, Map<TransactionInfo, Boolean> transactionInfoMap) {
             for (Map.Entry<TransactionInfo, Boolean> transactionEntry : transactionInfoMap.entrySet()) {
                 processTransactionLogger.info(String.format("Task Pool : marking transaction %s as succeeded", transactionEntry.getKey().id));
-                Integer transactionId = getUniqueId(transactionEntry.getKey());
                 if(transactionEntry.getValue())
-                    succeededTaskList.add(transactionId);
-                proceededTaskList.remove(transactionId);
+                    succeededTaskList.add(transactionEntry.getKey().id);
+                proceededTaskList.remove(transactionEntry.getKey().id);
             }
             currentlyProceededGroups.remove(groupId);
         }
