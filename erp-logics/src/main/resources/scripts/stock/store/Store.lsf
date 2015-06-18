@@ -69,6 +69,8 @@ TABLE store (Store);
 
 nameStore 'Наименование' = DATA VARISTRING[100](Store) INDEXED;
 
+phoneStore 'Телефон магазина' = DATA VARSTRING[100] (Store);
+
 nameStockGroup(group) += nameStore(group) IF group IS Store;
 
 legalEntityStore 'Компания' = DATA LegalEntity (Store) INDEXED NOT NULL;
@@ -181,6 +183,10 @@ userLegalEntityStock(legalEntity, stock) += userLegalEntityDepartmentStore(legal
 
 nameLegalEntityDepartmentStore 'Компания' (departmentStore) = nameLegalEntity(legalEntityDepartmentStore(departmentStore));
 
+dataPhoneDepartmentStore 'Телефон' = DATA VARSTRING[100] (DepartmentStore); 
+phoneDepartmentStore 'Телефон магазина' (d) = OVERRIDE phoneStore(storeDepartmentStore(d)), dataPhoneDepartmentStore(d);
+phoneStock(st) += phoneDepartmentStore(st);
+
 primaryDepartmentStoreStore 'Основной отдел' (store) =
     GROUP MIN departmentStore BY storeDepartmentStore(departmentStore);
 
@@ -230,7 +236,7 @@ CONSTRAINT chairmanStore(store) AND NOT inStoreEmployee(store, chairmanStore(sto
 
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDep=nameDepartmentStore, fullNameDepartmentStore, nameStoreDepartmentStore, nameStockGroupDepartmentStore, tradingSquareDepartmentStore,
+    PROPERTIES(d) nameDep=nameDepartmentStore, fullNameDepartmentStore, phoneDepartmentStore, nameStoreDepartmentStore, nameStockGroupDepartmentStore, tradingSquareDepartmentStore,
                   numberCashAccountDepartmentStore SHOWIF isCompanyStock(d), quantityDaysCloseDepartmentStore SHOWIF isCompanyStock(d),
                   idDepartmentStore SHOWIF showIDs(), inactiveDepartmentStore
 
@@ -254,6 +260,7 @@ DESIGN departmentStore {
                     columns = 3;
                     MOVE PROPERTY(nameDep);
                     MOVE PROPERTY(fullNameDepartmentStore(d));
+                    MOVE PROPERTY(phoneDepartmentStore(d));
                     MOVE PROPERTY(idDepartmentStore(d));
                     MOVE PROPERTY(nameStoreDepartmentStore(d));
                     MOVE PROPERTY(nameStockGroupDepartmentStore(d));
@@ -331,7 +338,7 @@ changeStore = ACTION (store) {
 
 FORM store 'Магазин'
     OBJECTS s=Store FIXED PANEL
-    PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, nameStoreTypeStore, tradingSquareStore READONLY, 
+    PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, phoneStore, nameStoreTypeStore, tradingSquareStore READONLY, 
                   nameChairmanStore, openDateStore, nameLegalEntityStore, numberBankAccountStore SHOWIF isCompanyStore(s),
                   nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI, idStore SHOWIF showIDs(), inactiveStore
 
@@ -357,6 +364,7 @@ DESIGN store {
             caption = 'Координаты';
             type = CONTAINERH;
             MOVE PROPERTY(addressStore(s));
+            MOVE PROPERTY(phoneStore(s));
             MOVE PROPERTY(latitudeStore(s));
             MOVE PROPERTY(longitudeStore(s));
             MOVE PROPERTY(showOnMapPOI(s));
