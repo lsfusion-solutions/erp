@@ -38,6 +38,10 @@ public class TerminalServer extends LifecycleAdapter {
     public static byte AUTHORISATION_REQUIRED = 106;
     public static byte UNKNOWN_COMMAND = 111;
 
+    public static final byte GET_USER_INFO = 4;
+    public static final byte GET_ITEM_INFO = 5;
+    public static final byte SAVE_DOCUMENT = 6;
+
     private static final Logger logger = Logger.getLogger("TerminalLogger");
 
     private static ConcurrentHashMap<String, DataObject> userMap = new ConcurrentHashMap<>();
@@ -114,7 +118,7 @@ public class TerminalServer extends LifecycleAdapter {
             serverSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
 
         } catch (IOException e) {
-            logger.error("Error occured: ", e);
+            logger.error("Error occured while listening to port: ", e);
             executorService.shutdownNow();
         }
 
@@ -127,7 +131,7 @@ public class TerminalServer extends LifecycleAdapter {
                             Socket socket = finalServerSocket.accept();
                             executorService.submit(new SocketCallable(socket));
                         } catch (IOException e) {
-                            logger.error("Error occured: ", e);
+                            logger.error("Error occured while submitting socket: ", e);
                         }
                     }
                 }
@@ -186,9 +190,8 @@ public class TerminalServer extends LifecycleAdapter {
                 List<String> itemInfo = null;
                 byte error = 0;
                 String sessionId;
-                //DataObject user = null;
                 switch (command) {
-                    case 4:  //getUserInfo
+                    case GET_USER_INFO:
                         try {
                             logger.info("requested getUserInfo");
                             String[] params = readParams(inFromClient);
@@ -201,11 +204,11 @@ public class TerminalServer extends LifecycleAdapter {
                                 error = WRONG_PARAMETER_COUNT;
                             }
                         } catch (Exception e) {
-                            logger.error("Error occured: ", e);
+                            logger.error("Unknown error: ", e);
                             error = UNKNOWN_ERROR;
                         }
                         break;
-                    case 5:  //getItemInfo
+                    case GET_ITEM_INFO:
                         try {
                             logger.info("requested getItemInfo");
                             String[] params = readParams(inFromClient);
@@ -225,11 +228,11 @@ public class TerminalServer extends LifecycleAdapter {
                                 error = WRONG_PARAMETER_COUNT;
                             }
                         } catch (Exception e) {
-                            logger.error("Error occured: ", e);
+                            logger.error("Unknown error: ", e);
                             error = UNKNOWN_ERROR;
                         }
                         break;
-                    case 6:
+                    case SAVE_DOCUMENT:
                         try {
                             logger.info("received document");
                             List<String[]> params = readDocumentParams(inFromClient);
@@ -301,18 +304,33 @@ public class TerminalServer extends LifecycleAdapter {
                 outToClient.writeByte(error);
                 outToClient.flush();
 
-                if (result != null) {
-                    outToClient.writeBytes(result);
-                    outToClient.flush();
-                } else if (itemInfo != null) {
-                    for (int i = 0; i < 8; i++) {
-                        if (itemInfo.size() > i) {
-                            outToClient.write(itemInfo.get(i).getBytes("cp1251"));
+                switch (command) {
+                    case GET_USER_INFO:
+                        if (result != null) {
+                            outToClient.writeBytes(result);
+                            outToClient.flush();
+                            outToClient.writeLong(System.currentTimeMillis());
                             outToClient.flush();
                         }
-                        outToClient.writeByte(esc);
-                        outToClient.flush();
-                    }
+                        break;
+                    case GET_ITEM_INFO:
+                        if (itemInfo != null) {
+                            for (int i = 0; i < 8; i++) {
+                                if (itemInfo.size() > i) {
+                                    outToClient.write(itemInfo.get(i).getBytes("cp1251"));
+                                    outToClient.flush();
+                                }
+                                outToClient.writeByte(esc);
+                                outToClient.flush();
+                            }
+                        }
+                        break;
+                    case SAVE_DOCUMENT:
+                        if (result != null) {
+                            outToClient.writeBytes(result);
+                            outToClient.flush();
+                        }
+                        break;
                 }
 
                 outToClient.writeByte(etx);
@@ -342,7 +360,7 @@ public class TerminalServer extends LifecycleAdapter {
         try {
             return value == null || value.isEmpty() ? null : new BigDecimal(value);
         } catch (Exception e) {
-            logger.error("Error occured: ", e);
+            logger.error("Error occured while parsing numeric value: ", e);
             return null;
         }
     }
