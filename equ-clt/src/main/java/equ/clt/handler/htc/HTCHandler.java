@@ -238,7 +238,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                                         lastSplitItem = item.splitItem;
                                                     }
 
-                                                    Integer flags = item.flags != null ? item.flags : 248 + (item.splitItem ? 1 : 0);
+                                                    Integer flags = item.flags != null ? (item.flags > 256 ? (item.flags - 256) : item.flags) : 248 + (item.splitItem ? 1 : 0);
                                                     if (lastFlags == null || !lastFlags.equals(flags)) {
                                                         putField(dbfFile, FLAGS, String.valueOf(flags), append);
                                                         lastFlags = flags;
