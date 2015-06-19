@@ -104,7 +104,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                                     processTransactionLogger.info("Bizerba: Sending items..." + ip);
                                     if (localErrors.isEmpty()) {
-
+                                        synchronizeTime(localErrors, port, scales, charset, encode);
                                         int count = 0;
                                         for (ScalesItemInfo item : transaction.itemsList) {
                                             count++;
@@ -508,6 +508,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
         clearReceiveBuffer(port);
         sendCommand(errors, port, command1, charset, encode);
         return receiveReply(errors, port, charset);
+    }
+
+    private String synchronizeTime(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
+        long timeZero = new Date(1970-1900, 0, 1, 0, 0, 0).getTime() / 1000;
+        String command = "UHR   " + separator + "N00" + separator + "UUHR" + (System.currentTimeMillis() / 1000 - timeZero) + endCommand;
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, command, charset, encode);
+        return receiveReply(errors, port, charset, false);
     }
 
     protected void logError(List<String> errors, String errorText) {
