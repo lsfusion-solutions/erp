@@ -22,9 +22,11 @@ WHEN SESSION (CHANGED(customerStockUserInvoiceDetail(detail)) OR
 showLimitPriceUserInvoice (invoice) <- showLimitPriceOperation(pricingOperationOperation(operationUserInvoice(invoice)))
     WHEN CHANGED(operationUserInvoice(invoice));
 
+showIfLimitPriceUserInvoice = showLimitPriceUserInvoice (invoice) AND createPricingUserInvoice(invoice);
+
 EXTEND FORM userInvoice
     PROPERTIES(i) showLimitPriceUserInvoice SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-    PROPERTIES(pd) SHOWIF showLimitPriceUserInvoice(i) BEFORE retailMarkupUserInvoiceDetail(pd) limitMarkupUserInvoiceDetail BACKGROUND backgroundRetailInvoice(i)
+    PROPERTIES(pd) SHOWIF showIfLimitPriceUserInvoice(i) BEFORE retailMarkupUserInvoiceDetail(pd) limitMarkupUserInvoiceDetail BACKGROUND backgroundRetailInvoice(i)
 ;
 DESIGN userInvoice{
     headerCreatePricing {
