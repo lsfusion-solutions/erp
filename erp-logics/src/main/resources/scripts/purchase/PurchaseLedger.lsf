@@ -5,6 +5,8 @@ REQUIRE System, Stock, Tax, EmployeeStock, Purchase, PriceRound, StockSkuDocumen
 CLASS ABSTRACT PurchaseLedger 'Покупка товара';
 TABLE purchaseLedger(PurchaseLedger);
 
+TABLE skuStockStock(Stock, Stock, Sku);
+
 dateTimePurchaseLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
 datePurchaseLedger 'Дата' (ledger) = toDate(dateTimePurchaseLedger(ledger)) PERSISTENT INDEXED;
 
@@ -59,6 +61,9 @@ nameOperationPurchaseLedger 'Операция' (ledger) = nameOperation(operatio
 
 quantityPurchaseSupplierSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY supplierPurchaseLedger(ledger), skuPurchaseLedger(ledger) PERSISTENT;
+    
+quantityPurchaseSupplierStockSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
+    BY supplierStockPurchaseLedger(ledger), skuPurchaseLedger(ledger);
     
 lastExternalSupplierStockSku (stock, sku) = 
     GROUP LAST supplierPurchaseLedger(ledger)
@@ -141,6 +146,9 @@ sumPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumPurc
 
 quantityPurchaseSkuStockSupplier 'Кол-во закуплено' (sku, stock, supplier) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger);  // PERSISTENT
+    
+quantityPurchaseStockSupplierStockSku 'Кол-во закуплено' (stock, supplierStock, sku) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
+    BY stockPurchaseLedger(ledger), supplierStockPurchaseLedger(ledger), skuPurchaseLedger(ledger); 
 
 //по складу и SKU
 quantityPurchaseSkuStockDateFromTo 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
