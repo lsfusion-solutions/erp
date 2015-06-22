@@ -863,7 +863,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                     String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
                                                     String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
-                                                    if (barcode != null && weightCode != null && barcode.length() == 13 && barcode.startsWith(weightCode))
+                                                    if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
                                                         barcode = barcode.substring(2, 7);
                                                     String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
                                                     BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
