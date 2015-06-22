@@ -309,6 +309,8 @@ public class TerminalServer extends LifecycleAdapter {
                         if (result != null) {
                             outToClient.writeBytes(result);
                             outToClient.flush();
+                            outToClient.writeByte(esc);
+                            outToClient.flush();
                             outToClient.writeLong(System.currentTimeMillis());
                             outToClient.flush();
                         }
