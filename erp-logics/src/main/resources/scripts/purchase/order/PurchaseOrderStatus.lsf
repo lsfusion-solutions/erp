@@ -150,4 +150,15 @@ DESIGN agreement {
     }    
 }
 
-disablePostedUserOrder (o) += orderConfirmationAgreement(agreementUserOrder(o)) IF NOT isConfirmedUserOrder(o);
+orderConfirmationContractSku 'Подтверждение заказа поставщиком' = DATA BOOLEAN (ContractSku);
+EXTEND FORM userContractSku
+    PROPERTIES(c) orderConfirmationContractSku
+;
+
+DESIGN userContractSku {
+    params {
+        MOVE PROPERTY(orderConfirmationContractSku(c));
+    }
+}
+
+disablePostedUserOrder (o) += (orderConfirmationAgreement(agreementUserOrder(o)) OR orderConfirmationContractSku(contractSkuUserOrder(o))) IF NOT isConfirmedUserOrder(o);
