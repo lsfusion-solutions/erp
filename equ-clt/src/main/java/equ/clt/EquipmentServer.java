@@ -140,7 +140,7 @@ public class EquipmentServer {
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
 
                             if(singleTransactionExecutor.isShutdown())
-                                singleTransactionExecutor = Executors.newFixedThreadPool(5);
+                                singleTransactionExecutor = Executors.newFixedThreadPool(10);
                         }
 
                     } catch (Exception e) {
@@ -194,9 +194,9 @@ public class EquipmentServer {
         processTransactionThread = new Thread(processTransactionConsumer);
         processTransactionThread.setDaemon(true);
         processTransactionThread.start();
-        singleTransactionExecutor = Executors.newFixedThreadPool(5);
+        singleTransactionExecutor = Executors.newFixedThreadPool(10);
         futures = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             futures.add(singleTransactionExecutor.submit(new Runnable() {
                 @Override
                 public void run() {
