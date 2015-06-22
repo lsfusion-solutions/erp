@@ -238,7 +238,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
                             PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
-                            Set<String> numberGroupItems = new HashSet<String>();
+                            Set<String> numberGroupItems = new HashSet<>();
                             for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
                                     List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
@@ -425,7 +425,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
 
-        Map<String, Timestamp> result = new HashMap<String, Timestamp>();
+        Map<String, Timestamp> result = new HashMap<>();
         //result.put("888888", new Timestamp(Calendar.getInstance().getTime().getTime()));
         //return result;
 
@@ -467,7 +467,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        List<List<Object>> result = new ArrayList<List<Object>>();
+        List<List<Object>> result = new ArrayList<>();
         
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
         if(kristalSettings == null) {
@@ -550,7 +550,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
         Integer lastDaysCashDocument = kristalSettings != null ? kristalSettings.getLastDaysCashDocument() : null;
 
-        List<CashDocument> result = new ArrayList<CashDocument>();
+        List<CashDocument> result = new ArrayList<>();
 
         if (kristalSettings == null) {
             sendSalesLogger.info("No kristalSettings found");
@@ -563,7 +563,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     String host = trim(sqlHostEntry.getValue());
 
                     //Map<Integer, Integer> cashRegisterGroupCashRegisterMap = new HashMap<Integer, Integer>();
-                    Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+                    Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
                     for (CashRegisterInfo c : cashRegisterInfoList) {
                         //dir.equals(host) - old host format (without dir) will not work!
                         if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) {
@@ -678,6 +678,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
         boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
+        boolean useCheckNumber = kristalSettings != null && kristalSettings.getUseCheckNumber() != null && kristalSettings.getUseCheckNumber();
 
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         Map<String, Date> directoryStartDateMap = new HashMap<>();
@@ -696,7 +697,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
-        List<String> filePathList = new ArrayList<String>();
+        List<String> filePathList = new ArrayList<>();
         final Boolean notDetailed = directoryNotDetailedMap.get(directory);//entry.getValue() != null && entry.getValue();
 
         String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export/" : exportPrefixPath);
@@ -796,7 +797,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                 String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
                                                 String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
-                                                if (barcode != null && weightCode != null && barcode.length() == 13 && barcode.startsWith(weightCode))
+                                                if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
                                                     barcode = barcode.substring(2, 7);
                                                 String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
                                                 BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
@@ -834,7 +835,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                 Element receiptElement = (Element) receiptNode;
 
-                                                Integer numberReceipt = readIntegerXMLAttribute(receiptElement, "ID");
+                                                Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
                                                 BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
                                                 long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
                                                 Date dateReceipt = new Date(dateTimeReceipt);

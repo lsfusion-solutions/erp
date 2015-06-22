@@ -17,6 +17,7 @@ public class DBSettings implements Serializable{
     private String exportPrefixPath;
     private Boolean noMessageAndScaleFiles;
     private String transformUPCBarcode; //12to13 or 13to12
+    private Boolean useCheckNumber;
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -79,5 +80,13 @@ public class DBSettings implements Serializable{
 
     public String getTransformUPCBarcode() {
         return transformUPCBarcode;
+    }
+
+    public void setUseCheckNumber(Boolean useCheckNumber) {
+        this.useCheckNumber = useCheckNumber;
+    }
+
+    public Boolean getUseCheckNumber() {
+        return useCheckNumber;
     }
 }
