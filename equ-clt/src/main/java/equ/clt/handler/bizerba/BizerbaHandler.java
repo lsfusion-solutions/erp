@@ -363,7 +363,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
+    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
@@ -374,9 +374,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
             String result = receiveReply(errors, port, charset, ip);
             if (!result.equals("0")) {
                 logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [msgNo=%s]", ip, result, item.idItem, messageNumber));
-                break;
+                return result;
             }
         }
+        return "0";
     }
 
     private Map<Integer, String> getMessageMap(ScalesItemInfo item) {
@@ -430,80 +431,83 @@ public abstract class BizerbaHandler extends ScalesHandler {
         boolean nonWeight = false;
 
         Map<Integer, String> messageMap = getMessageMap(item);
-        loadPLUMessages(errors, port, scales, messageMap, item, charset, ip, encode);
-
-        int i = 0;
-        String altCommand = "";
-        for (Integer messageNumber : messageMap.keySet()) {
-            if (i < 4) {
-                altCommand += "ALT" + (i + 1) + messageNumber + separator;
+        String messagesResult = loadPLUMessages(errors, port, scales, messageMap, item, charset, ip, encode);
+        if(!messagesResult.equals("0")) {
+            return messagesResult;
+        } else {
+            int i = 0;
+            String altCommand = "";
+            for (Integer messageNumber : messageMap.keySet()) {
+                if (i < 4) {
+                    altCommand += "ALT" + (i + 1) + messageNumber + separator;
+                }
+                if (i < 10) {
+                    command2 += "@" + makeString(messageNumber);
+                }
+                i++;
             }
-            if (i < 10) {
-                command2 += "@" + makeString(messageNumber);
+
+            for (int count = i; count < 10; count++) {
+                command2 += "@00@00@00@00";
             }
-            i++;
-        }
 
-        for (int count = i; count < 10; count++) {
-            command2 += "@00@00@00@00";
-        }
+            byte priceOverflow = 0;
+            int price = item.price.intValue();
+            if (price > 999999) {
+                price = Math.round((float) (price / 10));
+                priceOverflow = 1;
+            }
 
-        byte priceOverflow = 0;
-        int price = item.price.intValue();
-        if (price > 999999) {
-            price = Math.round((float) (price / 10));
-            priceOverflow = 1;
-        }
+            if (pluNumber <= 0 || pluNumber > 999999) {
+                return "0";
+            }
 
-        if (pluNumber <= 0 || pluNumber > 999999) {
-            return "0";
-        }
+            if (price > 999999 || price < 0) {
+                logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", ip, price, item.idItem));
+            }
 
-        if (price > 999999 || price < 0) {
-            logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", ip, price, item.idItem));
-        }
+            if (item.daysExpiry == null)
+                item.daysExpiry = 0;
 
-        if(item.daysExpiry == null)
-            item.daysExpiry = 0;
-
-        if (item.daysExpiry > 999 || item.daysExpiry < 0) {
-            item.daysExpiry = 0;
+            if (item.daysExpiry > 999 || item.daysExpiry < 0) {
+                item.daysExpiry = 0;
 //            logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
 //          пока временно не грузим            
-        }
-        
-        String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
-        if (!manualWeight) {
-            if (nonWeight) {
-                command1 = command1 + "KLAR1\u001b";
-            } else {
-                command1 = command1 + "KLAR0\u001b";
             }
-        } else {
-            command1 = command1 + "KLAR4\u001b";
-        }
 
-        command1 = command1 + "GPR1" + price + separator;
-        Integer exPrice = price;
-        if (exPrice > 0) {
-            command1 = command1 + "EXPR" + exPrice + separator;
-        }
+            String command1 = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
+            if (!manualWeight) {
+                if (nonWeight) {
+                    command1 = command1 + "KLAR1\u001b";
+                } else {
+                    command1 = command1 + "KLAR0\u001b";
+                }
+            } else {
+                command1 = command1 + "KLAR4\u001b";
+            }
 
-        int BIZERBABS_Group = 1;
-        String idBarcode = item.idBarcode != null && scales.weightCodeGroupScales != null && item.idBarcode.length()==5 ? ("0" + scales.weightCodeGroupScales + item.idBarcode + "00000") : item.idBarcode;
-        Integer tareWeight = 0;
-        Integer tarePercent = 0;
-        command1 = command1 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + separator + "ECO1" + idBarcode
-                + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
-                + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
-        if (!command2.isEmpty()) {
-            command1 = command1 + command2 + separator;
-        }
+            command1 = command1 + "GPR1" + price + separator;
+            Integer exPrice = price;
+            if (exPrice > 0) {
+                command1 = command1 + "EXPR" + exPrice + separator;
+            }
 
-        command1 = command1 + "BLK \u001b";
-        clearReceiveBuffer(port);
-        sendCommand(errors, port, command1, charset, ip, encode);
-        return receiveReply(errors, port, charset, ip);
+            int BIZERBABS_Group = 1;
+            String idBarcode = item.idBarcode != null && scales.weightCodeGroupScales != null && item.idBarcode.length() == 5 ? ("0" + scales.weightCodeGroupScales + item.idBarcode + "00000") : item.idBarcode;
+            Integer tareWeight = 0;
+            Integer tarePercent = 0;
+            command1 = command1 + "RABZ1\u001bPTYP4\u001bWGNU" + BIZERBABS_Group + separator + "ECO1" + idBarcode
+                    + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
+                    + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
+            if (!command2.isEmpty()) {
+                command1 = command1 + command2 + separator;
+            }
+
+            command1 = command1 + "BLK \u001b";
+            clearReceiveBuffer(port);
+            sendCommand(errors, port, command1, charset, ip, encode);
+            return receiveReply(errors, port, charset, ip);
+        }
     }
 
     private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
