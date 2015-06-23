@@ -226,8 +226,8 @@ public class ImportActionProperty extends DefaultImportActionProperty {
             for (int i = 0; i < waresList.size(); i++)
                 data.get(i).add(waresList.get(i).nameWare);
 
-            ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findProperty("warePrice"));
-            props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findProperty("dataWarePriceDate").getMapping(wareKey, defaultDate)));
+            ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findProperty("priceWare"));
+            props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findProperty("dataPriceWareDate").getMapping(wareKey, defaultDate)));
             fields.add(priceWareField);
             for (int i = 0; i < waresList.size(); i++)
                 data.get(i).add(waresList.get(i).priceWare);
@@ -474,8 +474,8 @@ public class ImportActionProperty extends DefaultImportActionProperty {
             for (int i = 0; i < itemsList.size(); i++)
                 data.get(i).add(itemsList.get(i).idWare);
 
-            ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findProperty("dataWarePriceDate"));
-            props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findProperty("dataWarePriceDate").getMapping(wareKey, dateField)));
+            ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findProperty("dataPriceWareDate"));
+            props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findProperty("dataPriceWareDate").getMapping(wareKey, dateField)));
             fields.add(priceWareField);
             for (int i = 0; i < itemsList.size(); i++)
                 data.get(i).add(itemsList.get(i).priceWare);

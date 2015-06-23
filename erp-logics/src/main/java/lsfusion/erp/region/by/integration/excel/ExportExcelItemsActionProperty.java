@@ -112,7 +112,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 String nameBrand = trim((String) findProperty("nameBrand").read(session, brandItemObject), "");
 
                 ObjectValue wareItemObject = itemValue.get("wareItem");
-                BigDecimal priceWare = (BigDecimal) findProperty("warePrice").read(session, wareItemObject);
+                BigDecimal priceWare = (BigDecimal) findProperty("priceWare").read(session, wareItemObject);
                 BigDecimal vatWare = (BigDecimal) findProperty("valueCurrentRateRangeWare").read(session, wareItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
