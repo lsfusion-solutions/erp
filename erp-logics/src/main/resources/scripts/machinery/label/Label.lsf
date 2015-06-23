@@ -243,6 +243,11 @@ META implementPriceTransactionDocument(concrete)
     Label.descriptionPriceTransactionDocument (document) += description###concrete(document);
 END
 
+createLabelTransactionPriceTransactionDocument 'Распечатать ценники' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
+createSnapshotLabelTransactionPriceTransactionDocument 'Перепечатать ценники' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR;
+
+showPrintLabelTransactionPriceTransactionDocument = ABSTRACT BOOLEAN (PriceTransactionDocument);
+
 //----------------------------------- Печать ценников -------------------------------------------------------
 
 CLASS LabelTransaction 'Печать ценников';
@@ -711,6 +716,8 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
 
         apply();
     } TOOLBAR CONFIRM;
+    
+    createLabelTransactionPriceTransactionDocument(document) += ACTION create###document##LabelTransaction(document);
 
     createSnapshot###document##LabelTransaction 'Перепечатать ценники' = ACTION (document) NEWSESSION {
 
@@ -773,9 +780,13 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
         }            
         
     } TOOLBAR;
+    
+    createSnapshotLabelTransactionPriceTransactionDocument(document) += ACTION createSnapshot###document##LabelTransaction(document);
 
     showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND isOpened###document(document) AND NOT Label.skipPriceTransactionDocument(document);
                                                                                                //AND NOT printedPriceTransactionDocument(document);
+    showPrintLabelTransactionPriceTransactionDocument (document) += showPrintLabelTransaction###document(document);
+    
     backgroundPrintLabelTransaction###document 'Цвет' (document) = RGB(212,255,212) IF showPrintLabelTransaction###document(document) AND NOT printedPriceTransactionDocument(document);
 END
 

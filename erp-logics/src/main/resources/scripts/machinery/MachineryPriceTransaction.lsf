@@ -9,17 +9,39 @@ CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий з
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
 isDraftPriceTransactionDocument 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+isPostedPriceTransactionDocument 'Проведен' (document) = NOT isDraftPriceTransactionDocument(document);
 descriptionPriceTransactionDocument 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
 skipPriceTransactionDocument 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
 
 sentPriceTransactionDocument 'Принят к загрузке в оборудование' = DATA BOOLEAN (PriceTransactionDocument);
 sentPriceTransactionDocument(document) <- NULL WHEN SET(isDraftPriceTransactionDocument(document));
 
+isClosedPriceTransactionDocument 'Закрыт' = ABSTRACT BOOLEAN (PriceTransactionDocument);
+dateTimePriceTransactionDocument 'Дата/время' = ABSTRACT DATETIME (PriceTransactionDocument);
+seriesPriceTransactionDocument 'Серия' = ABSTRACT STRING[2] (PriceTransactionDocument);
+numberPriceTransactionDocument 'Номер' = ABSTRACT STRING[18] (PriceTransactionDocument);
+stockPriceTransactionDocument 'Склад' = ABSTRACT Stock (PriceTransactionDocument);
+
 META implementPriceTransactionDocument(concrete)
     EXTEND CLASS concrete : Machinery.PriceTransactionDocument;
     Machinery.isDraftPriceTransactionDocument (document) += isDraft###concrete(document);
     Machinery.descriptionPriceTransactionDocument (document) += description###concrete(document);
+    Machinery.dateTimePriceTransactionDocument (document) += dateTime###concrete(document);
+    Machinery.seriesPriceTransactionDocument (document) += series###concrete(document);
+    Machinery.numberPriceTransactionDocument (document) += number###concrete(document);
 END
+
+META implementPriceTransactionDocumentStock(concrete, stock)
+    @implementPriceTransactionDocument(concrete);
+    Machinery.stockPriceTransactionDocument (document) += stock###concrete(document);
+    Machinery.isClosedPriceTransactionDocument (document) += isClosed###concrete(document);
+END
+
+createMachineryPriceTransactionPriceTransactionDocument 'Загрузить в оборудование' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
+createSnapshotMachineryPriceTransactionPriceTransactionDocument 'Перегрузить все позиции' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
+
+showCreateMachineryPriceTransactionPriceTransactionDocument = ABSTRACT BOOLEAN (PriceTransactionDocument);
+
 //----------------------------------- Загрузка в ВУ -------------------------------------------------------
 
 CLASS ABSTRACT MachineryPriceTransaction 'Загрузка прайса в оборудование';
@@ -716,7 +738,9 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
         }
         apply();
     } TOOLBAR CONFIRM;
-
+    
+    createMachineryPriceTransactionPriceTransactionDocument(document) += ACTION createMachineryPriceTransaction###document(document);
+    
     createSnapshotMachineryPriceTransaction###document 'Перегрузить все позиции' = ACTION (document) NEWSESSION {
         IF isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
@@ -730,9 +754,13 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
         }
         apply();
     } CONFIRM;
+    
+    createSnapshotMachineryPriceTransactionPriceTransactionDocument(document) += ACTION createSnapshotMachineryPriceTransaction###document(document);
 
     showCreateMachineryPriceTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Machinery.skipPriceTransactionDocument(document)
                                                                                                            AND NOT sentPriceTransactionDocument(document);
+    showCreateMachineryPriceTransactionPriceTransactionDocument (document) += showCreateMachineryPriceTransaction###document(document);
+                                                                                                           
     backgroundCreateMachineryPriceTransaction###document 'Цвет' (document) = IF countProcessPriceTransactionDocument(document) THEN
                                                                                 RGB(255,255,128)
                                                                              ELSE
