@@ -206,7 +206,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                 Thread.sleep(10L);
                 time = (new Date()).getTime();
-            } while(time - startTime <= (longAction ? 600000L : 10000L));
+            } while(time - startTime <= (longAction ? 1800000L : 10000L));
 
             if (longAction) {
                 processTransactionLogger.info(String.format("Bizerba: IP %s scales reply timeout", ip));
