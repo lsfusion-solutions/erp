@@ -99,25 +99,25 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                         continue;
                                     }
                                     if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                                        clearAll(localErrors, port, scales, charset, encode);
+                                        clearAll(localErrors, port, scales, charset, ip, encode);
                                     }
 
                                     processTransactionLogger.info("Bizerba: Sending items..." + ip);
                                     if (localErrors.isEmpty()) {
-                                        synchronizeTime(localErrors, port, scales, charset, encode);
+                                        synchronizeTime(localErrors, port, charset, ip, encode);
                                         int count = 0;
                                         for (ScalesItemInfo item : transaction.itemsList) {
                                             count++;
                                             if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                                 if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                                    processTransactionLogger.info(String.format("Bizerba: Transaction #%s, sending item #%s (barcode %s) of %s", transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                                    String result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
+                                                    processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", ip, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                                    String result = loadPLU(localErrors, port, scales, item, charset, ip, encode, capitalLetters);
                                                     if (!result.equals("0")) {
-                                                        logError(localErrors, String.format("Result is %s, item: %s", result, item.idItem));
+                                                        logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", ip, result, item.idItem));
                                                         globalError++;
                                                     }
                                                 } else {
-                                                    processTransactionLogger.info(String.format("Bizerba: Transaction #%s, item #%s: incorrect barcode %s", transaction.id, count, item.idBarcode));
+                                                    processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, item #%s: incorrect barcode %s", ip, transaction.id, count, item.idBarcode));
                                                 }
                                             } else break;
                                         }
@@ -125,7 +125,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                     port.close();
 
                                 } catch (Exception e) {
-                                    logError(localErrors, "BizerbaHandler error: ", e);
+                                    logError(localErrors, String.format("BizerbaHandler error: IP %s", ip), e);
                                 } finally {
                                     processTransactionLogger.info("Bizerba: Finally disconnecting..." + ip);
                                     try {
@@ -177,11 +177,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
             throw new RuntimeException("Bizerba: No IP-addresses defined");
     }
 
-    protected String receiveReply(List<String> errors, TCPPort port, String charset) throws CommunicationException {
-        return receiveReply(errors, port, charset, false);
+    protected String receiveReply(List<String> errors, TCPPort port, String charset, String ip) throws CommunicationException {
+        return receiveReply(errors, port, charset, ip, false);
     }
 
-    private String receiveReply(List<String> errors, TCPPort port, String charset, boolean longAction) throws CommunicationException {
+    private String receiveReply(List<String> errors, TCPPort port, String charset, String ip, boolean longAction) throws CommunicationException {
         String reply;
         Pattern pattern = Pattern.compile("QUIT(\\d+)");
         byte[] var4 = new byte[500];
@@ -198,10 +198,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     Matcher matcher = pattern.matcher(reply);
                     if (matcher.find()) {
                         if (longAction)
-                            processTransactionLogger.info("Bizerba action finished: " + reply);
+                            processTransactionLogger.info(String.format("Bizerba: IP %s action finished: %s", ip, reply));
                         return matcher.group(1);
                     } else if (longAction)
-                        processTransactionLogger.info("Bizerba action continues: " + reply);
+                        processTransactionLogger.info(String.format("Bizerba: IP %s action continues: %s", ip, reply));
                 }
 
                 Thread.sleep(10L);
@@ -209,18 +209,18 @@ public abstract class BizerbaHandler extends ScalesHandler {
             } while(time - startTime <= (longAction ? 600000L : 10000L));
 
             if (longAction) {
-                processTransactionLogger.info("Scales reply timeout");
+                processTransactionLogger.info(String.format("Bizerba: IP %s scales reply timeout", ip));
                 return "0";
             }
             else {
-                logError(errors, "Scales reply timeout");
+                logError(errors, String.format("Bizerba: IP %s scales reply timeout", ip));
                 return "-1";
             }
         } catch(InterruptedException e) {
             Thread.currentThread().interrupt();
-            logError(errors, "Receive Reply Error", e);
+            logError(errors, String.format("Bizerba: IP %s receive Reply Error", ip), e);
         }catch (Exception e) {
-            logError(errors, "Receive Reply Error", e);
+            logError(errors, String.format("Bizerba: IP %s receive Reply Error", ip), e);
         }
         return "-1";
     }
@@ -302,11 +302,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    private String replaceDelimiter(String var1) {
-        return var1.replace('\u0007', '\n');
-    }
-
-    private void sendCommand(List<String> errors, TCPPort port, String command, String charset, boolean encode) throws CommunicationException, IOException {
+    private void sendCommand(List<String> errors, TCPPort port, String command, String charset, String ip, boolean encode) throws CommunicationException, IOException {
         try {
             byte[] commandBytes = command.getBytes(charset);
             if(encode)
@@ -314,70 +310,70 @@ public abstract class BizerbaHandler extends ScalesHandler {
             port.getOutputStream().write(commandBytes);
             port.getOutputStream().flush();
         } catch (IOException e) {
-            logError(errors, "Send command exception: ", e);
+            logError(errors, String.format("Bizerba: %s Send command exception: ", ip), e);
         }
     }
 
-    protected void clearAll(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws InterruptedException, IOException, CommunicationException {
-        processTransactionLogger.info("Bizerba: ClearAllPLU");
-        String clear = clearAllPLU(errors, port, scales, charset, encode);
+    protected void clearAll(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws InterruptedException, IOException, CommunicationException {
+        processTransactionLogger.info(String.format("Bizerba: IP %s ClearAllPLU", ip));
+        String clear = clearAllPLU(errors, port, scales, charset, ip, encode);
         if (!clear.equals("0"))
-            logError(errors, String.format("Bizerba: ClearAllPLU, Error %s", clear));
-        processTransactionLogger.info("Bizerba: ClearAllMessages");
-        clear = clearAllMessages(errors, port, scales, charset, encode);
+            logError(errors, String.format("Bizerba: IP %s ClearAllPLU, Error %s", ip, clear));
+        processTransactionLogger.info(String.format("Bizerba: IP %s ClearAllMessages", ip));
+        clear = clearAllMessages(errors, port, scales, charset, ip, encode);
         if (!clear.equals("0"))
-            logError(errors, String.format("Bizerba: ClearAllMessages, Error %s", clear));
+            logError(errors, String.format("Bizerba: IP %s ClearAllMessages, Error %s", ip, clear));
     }
 
-    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
         String command = "ATST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, encode);
-        return receiveReply(errors, port, charset, true);
+        sendCommand(errors, port, command, charset, ip, encode);
+        return receiveReply(errors, port, charset, ip, true);
     }
 
-    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
         String command = "PLST  \u001bL" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, encode);
-        return receiveReply(errors, port, charset, true);
+        sendCommand(errors, port, command, charset, ip, encode);
+        return receiveReply(errors, port, charset, ip, true);
     }
 
-    private String clearMessages(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
+    private String clearMessages(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
         for (int i = 0; i <= 9; i++) {
             String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + (getPluNumber(item) * 10 + i) + endCommand;
             clearReceiveBuffer(port);
-            sendCommand(errors, port, command, charset, encode);
-            String result = receiveReply(errors, port, charset);
+            sendCommand(errors, port, command, charset, ip, encode);
+            String result = receiveReply(errors, port, charset, ip);
             if (!result.equals("0"))
                 return result;
         }
         return "0";
     }
 
-    protected String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean splitMessage, String charset, boolean encode) throws CommunicationException, IOException {
+    protected String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean splitMessage, String charset, String ip, boolean encode) throws CommunicationException, IOException {
         if(splitMessage) {
-            return clearMessages(errors, port, scales, item, charset, encode);
+            return clearMessages(errors, port, scales, item, charset, ip, encode);
         } else {
 
             String command = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + getPluNumber(item) * 10 + endCommand;
             clearReceiveBuffer(port);
-            sendCommand(errors, port, command, charset, true);
-            return receiveReply(errors, port, charset);
+            sendCommand(errors, port, command, charset, ip, true);
+            return receiveReply(errors, port, charset, ip);
         }
     }
 
-    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
+    private void loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
             messageText = messageText == null ? "" : messageText;
             String message = "ATST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
             clearReceiveBuffer(port);
-            sendCommand(errors, port, message, charset, encode);
-            String result = receiveReply(errors, port, charset);
+            sendCommand(errors, port, message, charset, ip, encode);
+            String result = receiveReply(errors, port, charset, ip);
             if (!result.equals("0")) {
-                logError(errors, String.format("Result is %s, item: %s [msgNo=%s]", result, item.idItem, messageNumber));
+                logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [msgNo=%s]", ip, result, item.idItem, messageNumber));
                 break;
             }
         }
@@ -418,7 +414,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, String ip, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -427,14 +423,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
         if(capitalLetters)
             captionItem = captionItem.toUpperCase();
         if (captionItem.isEmpty())
-            logError(errors, String.format("PLU name is invalid. Name is empty (item: %s)", item.idItem));
+            logError(errors, String.format("Bizerba: IP %s, PLU name is invalid. Name is empty (item: %s)", ip, item.idItem));
 
         int department = 1;
         boolean manualWeight = false;
         boolean nonWeight = false;
 
         Map<Integer, String> messageMap = getMessageMap(item);
-        loadPLUMessages(errors, port, scales, messageMap, item, charset, encode);
+        loadPLUMessages(errors, port, scales, messageMap, item, charset, ip, encode);
 
         int i = 0;
         String altCommand = "";
@@ -464,7 +460,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
 
         if (price > 999999 || price < 0) {
-            logError(errors, String.format("PLU price is invalid. Price is %s (item: %s)", price, item.idItem));
+            logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", ip, price, item.idItem));
         }
 
         if(item.daysExpiry == null)
@@ -506,16 +502,16 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
         command1 = command1 + "BLK \u001b";
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command1, charset, encode);
-        return receiveReply(errors, port, charset);
+        sendCommand(errors, port, command1, charset, ip, encode);
+        return receiveReply(errors, port, charset, ip);
     }
 
-    private String synchronizeTime(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
         long timeZero = new Date(1970-1900, 0, 1, 0, 0, 0).getTime() / 1000;
         String command = "UHR   " + separator + "N00" + separator + "UUHR" + (System.currentTimeMillis() / 1000 - timeZero) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, encode);
-        return receiveReply(errors, port, charset, false);
+        sendCommand(errors, port, command, charset, ip, encode);
+        return receiveReply(errors, port, charset, ip, false);
     }
 
     protected void logError(List<String> errors, String errorText) {
