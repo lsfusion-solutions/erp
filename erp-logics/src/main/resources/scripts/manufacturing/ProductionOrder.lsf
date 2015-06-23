@@ -59,6 +59,19 @@ inLegalEntityStock(companyOrder(order), componentsStockOrder(order))
     CHECKED BY componentsStockOrder
         MESSAGE 'Организация и склад компонент для производственного заказа не имеют связи';
 
+//
+calcBOMPriceOrder 'Расчет цен от количества в спецификации' = DATA BOOLEAN (Order);
+calcBOMPriceOperation 'Расчет цен от количества в спецификации' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) calcBOMPriceOperation 
+;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(calcBOMPriceOperation(o));
+    }
+}
+
 // ---------------- Изделия ------------------- //
 
 CLASS ProductDetail 'Строка изделия';
@@ -119,6 +132,13 @@ calcExpiryDateProductDetail (d) = OVERRIDE
 // Кол-во
 @defineDocumentDetailQuantityCustom (productDetail);
 @defineDocumentHeaderQuantityCustomPrefix (order, productDetail, , ' (изделие)');
+
+calcBOMPriceProductDetail = calcBOMPriceOrder(orderProductDetail(d));
+
+quantityBOMProductDetail 'Кол-во в спецификации' = quantityProduct(productProductDetail(d)) PERSISTENT;
+quantityPriceProductDetail 'Кол-во для расчета цены' = IF calcBOMPriceProductDetail(d) THEN
+                                                            quantityBOMProductDetail(d) ELSE
+                                                            quantityProductDetail(d) PERSISTENT;
 
 quantityProductDetailSkuOrder 'Кол-во изделий в документе' (sku, order) =  GROUP SUM quantityProductDetail(productDetail)
     BY skuProductDetail(productDetail), orderProductDetail(productDetail); 
@@ -234,6 +254,8 @@ costComponentDetail 'Себестоимость' = DATA NUMERIC[14,2] (Component
 
 @defineDocumentDetailQuantityCustomPrefix (componentDetail, substitute, ' (замена)');
 
+bruttoQuantityBOMComponentDetail 'Кол-во в спецификации' = bruttoQuantityComponentDate(componentComponentDetail(d), dateComponentDetail(d));
+
 // Параметры компонент с учетом замен
 
 skuComponentDetail (componentDetail) = OVERRIDE bruttoSkuComponentDetail(componentDetail), substituteSkuComponentDetail(componentDetail) PERSISTENT;
@@ -242,6 +264,12 @@ idBarcodeSkuComponentDetail 'Штрихкод' (componentDetail) = idBarcodeSku(
 shortNameUOMSkuComponentDetail 'Ед.изм.' (componentDetail) = shortNameUOMSku(skuComponentDetail(componentDetail));
 
 quantityComponentDetail 'Кол-во' (componentDetail) = OVERRIDE bruttoQuantityComponentDetail(componentDetail), substituteQuantityComponentDetail(componentDetail) PERSISTENT;
+
+calcBOMPriceComponentDetail (d) = calcBOMPriceOrder(orderComponentDetail(d));
+
+quantityPriceComponentDetail 'Кол-во для расчета цены' (d) = IF calcBOMPriceComponentDetail(d) THEN
+                                                                bruttoQuantityBOMComponentDetail(d) ELSE
+                                                                quantityComponentDetail(d);
 
 // Сумма
 @defineDocumentDetailDataSum (component);
@@ -601,12 +629,14 @@ quantityComponentsBOMSkuOrder 'Кол-во' (BOM, sku, order) = GROUP SUM quanti
 //quantityComponentsBOMOrder 'Кол-во' (BOM, order) = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 
 bruttoSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * priceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
-bruttoSumComponentsBOMOrder =  GROUP SUM bruttoSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
+
+bruttoSumComponentsBOMOrder = GROUP SUM quantityPriceComponentDetail(d) * priceComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 //premiumSumComponentsBOMSkuOrder 'Сума с надбавкой' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * premiumPriceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
-calcComponentsPriceProductDetail 'Цена расчетная с/с' (d)= bruttoSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
+bruttoPriceComponentsProductDetail (d) = bruttoSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) / quantityPriceProductDetail(d);
+
+calcComponentsPriceProductDetail 'Цена расчетная с/с' (d)= bruttoPriceComponentsProductDetail (d) // Цена компонентов за единицу 
                                                                            * pricePercentProductDetail(d) / 100.0 // удельная цена
-                                                                           / quantityProductDetail(d) // за единицу
                                                                            / coeffPercentProductDetail(d); // поправка на неточный процент
                     
 bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
@@ -667,11 +697,11 @@ changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
     IF addVATProductDetail(detail) THEN {
         markupProductDetail(detail) <- calcMarkupIsVATProductDetail(detail);
         pricePercentProductDetail(detail) <- 
-                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProductDetail(detail),orderProductDetail(detail));
+                100 * priceProductDetail(detail) / bruttoPriceComponentsProductDetail(detail);
     } ELSE {
         markupProductDetail(detail) <- calcMarkupProductDetail(detail);
         pricePercentProductDetail(detail) <- 
-                100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProductDetail(detail),orderProductDetail(detail));
+                100 * priceProductDetail(detail) / bruttoPriceComponentsProductDetail(detail);
     }
 }
 
@@ -685,7 +715,7 @@ changeProductsPriceProductDetail (detail) = ACTION (detail) {
         priceProductDetail (detail) <- requestedNumeric();
         IF notRecalculateMarkupOrder(orderProductDetail(detail)) THEN {
             pricePercentProductDetail(detail) <- 
-                            100*priceProductDetail(detail)*quantityProductDetail(detail)/bruttoSumComponentsBOMOrder(BOMProductDetail(detail),orderProductDetail(detail));
+                            100 * priceProductDetail(detail) / bruttoPriceComponentsProductDetail(detail);
             componentsPriceProductDetail(d) <- calcComponentsPriceProductDetail(d);
             costPriceProductDetail(d) <- calcCostProductDetail(d);                
         } ELSE {
@@ -764,14 +794,14 @@ fillPriceProductsOrder 'Заполнить цены для изделий' = ACT
     }
 } TOOLBAR;
 
-calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d);
+calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPriceProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d);
 calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProductDetail(detail), orderProductDetail(detail));
             
 calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantityComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
-    / ((quantityProductDetail(productDetail) IF quantityProductDetail(productDetail)!=0)*100);  
+    / (quantityPriceProductDetail(productDetail) * 100.0);  
      
-calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[8,5]) * quantityProductDetail(productDetail)*100 
-    /(calcQuantityComponentsProductDetail(productDetail) IF calcQuantityComponentsProductDetail(productDetail)!= 0);     
+calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[8,5]) * quantityPriceProductDetail(productDetail) * 100.0 
+    / calcQuantityComponentsProductDetail(productDetail);     
     
 changePriceCoeffProductDetail = ACTION (detail) {
     REQUEST NUMERIC[8,5] INPUT;
@@ -961,7 +991,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(o) isPostedOrder, nameCompanyOrder, nameComponentsStockOrder ON CHANGE changeComponentsStockCompanyOrder(o), 
                   nameProductsStockOrder ON CHANGE changeProductsStockCompanyOrder(o), nameNumeratorOrder, numberOrder, seriesOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, sumProductDetailOrder, 
-                  quantityComponentDetailOrder, sumComponentDetailOrder, isPricePercentOrder, isPriceCoeffOrder 
+                  quantityComponentDetailOrder, sumComponentDetailOrder, calcBOMPriceOrder, isPricePercentOrder, isPriceCoeffOrder 
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) indexProductDetail, nameSkuProductDetail,  idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
@@ -1136,6 +1166,7 @@ DESIGN order {
                     NEW headerExtraParams {
                         caption = 'Дополнительные параметры';
                         type = CONTAINERH;
+                        MOVE PROPERTY (calcBOMPriceOrder(o));
                         MOVE PROPERTY (isPricePercentOrder(o));
                         MOVE PROPERTY (isPriceCoeffOrder(o));
                     } 
@@ -1551,6 +1582,9 @@ DESIGN operation {
 
 @deriveDocumentOperationProperty(order, isPricePercent);
 @deriveDocumentOperationProperty(order, isPriceCoeff);
+
+@deriveDocumentOperationProperty(order, calcBOMPrice);
+
 //-------------------- Подбор изделий -----------------//
 productDetailOrderProduct (order,product) =  GROUP MAX productDetail
     BY orderProductDetail(productDetail), productProductDetail(productDetail);
