@@ -55,7 +55,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
             try {
 
-                processTransactionLogger.info("Kristal: Send Transaction # " + transaction.id);
+                processTransactionLogger.info("Kristal10: Send Transaction # " + transaction.id);
 
                 Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
                 boolean brandIsManufacturer = kristalSettings != null && kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
@@ -79,8 +79,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         new File(exchangeDirectory).mkdirs();
 
                     //catalog-goods.xml
-                    processTransactionLogger.info("Kristal: creating catalog-goods file");
-
+                    processTransactionLogger.info("Kristal10: creating catalog-goods file (Transaction " + transaction.id + ") - " + transaction.itemsList + " items");
+                    
                     Element rootElement = new Element("goods-catalog");
                     Document doc = new Document(rootElement);
                     doc.setRootElement(rootElement);
@@ -169,7 +169,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                             //parent: good
                             if (item.idUOM == null || item.shortNameUOM == null) {
-                                String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
+                                String error = "Kristal10: Error! UOM not specified for item with barcode " + barcodeItem;
                                 processTransactionLogger.error(error);
                                 throw Throwables.propagate(new RuntimeException(error));
                             }
@@ -238,7 +238,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     if (file.exists())
                         nextFilesMap.put(file, idTransaction);
                     else {
-                        processTransactionLogger.info(String.format("Kristal (wait for deletion): file %s has been deleted", file.getAbsolutePath()));
+                        processTransactionLogger.info(String.format("Kristal10 (wait for deletion): file %s has been deleted", file.getAbsolutePath()));
                         result.put(idTransaction, new SendTransactionBatch(failedTransactionMap.get(idTransaction)));
                     }
                 }
@@ -250,8 +250,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
 
         for(Map.Entry<File, Integer> file : filesMap.entrySet()) {
-            processTransactionLogger.info(String.format("Kristal (wait for deletion): file %s has NOT been deleted", file.getKey().getAbsolutePath()));
-            result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
+            processTransactionLogger.info(String.format("Kristal10 (wait for deletion): file %s has NOT been deleted", file.getKey().getAbsolutePath()));
+            result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format("Kristal10: file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
         }
         return result;
     }
@@ -297,7 +297,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     
                     if (!directorySet.contains(directory)) continue;
 
-                    sendSalesLogger.info("Kristal: creating request files for directory : " + directory);
+                    sendSalesLogger.info("Kristal10: creating request files for directory : " + directory);
                     String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                     String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
@@ -323,7 +323,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
-        sendSalesLogger.info("Kristal: Finish Reading started");
+        sendSalesLogger.info("Kristal10: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
@@ -336,7 +336,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
             
             if (f.delete()) {
-                sendSalesLogger.info("Kristal: file " + readFile + " has been deleted");
+                sendSalesLogger.info("Kristal10: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -381,16 +381,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             });
 
             if (filesList == null || filesList.length == 0)
-                sendSalesLogger.info("Kristal: No cash documents found in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal10: No cash documents found in " + exchangeDirectory);
             else {
-                sendSalesLogger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal10: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
                 for (File file : filesList) {
                     try {
                         String fileName = file.getName();
-                        sendSalesLogger.info("Kristal: reading " + fileName);
+                        sendSalesLogger.info("Kristal10: reading " + fileName);
                         if (isFileLocked(file)) {
-                            sendSalesLogger.info("Kristal: " + fileName + " is locked");
+                            sendSalesLogger.info("Kristal10: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
 
@@ -429,11 +429,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-        sendSalesLogger.info("Kristal: Finish ReadingCashDocumentInfo started");
+        sendSalesLogger.info("Kristal10: Finish ReadingCashDocumentInfo started");
         for (String readFile : cashDocumentBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {
-                sendSalesLogger.info("Kristal: file " + readFile + " has been deleted");
+                sendSalesLogger.info("Kristal10: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -444,7 +444,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
 
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
-        processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
+        processStopListLogger.info("Kristal10: Send StopList # " + stopListInfo.number);
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
@@ -482,7 +482,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     }
 
                     if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
-                        String error = "Kristal: Error! Start DateTime not specified for stopList " + stopListInfo.number;
+                        String error = "Kristal10: Error! Start DateTime not specified for stopList " + stopListInfo.number;
                         processStopListLogger.error(error);
                         throw Throwables.propagate(new RuntimeException(error));
                     }
@@ -590,16 +590,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         });
 
         if (filesList == null || filesList.length == 0)
-            sendSalesLogger.info("Kristal: No checks found in " + exchangeDirectory);
+            sendSalesLogger.info("Kristal10: No checks found in " + exchangeDirectory);
         else {
-            sendSalesLogger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+            sendSalesLogger.info("Kristal10: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
             for (File file : filesList) {
                 try {
                     String fileName = file.getName();
-                    sendSalesLogger.info("Kristal: reading " + fileName);
+                    sendSalesLogger.info("Kristal10: reading " + fileName);
                     if (isFileLocked(file)) {
-                        sendSalesLogger.info("Kristal: " + fileName + " is locked");
+                        sendSalesLogger.info("Kristal10: " + fileName + " is locked");
                     } else {
                         SAXBuilder builder = new SAXBuilder();
 
@@ -768,14 +768,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             });
 
             if (filesList != null && filesList.length > 0) {
-                sendSalesLogger.info("Kristal: found " + filesList.length + " z-report(s) in " + exchangeDirectory);
+                sendSalesLogger.info("Kristal10: found " + filesList.length + " z-report(s) in " + exchangeDirectory);
 
                 for (File file : filesList) {
                     try {
                         String fileName = file.getName();
-                        sendSalesLogger.info("Kristal: reading " + fileName);
+                        sendSalesLogger.info("Kristal10: reading " + fileName);
                         if (isFileLocked(file)) {
-                            sendSalesLogger.info("Kristal: " + fileName + " is locked");
+                            sendSalesLogger.info("Kristal10: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
 
