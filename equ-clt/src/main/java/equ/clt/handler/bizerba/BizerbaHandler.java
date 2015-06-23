@@ -206,7 +206,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
                 Thread.sleep(10L);
                 time = (new Date()).getTime();
-            } while(time - startTime <= (longAction ? 1800000L : 10000L));
+            } while(time - startTime <= (longAction ? 3600000L : 10000L)); //1 hour : 10 seconds
 
             if (longAction) {
                 processTransactionLogger.info(String.format("Bizerba: IP %s scales reply timeout", ip));
@@ -323,6 +323,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         clear = clearAllMessages(errors, port, scales, charset, ip, encode);
         if (!clear.equals("0"))
             logError(errors, String.format("Bizerba: IP %s ClearAllMessages, Error %s", ip, clear));
+        Thread.sleep(10000);
     }
 
     private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
