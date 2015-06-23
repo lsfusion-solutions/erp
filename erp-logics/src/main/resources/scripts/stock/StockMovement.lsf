@@ -221,7 +221,32 @@ EXTEND FORM currentBalanceBatchStock
 EXTEND FORM balanceBatchStock 
     PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)
 ;
+//-- печатная форма
+FORM movementSkuStockPrint 'Движение товара по складу'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
 
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
+                             nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger,
+                             signedSumSkuLedger , balanceASkuLedger, balanceBSkuLedger
+    PROPERTIES(s,st,bil) READONLY accountPriceASkuStockSkuLedger                           
+
+    ORDER BY dateTimeSkuLedger(bil)
+    FILTERS skuSkuLedger(bil) == s,
+            isPostedSkuLedger(bil),
+            stockSkuLedger(bil)==st,
+            isCompanyStock(st)
+;
+
+movementSkuStockPrint 'Движение товара' (s,st) = ACTION FORM movementSkuStockPrint OBJECTS s = s, st = st PRINT IMAGE 'print.png' IN print;
+
+EXTEND FORM  currentBalanceSkuStock
+    PROPERTIES(s,st) movementSkuStockPrint FORCE PANEL TOOLBAR TODRAW bil
+;
 
 
 
