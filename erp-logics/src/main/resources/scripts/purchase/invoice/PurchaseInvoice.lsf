@@ -363,40 +363,8 @@ dateBanBarcodeStock 'Дата запрета приемки накладных �
 dateBanValueVATStock 'Дата запрета приемки накладных без ставки НДС'  = DATA DATE (Stock); 
 
 EXTEND FORM options
-
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
-    ORDER BY sgTreeName
-    FILTERS stringEqualsAll(a)
-
-    OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, dateBanBarcodeStock EDITABLE, dateBanValueVATStock EDITABLE
-    ORDER BY stockName
-    
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            isCompanyStock(s)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT     
-    
+    PROPERTIES(s) dateBanBarcodeStock, dateBanValueVATStock      
 ;
-DESIGN options {
-    stock {
-        NEW topContainer {
-            type = SPLITH;
-            fill = 1;            
-            
-            MOVE stockTree.tree.box {
-                caption = 'Группы складов';
-            }
-
-            MOVE s.box {
-                fill = 3;
-                s.grid {
-                    defaultComponent = TRUE;
-                }
-            }
-        }
-    }
-}
 
 CONSTRAINT  isPostedInvoiceDetail(d) AND isItemSku(skuInvoiceDetail(d)) AND 
     dateInvoiceDetail(d) >= dateBanValueVATStock(customerStockInvoiceDetail(d)) AND NOT valueVATInvoiceDetail(d)

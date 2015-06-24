@@ -1,6 +1,6 @@
 MODULE StockDocument;
 
-REQUIRE System, EmployeeStock, Utils, Operation;
+REQUIRE System, EmployeeStock, Document, Utils, Operation;
 
 CLASS ABSTRACT StockDocumentLedger 'Учетный документ';
 TABLE stockDocumentLedger (StockDocumentLedger);
@@ -11,11 +11,14 @@ CLASS ABSTRACT OutStockDocumentLedger 'Учетный документ (расх
 typeStockDocumentLedger 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentLedger) PERSISTENT;
 
 editStockDocumentLedger 'Редактировать' = ABSTRACT ACTION LIST (StockDocumentLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+closeStockDocumentLedger 'Закрыть' = ABSTRACT ACTION LIST (StockDocumentLedger) TOOLBAR;
 
 dateTimeStockDocumentLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentLedger) PERSISTENT INDEXED;
 dateStockDocumentLedger 'Дата' (ledger) = toDate(dateTimeStockDocumentLedger(ledger)) PERSISTENT;
 
 isPostedStockDocumentLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
+isClosedStockDocumentLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
+isOpenedStockDocumentLedger 'Не закрыт' (ledger) = ledger IS StockDocumentLedger AND NOT isClosedStockDocumentLedger(ledger);
 
 stockStockDocumentLedger (ledger) = ABSTRACT Stock (StockDocumentLedger) PERSISTENT;
 nameStockStockDocumentLedger 'Отдел' (ledger) = nameStock(stockStockDocumentLedger(ledger));
@@ -51,6 +54,9 @@ GROUP ledger 'Суммы (всего)' : public;
 sumIncStockDocumentLedger 'Сумма прихода' (ledger) = sumItemIncStockDocumentLedger(ledger)(+) sumContainerIncStockDocumentLedger(ledger) PERSISTENT IN ledger;
 sumOutStockDocumentLedger 'Сумма расхода' (ledger) = sumItemOutStockDocumentLedger(ledger)(+) sumContainerOutStockDocumentLedger(ledger) PERSISTENT IN ledger;
 sumStockDocumentLedger 'Сумма' (ledger) = MULTI sumIncStockDocumentLedger(ledger), -sumOutStockDocumentLedger(ledger) PERSISTENT;
+
+allowedEditStockDocumentLedger (ledger) = NOT isClosedStockDocumentLedger(ledger) OR allowedEditClosedDocumentsCustomUser(currentUser());
+
 // -------------------------------------- Агрегированные суммы за интервал --------------------------------------------- //
 
 countIncStockDocumentStockDateInterval 'Количество приходных док-ов' (stock, dtFrom, dtTo)=
@@ -271,10 +277,11 @@ FORM sumStockDocumentLedger 'Товарный отчет'
                sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval
 
     OBJECTS il = IncStockDocumentLedger
-    PROPERTIES(il) SELECTOR iDateTime = dateTimeStockDocumentLedger, iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
+    PROPERTIES(il) READONLY isClosedStockDocumentLedger, isPostedStockDocumentLedger, iDateTime = dateTimeStockDocumentLedger, 
+                   iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
                    nameOperationStockDocumentLedger, nameLegalEntityStockDocumentLedger, nameLegalEntityStockStockDocumentLedger, 
                    sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
-    PROPERTIES(il) editStockDocumentLedger               
+    PROPERTIES(il) editStockDocumentLedger SHOWIF allowedEditStockDocumentLedger(il), closeStockDocumentLedger SHOWIF isOpenedStockDocumentLedger(il)             
     FILTERS activeStockDocumentLedger(il),
             stockStockDocumentLedger(il) == ds,
             dateStockDocumentLedger(il) >= dtFrom,
@@ -283,10 +290,11 @@ FORM sumStockDocumentLedger 'Товарный отчет'
     ORDER BY iDateTime
 
     OBJECTS ol = OutStockDocumentLedger
-    PROPERTIES(ol) SELECTOR oDateTime = dateTimeStockDocumentLedger, oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
+    PROPERTIES(ol) READONLY isClosedStockDocumentLedger, isPostedStockDocumentLedger, oDateTime = dateTimeStockDocumentLedger, 
+                   oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
                    nameOperationStockDocumentLedger, nameLegalEntityStockDocumentLedger, nameLegalEntityStockStockDocumentLedger, 
                    sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
-    PROPERTIES(ol) editStockDocumentLedger                
+    PROPERTIES(ol) editStockDocumentLedger SHOWIF allowedEditStockDocumentLedger(ol), closeStockDocumentLedger SHOWIF isOpenedStockDocumentLedger(ol)               
     FILTERS activeStockDocumentLedger(ol),
             stockStockDocumentLedger(ol) == ds,
             dateStockDocumentLedger(ol) >= dtFrom,
@@ -359,6 +367,7 @@ META implementStockDocumentLedger (concrete, stockProp)
     numberStockDocumentLedger (ledger) += number###concrete(ledger);
     dateTimeStockDocumentLedger (ledger) += dateTime###concrete(ledger);
     isPostedStockDocumentLedger (ledger) += isPosted###concrete(ledger);
+    isClosedStockDocumentLedger (ledger) += isClosed###concrete(ledger);
     stockStockDocumentLedger (ledger) += stockProp###concrete(ledger);
     descriptionStockDocumentLedger (ledger) += description###concrete(ledger);
 END
@@ -384,6 +393,7 @@ META implementStockDocumentLedger (concrete, stockProp, NS)
     numberStockDocumentLedger (ledger) += NS.number###concrete(ledger);
     dateTimeStockDocumentLedger (ledger) += NS.dateTime###concrete(ledger);
     isPostedStockDocumentLedger (ledger) += NS.isPosted###concrete(ledger);
+    isClosedStockDocumentLedger (ledger) += NS.isClosed###concrete(ledger);
     stockStockDocumentLedger (ledger) += NS.stockProp###concrete(ledger);
     descriptionStockDocumentLedger (ledger) += NS.description###concrete(ledger);
 END
@@ -395,3 +405,34 @@ META implementStockDocumentLedgerOut (concrete, stockProp, NS)
     EXTEND CLASS NS.concrete : OutStockDocumentLedger;
     @implementStockDocumentLedger (concrete, stockProp, NS);
 END
+documentsClosedDateStock 'Дата закрытия документов' = DATA DATE(Stock);
+
+CONSTRAINT CHANGED(dateStockDocumentLedger(d)) AND dateStockDocumentLedger(d) < documentsClosedDateStock(stockStockDocumentLedger(d))
+    MESSAGE 'Запрещено создавать документы для склада до даты закрытия';
+ 
+closeDocumentsDateStocks 'Закрыть документы до Дата (по)' = ACTION (date, stock) {
+    documentsClosedDateStock(stock) <- sumDate(date,1);
+    FOR stockStockDocumentLedger(ledger) == stock AND dateStockDocumentLedger(ledger) <= date AND isOpenedStockDocumentLedger(ledger) DO {
+        closeStockDocumentLedger(ledger);
+    }
+    apply();   
+}
+
+
+EXTEND FORM sumStockDocumentLedger
+    PROPERTIES closeDocumentsDateStocks(dtTo, ds) 
+;
+DESIGN sumStockDocumentLedger {
+    header {
+        NEW actionContainer {
+            caption = 'Действия';
+            type = CONTAINERH;
+            MOVE PROPERTY (closeDocumentsDateStocks(dtTo, ds));
+        }
+    }
+} 
+
+EXTEND FORM options
+    PROPERTIES READONLY documentsClosedDateStock(s)
+;
+

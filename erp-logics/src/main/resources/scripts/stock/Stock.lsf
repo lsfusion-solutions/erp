@@ -849,12 +849,45 @@ NAVIGATOR {
     }    
 }
 
+
+EXTEND FORM options
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), nameStockGroup(sg)
+    ORDER BY nameStockGroup(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, nameStock, nameLegalEntityStock
+    ORDER BY nameStock(s)
+    
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
+            isCompanyStock(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT     
+    
+;
+
 DESIGN options {
     pane {
         NEW stock {
             caption = 'Склад';
             NEW stock1 {
             
+            }
+            NEW topContainer {
+                type = SPLITH;
+                fill = 1;            
+                
+                MOVE stockTree.tree.box {
+                    caption = 'Группы складов';
+                }
+    
+                MOVE s.box {
+                    fill = 3;
+                    s.grid {
+                        defaultComponent = TRUE;
+                    }
+                }
             }
         }
     }
