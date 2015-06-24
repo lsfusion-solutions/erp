@@ -17,7 +17,7 @@ import java.util.*;
 public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("sendSalesLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
 
     private FileSystemXmlApplicationContext springContext;
 
