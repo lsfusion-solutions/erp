@@ -1,0 +1,71 @@
+MODULE PurchaseOrderReplace;
+
+REQUIRE PurchaseOrder;
+
+NAMESPACE Purchase;
+
+//-- Объединение заказов
+selectedOrder 'Отм.' = DATA LOCAL BOOLEAN (Order);  
+notSelectedOrder (order)= order IS Order AND NOT selectedOrder(order);
+
+countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selectedOrder(order);
+countSelectedUserOrder 'Кол-во отм. (польз.)' = GROUP SUM 1 IF selectedOrder(order) AND order IS UserOrder;
+
+countSelectedSupplier 'Кол-во поставщиков' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierOrder(order)](supplier);
+minSupplier = GROUP MIN supplier IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierOrder(order)](supplier);
+
+countSelectedCustomer 'Кол-во покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY customerOrder(order)](customer);
+minCustomer = GROUP MIN customer IF [= GROUP SUM 1 IF selectedOrder(order) BY customerOrder(order)](customer);
+
+countSelectedSupplierStock 'Кол-во складов поставщика' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierStockOrder(order)](supplierStock);
+minSupplierStock = GROUP MIN supplierStock IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierStockOrder(order)](supplierStock);       
+
+countSelectedCustomerStock 'Кол-во складов покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY customerStockOrder(order)](customerStock);
+minCustomerStock = GROUP MIN customerStock IF [= GROUP SUM 1 IF selectedOrder(order) BY customerStockOrder(order)](customerStock);
+
+countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY operationOrder(order)](operation);
+minOperation = GROUP MIN operation IF [= GROUP SUM 1 IF selectedOrder(order) BY operationOrder(order)](operation);
+
+toShowSelectedOrder (order)= order IS UserOrder AND NOT selectedOrder(order);
+
+replaceOrder 'Объединить' = ACTION (order) {
+    IF countSelectedOrder() THEN {
+        IF  countSelectedUserOrder() == countSelectedOrder() THEN {
+    
+            IF (NOT countSelectedSupplier()==1) OR (NOT countSelectedCustomer() == 1) OR (NOT countSelectedSupplierStock() ==1) OR (NOT countSelectedCustomerStock()==1) OR (NOT countSelectedOperation()==1) THEN {
+                MESSAGE 'Отмечены заказы с разными операциями, покупателями, поставщиками или их складами';               
+            } ELSE {                  
+                IF (NOT minSupplier() == supplierOrder(order)) OR (NOT minSupplierStock() == supplierStockOrder(order)) OR (NOT minCustomer() == customerOrder(order)) OR (NOT minCustomerStock() == customerStockOrder(order)) OR (NOT minOperation() == operationOrder(order)) THEN {
+                    MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
+                } ELSE {   
+                    FOR selectedOrder(o) AND orderOrderDetail(detail)==o ADDOBJ d = UserOrderDetail DO {
+                        userOrderUserOrderDetail(d) <- order;
+                        skuUserOrderDetail(d) <- skuOrderDetail(detail);
+                        batchUserOrderDetail(d) <- batchOrderDetail(detail);
+                        quantityUserOrderDetail(d) <- quantityOrderDetail(detail);
+                        dataSupplierStockUserOrderDetail(d) <- dataSupplierStockOrderDetail(detail);
+                        priceUserOrderDetail(d) <- priceOrderDetail(detail);
+                        invoicePriceUserOrderDetail(d) <- invoicePriceOrderDetail(detail);
+                        priceListTypeUserOrderDetail(d) <- priceListTypeOrderDetail(detail);      
+                        shipmentDataDateUserOrderDetail(d) <- shipmentDataDateOrderDetail(detail);         
+                        shipmentDataTimeUserOrderDetail(d) <- shipmentDataTimeOrderDetail(detail);        
+                        closeDataDateUserOrderDetail(d) <- closeDataDateOrderDetail(detail);                                         
+                        selectedOrder(o) <- NULL;
+                        DELETE o;
+                    }
+                    apply();
+                }
+            }    
+     
+        } ELSE {
+            MESSAGE 'Отмечены заказы разных классов';
+        } 
+    } ELSE {
+        MESSAGE 'Нет отмеченных заказов';
+    }                           
+} CONFIRM;
+
+EXTEND FORM orders
+    PROPERTIES (o) selectedOrder BEFORE isClosedOrder(o)
+    PROPERTIES replaceOrder(o) FORCE PANEL TOOLBAR SHOWIF toShowSelectedOrder(o)
+;
