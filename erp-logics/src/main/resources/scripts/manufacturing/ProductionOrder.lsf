@@ -60,8 +60,8 @@ inLegalEntityStock(companyOrder(order), componentsStockOrder(order))
         MESSAGE 'Организация и склад компонент для производственного заказа не имеют связи';
 
 //
-calcBOMPriceOrder 'Расчет цен от количества в спецификации' = DATA BOOLEAN (Order);
-calcBOMPriceOperation 'Расчет цен от количества в спецификации' = DATA BOOLEAN (Operation);
+calcBOMPriceOrder 'Расчет цен от коэффициента' = DATA BOOLEAN (Order);
+calcBOMPriceOperation 'Расчет цен от коэффициента' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
     PROPERTIES(o) calcBOMPriceOperation 
@@ -133,7 +133,7 @@ calcExpiryDateProductDetail (d) = OVERRIDE
 @defineDocumentDetailQuantityCustom (productDetail);
 @defineDocumentHeaderQuantityCustomPrefix (order, productDetail, , ' (изделие)');
 
-calcBOMPriceProductDetail = calcBOMPriceOrder(orderProductDetail(d));
+calcBOMPriceProductDetail = calcBOMPriceOrder(orderProductDetail(d)) PERSISTENT;
 
 quantityBOMProductDetail 'Кол-во в спецификации' = quantityProduct(productProductDetail(d)) PERSISTENT;
 quantityPriceProductDetail 'Кол-во для расчета цены' = IF calcBOMPriceProductDetail(d) THEN
@@ -147,7 +147,6 @@ countProductDetailSkuOrder 'Кол-во строк изделий в докум�
     
 //Процент и коэффициент цены
 pricePercentProductDetail 'Удельный вес цены,%' = DATA NUMERIC[16,5] (ProductDetail);
-coeffPercentProductDetail = [= GROUP SUM pricePercentProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d)] (BOMProductDetail(d), orderProductDetail(d)) / 100.0;
 
 isPricePercentOrder 'Удельный вес цены,%' = DATA BOOLEAN (Order);
 isPriceCoeffOrder 'Коэффициент цены' = DATA BOOLEAN (Order);
@@ -618,6 +617,16 @@ changeSubstituteSkuOrder = ACTION (substitute, sku, order) {
     }
 }
 
+// коэффициенты цен
+calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPriceProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d);
+calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProductDetail(detail), orderProductDetail(detail));
+            
+calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantityComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
+    / (quantityPriceProductDetail(productDetail) * 100.0);  
+     
+calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[8,5]) * quantityPriceProductDetail(productDetail) * 100.0 
+    / calcQuantityComponentsProductDetail(productDetail);     
+    
 // Sku с учетом замены
 skuSkuOrder (sku, order) = OVERRIDE sku IF bruttoQuantitySkuOrder(sku, order), substituteSkuOrder(sku,order) PERSISTENT;
 
@@ -625,28 +634,45 @@ nameSkuSkuOrder 'Итоговый sku' (sku,order)= nameSku(skuSkuOrder (sku,ord
 idBarcodeSkuSkuOrder 'Штрихкод' (sku,order) = idBarcodeSku(skuSkuOrder (sku, order));
 shortNameUOMSkuSkuOrder 'Ед.изм.' (sku,order) = shortNameUOMSku(skuSkuOrder (sku, order));
 
-quantityComponentsBOMSkuOrder 'Кол-во' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
-//quantityComponentsBOMOrder 'Кол-во' (BOM, order) = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
+sumComponentDetailBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM sumComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
 
-bruttoSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * priceComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
+sumComponentDetailBOMOrder = GROUP SUM sumComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
+quantityComponentDetailBOMOrder = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 
-bruttoSumComponentsBOMOrder = GROUP SUM sumComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
+priceComponentsBOMOrder (b, o) = sumComponentDetailBOMOrder(b, o) / quantityComponentDetailBOMOrder(b, o);  
 
-bruttoSumPriceComponentsBOMOrder = GROUP SUM quantityPriceComponentDetail(d) * priceComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
-bruttoPriceComponentsProductDetail (d) = bruttoSumPriceComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) / quantityPriceProductDetail(d);
+priceComponentsProductDetail (d) = sumComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d)) / quantityProductDetail(d);
 
-calcComponentsPriceProductDetail 'Цена расчетная с/с' (d)= bruttoPriceComponentsProductDetail (d) // Цена компонентов за единицу 
-                                                                           * pricePercentProductDetail(d) / 100.0 // удельная цена
-                                                                           / coeffPercentProductDetail(d); // поправка на неточный процент
+calcPricePercentProductDetail(d) =  IF calcBOMPriceProductDetail(d) THEN
+                                                        NUMERIC[16,5](calcPricePercentProductDetailNumeric(d, priceProductDetail(d) /
+                                                                      priceComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d))))
+                                                     ELSE
+                                                        100 * priceProductDetail(d) / priceComponentsProductDetail(d);
+
+
+calcComponentsPriceProductDetail 'Цена расчетная с/с' (d) = IF calcBOMPriceProductDetail(d) THEN // считаем цены от цены спецификации * коэффициент (чтобы избежать проблем с округлением)
+                                                                                    priceComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) * 
+                                                                                    calcPriceCoeffProductDetail(d)
+                                                                             ELSE
+                                                                                    priceComponentsProductDetail (d) // Цена компонентов за единицу 
+                                                                                    * pricePercentProductDetail(d) / 100.0; // удельная цена
                     
-bruttoCostSumComponentsBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
-bruttoCostSumComponentsBOMOrder =  GROUP SUM bruttoCostSumComponentsBOMSkuOrder(BOM, sku, order) BY BOM, order;
+costSumComponentsBOMOrder =  GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
+costComponentsBOMOrder (b, o) = costSumComponentsBOMOrder(b, o) / quantityComponentDetailBOMOrder(b, o);
 
-calcCostProductDetail 'Себестоимость расчетная' (d)= bruttoCostSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
-                                                                      * pricePercentProductDetail(d) / 100.0 // удельная цена
-                                                                      / quantityProductDetail(d) // за единицу
-                                                                      / coeffPercentProductDetail(d); 
-        
+calcCostProductDetail 'Себестоимость расчетная' (d)= IF calcBOMPriceProductDetail(d) THEN // считаем цены от цены спецификации * коэффициент (чтобы избежать проблем с округлением)
+                                                                            costSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) /
+                                                                            quantityComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d)) *
+                                                                            calcPriceCoeffProductDetail(d)
+                                                                      ELSE
+                                                                            costSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) // Цена компонентов за единицу 
+                                                                            / quantityProductDetail(d)
+                                                                            * pricePercentProductDetail(d) / 100.0; // удельная цена
+
+//calcCostProductDetail 'Себестоимость расчетная' (d)= bruttoCostSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d)) 
+//                                                                      * pricePercentProductDetail(d) / 100.0 // удельная цена
+//                                                                      / quantityProductDetail(d); // за единицу
+
 //-- Подсчет цены изделия с учетом замен
 //recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
 
@@ -657,7 +683,7 @@ calcPremiumPriceProductDetail 'Цена расчетная (с надбавка�
     ELSE
         NUMERIC[14,2](roundPriceCurrency(componentsPriceProductDetail(productDetail) * multiplierCalcProductDetail(productDetail),
                                          currencyProductDetail(productDetail)));
-
+                                         
 // Изменение надбавок при вводе пользователем процента
 
 changeValueMarkupProductDetail (detail) = ACTION (detail) {
@@ -674,6 +700,26 @@ changeComponentsPriceProductDetail (detail) = ACTION (detail) {
     } ELSE
         componentsPriceProductDetail (detail) <- NULL;
 }
+
+// Изменение коэффициентов и цен
+changePriceCoeffProductDetail = ACTION (detail) {
+    REQUEST NUMERIC[8,5] INPUT;
+    IF requestedNumeric() THEN {        
+        pricePercentProductDetail(detail) <- NUMERIC[16,5](calcPricePercentProductDetailNumeric(detail, requestedNumeric()));
+        componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
+        changeValueMarkupProductDetail(detail);
+    }
+}
+changePricePercentProductDetail = ACTION (detail) {
+    REQUEST NUMERIC[16,5] INPUT;
+    IF requestedNumeric() THEN {
+        pricePercentProductDetail(detail) <- requestedNumeric(); 
+        componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
+        changeValueMarkupProductDetail(detail);
+    }
+}   
 
 
 changeMarkupProductDetail (detail) = ACTION (detail) {
@@ -696,12 +742,10 @@ calcMarkupProductDetail(d)  = [= round2((X/Y-1)*100)](
 changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
     IF addVATProductDetail(detail) THEN {
         markupProductDetail(detail) <- calcMarkupIsVATProductDetail(detail);
-        pricePercentProductDetail(detail) <- 
-                100 * priceProductDetail(detail) / bruttoPriceComponentsProductDetail(detail);
+        pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
     } ELSE {
         markupProductDetail(detail) <- calcMarkupProductDetail(detail);
-        pricePercentProductDetail(detail) <- 
-                100 * priceProductDetail(detail) / bruttoPriceComponentsProductDetail(detail);
+        pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
     }
 }
 
@@ -714,10 +758,9 @@ changeProductsPriceProductDetail (detail) = ACTION (detail) {
     IF requestedNumeric() THEN {
         priceProductDetail (detail) <- requestedNumeric();
         IF notRecalculateMarkupOrder(orderProductDetail(detail)) THEN {
-            pricePercentProductDetail(detail) <- 
-                            100 * priceProductDetail(detail) / bruttoPriceComponentsProductDetail(detail);
-            componentsPriceProductDetail(d) <- calcComponentsPriceProductDetail(d);
-            costPriceProductDetail(d) <- calcCostProductDetail(d);                
+            pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
+            componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+            costPriceProductDetail(detail) <- calcCostProductDetail(detail);                
         } ELSE {
             changeValueProductsPriceProductDetail(detail);    
         }   
@@ -760,8 +803,8 @@ WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
 //calcValueIsVATProductDetail 'НДС, %' (productDetail)= [= 100*X/Y](
 //    calcPriceIsVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail) IF calcComponentsPriceProductDetail(productDetail)!= 0);    
 //
-calcValueVATProductDetail 'НДС, %' = [= GROUP SUM bruttoSumComponentsBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) BY b, o](BOMProductDetail(d), orderProductDetail(d)) /
-                                                                   bruttoSumComponentsBOMOrder(BOMProductDetail(d), orderProductDetail(d));
+calcValueVATProductDetail 'НДС, %' = [= GROUP SUM sumComponentDetailBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) BY b, o](BOMProductDetail(d), orderProductDetail(d)) /
+                                                                   sumComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d));
 // Расчет цен для изделий
 
 fillPriceProductDetail 'Заполнить цены для изделий' = ACTION (detail)  {
@@ -796,33 +839,6 @@ fillPriceProductsOrder 'Заполнить цены для изделий' = ACT
     }
 } TOOLBAR;
 
-calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPriceProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d);
-calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProductDetail(detail), orderProductDetail(detail));
-            
-calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantityComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
-    / (quantityPriceProductDetail(productDetail) * 100.0);  
-     
-calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[8,5]) * quantityPriceProductDetail(productDetail) * 100.0 
-    / calcQuantityComponentsProductDetail(productDetail);     
-    
-changePriceCoeffProductDetail = ACTION (detail) {
-    REQUEST NUMERIC[8,5] INPUT;
-    IF requestedNumeric() THEN {        
-        pricePercentProductDetail(detail) <- NUMERIC[16,5](calcPricePercentProductDetailNumeric(detail, requestedNumeric()));
-        componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
-        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
-        changeValueMarkupProductDetail(detail);
-    }
-}
-changePricePercentProductDetail = ACTION (detail) {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF requestedNumeric() THEN {
-        pricePercentProductDetail(detail) <- requestedNumeric(); 
-        componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
-        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
-        changeValueMarkupProductDetail(detail);
-    }
-}   
 //-- Замены для компонентов
 
 chooseSubstituteComponentDetail 'Выбрать замену' =  ACTION (detail){
