@@ -206,9 +206,9 @@ public class EquipmentServer {
                             if (task == null)
                                 Thread.sleep(millis);
                             else {
-                                logger.info("task: " + task);
+                                logger.info("task group started: " + task.groupId);
                                 task.run();
-                                logger.info("task done: " + task);
+                                logger.info("task group done: " + task.groupId);
                             }
                         } catch (Exception e) {
                             logger.error("Unhandled exception : ", e);
@@ -907,7 +907,7 @@ public class EquipmentServer {
                             if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
                                 noErrors = false;
                             if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
-                                remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                                remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
                         } catch (Exception e) {
                             noErrors = false;
                             errorTransactionReport(transactionInfo.id, e);
