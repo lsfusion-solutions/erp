@@ -114,7 +114,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 File flagPriceFile = new File(directory + "/price.qry");
 
                                 if (priceFile.exists() && priceFile.length() == 0)
-                                    priceFile.delete();
+                                    safeFileDelete(priceFile, processTransactionLogger);
 
                                 boolean append = !transaction.snapshot && priceFile.exists();
 
@@ -306,10 +306,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         processTransactionLogger.info(String.format("HTC: Transaction # %s end waiting for deletion", transaction.id));
                         exception = exception == null ? deletionException : exception;
 
-                        if (cachedPriceFile != null)
-                            cachedPriceFile.delete();
-                        if (cachedPriceMdxFile != null)
-                            cachedPriceMdxFile.delete();
+                        safeFileDelete(cachedPriceFile, processTransactionLogger);
+                        safeFileDelete(cachedPriceMdxFile, processTransactionLogger);
 
                     } catch (xBaseJException e) {
                         throw Throwables.propagate(e);
@@ -386,8 +384,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 machineryExchangeLogger.info("HTCHandler: finish sending to " + directory);
             }
             if(cachedDiscFile != null) {
-                new File(cachedDiscFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
-                cachedDiscFile.delete();
+                safeFileDelete(new File(cachedDiscFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
+                safeFileDelete(cachedDiscFile, machineryExchangeLogger);
             }
         } catch (xBaseJException e) {
             throw Throwables.propagate(e);
@@ -412,18 +410,18 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             }
             
             if(cachedTimeFile != null) {
-                cachedTimeFile.delete();
-                new File(cachedTimeFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+                safeFileDelete(cachedTimeFile, machineryExchangeLogger);
+                safeFileDelete(new File(cachedTimeFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
             }
 
             if(cachedQuantityFile != null) {
-                cachedQuantityFile.delete();
-                new File(cachedQuantityFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+                safeFileDelete(cachedQuantityFile, machineryExchangeLogger);
+                safeFileDelete(new File(cachedQuantityFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
             }
 
             if(cachedSumFile != null) {
-                cachedSumFile.delete();
-                new File(cachedSumFile.getAbsolutePath().replace(".dbf", ".mdx")).delete();
+                safeFileDelete(cachedSumFile, machineryExchangeLogger);
+                safeFileDelete(new File(cachedSumFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
             }
             
         } catch (xBaseJException e) {
@@ -810,12 +808,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         filePathList.add(remoteSalesFile.getAbsolutePath());
                         filePathList.add(remoteReceiptFile.getAbsolutePath());
                     }
-                    if (salesFile != null)
-                        salesFile.delete();
-                    if (receiptFile != null)
-                        receiptFile.delete();
-                    File remoteAnsFile = new File(directory + "/Sales.ans");
-                    remoteAnsFile.delete();
+                    safeFileDelete(salesFile, sendSalesLogger);
+                    safeFileDelete(receiptFile, sendSalesLogger);
+                    safeFileDelete(new File(directory + "/Sales.ans"), sendSalesLogger);
                 }
             }
             for(String filePath : receiptFilesPathList) {
@@ -993,12 +988,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             File salesFile = new File(directory + "/Sales.dbf");
             File receiptFile = new File(directory + "/Receipt.dbf");
             if (new File(directory).exists()) {
-                ansFile.delete();
+                safeFileDelete(ansFile, sendSalesLogger);
                 Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
                 writer.write(date);
                 writer.close();
                 result = waitRequestSalesInfo(queryFile, ansFile, salesFile, receiptFile);
-                ansFile.delete();
+                safeFileDelete(ansFile, sendSalesLogger);
             } else
                 result = "Error: " + directory + " doesn't exist. Request creation failed.";
             if (result != null)
@@ -1030,6 +1025,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 return renamed ? null : "Renaming of receipt file failed";
             } else
                 return "Renaming of sales file failed";
+        }
+    }
+
+    private void safeFileDelete(File file, Logger logger) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+            logger.info(String.format("HTC: cannot delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
         }
     }
 }
