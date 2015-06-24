@@ -91,11 +91,13 @@ FORM updatePriceDashboard 'Обновление розничных цен'
                                                                  
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk
     
-    OBJECTS p = Machinery.PriceTransactionDocument
-    PROPERTIES (p) READONLY isClosedPriceTransactionDocument, isPostedPriceTransactionDocument, dateTimePriceTransactionDocument, seriesPriceTransactionDocument, numberPriceTransactionDocument, descriptionPriceTransactionDocument, statusMachineryPriceTransactionDocument, statusLabelPriceTransactionDocument FORCE GRID
+    OBJECTS p = Machinery.PriceTransactionDocument LAST
+    PROPERTIES (p) READONLY isClosedPriceTransactionDocument, isPostedPriceTransactionDocument, datePriceTransactionDocument, timePriceTransactionDocument, seriesPriceTransactionDocument, numberPriceTransactionDocument,
+                nameLegalEntityPriceTransactionDocument, nameOperationPriceTransactionDocument, descriptionPriceTransactionDocument, statusMachineryPriceTransactionDocument, statusLabelPriceTransactionDocument FORCE GRID
     PROPERTIES (p) SHOWIF showCreateMachineryPriceTransactionPriceTransactionDocument(p) createMachineryPriceTransactionPriceTransactionDocument, createSnapshotMachineryPriceTransactionPriceTransactionDocument
     PROPERTIES (p) SHOWIF  showPrintLabelTransactionPriceTransactionDocument(p) createLabelTransactionPriceTransactionDocument, createSnapshotLabelTransactionPriceTransactionDocument
     FILTERS d == stockPriceTransactionDocument(p)
+    ORDER BY datePriceTransactionDocument(p), timePriceTransactionDocument(p)
     FILTERGROUP succeeded
         FILTER 'Ценники' NOT skipPriceTransactionDocument(p) AND NOT printedPriceTransactionDocument(p) 'F11'
         FILTER 'Оборудование' NOT succeededPriceTransactionDocument(p) AND NOT skipPriceTransactionDocument(p) 'F10'
@@ -105,6 +107,10 @@ FORM updatePriceDashboard 'Обновление розничных цен'
         FILTER 'Открыт' NOT isClosedPriceTransactionDocument(p) DEFAULT
     FILTERGROUP posted
         FILTER 'Проведен' NOT isDraftPriceTransactionDocument(p) DEFAULT
+    
+    OBJECTS pd = Machinery.PriceTransactionDocumentDetail
+    PROPERTIES (pd) READONLY idBarcodeSkuPriceTransactionDocumentDetail, nameSkuPriceTransactionDocumentDetail, quantityPriceTransactionDocumentDetail, pricePriceTransactionDocumentDetail
+    FILTERS priceTransactionDocumentPriceTransactionDocumentDetail(pd) == p
                                                                                      
     EVENTS
         ON INIT initUseCurrentPrice()
@@ -134,27 +140,34 @@ DESIGN updatePriceDashboard {
             caption = 'Документы';
             fill = 1;
             NEW docTop{
-                fill = 9;
+                fill = 1;
                 MOVE p.box; 
             }
             NEW docBott{
-                caption = 'Действия';
-//                fill = 1;
-                type =CONTAINERH;
-                
-                NEW machinery {                 
-                    caption = 'Загрузки' ;
-                    type = CONTAINERV;    
-                            
-                    MOVE PROPERTY (createMachineryPriceTransactionPriceTransactionDocument(p));
-                    MOVE PROPERTY (createSnapshotMachineryPriceTransactionPriceTransactionDocument(p));
+                fill = 1;
+                type = TABBED;
+                NEW specif{
+                    caption = 'Спецификация';
+                    MOVE pd.box;
                 }
-                NEW label {
-                    caption = 'Ценники' ;
-                    type = CONTAINERV;
+                NEW action{
+                    caption = 'Действия';
+                    type =CONTAINERH;
                     
-                    MOVE PROPERTY (createLabelTransactionPriceTransactionDocument(p));
-                    MOVE PROPERTY (createSnapshotLabelTransactionPriceTransactionDocument(p));
+                    NEW machinery {                 
+                        caption = 'Загрузки' ;
+                        type = CONTAINERV;    
+                                
+                        MOVE PROPERTY (createMachineryPriceTransactionPriceTransactionDocument(p));
+                        MOVE PROPERTY (createSnapshotMachineryPriceTransactionPriceTransactionDocument(p));
+                    }
+                    NEW label {
+                        caption = 'Ценники' ;
+                        type = CONTAINERV;
+                        
+                        MOVE PROPERTY (createLabelTransactionPriceTransactionDocument(p));
+                        MOVE PROPERTY (createSnapshotLabelTransactionPriceTransactionDocument(p));
+                    }
                 }
             }
         }
@@ -169,6 +182,7 @@ filterSupplierDepartmentStoreSku (departmentStore, sku) = prevInSupplierSku(filt
 EXTEND FORM updatePriceDashboard
     PROPERTIES nameFilterSupplierDepartmentStore(d) FORCE PANEL
     FILTERS    filterSupplierDepartmentStoreSku(d, sk)
+    FILTERS legalEntityPriceTransactionDocument(p) == filterSupplierDepartmentStore(d) OR NOT filterSupplierDepartmentStore(d)
 ;
 DESIGN updatePriceDashboard {
     header {
