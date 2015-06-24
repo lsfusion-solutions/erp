@@ -868,7 +868,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         barcode = barcode.substring(2, 7);
                                                     String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
                                                     BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
-                                                    BigDecimal price = readBigDecimalXMLAttribute(receiptDetailElement, "PRICE");
+                                                    BigDecimal price = readBigDecimalXMLAttribute(receiptDetailElement, "PRICEWITHOUTDISC");
                                                     BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA");
                                                     currentPaymentSum = safeAdd(currentPaymentSum, sumReceiptDetail);
                                                     BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM");
