@@ -17,6 +17,7 @@ import java.util.*;
 public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("sendSalesLogger");
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -214,7 +215,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     if (item.section != null) {
                         for (String stock : item.section.split(",")) {
-                            ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                            ps.setString(1, String.valueOf(transaction.nppGroupMachinery)); //store
                             ps.setString(2, trim(item.idItem, 40, "")); //item
                             ps.setInt(3, Integer.parseInt(stock)); //stock
                             ps.setInt(4, version); //version
@@ -242,8 +243,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             ps = conn.prepareStatement(
                     "INSERT INTO pricelist (id, name, version, deleted) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)");
 
-            ps.setInt(1, transaction.nppGroupMachinery); //id
-            ps.setString(2, trim(String.valueOf(transaction.nppGroupMachinery), 100, "")); //name
+            ps.setInt(1, getIdPriceList(transaction)); //id
+            ps.setString(2, trim(String.valueOf(getIdPriceList(transaction)), 100, "")); //name
             ps.setInt(3, version); //version
             ps.setInt(4, 0); //deleted
             ps.addBatch();
@@ -268,7 +269,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                                 "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setInt(1, transaction.nppGroupMachinery); //pricelist
+                    ps.setInt(1, getIdPriceList(transaction)); //pricelist
                     ps.setString(2, trim(item.idItem, 40, "")); //item
                     ps.setBigDecimal(3, item.price); //price
                     BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : BigDecimal.ZERO;
@@ -299,7 +300,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
                     if (barcode != null) {
-                        ps.setInt(1, transaction.nppGroupMachinery); //pricelist
+                        ps.setInt(1, getIdPriceList(transaction)); //pricelist
                         ps.setString(2, trim(barcode, 40)); //var
                         ps.setBigDecimal(3, item.price); //price
                         ps.setInt(4, version); //version
@@ -323,12 +324,12 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
         try {
-            if(transaction.departmentNumberGroupCashRegister != null && transaction.nppGroupMachinery != null) {
+            if(transaction.nppGroupMachinery != null) {
                 ps = conn.prepareStatement(
                         "INSERT INTO pricetype_store_pricelist (pricetype, store, pricelist, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE pricelist=VALUES(pricelist), deleted=VALUES(deleted)");
                 ps.setInt(1, 123); //pricetype
-                ps.setString(2, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
-                ps.setInt(3, transaction.nppGroupMachinery); //pricelist
+                ps.setString(2, String.valueOf(transaction.nppGroupMachinery)); //store
+                ps.setInt(3, getIdPriceList(transaction)); //pricelist
                 ps.setInt(4, version); //version
                 ps.setInt(5, 0); //deleted
                 ps.addBatch();
@@ -590,6 +591,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         }
                     }
                 }
+                if (salesInfoList.size() > 0)
+                    sendSalesLogger.info(String.format("UKM4: found %s records", salesInfoList.size()));
             } catch (SQLException e) {
                 throw Throwables.propagate(e);
             } finally {
@@ -695,6 +698,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             return null;
         else
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
+    }
+
+    private Integer getIdPriceList(TransactionCashRegisterInfo transaction) {
+        return transaction.departmentNumberGroupCashRegister == null ? transaction.nppGroupMachinery : transaction.departmentNumberGroupCashRegister;
     }
 
 }
