@@ -8,7 +8,6 @@ public class CashRegisterInfo extends MachineryInfo {
     public Date startDate;
     public Integer overDepartNumber;
     public Boolean notDetailed;
-    public Boolean succeeded;
     public boolean disableSales;
     public String pieceCodeGroupCashRegister;
     public String weightCodeGroupCashRegister;
