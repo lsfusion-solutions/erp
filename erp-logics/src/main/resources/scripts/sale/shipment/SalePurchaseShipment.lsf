@@ -50,7 +50,7 @@ EXTEND FORM shipments
 ;
 //--  Связь поставки с поставкой
 
-shipmentDetailShipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) PERSISTENT;
+shipmentDetailShipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) PERSISTENT INDEXED;
 shipmentDetailUserShipmentDetail = DATA ShipmentDetail (Purchase.UserShipmentDetail);
 shipmentDetailShipmentDetail(shipmentDetail) += shipmentDetailUserShipmentDetail(shipmentDetail);
 
@@ -76,7 +76,7 @@ saleShipmentsShipment 'Поставки (продажа)' (purchase) = GROUP CON
                                                         BY purchase
                                                         ORDER sale IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-relationPurchaseShipment 'Связь' (purchase) = GROUP SUM quantityShipmentDetailShipmentShipment (sale, purchase) BY purchase PERSISTENT;
+relationPurchaseShipment 'Связь' (purchase) = GROUP SUM quantityShipmentDetailShipmentShipment (sale, purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
 
 shippedShipmentDetail 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM Purchase.quantityShipmentDetail(detail) IF Purchase.isPostedShipmentDetail(detail)
                                                                    BY shipmentDetailShipmentDetail(detail) PERSISTENT;
