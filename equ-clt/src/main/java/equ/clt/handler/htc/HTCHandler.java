@@ -973,9 +973,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 File receiptFile = new File(new File(directory).getParent() + "/Data/jc" + new SimpleDateFormat("yyMMdd").format(cal.getTime()) + ".dbf");
                                 File salesFile = new File(new File(directory).getParent() + "/Data/js" + new SimpleDateFormat("yyMMdd").format(cal.getTime()) + ".dbf");
                                 if(receiptFile.exists() && salesFile.exists()) {
-                                    FileCopyUtils.copy(receiptFile, new File(directory + "/Receipt" + getCurrentTimestamp() + ".dbf"));
-                                    FileCopyUtils.copy(salesFile, new File(directory + "/Sales" + getCurrentTimestamp() + ".dbf"));
-                                    skip = true;
+                                    try {
+                                        FileCopyUtils.copy(receiptFile, new File(directory + "/Receipt" + getCurrentTimestamp() + ".dbf"));
+                                        FileCopyUtils.copy(salesFile, new File(directory + "/Sales" + getCurrentTimestamp() + ".dbf"));
+                                        skip = true;
+                                    } catch (Exception e) {
+                                        sendSalesLogger.error("HTC: error copying files from data directory");
+                                    }
                                 }
                             }
                             if(!skip) {
