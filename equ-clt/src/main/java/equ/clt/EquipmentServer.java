@@ -446,7 +446,7 @@ public class EquipmentServer {
 
                 for (String directory : directorySet) {
                     SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                    if (salesBatch == null) {
+                    if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0) {
                         sendSalesLogger.info("SalesInfo is empty");
                     } else {
                         sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
