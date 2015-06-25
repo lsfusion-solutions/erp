@@ -163,10 +163,10 @@ DESIGN userInvoice {
 CONSTRAINT Purchase.supplierInvoiceDetail(detail) != supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
            Purchase.supplierStockInvoiceDetail(detail) != supplierStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
            Purchase.customerInvoiceDetail(detail) != customerInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
-           Purchase.customerStockInvoiceDetail(detail) != customerStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
-           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
+           Purchase.customerStockInvoiceDetail(detail) != customerStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
+//           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
     CHECKED BY invoiceDetailUserInvoiceDetail
-        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на осове накладной должны соответствовать друг другу';
+        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
 
 
 descriptionIndexInvoiceDetailInvoiceDetail 'Строка накладной (продажа)' (detail) = descriptionIndexInvoiceDetail(invoiceDetailInvoiceDetail(detail));
@@ -182,6 +182,12 @@ relationPurchaseInvoice 'Связь' (purchase) = GROUP SUM quantityInvoiceDetai
 
 invoicedInvoiceDetail 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM Purchase.quantityInvoiceDetail(detail) IF Purchase.isPostedInvoiceDetail(detail)
                                                                    BY invoiceDetailInvoiceDetail(detail) PERSISTENT;
+
+invoicedInvoice 'Кол-во (выписано)' = GROUP SUM invoicedInvoiceDetail(detail) BY invoiceInvoiceDetail(detail);
+
+statusInvoiceInvoice 'Статус' = CASE
+                                                        WHEN invoicedInvoice(i) THEN 'Создано поступление'
+                                                                                ELSE 'Не создано поступление';
 
 toInvoicedInvoiceDetail 'Не выписано' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) invoicedInvoiceDetail(invoiceDetail);
 
