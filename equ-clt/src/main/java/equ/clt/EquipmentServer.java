@@ -425,7 +425,7 @@ public class EquipmentServer {
                     }
                 }
 
-                if(mergedSalesBatch == null) {
+                if(mergedSalesBatch == null || mergedSalesBatch.salesInfoList == null || mergedSalesBatch.salesInfoList.size() == 0) {
                     sendSalesLogger.info("SalesInfo is empty");
                 } else {
                     sendSalesLogger.info("Sending SalesInfo : " + mergedSalesBatch.salesInfoList.size() + " records");
@@ -821,6 +821,14 @@ public class EquipmentServer {
                 processTransactionLogger.info(String.format("Task Pool : marking transaction %s as succeeded", transactionEntry.getKey().id));
                 if(transactionEntry.getValue())
                     succeededTaskList.add(transactionEntry.getKey().id);
+                else {
+                    for(Iterator<Map.Entry<Integer, TransactionInfo>> it = waitingTaskQueueMap.entrySet().iterator(); it.hasNext(); ) {
+                        Map.Entry<Integer, TransactionInfo> entry = it.next();
+                        if(groupId != null && groupId.equals(getTransactionInfoGroupId(entry.getValue()))) {
+                            it.remove();
+                        }
+                    }
+                }
                 proceededTaskList.remove(transactionEntry.getKey().id);
             }
             currentlyProceededGroups.remove(groupId);

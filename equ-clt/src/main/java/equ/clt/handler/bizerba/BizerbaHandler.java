@@ -91,8 +91,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
                         for (Future<SendTransactionResult> threadResult : threadResults) {
                             if(threadResult.get().localErrors.isEmpty())
                                 succeededScalesList.add(threadResult.get().scalesInfo);
-                            else
+                            else {
+                                brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
                                 errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
+                            }
                         }
                     }
 
@@ -568,7 +570,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
                 }
             }
-
+            //if(scales.port.endsWith("143")) {
+            //    localErrors.add("test error");
+            //}
             processTransactionLogger.info("Bizerba: Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors);
         }
