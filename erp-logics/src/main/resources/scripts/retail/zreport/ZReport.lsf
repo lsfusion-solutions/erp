@@ -426,9 +426,10 @@ onStarted() += ACTION () {
 }
 
 sumVATReceiptDetail 'Сумма НДС' (d) = DATA NUMERIC[16,2] (ReceiptDetail);
+calcSumVATReceiptDetail 'Сумма НДС' (d) = roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
 // пока делаем не сессионным событием, чтобы быстрее принималось
 WHEN CHANGED(valueVATReceiptDetail(d)) OR CHANGED(sumReceiptDetail(d)) OR CHANGED(currencyReceiptDetail(d)) DO {
-    sumVATReceiptDetail(d) <- roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
+    sumVATReceiptDetail(d) <- calcSumVATReceiptDetail(d);
 }
 
 isSumVATReceiptDetail = DATA BOOLEAN ();
