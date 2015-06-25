@@ -839,6 +839,9 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                    Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
         Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
 
+        HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
+        boolean useDataDirectory = htcSettings == null || htcSettings.isUseDataDirectory();
+
         for (RequestExchange entry : requestExchangeList) {
             if (entry.isSalesInfoExchange()) {
                 for (String directory : entry.directorySet) {
@@ -856,8 +859,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             for (Map.Entry<String, List<RequestExchange>> entry : requestExchangeMap.entrySet()) {
                 String directory = entry.getKey();
                 List<RequestExchange> requestExchanges = entry.getValue();
-
-                taskList.add(new RequestSalesInfoTask(directory, requestExchanges));
+                if(directory != null)
+                    taskList.add(new RequestSalesInfoTask(directory, requestExchanges, useDataDirectory));
             }
             if(!taskList.isEmpty()) {
                 ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
@@ -943,10 +946,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     class RequestSalesInfoTask implements Callable<Map<Integer, String>> {
         String directory;
         List<RequestExchange> requestExchanges;
+        boolean useDataDirectory;
 
-        public RequestSalesInfoTask(String directory, List<RequestExchange> requestExchanges) {
+        public RequestSalesInfoTask(String directory, List<RequestExchange> requestExchanges, boolean useDataDirectory) {
             this.directory = directory;
             this.requestExchanges = requestExchanges;
+            this.useDataDirectory = useDataDirectory;
         }
 
         @Override
@@ -963,9 +968,21 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         if (failed) {
                             requestResult = requestResult == null ? String.format("Previous query to directory %s failed", directory) : requestResult;
                         } else {
-                            requestResult = createRequest(cal, directory);
-                            if (requestResult != null)
-                                failed = true;
+                            boolean skip = false;
+                            if(useDataDirectory) {
+                                File receiptFile = new File(new File(directory).getParent() + "/Data/jc" + new SimpleDateFormat("yyMMdd").format(cal.getTime()) + ".dbf");
+                                File salesFile = new File(new File(directory).getParent() + "/Data/js" + new SimpleDateFormat("yyMMdd").format(cal.getTime()) + ".dbf");
+                                if(receiptFile.exists() && salesFile.exists()) {
+                                    FileCopyUtils.copy(receiptFile, new File(directory + "/Receipt" + getCurrentTimestamp() + ".dbf"));
+                                    FileCopyUtils.copy(salesFile, new File(directory + "/Sales" + getCurrentTimestamp() + ".dbf"));
+                                    skip = true;
+                                }
+                            }
+                            if(!skip) {
+                                requestResult = createRequest(cal, directory);
+                                if (requestResult != null)
+                                    failed = true;
+                            }
                         }
                         cal.add(Calendar.DATE, 1);
                     }

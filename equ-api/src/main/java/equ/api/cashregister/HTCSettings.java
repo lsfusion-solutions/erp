@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class HTCSettings implements Serializable{
 
     private boolean makeBackup;
+    private boolean useDataDirectory;
 
     public HTCSettings() {
     }
@@ -15,5 +16,13 @@ public class HTCSettings implements Serializable{
 
     public void setMakeBackup(boolean makeBackup) {
         this.makeBackup = makeBackup;
+    }
+
+    public boolean isUseDataDirectory() {
+        return useDataDirectory;
+    }
+
+    public void setUseDataDirectory(boolean useDataDirectory) {
+        this.useDataDirectory = useDataDirectory;
     }
 }
