@@ -18,6 +18,7 @@ public class DBSettings implements Serializable{
     private Boolean noMessageAndScaleFiles;
     private String transformUPCBarcode; //12to13 or 13to12
     private Boolean useCheckNumber;
+    private Integer maxFilesCount;
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -88,5 +89,13 @@ public class DBSettings implements Serializable{
 
     public Boolean getUseCheckNumber() {
         return useCheckNumber;
+    }
+
+    public Integer getMaxFilesCount() {
+        return maxFilesCount;
+    }
+
+    public void setMaxFilesCount(Integer maxFilesCount) {
+        this.maxFilesCount = maxFilesCount;
     }
 }

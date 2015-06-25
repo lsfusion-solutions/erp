@@ -679,6 +679,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
         boolean useCheckNumber = kristalSettings != null && kristalSettings.getUseCheckNumber() != null && kristalSettings.getUseCheckNumber();
+        Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
 
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         Map<String, Date> directoryStartDateMap = new HashMap<>();
@@ -726,9 +727,16 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         if (filesList == null || filesList.length == 0)
             sendSalesLogger.info("Kristal: No checks found in " + exchangeDirectory);
         else {
-            sendSalesLogger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+            if(maxFilesCount == null)
+                sendSalesLogger.info(String.format("Kristal: found %s file(s) in %s", filesList.length, exchangeDirectory));
+            else
+                sendSalesLogger.info(String.format("Kristal: found %s file(s) in %s, will read %s file(s)", filesList.length, exchangeDirectory, Math.min(filesList.length, maxFilesCount)));
 
+            int filesCount = 0;
             for (File file : filesList) {
+                filesCount++;
+                if(maxFilesCount != null && maxFilesCount < filesCount)
+                    break;
                 try {
                     if(file.length() == 0) {
                         //file is empty

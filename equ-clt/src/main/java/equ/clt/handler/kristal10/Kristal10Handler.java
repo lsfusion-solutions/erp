@@ -576,6 +576,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
+        Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
@@ -592,9 +593,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         if (filesList == null || filesList.length == 0)
             sendSalesLogger.info("Kristal10: No checks found in " + exchangeDirectory);
         else {
-            sendSalesLogger.info("Kristal10: found " + filesList.length + " file(s) in " + exchangeDirectory);
+            if(maxFilesCount == null)
+                sendSalesLogger.info(String.format("Kristal10: found %s file(s) in %s", filesList.length, exchangeDirectory));
+            else
+                sendSalesLogger.info(String.format("Kristal10: found %s file(s) in %s, will read %s file(s)", filesList.length, exchangeDirectory, Math.min(filesList.length, maxFilesCount)));
 
+            int filesCount = 0;
             for (File file : filesList) {
+                filesCount++;
+                if(maxFilesCount != null && maxFilesCount < filesCount)
+                    break;
                 try {
                     String fileName = file.getName();
                     sendSalesLogger.info("Kristal10: reading " + fileName);
