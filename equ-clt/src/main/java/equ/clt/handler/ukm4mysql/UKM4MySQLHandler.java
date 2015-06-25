@@ -446,6 +446,13 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
         UKM4MySQLSalesBatch salesBatch = null;
 
+        String weightCode = null;
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (c.handlerModel != null && c.handlerModel.endsWith("UKM4MySQLHandler") && c.weightCodeGroupCashRegister != null) {
+                weightCode = c.weightCodeGroupCashRegister;
+            }
+        }
+
         try {
 
             Class.forName("com.mysql.jdbc.Driver");
@@ -464,7 +471,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 try {
                     conn = DriverManager.getConnection(connectionString, user, password);
 
-                    salesBatch = readSalesInfoFromSQL(conn);
+                    salesBatch = readSalesInfoFromSQL(conn, weightCode);
 
                 } finally {
                     if (conn != null)
@@ -532,7 +539,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         return paymentMap;
     }
 
-    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn) throws SQLException {
+    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
@@ -557,6 +564,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     //Integer id = rs.getInt(4); //i.id
                     Integer idReceipt = rs.getInt(5); //i.receipt_header
                     String idBarcode = rs.getString(6); //i.var
+                    if (idBarcode != null && weightCode != null && (idBarcode.length() == 13 || idBarcode.length() == 7) && idBarcode.startsWith(weightCode))
+                        idBarcode = idBarcode.substring(2, 7);
                     String idItem = rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
                     BigDecimal price = rs.getBigDecimal(9); //i.price
