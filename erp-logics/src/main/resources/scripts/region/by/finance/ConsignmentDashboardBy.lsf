@@ -140,7 +140,8 @@ DESIGN numberCopies {
            
 overPrintDoubleSidedConsignmentsVertical = ABSTRACT ACTION LIST (Consignment);
 overSetDoubleSidedConsignmentsVertical = ABSTRACT ACTION LIST (Consignment);
-printDoubleSidedConsignmentsVertical 'Печать ТТН-1' (consignment) = ACTION {
+
+prePrintActionConsignmentsVertical = ACTION (consignment) {
     issuanceAllowedConsignment(consignment) <- issuanceAllowedStock(supplierStockConsignment(consignment)) WHERE NOT issuanceAllowedConsignment(consignment);
     issuanceExecutedConsignment(consignment) <- issuanceExecutedStock(supplierStockConsignment(consignment)) WHERE NOT issuanceExecutedConsignment(consignment);
     loadingExecuterConsignment(consignment) <- loadingExecuterStock(supplierStockConsignment(consignment)) WHERE NOT loadingExecuterConsignment(consignment);
@@ -148,37 +149,38 @@ printDoubleSidedConsignmentsVertical 'Печать ТТН-1' (consignment) = ACT
     unloadingExecuterConsignment(consignment) <- unloadingExecuterStock(supplierStockConsignment(consignment)) WHERE NOT unloadingExecuterConsignment(consignment);
     wayOfUnloadingConsignment(consignment) <- wayOfUnloadingStock(supplierStockConsignment(consignment)) WHERE NOT wayOfUnloadingConsignment(consignment);    
     codeLoadingConsignment(consignment) <- codeLoadingStock(supplierStockConsignment(consignment)) WHERE NOT codeLoadingConsignment(consignment);
+}
+
+printDoubleSidedConsignmentsVertical 'Печать ТТН-1' (consignment) = ACTION {
+    prePrintActionConsignmentsVertical(consignment);                                                  
+    
     FORM numberCopies OBJECTS c = consignment MODAL;
     LOCAL countConsignment = INTEGER();        
     LOCAL countAttach = INTEGER();  
-    countConsignment() <- 1;
-    countAttach() <- 1;                                                         
-                            
+    countConsignment() <- 0;
+    countAttach() <- 0;   
+    
     IF formResult() == FormResult.ok THEN {
         overSetDoubleSidedConsignmentsVertical(consignment);
-         
-        countConsignment() <- 0;            
-        countAttach() <- 0;            
-        
         IF countConsignmentDetailConsignment(consignment) <= overCountRowsVerticalABConsignment (consignment) THEN {
             WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
-                printConsignmentVerticalAB(consignment);
+                printConsignmentVerticalABAuto(consignment);
                 countConsignment() <- countConsignment() + 1;
             }               
         } ELSE {
             IF  countConsignmentDetailConsignment(consignment) <= countRowsVerticalA () THEN {
                 WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
-                    printConsignmentVertical(consignment);
+                    printConsignmentVerticalAuto(consignment);
                     countConsignment() <- countConsignment() + 1;
                 }                 
             
             } ELSE {
                 WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
-                    printConsignmentVerticalAB(consignment);
+                    printConsignmentVerticalABAuto(consignment);
                     countConsignment() <- countConsignment() + 1;
                 }      
                 WHILE countAttach() < numberCopiesAttachConsignment(consignment) DO {
-                    printConsignmentAttach(consignment);
+                    printConsignmentAttachAuto(consignment);
                     countAttach() <- countAttach() + 1;
                 }                          
             }                                    
@@ -192,13 +194,68 @@ printDoubleSidedConsignmentsVertical 'Печать ТТН-1' (consignment) = ACT
     }    
 } IMAGE 'print.png';
 
+printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (consignment) = ACTION {
+    prePrintActionConsignmentsVertical(consignment);                                                  
+
+    FORM numberCopies OBJECTS c = consignment MODAL;
+    LOCAL countConsignment = INTEGER();        
+    LOCAL countAttach = INTEGER();  
+    countConsignment() <- 0;
+    countAttach() <- 0;   
+                                    
+    IF formResult() == FormResult.ok THEN {       
+        IF countConsignmentDetailConsignment(consignment) <= overCountRowsVerticalABConsignment (consignment) THEN {
+            CONFIRM 'Печать будет выполняться на ОДНОЙ стороне ТТН БЕЗ ПРИЛОЖЕНИЯ'; 
+            IF (confirmed()) THEN {
+                WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                    printConsignmentVerticalAB(consignment);
+                    countConsignment() <- countConsignment() + 1;
+                }
+            }               
+        } ELSE {
+            IF  countConsignmentDetailConsignment(consignment) <= countRowsVerticalA () THEN {
+                CONFIRM 'Печать будет выполняться на ДВУХ сторонах ТТН';
+                IF (confirmed()) THEN {
+                    WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                        printConsignmentVerticalAAuto(consignment);
+                        countConsignment() <- countConsignment() + 1;
+                    }
+                    MESSAGE 'Для продолжения печати положите бланк ТТН обратной стороной'; 
+                    WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                        printConsignmentVerticalBAuto(consignment);
+                        countConsignment() <- countConsignment() + 1;
+                    }
+                }                     
+            } ELSE {
+                CONFIRM 'Печать будет выполняться на ОДНОЙ стороне ТТН C ПРИЛОЖЕНИЕМ';
+                IF (confirmed()) THEN {
+                    WHILE countConsignment() < numberCopiesConsignmentConsignment(consignment) DO {
+                        printConsignmentVerticalABAuto(consignment);
+                        countConsignment() <- countConsignment() + 1;
+                    }      
+                    WHILE countAttach() < numberCopiesAttachConsignment(consignment) DO {
+                        printConsignmentAttachAuto(consignment);
+                        countAttach() <- countAttach() + 1;
+                    } 
+                }                            
+            }                                    
+        }
+        
+        printedConsignment(consignment) <- TRUE IF consignment IS Consignment;
+        apply();                 
+    } ELSE {
+        cancel();
+    }    
+} IMAGE 'print.png';
+
 EXTEND FORM consignmentDashboard
-    PROPERTIES (i) printDoubleSidedConsignmentsVertical FORCE PANEL
+    PROPERTIES (i) printDoubleSidedConsignmentsVertical FORCE PANEL, printStepsConsignmentsVertical FORCE PANEL, printConsignmentVerticalABAuto FORCE PANEL
 ;
 
 DESIGN consignmentDashboard {
     consignmentRow2 {
         MOVE PROPERTY(printDoubleSidedConsignmentsVertical(i));
+        MOVE PROPERTY(printStepsConsignmentsVertical(i));
     }
 }
 
