@@ -190,11 +190,12 @@ public class InventoryTechHandler extends TerminalHandler {
                                 BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
                                 BigDecimal sum = safeMultiply(price, quantity);
                                 Integer numberGroup = groupIds.get(directory);
-
+                                String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
+                                String idDocumentDetail = idDocument + "/" + i;
                                 count++;
-                                terminalDocumentDetailList.add(new TerminalDocumentDetail("" + numberGroup + "/" + idDoc,
-                                        title, date, time, null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
-                                        quantityDocument, numberGroup + "/" + idDoc + "/" + i, number, idBarcode, name, price, quantity, sum));
+                                terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, date, time,
+                                        null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
+                                        quantityDocument, idDocumentDetail, number, idBarcode, name, price, quantity, sum));
                             }
                         }
                     } finally {
