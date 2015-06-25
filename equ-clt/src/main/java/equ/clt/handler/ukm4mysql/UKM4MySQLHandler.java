@@ -557,7 +557,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     //Integer id = rs.getInt(4); //i.id
                     Integer idReceipt = rs.getInt(5); //i.receipt_header
                     String idBarcode = rs.getString(6); //i.var
-                    //String idItem = rs.getString(7); //i.item
+                    String idItem = rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
                     BigDecimal price = rs.getBigDecimal(9); //i.price
                     BigDecimal sum = rs.getBigDecimal(10); //i.total
@@ -585,7 +585,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         if(totalQuantity != null) {
                             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport,
                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
-                                    sumCard, sumCash, sumGiftCard, idBarcode, null, null, totalQuantity, price,
+                                    sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, totalQuantity, price,
                                     isSale ? sum : sum.negate(), discountSumReceiptDetail, null, null, position, null));
                             receiptSet.add(Pair.create(idReceipt, cash_id));
                         }
