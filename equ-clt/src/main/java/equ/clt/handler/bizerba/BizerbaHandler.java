@@ -570,9 +570,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
                 }
             }
-            //if(scales.port.endsWith("143")) {
-            //    localErrors.add("test error");
-            //}
             processTransactionLogger.info("Bizerba: Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors);
         }

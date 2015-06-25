@@ -7,11 +7,12 @@ import lsfusion.base.Pair;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.sql.Date;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
@@ -615,6 +616,49 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
+        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+        String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
+        String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
+        String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
+
+        if (connectionString != null) {
+            Connection conn = null;
+            Statement statement = null;
+            try {
+                conn = DriverManager.getConnection(connectionString, user, password);
+
+                for (RequestExchange entry : requestExchangeList) {
+                    try {
+                        if (entry.isSalesInfoExchange()) {
+                            String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                            Calendar cal = Calendar.getInstance();
+                            cal.setTime(entry.dateTo);
+                            cal.add(Calendar.DATE, 1);
+                            String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+
+                            statement = conn.createStatement();
+                            String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo);
+                            statement.execute(query);
+                            succeededRequests.add(entry.requestExchange);
+                        }
+                    } catch (SQLException e) {
+                        failedRequests.put(entry.requestExchange, e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (statement != null)
+                        statement.close();
+                    if (conn != null)
+                        conn.close();
+                } catch (SQLException ignored) {
+                }
+            }
+        }
     }
 
     @Override
