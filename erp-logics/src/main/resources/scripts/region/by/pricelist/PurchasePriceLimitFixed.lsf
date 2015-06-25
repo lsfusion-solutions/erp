@@ -1,0 +1,30 @@
+MODULE PurchasePriceLimitFixed;
+
+REQUIRE PricingPurchase, PriceList;
+
+NAMESPACE Purchase;
+
+fixedLimitPriceListType = DATA DataPriceListType();
+nameFixedLimitPriceListType 'Вид цены для ограничений по максимальным ценам' = nameDataPriceListType(fixedLimitPriceListType());
+
+EXTEND FORM options
+    PROPERTIES() nameFixedLimitPriceListType
+;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(nameFixedLimitPriceListType());
+    }
+}
+
+fixedLimitPriceUserInvoiceDetail(d) = priceALedgerPriceListTypeSkuStockDateTime(fixedLimitPriceListType(), skuUserInvoiceDetail(d), customerStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
+WHEN SESSION FORMS userInvoice
+            CHANGED(retailPriceUserInvoiceDetail(d))
+            AND fixedLimitPriceUserInvoiceDetail(d) < retailPriceUserInvoiceDetail(d) DO {
+    retailPriceUserInvoiceDetail(d) <- fixedLimitPriceUserInvoiceDetail(d);
+
+    retailMarkupUserInvoiceDetail(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPriceUserInvoiceDetail(d),
+                                                       pricingPriceUserInvoiceDetail(d) IF pricingPriceUserInvoiceDetail(d)!= 0.0,
+                                                       valueRetailVATUserInvoiceDetail(d));
+}
