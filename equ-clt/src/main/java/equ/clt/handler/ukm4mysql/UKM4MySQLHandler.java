@@ -74,9 +74,6 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
                             exportPriceList(conn, transaction, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
-                            exportPriceListVar(conn, transaction, weightCode, version);
-
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
                             exportPriceTypeStorePriceList(conn, transaction, version);
 
@@ -85,6 +82,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
                             exportSignals(conn, transaction, version, true, timeout);
+
+                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
+                            exportPriceListVar(conn, transaction, weightCode, version + 1);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
                             exportPriceListItems(conn, transaction, version + 1);
