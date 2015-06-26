@@ -6,7 +6,7 @@ NAMESPACE Stock;
 
 // ----------------------------------- Ledger ------------------------------------------ //
 
-CLASS ABSTRACT SkuLedger 'Изменение остатка по товару';
+CLASS ABSTRACT COMPLEX SkuLedger 'Изменение остатка по товару';
 TABLE skuLedger (SkuLedger) FULL;
 
 CLASS ABSTRACT InSkuLedger 'Приход' : SkuLedger;
@@ -124,7 +124,7 @@ isContainerBatch 'Тара' = isContainerSku(skuBatch(bt));
 isNotItemBatch 'Не товар' = isNotItemSku(skuBatch(bt));
 isNotContainerBatch 'Не тара' = isNotContainerSku(skuBatch(bt));
 
-batchSkuLedger = ABSTRACT Batch (SkuLedger) PERSISTENT;
+batchSkuLedger = ABSTRACT Batch (SkuLedger) PERSISTENT INDEXED;
 nameBatchSkuLedger 'Партия' (l) = nameBatch(batchSkuLedger(l));
 
 //---------------------------- Количественные регистры (конкретная реализация) ----------------------------------------//
@@ -213,31 +213,8 @@ priceBatchLedgerStock 'Использовать свои цены для каж�
 
 orderDataSkuLedger (ledger) = STRUCT(dateTimeDataSkuLedger(ledger), ledger);
 
-// Формулы для расчета
-quantityBatchBatch 'Кол-во' (ledger, batch) = quantityBatch(ledger) IF batch == ledger;
-
-limitInLIFOSkuLedgerBatch = ABSTRACT NUMERIC[14,3] (InLIFOSkuLedger, Batch);
-orderInLIFOSkuLedgerBatch = ABSTRACT LONG (InLIFOSkuLedger, Batch);
-
-quantityInLIFOSkuLedgerBatch (ledger, batch) =
-        PARTITION UNGROUP quantityInLIFOSkuLedger
-                  LIMIT STRICT limitInLIFOSkuLedgerBatch(ledger, batch) IF skuBatch(batch) == skuDataSkuLedger(ledger)
-                  BY ledger
-                  ORDER DESC orderInLIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
-
-limitOutFIFOSkuLedgerBatch = ABSTRACT NUMERIC[14,3] (OutFIFOSkuLedger, Batch);
-orderOutFIFOSkuLedgerBatch = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
-
-quantityOutFIFOSkuLedgerBatch (ledger, batch) =
-        PARTITION UNGROUP quantityOutFIFOSkuLedger
-                  LIMIT STRICT limitOutFIFOSkuLedgerBatch(ledger, batch) IF skuBatch(batch) == skuDataSkuLedger(ledger)
-                  BY ledger
-                  ORDER orderOutFIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
-
-quantityDataSkuLedgerBatch (ledger, batch) = MULTI quantityInLIFOSkuLedgerBatch(ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
-                                                   quantityOutFIFOSkuLedgerBatch(ledger, batch);
-
 // Свойства для расчета себестоимости
+quantityBatchBatch 'Кол-во' (ledger, batch) = quantityBatch(ledger) IF batch == ledger;
 
 costDataSkuLedgerBatch 'Расписано из партии (перв.)' (ledger, batch) = DATA NUMERIC[14,3] (DataSkuLedger, Batch);
 
@@ -260,73 +237,6 @@ signedNotCostedSkuLedger 'Не расписано' (ledger) = IF ledger IS OutSk
                                                                         quantitySkuLedger(ledger) (-) costedSkuLedger(ledger)
                                                                     ELSE
                                                                         costedSkuLedger(ledger) (-) quantitySkuLedger(ledger);
-
-needToCostDataSkuLedger 'Требуется расчет себестоимости' (ledger) = quantitySkuLedger(ledger) > 0 AND isPostedDataSkuLedger(ledger)
-                                                                        AND NOT quantitySkuLedger(ledger) == costedDataSkuLedger(ledger);
-
-resetCostDataSkuLedger 'Перерассчитать себестоимость' = ACTION (ledger) { //NEWSESSION AUTOAPPLY {
-    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL;
-    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
-}
-
-// мгновенный расчет себестоимости
-//WHEN SET(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
-changedCostDataSkuLedger 'Перерасчитывалась себестоимость' = DATA LOCAL BOOLEAN (DataSkuLedger);
-
-changedSessionLedger = DATA LOCAL BOOLEAN (DataSkuLedger);
-updateDataSkuLedgerBatchCost() = ACTION {
-    costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedSessionLedger(ledger);
-
-    LOCAL orderedLedger = INTEGER (DataSkuLedger);
-    orderedLedger(ledger) <- PARTITION SUM 1 IF changedSessionLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
-
-    FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
-        changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
-        costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
-    }
-}
-
-ON { // eventChangeLedger - так как внутрь рекурсивного события толь
-    LOCAL eventChangedLedger = BOOLEAN (DataSkuLedger); 
-    ASSIGN eventChangedLedger(ledger) <- SET(isPostedDataSkuLedger(ledger)) OR ((
-                                  CHANGED(quantityDataSkuLedger(ledger))
-                                  OR CHANGED(skuDataSkuLedger(ledger))
-                                  OR CHANGED(batchSkuLedger(ledger))
-                                  OR CHANGED(stockDataSkuLedger(ledger))
-                                  OR CHANGED(changedDataSkuLedger(ledger)))
-                                 AND isPostedDataSkuLedger(ledger));
-
-    IF [= GROUP MAX eventChangedLedger(ledger)]() THEN
-        NEWSESSION NESTED eventChangedLedger SINGLE {
-            changedSessionLedger(ledger) <- eventChangedLedger(ledger);
-            updateDataSkuLedgerBatchCost();
-        }
-}
-
-setDataSkuLedgerBatchCost 'Дорассчитать себестоимость' = ACTION () NEWSESSION {
-    APPLY SINGLE { 
-        changedSessionLedger(ledger) <- needToCostDataSkuLedger(ledger);
-        updateDataSkuLedgerBatchCost();
-    }
-} CONFIRM;
-
-resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость' = ACTION () NEWSESSION {
-    FORM dialogDate MODAL;
-    IF formResult() == FormResult.ok THEN {
-
-        FOR d == chosenDate('d') DO {
-            APPLY SINGLE { 
-                changedSessionLedger(ledger) <- dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger);
-                updateDataSkuLedgerBatchCost();
-            }
-        }
-    }
-} CONFIRM;
-
-clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость' = ACTION() NEWSESSION {
-    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL;
-    apply();
-} CONFIRM;
 
 // Суммы
 
@@ -799,6 +709,109 @@ DESIGN dialogBatchStock {
 }
 
 // ------------------------------------------------- Себестоимость --------------------------- //
+
+// Расчет себестоимости
+
+needToCostDataSkuLedger 'Требуется расчет себестоимости' (ledger) = quantitySkuLedger(ledger) > 0 AND isPostedDataSkuLedger(ledger)
+                                                                        AND NOT quantitySkuLedger(ledger) == costedDataSkuLedger(ledger);
+
+limitInLIFOSkuLedgerBatch = ABSTRACT NUMERIC[14,3] (InLIFOSkuLedger, Batch);
+orderInLIFOSkuLedgerBatch = ABSTRACT LONG (InLIFOSkuLedger, Batch);
+limitNewInLIFOSkuLedgerBatch = IF ledger IS InLIFOSkuLedger THEN (
+                                                     IF batchSkuLedger(ledger) THEN
+                                                        quantityInLIFOSkuLedger(ledger) IF batch == batchSkuLedger(ledger)
+                                                     ELSE
+                                                        outcomeBatch(batch) IF
+                                                        countLedgerBatchStock(batch, stockDataSkuLedger(ledger)));
+
+quantityInLIFOSkuLedgerBatch (ledger, batch) =
+        PARTITION UNGROUP quantityInLIFOSkuLedger
+                  LIMIT STRICT limitNewInLIFOSkuLedgerBatch(ledger, batch) IF skuBatch(batch) == skuDataSkuLedger(ledger)
+                  BY ledger
+                  ORDER DESC orderInLIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
+
+limitOutFIFOSkuLedgerBatch = ABSTRACT NUMERIC[14,3] (OutFIFOSkuLedger, Batch);
+orderOutFIFOSkuLedgerBatch = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
+limitNewOutFIFOSkuLedgerBatch = IF ledger IS OutFIFOSkuLedger THEN (
+                                                     IF batchSkuLedger(ledger) THEN
+                                                        quantityOutFIFOSkuLedger(ledger) IF batch == batchSkuLedger(ledger)
+                                                     ELSE
+                                                        OVERRIDE 0.0 IF countLedgerBatchStock(batch, stockDataSkuLedger(ledger)), currentBalanceBatchStock(batch, stockDataSkuLedger(ledger)));
+
+quantityOutFIFOSkuLedgerBatch (ledger, batch) =
+        PARTITION UNGROUP quantityOutFIFOSkuLedger
+                  LIMIT STRICT limitNewOutFIFOSkuLedgerBatch(ledger, batch) IF skuBatch(batch) == skuDataSkuLedger(ledger)
+                  BY ledger
+                  ORDER orderOutFIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
+
+quantityDataSkuLedgerBatch (ledger, batch) = MULTI quantityInLIFOSkuLedgerBatch(ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
+                                                   quantityOutFIFOSkuLedgerBatch(ledger, batch);
+
+resetCostDataSkuLedger 'Перерассчитать себестоимость' = ACTION (ledger) { //NEWSESSION AUTOAPPLY {
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL;
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
+}
+
+// мгновенный расчет себестоимости
+//WHEN SET(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
+changedCostDataSkuLedger 'Перерасчитывалась себестоимость' = DATA LOCAL BOOLEAN (DataSkuLedger);
+
+changedSessionLedger = DATA LOCAL BOOLEAN (DataSkuLedger);
+updateDataSkuLedgerBatchCost() = ACTION {
+    costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedSessionLedger(ledger);
+
+    LOCAL orderedLedger = INTEGER (DataSkuLedger);
+    orderedLedger(ledger) <- PARTITION SUM 1 IF changedSessionLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
+
+    FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
+        LOCAL itLedger = BOOLEAN (DataSkuLedger);
+        itLedger(ledger) <- orderedLedger(ledger) == i; // чтобы определились классы
+        changedCostDataSkuLedger(ledger) <- TRUE WHERE itLedger(ledger);
+        costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE itLedger(ledger);
+    }
+}
+
+ON { // eventChangeLedger - так как внутрь рекурсивного события толь
+    LOCAL eventChangedLedger = BOOLEAN (DataSkuLedger); 
+    ASSIGN eventChangedLedger(ledger) <- SET(isPostedDataSkuLedger(ledger)) OR ((
+                                  CHANGED(quantityDataSkuLedger(ledger))
+                                  OR CHANGED(skuDataSkuLedger(ledger))
+                                  OR CHANGED(batchSkuLedger(ledger))
+                                  OR CHANGED(stockDataSkuLedger(ledger))
+                                  OR CHANGED(changedDataSkuLedger(ledger)))
+                                 AND isPostedDataSkuLedger(ledger));
+
+    IF [= GROUP MAX eventChangedLedger(ledger)]() THEN
+        NEWSESSION NESTED eventChangedLedger SINGLE {
+            changedSessionLedger(ledger) <- eventChangedLedger(ledger);
+            updateDataSkuLedgerBatchCost();
+        }
+}
+
+setDataSkuLedgerBatchCost 'Дорассчитать себестоимость' = ACTION () NEWSESSION {
+    APPLY SINGLE { 
+        changedSessionLedger(ledger) <- needToCostDataSkuLedger(ledger);
+        updateDataSkuLedgerBatchCost();
+    }
+} CONFIRM;
+
+resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость' = ACTION () NEWSESSION {
+    FORM dialogDate MODAL;
+    IF formResult() == FormResult.ok THEN {
+
+        FOR d == chosenDate('d') DO {
+            APPLY SINGLE { 
+                changedSessionLedger(ledger) <- dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger);
+                updateDataSkuLedgerBatchCost();
+            }
+        }
+    }
+} CONFIRM;
+
+clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость' = ACTION() NEWSESSION {
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL;
+    apply();
+} CONFIRM;
 
 currentBalanceSkuLedgerBatch 'Текущий остаток' (bil, bt) = currentBalanceBatchStock(bt, stockSkuLedger(bil));
 countLedgerSkuLedgerBatch 'Кол-во движений' (bil, bt) = countLedgerBatchStock(bt, stockSkuLedger(bil));
