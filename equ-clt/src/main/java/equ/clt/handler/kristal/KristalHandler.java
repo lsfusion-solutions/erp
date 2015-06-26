@@ -857,9 +857,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 BigDecimal sumCash = BigDecimal.ZERO;
                                                 for (Object paymentNode : paymentsList) {
                                                     Element paymentElement = (Element) paymentNode;
-                                                    if (paymentElement.getAttributeValue("PAYTYPE").equals("0")) {
+                                                    String payment = paymentElement.getAttributeValue("PAYTYPE");
+                                                    if (payment.equals("0")) {
                                                         sumCash = safeAdd(sumCash, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
-                                                    } else if (paymentElement.getAttributeValue("PAYTYPE").equals("3")) {
+                                                    } else if (payment.equals("1") || payment.equals("3")) {
                                                         sumCard = safeAdd(sumCard, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
                                                     }
                                                 }
