@@ -870,12 +870,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 for (Object receiptDetailNode : receiptDetailsList) {
 
                                                     Element receiptDetailElement = (Element) receiptDetailNode;
-
-                                                    String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
+                                                    
+                                                    String barcode = null;
+                                                    String idItem = null;
+                                                    if (useIdItem) {
+                                                        barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
+                                                        idItem = receiptDetailElement.getAttributeValue("CODE");
+                                                    } else
+                                                        barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("CODE"), transformUPCBarcode);
                                                     String weightCode = weightCodeDirectoryMap.get(directory + "_" + numberCashRegister);
                                                     if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
                                                         barcode = barcode.substring(2, 7);
-                                                    String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
                                                     BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
                                                     BigDecimal price = readBigDecimalXMLAttribute(receiptDetailElement, "PRICEWITHOUTDISC");
                                                     BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA");
