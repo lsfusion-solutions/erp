@@ -325,11 +325,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
         try {
-            if(transaction.departmentNumberGroupCashRegister != null && transaction.nppGroupMachinery != null) {
+            if(transaction.nppGroupMachinery != null) {
                 ps = conn.prepareStatement(
                         "INSERT INTO pricetype_store_pricelist (pricetype, store, pricelist, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE pricelist=VALUES(pricelist), deleted=VALUES(deleted)");
                 ps.setInt(1, 123); //pricetype
-                ps.setString(2, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                ps.setString(2, String.valueOf(transaction.departmentNumberGroupCashRegister != null ? transaction.departmentNumberGroupCashRegister : transaction.nppGroupMachinery)); //store
                 ps.setInt(3, transaction.nppGroupMachinery); //pricelist
                 ps.setInt(4, version); //version
                 ps.setInt(5, 0); //deleted
