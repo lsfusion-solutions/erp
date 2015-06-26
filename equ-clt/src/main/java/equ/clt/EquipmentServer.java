@@ -483,10 +483,10 @@ public class EquipmentServer {
     private void checkZReportSum(EquipmentServerInterface remote, CashRegisterHandler handler, List<RequestExchange> requestExchangeList)
             throws RemoteException, SQLException, ClassNotFoundException {
         if (!requestExchangeList.isEmpty()) {
-            sendSalesLogger.info("Executing checkZReportRequestExchanges");
             Set<Integer> succeededRequestsSet = new HashSet<>();
             for (RequestExchange request : requestExchangeList) {
                 if (request.isCheckZReportExchange()) {
+                    sendSalesLogger.info("Executing checkZReportSum");
                     request.extraStockSet.add(request.idStock);
                     for (String idStock : request.extraStockSet) {
                         Map<String, List<Object>> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
