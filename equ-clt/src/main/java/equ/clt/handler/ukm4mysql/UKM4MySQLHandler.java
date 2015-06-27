@@ -523,7 +523,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select cash_id, receipt_header, payment_id, amount from receipt_payment";
+            String query = "select p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type " +
+                    "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " +
+                    "where r.ext_processed = 0 AND p.type != 3"; // type 3 это сдача
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
                 Integer cash_id = rs.getInt(1); //cash_id
@@ -533,9 +535,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 if(paymentType.equals(2) || paymentType.equals(3))
                     paymentType = 1; //1, 2 и 3 - безнал
                 BigDecimal amount = rs.getBigDecimal(4);
+                Integer receiptType = rs.getInt(5); //r.type
+                boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
 
                 Map<Integer, BigDecimal> paymentEntry = paymentMap.containsKey(key) ? paymentMap.get(key) : new HashMap<Integer, BigDecimal>();
-                paymentEntry.put(paymentType, amount);
+                paymentEntry.put(paymentType, isReturn ? amount.negate() : amount);
                 paymentMap.put(key, paymentEntry);
             }
         } catch (SQLException e) {
@@ -606,7 +610,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                     sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, totalQuantity, price,
-                                    isSale ? sum : sum.negate(), discountSumReceiptDetail, null, null, position, null));
+                                    isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null, position, null));
                             receiptSet.add(Pair.create(idReceipt, cash_id));
                         }
                     }
