@@ -650,8 +650,18 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             cal.add(Calendar.DATE, 1);
                             String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
+                            String cashIdWhere = null;
+                            if(!entry.cashRegisterSet.isEmpty()) {
+                                cashIdWhere = "AND cash_id IN (";
+                                for (Integer cashId : entry.cashRegisterSet) {
+                                    cashIdWhere += cashId + ",";
+                                }
+                                cashIdWhere = cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")";
+                            }
+
                             statement = conn.createStatement();
-                            String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo);
+                            String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
+                                    (cashIdWhere == null ? "" : cashIdWhere);
                             statement.execute(query);
                             succeededRequests.add(entry.requestExchange);
                         }

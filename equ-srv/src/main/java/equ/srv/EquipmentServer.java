@@ -1006,9 +1006,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
 
-        List<RequestExchange> requestExchangeList = new ArrayList<>();
+        Map<String, RequestExchange> requestExchangeMap = new HashMap<>();
         Map<DataObject, List<Set<String>>> extraStockSetMap = new HashMap<>();
-        Set<String> requestExchangeSet = new HashSet<>();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
 
             try (DataSession session = getDbManager().createSession()) {
@@ -1027,8 +1026,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
                 query.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
                 query.addProperty("idStockMachinery", machineryLM.findProperty("idStockMachinery").getExpr(machineryExpr));
+                query.addProperty("nppMachinery", machineryLM.findProperty("nppMachinery").getExpr(machineryExpr));
                 query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
-                //query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
                 query.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeExpr).getWhere());
                 query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
                         machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
@@ -1039,6 +1038,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
                     String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
                     String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
+                    Integer nppMachinery = (Integer) result.getValue(i).get("nppMachinery").getValue();
                     Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
                     Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
                     Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
@@ -1054,11 +1054,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     directorySet.addAll(extraStockSet.get(1));
 
-                    if(!requestExchangeSet.contains(requestExchangeObject.getValue() + directoryMachinery + idStockMachinery)) {
-                        requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(),
-                                directorySet, idStockMachinery, extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
+                    String requestExchangeKey = requestExchangeObject.getValue() + directoryMachinery + idStockMachinery;
+                    RequestExchange requestExchange = requestExchangeMap.get(requestExchangeKey);
+                    if (requestExchange == null) {
+                        requestExchangeMap.put(requestExchangeKey, new RequestExchange((Integer) requestExchangeObject.getValue(),
+                                new HashSet<>(Collections.singletonList(nppMachinery)), directorySet, idStockMachinery,
+                                extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
                                 startDateRequestExchange, typeRequestExchange));
-                        requestExchangeSet.add(requestExchangeObject.getValue() + directoryMachinery + idStockMachinery);
+                    } else {
+                        requestExchange.cashRegisterSet.add(nppMachinery);
                     }
                 }
                 session.apply(getBusinessLogics());
@@ -1066,7 +1070,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 throw Throwables.propagate(e);
             }
         }
-        return requestExchangeList;             
+        return new ArrayList<>(requestExchangeMap.values());
     }
         
     private List<Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

@@ -6,6 +6,7 @@ import java.util.Set;
 
 public class RequestExchange implements Serializable {
     public Integer requestExchange;
+    public Set<Integer> cashRegisterSet;
     public Set<String> directorySet;
     public String idStock;
     public Set<String> extraStockSet;
@@ -14,9 +15,10 @@ public class RequestExchange implements Serializable {
     public Date startDate;
     private String typeRequestExchange;
 
-    public RequestExchange(Integer requestExchange, Set<String> directorySet, String idStock, Set<String> extraStockSet, 
-                           Date dateFrom, Date dateTo, Date startDate, String typeRequestExchange) {
+    public RequestExchange(Integer requestExchange, Set<Integer> cashRegisterSet, Set<String> directorySet, String idStock,
+                           Set<String> extraStockSet, Date dateFrom, Date dateTo, Date startDate, String typeRequestExchange) {
         this.requestExchange = requestExchange;
+        this.cashRegisterSet = cashRegisterSet;
         this.directorySet = directorySet;
         this.idStock = idStock;
         this.extraStockSet = extraStockSet;
