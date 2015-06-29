@@ -772,7 +772,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         
         cashRegisterQuery.and(cashRegisterLM.findProperty("handlerModelGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
         cashRegisterQuery.and(cashRegisterLM.findProperty("idStockGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-        cashRegisterQuery.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
+        //cashRegisterQuery.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
         cashRegisterQuery.and(cashRegisterLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
         cashRegisterQuery.and(cashRegisterLM.findProperty("activeGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
