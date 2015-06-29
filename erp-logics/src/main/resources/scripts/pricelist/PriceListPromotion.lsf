@@ -1,0 +1,28 @@
+MODULE PriceListPromotion;
+
+REQUIRE PriceListOperation;
+
+NAMESPACE PriceList;
+
+promotionPriceListOperation = DATA Operation();
+namePromotionPriceListOperation 'Операция акции' = nameOperation(promotionPriceListOperation());
+
+promotionPriceListTypeOperation = DATA DataPriceListType();
+namePromotionPriceListTypeOperation 'Вид цены акции' = nameDataPriceListType(promotionPriceListTypeOperation());
+
+
+EXTEND FORM options
+    PROPERTIES() namePromotionPriceListOperation, namePromotionPriceListTypeOperation 
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY(namePromotionPriceListOperation());
+        MOVE PROPERTY(namePromotionPriceListTypeOperation());
+    }
+}   
+
+promotionPriceListDetailASkuStockDateTime (sku, stock, dateTime) =
+    lastPriceListDetailAPriceListTypeSkuStockDateTimeOperation(promotionPriceListTypeOperation(), sku, stock, dateTime, promotionPriceListOperation());
+    
+promotionPriceListDetailASkuStock (sku, stock) = 
+    promotionPriceListDetailASkuStockDateTime(sku, stock, currentDateTime());

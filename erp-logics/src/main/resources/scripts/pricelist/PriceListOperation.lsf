@@ -224,6 +224,23 @@ DESIGN operation {
     }
 }
 
+// Подсчет цен по прайс-листам
+
+priceListDetailAPriceListTypeSkuStockDateTimeOperation  (type, sku, stock, dateTime, operation) =
+    GROUP LAST detail
+          BY type, skuPriceListDetail(detail), stock, dateTimeIn, operationPriceListDetail(detail)
+          ORDER fromDateTimePriceListDetail(detail), detail
+          WHERE inPriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
+                fromDateTimePriceListDetail(detail) <= dateTimeIn AND NOT toDateTimePriceListDetail(detail) < dateTimeIn COMPLEX;
+
+lastPriceListDetailAPriceListTypeSkuStockDateTimeOperation (type, sku, stock, dateTime, operation) =
+    GROUP LAST detail
+          BY type, skuPriceListDetail(detail), stock, dateTimeIn, operationPriceListDetail(detail)
+          ORDER fromDateTimePriceListDetail(detail), detail
+          WHERE inPriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
+                toDateTimePriceListDetail(detail) >= dateTimeIn COMPLEX;
+
+
 //-- Фильтр
 filterPriceListOperation  = DATA LOCAL Operation ();
 nameFilterPriceListOperation 'Операция' = nameOperation(filterPriceListOperation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          

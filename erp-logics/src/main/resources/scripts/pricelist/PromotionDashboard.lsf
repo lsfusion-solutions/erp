@@ -1,7 +1,7 @@
 MODULE PromotionDashboard;
 
-REQUIRE PriceListDashboard, PriceListOperation, Store, PriceListBefore;
-        
+REQUIRE PriceListDashboard, PriceListOperation, Store, PriceListBefore, PriceListPromotion;
+
 FORM promotionDashboard 'Управление акциями'
     OBJECTS dt = DATETIME FIXED PANEL
     PROPERTIES(dt) objValue = OBJVALUE
@@ -32,19 +32,8 @@ DESIGN promotionDashboard {
     }
     MOVE functions.box;
 }
-defaultPriceListOperation = DATA PriceList.Operation();
-nameDefaultPriceListOperation 'Операция в форме "Управление акциями" по умолчанию' = PriceList.nameOperation(defaultPriceListOperation());
 
-EXTEND FORM options
-    PROPERTIES() nameDefaultPriceListOperation
-;
-DESIGN options {
-    commons {
-        MOVE PROPERTY(nameDefaultPriceListOperation());
-    }
-}   
-
-seekDefaultPriceListOperation = ACTION SEEK promotionDashboard.o defaultPriceListOperation();
+seekDefaultPriceListOperation = ACTION SEEK promotionDashboard.o promotionPriceListOperation();
 
 EXTEND FORM promotionDashboard
      EVENTS ON INIT seekDefaultPriceListOperation()
@@ -58,27 +47,6 @@ NAVIGATOR {
 // ---------------------------- По организациям ----------------------- //
 // c
 
-
-activePriceListDetailAPriceListTypeSkuDateTimeOperation (type, sku, dateTime, operation) =
-    GROUP LAST detail
-          BY type, skuPriceListDetail(detail), dateTimeIn, operationPriceListDetail(detail)
-          ORDER fromDateTimePriceListDetail(detail), detail
-          WHERE pricePriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND
-                fromDateTimePriceListDetail(detail) <= dateTimeIn AND NOT toDateTimePriceListDetail(detail) < dateTimeIn COMPLEX;                                      
-
-activePriceListDetailAPriceListTypeSkuStockDateTimeOperation  (type, sku, stock, dateTime, operation) =
-    GROUP LAST detail
-          BY type, skuPriceListDetail(detail), stock, dateTimeIn, operationPriceListDetail(detail)
-          ORDER fromDateTimePriceListDetail(detail), detail
-          WHERE pricePriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
-                fromDateTimePriceListDetail(detail) <= dateTimeIn AND NOT toDateTimePriceListDetail(detail) < dateTimeIn COMPLEX;
-              
-                
-activePricePriceListTypeSkuStockDateTimeOperation 'Цена' (type, sku, stock, dateTime, operation) = pricePriceListDetailDataPriceListType(activePriceListDetailAPriceListTypeSkuStockDateTimeOperation(type, sku, stock, dateTime, operation), type);
-
-countStockAPriceListTypeSkuCompanyDateTimeOperation 'Кол-во складов' (type, sku, dateTime, operation) =
-    GROUP SUM 1 IF activePricePriceListTypeSkuStockDateTimeOperation(type, sku, stock, dateTime, operation)
-    BY type, sku, dateTime, operation;
 
 filterPromotionStock  = DATA LOCAL NESTED DepartmentStore ();
 nameFilterPromotionStock 'Склад' = nameStock(filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
