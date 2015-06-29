@@ -38,13 +38,14 @@ idDepartmentStoreZReport 'Код' (zReport) = idDepartmentStore(departmentStoreZ
 
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
 numberCashRegisterZReport 'Касса Z-отчета' (zReport) = nppMachinery(cashRegisterZReport(zReport)) IN documentPrm;
+overNumberCashRegisterZReport 'Касса Z-отчета' (zReport) = overNppMachinery(cashRegisterZReport(zReport)) IN documentPrm;
 
-basisZReport 'Основание' (zReport) = 'Z-отчет №' + numberZReport(zReport) + ' с кассы ' + numberCashRegisterZReport(zReport) + ' от ' + dateZReport(zReport) IN documentPrm;
+basisZReport 'Основание' (zReport) = 'Z-отчет №' + numberZReport(zReport) + ' с кассы ' + overNumberCashRegisterZReport(zReport) + ' от ' + dateZReport(zReport) IN documentPrm;
 
 departmentStoreZReport(zReport) <- departmentStoreCashRegister(cashRegisterZReport(zReport))
     WHEN CHANGED(cashRegisterZReport(zReport));
 
-descriptionZReport 'Название документа' (zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' +numberCashRegisterZReport(zReport),
+descriptionZReport 'Название документа' (zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' +overNumberCashRegisterZReport(zReport),
                                             ' отдела ' + nameDepartmentStoreZReport(zReport),
                                             ' от ' + dateZReport(zReport));
     
@@ -75,6 +76,7 @@ numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (Receipt
 numberZReportReceipt 'Номер Z-отчета' (receipt) = numberZReport(zReportReceipt(receipt)) IN recognize;
 cashRegisterReceipt (receipt) = cashRegisterZReport(zReportReceipt(receipt));
 numberCashRegisterReceipt 'Номер кассы' (receipt) = nppMachinery(cashRegisterReceipt(receipt)) IN recognize;
+overNumberCashRegisterReceipt 'Номер кассы' (receipt) = overNppMachinery(cashRegisterReceipt(receipt)) IN recognize;
 numberGroupCashRegisterReceipt 'Номер кассы' (receipt) = nppGroupMachineryMachinery(cashRegisterReceipt(receipt)) IN recognize;
 
 groupCashRegisterReceipt (receipt) = groupCashRegisterCashRegister(cashRegisterReceipt(receipt));
@@ -122,7 +124,7 @@ zReportReceiptDetail (d) = zReportReceipt(receiptReceiptDetail(d));
 numberZReportReceiptDetail 'Номер Z-отчета'(d) = numberZReport(zReportReceiptDetail(d));
 
 sidCashRegisterModelReceiptDetail 'Код модели' (receiptDetail) = sidCashRegisterModelReceipt(receiptReceiptDetail(receiptDetail));
-numberCashRegisterReceiptDetail 'Номер кассы' (receiptDetail) = numberCashRegisterReceipt(receiptReceiptDetail(receiptDetail));
+numberCashRegisterReceiptDetail 'Номер кассы' (receiptDetail) = overNumberCashRegisterReceipt(receiptReceiptDetail(receiptDetail));
 
 typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) MINCHARWIDTH 10 PREFCHARWIDTH 12 PERSISTENT;
 typeReceiptDetail(detail) += 'Продажа' IF detail IS ReceiptSaleDetail;
@@ -609,7 +611,7 @@ sumSaleDepartmentStoreDateFromTo 'Продано по кассе' (departmentSto
 
 FORM zReport 'Z-отчет'
     OBJECTS z=ZReport FIXED PANEL
-    PROPERTIES (z) numberCashRegisterZReport, nameDepartmentStoreZReport, dateZReport, timeZReport, numberZReport, //sumCashZReport
+    PROPERTIES (z) overNumberCashRegisterZReport, nameDepartmentStoreZReport, dateZReport, timeZReport, numberZReport, //sumCashZReport
                    basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
                    sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport, discountSumZReport,
                    sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, sumReceiptDetailZReport,
@@ -791,8 +793,8 @@ filterZReportDepartmentStore  = DATA LOCAL DepartmentStore ();
 nameFilterZReportDepartmentStore 'Отдел магазина' = nameDepartmentStore(filterZReportDepartmentStore()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
 filterDepartmentStoreZReport (z) = departmentStoreZReport(z) == filterZReportDepartmentStore() OR (z IS ZReport AND NOT filterZReportDepartmentStore());
  
-filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL INTEGER ();
-filterCashRegisterZReport (z) = numberCashRegisterZReport(z) == filterZReportCashRegister() OR (z IS ZReport AND NOT filterZReportCashRegister()); 
+filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL VARSTRING[10] ();
+filterCashRegisterZReport (z) = overNumberCashRegisterZReport(z) == filterZReportCashRegister() OR (z IS ZReport AND NOT filterZReportCashRegister()); 
 
 lastDateTimeReceiptZReport 'Время последнего чека'  = GROUP LAST dateTimeReceipt(b)
         BY zReportReceipt(b)
@@ -806,7 +808,7 @@ FORM zReports 'Z-отчеты'
 
     OBJECTS z=ZReport LAST
     PROPERTIES (z) READONLY succeededExtraCheckZReport, isClosedZReport, isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
-                            numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
+                            overNumberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
                             sumReceiptDetailZReport, sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport,                             
                             sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, sumVATReceiptDetailZReport,
                             discountSumZReport, firstDateTimeReceiptZReport, lastDateTimeReceiptZReport                                                                                 
