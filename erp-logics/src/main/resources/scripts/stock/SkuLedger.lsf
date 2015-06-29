@@ -354,6 +354,11 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
                                                                  BY skuBatch(batch), stock;
     default##postfix##BatchSkuStock 'Партия по умолчанию' (sku, stock)= GROUP MIN batch IF currentBalance##postfix##BatchStock(batch, stock)
                                                                         BY skuBatch(batch), stock;
+    
+    countPositive##postfix##BatchSkuStock 'Кол-во партий' (sku, stock) = GROUP SUM 1  IF currentBalance##postfix##BatchStock(batch, stock) >0
+                                                                 BY skuBatch(batch), stock;
+    defaultPositive##postfix##BatchSkuStock 'Партия по умолчанию' (sku, stock)= GROUP MIN batch IF currentBalance##postfix##BatchStock(batch, stock) >0
+                                                                        BY skuBatch(batch), stock;
 
     countLedger##postfix##BatchStock 'Кол-во движений'###caption (batch, stock) =
         GROUP SUM 1 IF signedQuantityActive##postfix##SkuLedgerBatch(ledger, batch) BY batch, stockSkuLedger(ledger) PERSISTENT;
