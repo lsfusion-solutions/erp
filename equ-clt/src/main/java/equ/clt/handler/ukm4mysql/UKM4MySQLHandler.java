@@ -525,7 +525,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             statement = conn.createStatement();
             String query = "select p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type " +
                     "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " +
-                    "where r.ext_processed = 0 AND p.type != 3"; // type 3 это сдача
+                    "where r.ext_processed = 0 AND r.result = 0 AND p.type != 3"; // type 3 это сдача
             ResultSet rs = statement.executeQuery(query);
             while(rs.next()) {
                 Integer cash_id = rs.getInt(1); //cash_id
@@ -537,9 +537,13 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 BigDecimal amount = rs.getBigDecimal(4);
                 Integer receiptType = rs.getInt(5); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
+                amount = isReturn ? amount.negate() : amount;
 
-                Map<Integer, BigDecimal> paymentEntry = paymentMap.containsKey(key) ? paymentMap.get(key) : new HashMap<Integer, BigDecimal>();
-                paymentEntry.put(paymentType, isReturn ? amount.negate() : amount);
+                Map<Integer, BigDecimal> paymentEntry = paymentMap.get(key);
+                if(paymentEntry == null)
+                    paymentEntry = new HashMap<>();
+                BigDecimal sum = paymentEntry.get(paymentType);
+                paymentEntry.put(paymentType, sum == null ? amount : sum.add(amount));
                 paymentMap.put(key, paymentEntry);
             }
         } catch (SQLException e) {
@@ -565,7 +569,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 statement = conn.createStatement();
                 String query = "SELECT i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
                         " i.position, i.real_amount, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login" +
-                        " FROM receipt_item AS i LEFT JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id WHERE r.ext_processed = 0";
+                        " FROM receipt_item AS i LEFT JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
+                        " WHERE r.ext_processed = 0 AND r.result = 0";
                 ResultSet rs = statement.executeQuery(query);
 
                 while (rs.next()) {
