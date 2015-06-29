@@ -229,38 +229,38 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     }
 
                     //groups.txt
-                    if (transactionInfo.snapshot) {
-                        File groupsFile = new File(exchangeDirectory + "groups.txt");
-                        File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
-                        if (groupsFile.exists() && flagGroupsFile.exists()) {
-                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
-                        } else if (flagGroupsFile.createNewFile()) {
-                            processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
-                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
-
-                            Set<String> numberGroupItems = new HashSet<>();
-                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                                if (!Thread.currentThread().isInterrupted()) {
-                                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
-                                    for (int i = 0; i < hierarchyItemGroup.size(); i++) {
-                                        String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
-                                        if (!numberGroupItems.contains(idItemGroup)) {
-                                            String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
-                                            writer.println(record);
-                                            numberGroupItems.add(idItemGroup);
-                                        }
-                                    }
-                                }
-                            }
-                            writer.close();
-                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file (Transaction #%s)", transactionInfo.id));
-                            waitForDeletion(groupsFile, flagGroupsFile);
-
-                        } else {
-                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
-                        }
-                    }
+//                    if (transactionInfo.snapshot) {
+//                        File groupsFile = new File(exchangeDirectory + "groups.txt");
+//                        File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
+//                        if (groupsFile.exists() && flagGroupsFile.exists()) {
+//                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+//                        } else if (flagGroupsFile.createNewFile()) {
+//                            processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
+//                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
+//
+//                            Set<String> numberGroupItems = new HashSet<>();
+//                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+//                                if (!Thread.currentThread().isInterrupted()) {
+//                                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+//                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
+//                                    for (int i = 0; i < hierarchyItemGroup.size(); i++) {
+//                                        String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
+//                                        if (!numberGroupItems.contains(idItemGroup)) {
+//                                            String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
+//                                            writer.println(record);
+//                                            numberGroupItems.add(idItemGroup);
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                            writer.close();
+//                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file (Transaction #%s)", transactionInfo.id));
+//                            waitForDeletion(groupsFile, flagGroupsFile);
+//
+//                        } else {
+//                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+//                        }
+//                    }
                 }
             } catch (Exception e) {
                 exception = e;
