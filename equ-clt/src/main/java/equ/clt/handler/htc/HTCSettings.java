@@ -1,4 +1,4 @@
-package equ.api.cashregister;
+package equ.clt.handler.htc;
 
 import java.io.Serializable;
 

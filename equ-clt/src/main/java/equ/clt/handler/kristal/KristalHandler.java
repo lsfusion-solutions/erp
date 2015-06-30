@@ -77,7 +77,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 processTransactionLogger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
-                DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+                KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
                 boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
                 boolean noMessageAndScaleFiles = kristalSettings != null && kristalSettings.getNoMessageAndScaleFiles() != null && kristalSettings.getNoMessageAndScaleFiles();
                 String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
@@ -143,9 +143,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                         for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                boolean isWeightItem = item.passScalesItem && item.splitItem;
+                                //boolean isWeightItem = item.passScalesItem && item.splitItem;
                                 Object code = useIdItem ? item.idItem : item.idBarcode;
-                                String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                //String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
                                 boolean forbid = item.flags != null && ((item.flags & 16) == 0);
                                 String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20210101";
                                 writer.println(record);
@@ -294,7 +294,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
 
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
 
         for (String directory : softCheckInfo.directorySet) {
@@ -354,7 +354,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
 
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
 
         for (RequestExchange entry : requestExchangeList) {
@@ -427,7 +427,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         sendSalesLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
 
         Map<String, Timestamp> result = new HashMap<>();
         //result.put("888888", new Timestamp(Calendar.getInstance().getTime().getTime()));
@@ -473,7 +473,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
         List<List<Object>> result = new ArrayList<>();
         
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         if(kristalSettings == null) {
             requestExchangeLogger.error("No kristalSettings found");
         } else {
@@ -551,7 +551,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         Integer lastDaysCashDocument = kristalSettings != null ? kristalSettings.getLastDaysCashDocument() : null;
 
         List<CashDocument> result = new ArrayList<>();
@@ -632,7 +632,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
 
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         boolean useIdItem = kristalSettings == null || kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
 
@@ -678,7 +678,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
-        DBSettings kristalSettings = springContext.containsBean("kristalSettings") ? (DBSettings) springContext.getBean("kristalSettings") : null;
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
         boolean useIdItem = kristalSettings != null && kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
@@ -875,7 +875,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                     Element receiptDetailElement = (Element) receiptDetailNode;
                                                     
-                                                    String barcode = null;
+                                                    String barcode;
                                                     String idItem = null;
                                                     if (useIdItem) {
                                                         barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);

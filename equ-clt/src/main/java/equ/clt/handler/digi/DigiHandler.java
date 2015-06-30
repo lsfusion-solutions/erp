@@ -25,15 +25,15 @@ public class DigiHandler extends ScalesHandler {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionScalesInfo transaction : transactionList) {
 
             Exception exception = null;
             try {
 
-                List<String> scalesModelsList = new ArrayList<String>();
-                Map<String, ScalesInfo> directoriesScalesInfoMap = new HashMap<String, ScalesInfo>();
+                List<String> scalesModelsList = new ArrayList<>();
+                Map<String, ScalesInfo> directoriesScalesInfoMap = new HashMap<>();
                 for (ScalesInfo scalesInfo : transaction.machineryInfoList) {
                     if ((scalesInfo.directory != null) && (!directoriesScalesInfoMap.containsKey(scalesInfo.directory.trim())))
                         directoriesScalesInfoMap.put(scalesInfo.directory.trim(), scalesInfo);
@@ -76,9 +76,7 @@ public class DigiHandler extends ScalesHandler {
 
                             }
 
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                        } catch (SQLException e) {
+                        } catch (InterruptedException | SQLException e) {
                             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
                         }
                     }
@@ -155,13 +153,13 @@ public class DigiHandler extends ScalesHandler {
     private String itemNameDescriptionToASCII(String itemName, String itemDescription) throws UnsupportedEncodingException {
         String outputString = "04" + addZeros(Integer.toHexString(itemName.length()), 2, false).toUpperCase();
         for (byte b : itemName.getBytes("Cp866")) {
-            int code = Integer.valueOf(b);
+            int code = (int) b;
             outputString += Integer.toHexString(code < 0 ? code + 256 : code).toUpperCase();
         }
         if (itemDescription != null) {
             outputString += "0C" + "02" + addZeros(Integer.toHexString(itemDescription.length()), 2, false).toUpperCase();
             for (byte b : itemDescription.getBytes("Cp866")) {
-                int code = Integer.valueOf(b);
+                int code = (int) b;
                 outputString += Integer.toHexString(code < 0 ? code + 256 : code).toUpperCase();
             }
         }

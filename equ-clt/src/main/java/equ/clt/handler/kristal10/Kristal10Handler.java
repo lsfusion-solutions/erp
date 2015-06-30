@@ -654,14 +654,19 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     if (paymentType != null) {
                                         BigDecimal sum = readBigDecimalXMLAttribute(paymentEntryNode, "amount");
                                         sum = (sum != null && !isSale) ? sum.negate() : sum;
-                                        if (paymentType.equals("CashPaymentEntity")) {
-                                            sumCash = safeAdd(sumCash, sum);
-                                        } else if (paymentType.equals("CashChangePaymentEntity")) {
-                                            sumCash = safeSubtract(sumCash, sum);
-                                        } else if (paymentType.equals("ExternalBankTerminalPaymentEntity")) {
-                                            sumCard = safeAdd(sumCard, sum);
-                                        } else if (paymentType.equals("GiftCardPaymentEntity")) {
-                                            sumGiftCard = safeAdd(sumGiftCard, sum);
+                                        switch (paymentType) {
+                                            case "CashPaymentEntity":
+                                                sumCash = safeAdd(sumCash, sum);
+                                                break;
+                                            case "CashChangePaymentEntity":
+                                                sumCash = safeSubtract(sumCash, sum);
+                                                break;
+                                            case "ExternalBankTerminalPaymentEntity":
+                                                sumCard = safeAdd(sumCard, sum);
+                                                break;
+                                            case "GiftCardPaymentEntity":
+                                                sumGiftCard = safeAdd(sumGiftCard, sum);
+                                                break;
                                         }
                                     }
                                 }
@@ -807,7 +812,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             File successDir = new File(file.getParent() + "/success/");
                             if (successDir.exists() || successDir.mkdirs())
                                 FileCopyUtils.copy(file, new File(file.getParent() + "/success/" + file.getName()));
-                            file.delete();
+                            if(!file.delete())
+                                file.deleteOnExit();
                         }
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);

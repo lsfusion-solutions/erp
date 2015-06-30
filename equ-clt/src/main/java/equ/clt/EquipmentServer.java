@@ -851,14 +851,14 @@ public class EquipmentServer {
 
     }
 
-    public Integer getUniqueId(TransactionInfo transactionInfo) {
+    /*public Integer getUniqueId(TransactionInfo transactionInfo) {
         String result = String.valueOf(transactionInfo.id) + transactionInfo.idGroupMachinery;
         for(Object machineryInfo : transactionInfo.machineryInfoList)
             result += ((MachineryInfo)machineryInfo).number;
         for(Object item : transactionInfo.itemsList)
             result += ((ItemInfo) item).idBarcode;
         return result.hashCode();
-    }
+    }*/
 
     class SingleTransactionTask implements Runnable {
         EquipmentServerInterface remote;

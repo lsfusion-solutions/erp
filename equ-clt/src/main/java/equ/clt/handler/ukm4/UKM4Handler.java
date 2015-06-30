@@ -33,7 +33,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -47,7 +47,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                 try {
 
-                    List<String> directoriesList = new ArrayList<String>();
+                    List<String> directoriesList = new ArrayList<>();
                     for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
                         if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
                             directoriesList.add(cashRegisterInfo.port.trim());
@@ -86,7 +86,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                                 new OverJDBField("NAME", 'C', 80, 0)
                         };
                         classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
-                        Set<Long> idItemGroups = new HashSet<Long>();
+                        Set<Long> idItemGroups = new HashSet<>();
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
@@ -240,18 +240,18 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if (cashRegister.number != null && cashRegister.numberGroup != null)
                 directoryGroupCashRegisterMap.put(cashRegister.directory + "_" + cashRegister.number, cashRegister.numberGroup);
         }
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
-        List<String> readFiles = new ArrayList<String>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        List<String> readFiles = new ArrayList<>();
         DBF importSailFile = null;
         DBF importDiscFile = null;
         DBF importCardFile = null;
-        Map<String, BigDecimal> discountMap = new HashMap<String, BigDecimal>();
-        Map<String, String> discountCardMap = new HashMap<String, String>();
+        Map<String, BigDecimal> discountMap = new HashMap<>();
+        Map<String, String> discountCardMap = new HashMap<>();
         try {
             String fileDiscPath = directory + "/sail/CASHDISC.DBF";
             if (new File(fileDiscPath).exists()) {
@@ -298,7 +298,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 importSailFile = new DBF(fileSailPath);
                 readFiles.add(fileSailPath);
                 int recordSailCount = importSailFile.getRecordCount();
-                Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<Integer, BigDecimal[]>();
+                Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<>();
 
                 for (int i = 0; i < recordSailCount; i++) {
                     importSailFile.read();

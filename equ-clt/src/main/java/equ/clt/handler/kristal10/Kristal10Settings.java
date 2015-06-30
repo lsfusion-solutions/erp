@@ -1,4 +1,4 @@
-package equ.api.cashregister;
+package equ.clt.handler.kristal10;
 
 import java.io.Serializable;
 

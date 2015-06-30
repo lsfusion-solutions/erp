@@ -33,7 +33,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionInfoList) {
 
@@ -42,7 +42,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
                 processTransactionLogger.info("Atol: Send Transaction # " + transaction.id);
 
-                List<String> directoriesList = new ArrayList<String>();
+                List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
                     if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
                         directoriesList.add(cashRegisterInfo.port.trim());
@@ -68,7 +68,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     if (!transaction.itemsList.isEmpty()) {
                         goodsWriter.println("$$$ADDQUANTITY");
 
-                        LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<String, String[]>();
+                        LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<>();
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
@@ -243,7 +243,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     br.close();
 
                     FileCopyUtils.copy(outputFile, inputFile);
-                    outputFile.delete();
+                    if(!outputFile.delete())
+                        outputFile.deleteOnExit();
                 }
             } catch (IOException e) {
                 throw Throwables.propagate(e);
@@ -256,7 +257,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
         sendSalesLogger.info("Atol: requesting succeeded SoftCheckInfo");
 
-        Map<String, Timestamp> result = new HashMap<String, Timestamp>();
+        Map<String, Timestamp> result = new HashMap<>();
         for (String directory : directorySet) {
 
             try {
@@ -306,9 +307,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     else
                         sendSalesLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
                 }
-            } catch (FileNotFoundException e) {
-                throw Throwables.propagate(e);
-            } catch (ParseException e) {
+            } catch (FileNotFoundException | ParseException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -335,8 +334,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
         try {
             
-            Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-            Set<String> directorySet = new HashSet<String>();
+            Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+            Set<String> directorySet = new HashSet<>();
             for (CashRegisterInfo c : cashRegisterInfoList) {
                 if (c.directory != null && c.handlerModel.endsWith("AtolHandler")) {
                     directorySet.add(c.directory);
@@ -346,8 +345,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 }
             }
 
-            Set<String> cancelCashDocumentSet = new HashSet<String>();
-            List<CashDocument> result = new ArrayList<CashDocument>();
+            Set<String> cancelCashDocumentSet = new HashSet<>();
+            List<CashDocument> result = new ArrayList<>();
             for (String directory : directorySet) {
 
                 String exchangeDirectory = directory + "/OUT/";
@@ -362,7 +361,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     for (File file : filesList) {
 
                         boolean isCurrent = file.getName().contains("current");
-                        List<CashDocument> currentResult = new ArrayList<CashDocument>();
+                        List<CashDocument> currentResult = new ArrayList<>();
 
                         if (file.getName().contains("_current"))
                             break;
@@ -415,9 +414,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             else
                 sendSalesLogger.info(String.format("Atol: found %s CashDocument(s)", result.size()));
             return new CashDocumentBatch(result, null);
-        } catch (FileNotFoundException e) {
-            throw Throwables.propagate(e);
-        } catch (ParseException e) {
+        } catch (FileNotFoundException | ParseException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -443,8 +440,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
         List<String> unusedEntryTypes = Arrays.asList("4", "14", "21", "23", "42", "43", "45", "49", "50", "51", "55", "60", "61", "63");
 
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
-        Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+        Map<String, Date> directoryStartDateMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.number != null && c.numberGroup != null)
                 directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
@@ -452,9 +449,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
         }
 
-        Set<Integer> cancelReceiptSet = new HashSet<Integer>();
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
-        Map<String, Boolean> filePathList = new HashMap<String, Boolean>();
+        Set<Integer> cancelReceiptSet = new HashSet<>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        Map<String, Boolean> filePathList = new HashMap<>();
 
         String exchangeDirectory = directory + "/OUT/";
 
@@ -469,7 +466,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             for (File file : filesList) {
 
                 boolean isCurrent = file.getName().contains("current");
-                List<SalesInfo> currentSalesInfoList = new ArrayList<SalesInfo>();
+                List<SalesInfo> currentSalesInfoList = new ArrayList<>();
 
                 if (file.getName().contains("_current")) {
                     filePathList.put(file.getAbsolutePath(), true);

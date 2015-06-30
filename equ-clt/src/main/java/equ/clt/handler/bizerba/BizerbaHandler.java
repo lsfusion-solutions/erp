@@ -3,6 +3,7 @@ package equ.clt.handler.bizerba;
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.scales.*;
+import equ.clt.handler.ScalesSettings;
 import lsfusion.base.OrderedMap;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -247,7 +248,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    private void decode(byte[] var1) {
+    /*private void decode(byte[] var1) {
         for(int var4 = 0; var4 < var1.length; ++var4) {
             boolean var3 = false;
             int var2 = var1[var4];
@@ -272,7 +273,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 }
             }
         }
-    }
+    }*/
 
     private Integer getPluNumber(ScalesItemInfo itemInfo) {
         try {

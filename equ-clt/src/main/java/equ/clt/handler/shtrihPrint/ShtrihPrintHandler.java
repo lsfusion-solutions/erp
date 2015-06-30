@@ -8,6 +8,7 @@ import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.scales.*;
+import equ.clt.handler.ScalesSettings;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -758,7 +759,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         return -1;
     }
 
-    private boolean sendStateCommand(List<String> errors, UDPPort port, byte[] var1) throws CommunicationException {
+    /*private boolean sendStateCommand(List<String> errors, UDPPort port, byte[] var1) throws CommunicationException {
 
         byte[] var3 = new byte[2 + var1.length];
         var3[0] = 2;
@@ -769,7 +770,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         port.sendCommand(var3);
 
         return receiveStateReply(errors, port);
-    }
+    }*/
 
     private int receiveReply(List<String> errors, UDPPort port) throws CommunicationException {
         try {
@@ -786,7 +787,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         }
     }
 
-    private boolean receiveStateReply(List<String> errors, UDPPort port) throws CommunicationException {
+    /*private boolean receiveStateReply(List<String> errors, UDPPort port) throws CommunicationException {
         try {
         byte[] var2 = new byte[255];
         port.receiveCommand(var2);
@@ -801,7 +802,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
             logError(errors, "Receive reply error: ", e);
             return false;
         }
-    }
+    }*/
 
     private String leftString(String var1, int var3) {
         String var4 = var1;

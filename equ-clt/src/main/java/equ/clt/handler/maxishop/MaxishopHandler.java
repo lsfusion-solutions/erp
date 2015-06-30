@@ -27,7 +27,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
 
-        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+        Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -68,7 +68,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                     CharField PSTATUS = new CharField("PSTATUS", 10);
                     CharField PMATVIEN = new CharField("PMATVIEN", 10);
 
-                    List<String> directoriesList = new ArrayList<String>();
+                    List<String> directoriesList = new ArrayList<>();
                     for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
                         if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
                             directoriesList.add(cashRegisterInfo.port.trim());
@@ -140,15 +140,15 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
 
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
-        Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
+        Map<Integer, String> cashRegisterDirectories = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
                 cashRegisterDirectories.put(cashRegister.number, cashRegister.directory);
             if ((cashRegister.port != null) && (!cashRegisterDirectories.containsValue(cashRegister.port)))
                 cashRegisterDirectories.put(cashRegister.number, cashRegister.port);
         }
-        List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
-        List<String> readFiles = new ArrayList<String>();
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        List<String> readFiles = new ArrayList<>();
         for (Map.Entry<Integer, String> entry : cashRegisterDirectories.entrySet()) {
             Integer numberCashRegister = entry.getKey();
             String dir = entry.getValue() == null ? null : entry.getValue().trim();

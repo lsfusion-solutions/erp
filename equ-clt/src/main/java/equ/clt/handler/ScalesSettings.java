@@ -1,4 +1,4 @@
-package equ.api.scales;
+package equ.clt.handler;
 
 import java.io.Serializable;
 

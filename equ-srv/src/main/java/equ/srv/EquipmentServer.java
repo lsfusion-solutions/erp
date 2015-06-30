@@ -1475,7 +1475,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     public Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) {
-        Map<String, List<Object>> zReportSumMap = new HashMap<String, List<Object>>();
+        Map<String, List<Object>> zReportSumMap = new HashMap<>();
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try (DataSession session = getDbManager().createSession()) {
                       
@@ -1483,7 +1483,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport", "dateZReport"};
                 LCP<?>[] properties = zReportLM.findProperties("sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport", "dateZReport");
                 for (int i = 0; i < properties.length; i++) {
@@ -1533,7 +1533,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     public Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) throws RemoteException, SQLException {
-        Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<Integer, List<List<Object>>>();
+        Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<>();
         if(equipmentCashRegisterLM != null)
         try (DataSession session = getDbManager().createSession()) {
 
@@ -1541,7 +1541,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
             String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
             LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery");
@@ -1563,11 +1563,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     cashRegisterList.put(nppGroupMachinery, nppMachineryList);
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
 
@@ -1672,10 +1668,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         if (discountCardLM != null)
                             seriesNumberDiscountCardField = new ImportField(discountCardLM.findProperty("seriesNumberDiscountCard"));
 
-                        List<ImportProperty<?>> saleProperties = new ArrayList<ImportProperty<?>>();
-                        List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
-                        List<ImportProperty<?>> giftCardProperties = new ArrayList<ImportProperty<?>>();
-                        List<ImportProperty<?>> paymentProperties = new ArrayList<ImportProperty<?>>();
+                        List<ImportProperty<?>> saleProperties = new ArrayList<>();
+                        List<ImportProperty<?>> returnProperties = new ArrayList<>();
+                        List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
+                        List<ImportProperty<?>> paymentProperties = new ArrayList<>();
 
                         ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReportId").getMapping(idZReportField));
                         ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField));
@@ -1813,11 +1809,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                     zReportLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
                         }
 
-                        List<List<Object>> dataSale = new ArrayList<List<Object>>();
-                        List<List<Object>> dataReturn = new ArrayList<List<Object>>();
-                        List<List<Object>> dataGiftCard = new ArrayList<List<Object>>();
+                        List<List<Object>> dataSale = new ArrayList<>();
+                        List<List<Object>> dataReturn = new ArrayList<>();
+                        List<List<Object>> dataGiftCard = new ArrayList<>();
 
-                        List<List<Object>> dataPayment = new ArrayList<List<Object>>();
+                        List<List<Object>> dataPayment = new ArrayList<>();
 
                         Map<Object, String> barcodeMap = new HashMap<>();
                         for (SalesInfo sale : data) {
@@ -1848,7 +1844,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                         idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                         sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt);
                                 if (discountCardLM != null) {
-                                    row = new ArrayList<Object>(row);
+                                    row = new ArrayList<>(row);
                                     row.add(sale.seriesNumberDiscountCard);
                                 }
                                 dataReturn.add(row);
@@ -1859,7 +1855,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                         idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                         sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                                 if (discountCardLM != null) {
-                                    row = new ArrayList<Object>(row);
+                                    row = new ArrayList<>(row);
                                     row.add(sale.seriesNumberDiscountCard);
                                 }
                                 dataSale.add(row);
@@ -1883,7 +1879,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
                                 discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
                         if (discountCardLM != null) {
-                            saleImportFields = new ArrayList<ImportField>(saleImportFields);
+                            saleImportFields = new ArrayList<>(saleImportFields);
                             saleImportFields.add(seriesNumberDiscountCardField);
                         }
 
@@ -1895,7 +1891,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
                                 discountSumReceiptReturnDetailField, discountSumReturnReceiptField);
                         if (discountCardLM != null) {
-                            returnImportFields = new ArrayList<ImportField>(returnImportFields);
+                            returnImportFields = new ArrayList<>(returnImportFields);
                             returnImportFields.add(seriesNumberDiscountCardField);
                         }
 
@@ -1909,7 +1905,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         //sale 5
                         List<ImportKey<?>> saleKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, employeeKey);
                         if (discountCardLM != null) {
-                            saleKeys = new ArrayList<ImportKey<?>>(saleKeys);
+                            saleKeys = new ArrayList<>(saleKeys);
                             saleKeys.add(discountCardKey);
                         }
                         new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
@@ -1917,7 +1913,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         //return 5
                         List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey);
                         if (discountCardLM != null) {
-                            returnKeys = new ArrayList<ImportKey<?>>(returnKeys);
+                            returnKeys = new ArrayList<>(returnKeys);
                             returnKeys.add(discountCardKey);
                         }
                         new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), returnKeys, returnProperties).synchronize(true);
@@ -1978,14 +1974,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s",  
                 (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize);
         
-        Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<Integer, Set<Integer>>();
-        List<String> fileNames = new ArrayList<String>();
-        Set<String> dates = new HashSet<String>();
+        Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
+        List<String> fileNames = new ArrayList<>();
+        Set<String> dates = new HashSet<>();
         for (SalesInfo salesInfo : data) {
             if(nppCashRegisterMap.containsKey(salesInfo.nppGroupMachinery))
                 nppCashRegisterMap.get(salesInfo.nppGroupMachinery).add(salesInfo.nppMachinery);
             else
-                nppCashRegisterMap.put(salesInfo.nppGroupMachinery, new HashSet<Integer>(Arrays.asList(salesInfo.nppMachinery)));
+                nppCashRegisterMap.put(salesInfo.nppGroupMachinery, new HashSet<>(Collections.singletonList(salesInfo.nppMachinery)));
             if ((salesInfo.filename != null) && (!fileNames.contains(salesInfo.filename.trim())))
                 fileNames.add(salesInfo.filename.trim());
             if(salesInfo.dateReceipt != null)

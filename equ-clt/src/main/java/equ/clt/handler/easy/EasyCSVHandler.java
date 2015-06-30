@@ -141,14 +141,14 @@ public class EasyCSVHandler {
         @Override
         public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionPriceCheckerInfo> transactionInfoList) throws IOException {
 
-            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
             for(TransactionPriceCheckerInfo transactionInfo : transactionInfoList) {
 
                 Exception exception = null;
                 try {
 
-                    List<String> directoriesList = new ArrayList<String>();
+                    List<String> directoriesList = new ArrayList<>();
                     for (PriceCheckerInfo priceCheckerInfo : transactionInfo.machineryInfoList) {
                         if ((priceCheckerInfo.port != null) && (!directoriesList.contains(priceCheckerInfo.port.trim())))
                             directoriesList.add(priceCheckerInfo.port.trim());
@@ -193,14 +193,14 @@ public class EasyCSVHandler {
         @Override
         public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
-            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
             for(TransactionScalesInfo transaction : transactionList) {
 
                 Exception exception = null;
                 try {
 
-                    List<String> directoriesList = new ArrayList<String>();
+                    List<String> directoriesList = new ArrayList<>();
                     for (ScalesInfo scalesInfo : transaction.machineryInfoList) {
                         if ((scalesInfo.port != null) && (!directoriesList.contains(scalesInfo.port.trim())))
                             directoriesList.add(scalesInfo.port.trim());

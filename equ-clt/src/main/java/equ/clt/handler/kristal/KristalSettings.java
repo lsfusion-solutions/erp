@@ -1,10 +1,10 @@
-package equ.api.cashregister;
+package equ.clt.handler.kristal;
 
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DBSettings implements Serializable{
+public class KristalSettings implements Serializable{
 
     public String sqlUsername;
     public String sqlPassword;
@@ -21,7 +21,7 @@ public class DBSettings implements Serializable{
     private Integer maxFilesCount;
     private Integer importGroupType; // 0 - no, 1 - classic, 2 - objValue
 
-    public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
+    public KristalSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
         this.sqlPassword = sqlPassword;       
         this.sqlHost = new HashMap<>();
