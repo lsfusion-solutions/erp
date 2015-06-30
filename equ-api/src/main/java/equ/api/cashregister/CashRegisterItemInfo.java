@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 
 public class CashRegisterItemInfo extends ItemInfo {
-    public Integer idItemObject;
+    public Integer itemGroupObject;
     public String description;
     public String idUOM;
     public String shortNameUOM;
@@ -18,11 +18,11 @@ public class CashRegisterItemInfo extends ItemInfo {
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
-                                String idItemGroup, String nameItemGroup, Integer idItemObject, String description, String idUOM,
+                                String idItemGroup, String nameItemGroup, Integer itemGroupObject, String description, String idUOM,
                                 String shortNameUOM, String idBrand, String nameBrand, String idSeason, String nameSeason,
                                 String idDepartmentStore, String section) {
         super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup);
-        this.idItemObject = idItemObject;
+        this.itemGroupObject = itemGroupObject;
         this.description = description;
         this.idUOM = idUOM;
         this.shortNameUOM = shortNameUOM;

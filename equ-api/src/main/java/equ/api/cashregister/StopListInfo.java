@@ -16,11 +16,12 @@ public class StopListInfo implements Serializable {
     public Date dateTo;
     public Time timeTo;
     public Set<String> idStockSet;
+    public Set<Integer> nppGroupMachinerySet;
     public Map<String, ItemInfo> stopListItemMap;
     public Map<String, Set<String>> handlerDirectoryMap;
 
     public StopListInfo(boolean exclude, String number, Date dateFrom, Time timeFrom, Date dateTo, Time timeTo, Set<String> idStockSet,
-                        Map<String, ItemInfo> stopListItemMap, Map<String, Set<String>> handlerDirectoryMap) {
+                        Set<Integer> nppGroupMachinerySet, Map<String, ItemInfo> stopListItemMap, Map<String, Set<String>> handlerDirectoryMap) {
         this.exclude = exclude;
         this.number = number;
         this.dateFrom = dateFrom;
@@ -28,6 +29,7 @@ public class StopListInfo implements Serializable {
         this.dateTo = dateTo;
         this.timeTo = timeTo;
         this.idStockSet = idStockSet;
+        this.nppGroupMachinerySet = nppGroupMachinerySet;
         this.stopListItemMap = stopListItemMap;
         this.handlerDirectoryMap = handlerDirectoryMap;
     }

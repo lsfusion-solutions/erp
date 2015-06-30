@@ -19,6 +19,7 @@ public class DBSettings implements Serializable{
     private String transformUPCBarcode; //12to13 or 13to12
     private Boolean useCheckNumber;
     private Integer maxFilesCount;
+    private Integer importGroupType; // 0 - no, 1 - classic, 2 - objValue
 
     public DBSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -97,5 +98,13 @@ public class DBSettings implements Serializable{
 
     public void setMaxFilesCount(Integer maxFilesCount) {
         this.maxFilesCount = maxFilesCount;
+    }
+
+    public Integer getImportGroupType() {
+        return importGroupType;
+    }
+
+    public void setImportGroupType(Integer importGroupType) {
+        this.importGroupType = importGroupType;
     }
 }

@@ -47,6 +47,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
                 timeout = timeout == null ? 300 : timeout;
+                boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
+
 
                 if (connectionString == null) {
                     processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
@@ -62,26 +64,30 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                             int version = getVersion(conn);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
-                            exportClassif(conn, transaction, version);
+                            if (skipItems) {
+                                version = version - 1;
+                            } else {
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
+                                exportClassif(conn, transaction, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
-                            exportItems(conn, transaction, version);
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
+                                exportItems(conn, transaction, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
-                            exportItemsStocks(conn, transaction, version);
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
+                                exportItemsStocks(conn, transaction, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
-                            exportPriceList(conn, transaction, version);
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
+                                exportPriceList(conn, transaction, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
-                            exportPriceTypeStorePriceList(conn, transaction, version);
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
+                                exportPriceTypeStorePriceList(conn, transaction, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
-                            exportVar(conn, transaction, weightCode, version);
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
+                                exportVar(conn, transaction, weightCode, version);
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                            exportSignals(conn, transaction, version, true, timeout);
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
+                                exportSignals(conn, transaction, version, true, timeout);
+                            }
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
                             exportPriceListVar(conn, transaction, weightCode, version + 1);
@@ -454,13 +460,16 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 ps = conn.prepareStatement(
                         "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                    if (item.idBarcode != null)
-                        ps.setInt(1, 1); //pricelist
-                    ps.setString(2, item.idBarcode); //var
-                    ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                    ps.setInt(4, version); //version
-                    ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
-                    ps.addBatch();
+                    if (item.idBarcode != null) {
+                        for(Integer nppGroupMachinery : stopListInfo.nppGroupMachinerySet) {
+                            ps.setInt(1, nppGroupMachinery); //pricelist
+                            ps.setString(2, item.idBarcode); //var
+                            ps.setBigDecimal(3, BigDecimal.ZERO); //price
+                            ps.setInt(4, version); //version
+                            ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
+                            ps.addBatch();
+                        }
+                    }
                 }
                 ps.executeBatch();
                 conn.commit();
@@ -471,13 +480,17 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                                 "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
 
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                    ps.setInt(1, 1); //pricelist
-                    ps.setString(2, trim(item.idItem, 40, "")); //item
-                    ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                    ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
-                    ps.setInt(5, version); //version
-                    ps.setInt(6, stopListInfo.exclude ? 0 : 1); //deleted
-                    ps.addBatch();
+                    if(item.idItem != null) {
+                        for(Integer nppGroupMachinery : stopListInfo.nppGroupMachinerySet) {
+                            ps.setInt(1, nppGroupMachinery); //pricelist
+                            ps.setString(2, trim(item.idItem, 40, "")); //item
+                            ps.setBigDecimal(3, BigDecimal.ZERO); //price
+                            ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
+                            ps.setInt(5, version); //version
+                            ps.setInt(6, stopListInfo.exclude ? 0 : 1); //deleted
+                            ps.addBatch();
+                        }
+                    }
                 }
                 ps.executeBatch();
                 conn.commit();
