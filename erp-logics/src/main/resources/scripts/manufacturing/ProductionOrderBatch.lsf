@@ -1,0 +1,65 @@
+MODULE ProductionOrderBatch;
+
+REQUIRE ProductionOrder;
+
+NAMESPACE Production;
+
+currentBalanceBatchPriceStockOrder 'Текущий остаток' (batch, order) = currentBalanceBatchStock(batch, priceStockOrder(order)); 
+priceStockBatchOrder 'Цена' (batch, order)= OVERRIDE priceStockSkuOrder(skuBatch(batch),order), prevPriceBPriceListTypeBatchStockDateTime(priceListTypeOrder(order), batch, priceStockOrder(order), dateTimeOrder(order));                                                                                                                                                               
+
+quantityComponentDetailBatchSkuOrder (bt,s,o)=  GROUP SUM quantityComponentDetail(d)  BY  batchComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
+nameBatchesSkuOrder 'Партии' = GROUP CONCAT nameBatch(bt) IF quantityComponentDetailBatchSkuOrder(bt,s,o) , ', '
+    BY s,o
+    ORDER bt MINCHARWIDTH 30 PREFCHARWIDTH 50;
+useBatchSkuOrder 'Использовать партию'  = ACTION (bt,sk,o) {
+    batchComponentDetail(d) <- bt WHERE skuComponentDetail(d) == sk AND orderComponentDetail(d) == o;
+    costSkuOrder(sk,o) <- costBatch(bt);
+}
+
+defaultBatchPriceStockSkuOrder = GROUP LAST batch
+    BY skuBatch(batch), order
+    ORDER currentBalanceBatchPriceStockOrder(batch,order), batch
+    WHERE currentBalanceBatchPriceStockOrder(batch,order) >0;
+
+useBatchSkuOrderAll 'Партия с max остатком (для всех)'  = ACTION (o) {
+    batchComponentDetail(d) <- defaultBatchPriceStockSkuOrder(skuComponentDetail(d), o) WHERE  orderComponentDetail(d) == o AND defaultBatchPriceStockSkuOrder(skuComponentDetail(d), o);//skuComponentDetail(d) == sk
+    costSkuOrder(sk,o) <- costBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE  defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
+}
+
+changeBatchSkuOrder = ACTION (s,o) {
+    FORM dialogBatchStock OBJECTS st = componentsStockOrder(o),
+                             t = dateTimeOrder(o),
+                             sk = s DIALOG SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        useBatchSkuOrder(chosenObject('bt'),s,o);
+    } ELSE IF formResult() == FormResult.drop THEN {
+        batchComponentDetail(d) <- NULL WHERE skuComponentDetail(d) == s AND orderComponentDetail(d) == o;
+//        costSkuOrder(s,o) <- NULL;
+    }
+}
+
+EXTEND FORM order 
+    PROPERTIES nameBatchesSkuOrder(sk,o) ON CHANGE changeBatchSkuOrder(sk,o)
+
+    OBJECTS bt = Batch
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch, idBarcodeSkuBatch, shortNameUOMBatch
+    PROPERTIES READONLY currentBalanceBatchPriceStockOrder(bt,o), costBatch(bt), priceStockBatchOrder(bt,o)
+    PROPERTIES FORCE PANEL TOOLBAR useBatchSkuOrder(bt,sk,o), useBatchSkuOrderAll(o) TODRAW bt
+
+    FILTERS skuBatch(bt) == sk     
+    FILTERGROUP filter2bt
+        FILTER 'С остатком' currentBalanceBatchPriceStockOrder(bt,o) 'F8' DEFAULT     
+;
+
+DESIGN order {
+    price2 {
+        NEW priceTab AFTER price21 {
+            fill = 1;
+            type = TABBED;
+            MOVE sku.box;
+            MOVE bt.box;
+        }
+                          
+    }
+}
