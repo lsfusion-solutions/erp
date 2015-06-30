@@ -1036,8 +1036,11 @@ EXTEND  FORM currentBalanceSkuStock
 
 printSelectedSkuLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
     IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
-        createLabelTransactionDepartmentStore(departmentStore);
+        NEWSESSION NESTED selectSku {
+            selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
+            createLabelTransactionDepartmentStore(departmentStore);
+            apply();
+        }
         selectSku(sku) <- NULL;
     } ELSE {
         MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
