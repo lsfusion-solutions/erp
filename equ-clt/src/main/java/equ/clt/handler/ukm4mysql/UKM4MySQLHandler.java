@@ -48,7 +48,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
-
+                boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
 
                 if (connectionString == null) {
                     processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
@@ -89,8 +89,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                                 exportSignals(conn, transaction, version, true, timeout);
                             }
 
-                            processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
-                            exportPriceListVar(conn, transaction, weightCode, version + 1);
+                            if(!skipBarcodes) {
+                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
+                                exportPriceListVar(conn, transaction, weightCode, version + 1);
+                            }
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
                             exportPriceListItems(conn, transaction, version + 1);
@@ -445,6 +447,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
         Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
         timeout = timeout == null ? 300 : timeout;
+        boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
 
         if (connectionString != null) {
             Connection conn = null;
@@ -454,25 +457,27 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                 int version = getVersion(conn);
 
-                processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
-                conn.setAutoCommit(false);
+                if(!skipBarcodes) {
+                    processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
+                    conn.setAutoCommit(false);
 
-                ps = conn.prepareStatement(
-                        "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
-                for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                    if (item.idBarcode != null) {
-                        for(Integer nppGroupMachinery : stopListInfo.nppGroupMachinerySet) {
-                            ps.setInt(1, nppGroupMachinery); //pricelist
-                            ps.setString(2, item.idBarcode); //var
-                            ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                            ps.setInt(4, version); //version
-                            ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
-                            ps.addBatch();
+                    ps = conn.prepareStatement(
+                            "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+                    for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                        if (item.idBarcode != null) {
+                            for (Integer nppGroupMachinery : stopListInfo.nppGroupMachinerySet) {
+                                ps.setInt(1, nppGroupMachinery); //pricelist
+                                ps.setString(2, item.idBarcode); //var
+                                ps.setBigDecimal(3, BigDecimal.ZERO); //price
+                                ps.setInt(4, version); //version
+                                ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
+                                ps.addBatch();
+                            }
                         }
                     }
+                    ps.executeBatch();
+                    conn.commit();
                 }
-                ps.executeBatch();
-                conn.commit();
 
                 processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
                 ps = conn.prepareStatement(

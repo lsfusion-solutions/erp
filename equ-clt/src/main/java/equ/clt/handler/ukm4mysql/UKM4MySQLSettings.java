@@ -10,6 +10,7 @@ public class UKM4MySQLSettings implements Serializable{
     private String password;
     private Integer timeout;
     private Boolean skipItems;
+    private Boolean skipBarcodes;
 
     public UKM4MySQLSettings() {
     }
@@ -60,5 +61,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSkipItems(Boolean skipItems) {
         this.skipItems = skipItems;
+    }
+
+    public Boolean getSkipBarcodes() {
+        return skipBarcodes;
+    }
+
+    public void setSkipBarcodes(Boolean skipBarcodes) {
+        this.skipBarcodes = skipBarcodes;
     }
 }
