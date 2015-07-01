@@ -12,6 +12,9 @@ NAMESPACE Purchase;
 isSentOrder 'Отправлен' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
 isSentUserOrder 'Отправлен' (o) = DATA BOOLEAN (UserOrder);
 
+sentDateTimeOrder 'Дата отправления' (o) = ABSTRACT DATETIME (Order) PERSISTENT;
+sentDateTimeUserOrder 'Дата отправления' (o) = DATA DATETIME (UserOrder);
+
 notSentOrder 'Не отправлен' (o) = o IS Order AND NOT isSentOrder(o) PERSISTENT;
 notSentUserOrder 'Не отправлен' (o) = o IS UserOrder AND NOT isSentUserOrder(o) PERSISTENT;
 
@@ -118,7 +121,9 @@ emailCustomerOrder 'Отправить заказ поставщику' (order)=
     IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order))) THEN {
         NEWSESSION {
             isSentOrder(order) <- TRUE;
-            overEmailCustomerOrder(order);
+            sentDateTimeOrder(order) <- currentDateTime();
+            
+            overEmailCustomerOrder(order);            
             
             calcEmailCustomerOrder(order);
             apply();

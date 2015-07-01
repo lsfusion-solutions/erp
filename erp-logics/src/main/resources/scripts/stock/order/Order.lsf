@@ -76,6 +76,9 @@ packQuantityOrderDetailOrder 'Кол-во (упаковок)(всего)' (order
 @defineDocumentHeaderGrossWeight(order);
 @defineDocumentAbstractHeaderCurrency (order);
 
+createdUserOrder = ABSTRACT CustomUser (Order);
+createdNameUserOrder 'Создан пользователем' (order) = nameContact(createdUserOrder(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+
 operationOrder = ABSTRACT Operation.Operation (Order) PERSISTENT;
 nameOperationOrder 'Операция' (order) = Operation.nameOperation(operationOrder(order));  ////
 
@@ -158,7 +161,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     createdUserOrder = ABSTRACT CustomUser (Order);
     createdNameUserOrder 'Создан пользователем' (order) = nameContact(createdUserOrder(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
     createdUserOrder(order) += createdUserUserOrder(order) IF order IS UserOrder;    
-    
+    Order.createdUserOrder(order) += createdUserOrder(order);    
     @deriveDocumentHeaderTimePrefix(UserOrder, );
     Order.orderOrderDetail (detail) += orderOrderDetail(detail);
     Order.dateOrder (order) += dateOrder(order);
