@@ -75,8 +75,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     String exchangeDirectory = directory.trim() + "/products/source/";
 
-                    if (!new File(exchangeDirectory).exists())
-                        new File(exchangeDirectory).mkdirs();
+                    if (!new File(exchangeDirectory).exists()) {
+                        processTransactionLogger.info("Kristal10: exchange directory not found, trying to create: " + exchangeDirectory);
+                        if(!new File(exchangeDirectory).mkdir() && !new File(exchangeDirectory).mkdirs())
+                            processTransactionLogger.info("Kristal10: exchange directory not found, failed to create: " + exchangeDirectory);
+                    }
 
                     //catalog-goods.xml
                     processTransactionLogger.info("Kristal10: creating catalog-goods file (Transaction " + transaction.id + ") - " + transaction.itemsList + " items");
@@ -198,6 +201,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                         }
                     }
+                    processTransactionLogger.info("Kristal10: created catalog-goods file (Transaction " + transaction.id + ")");
 
                     String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
                     XMLOutputter xmlOutput = new XMLOutputter();
@@ -205,6 +209,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filePath), encoding));
                     xmlOutput.output(doc, fw);
                     fw.close();
+                    processTransactionLogger.info("Kristal10: output catalog-goods file (Transaction " + transaction.id + ")");
 
                     //чит для избежания ситуации, совпадения имён у двух файлов (в основе имени - текущее время с точностью до секунд)
                     try {
@@ -215,10 +220,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     fileMap.put(new File(filePath), transaction.id);
                 }
             } catch (Exception e) {
+                processTransactionLogger.error("Kristal10: ", e);
                 failedTransactionMap.put(transaction.id, e);
             }
         }
-
+        processTransactionLogger.info(String.format("Kristal10: starting to wait for deletion %s files", fileMap.size()));
         return waitForDeletion(fileMap, failedTransactionMap);
     }
 
@@ -230,6 +236,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 Map<File, Integer> nextFilesMap = new HashMap<>();
                 count++;
                 if (count >= 180) {
+                    processTransactionLogger.info("Kristal10 (wait for deletion): timeout");
                     break;
                 }
                 for (Map.Entry<File, Integer> entry : filesMap.entrySet()) {
@@ -240,6 +247,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     else {
                         processTransactionLogger.info(String.format("Kristal10 (wait for deletion): file %s has been deleted", file.getAbsolutePath()));
                         result.put(idTransaction, new SendTransactionBatch(failedTransactionMap.get(idTransaction)));
+                        failedTransactionMap.remove(idTransaction);
                     }
                 }
                 filesMap = nextFilesMap;
@@ -252,6 +260,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         for(Map.Entry<File, Integer> file : filesMap.entrySet()) {
             processTransactionLogger.info(String.format("Kristal10 (wait for deletion): file %s has NOT been deleted", file.getKey().getAbsolutePath()));
             result.put(file.getValue(), new SendTransactionBatch(new RuntimeException(String.format("Kristal10: file %s has been created but not processed by server", file.getKey().getAbsolutePath()))));
+        }
+        for(Map.Entry<Integer, Exception> entry : failedTransactionMap.entrySet()) {
+            result.put(entry.getKey(), new SendTransactionBatch(entry.getValue()));
         }
         return result;
     }
