@@ -702,6 +702,7 @@ changeComponentsPriceProductDetail (detail) = ACTION (detail) {
 }
 
 // Изменение коэффициентов и цен
+overChangePriceCoeffProductDetail = ABSTRACT ACTION LIST (ProductDetail);
 changePriceCoeffProductDetail = ACTION (detail) {
     REQUEST NUMERIC[8,5] INPUT;
     IF requestedNumeric() THEN {        
@@ -709,8 +710,10 @@ changePriceCoeffProductDetail = ACTION (detail) {
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
         costPriceProductDetail(detail) <- calcCostProductDetail(detail);
         changeValueMarkupProductDetail(detail);
+        overChangePriceCoeffProductDetail(detail);
     }
 }
+overChangePricePercentProductDetail = ABSTRACT ACTION LIST (ProductDetail);
 changePricePercentProductDetail = ACTION (detail) {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {
@@ -718,6 +721,7 @@ changePricePercentProductDetail = ACTION (detail) {
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
         costPriceProductDetail(detail) <- calcCostProductDetail(detail);
         changeValueMarkupProductDetail(detail);
+        overChangePricePercentProductDetail(detail);
     }
 }   
 
@@ -753,6 +757,7 @@ changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
                                                                                              
 notRecalculateMarkupOrder = ABSTRACT BOOLEAN (Order);
 
+overChangeProductsPriceProductDetail = ABSTRACT ACTION LIST (ProductDetail);
 changeProductsPriceProductDetail (detail) = ACTION (detail) {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
@@ -760,7 +765,8 @@ changeProductsPriceProductDetail (detail) = ACTION (detail) {
         IF notRecalculateMarkupOrder(orderProductDetail(detail)) THEN {
             pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
             componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
-            costPriceProductDetail(detail) <- calcCostProductDetail(detail);                
+            costPriceProductDetail(detail) <- calcCostProductDetail(detail); 
+            overChangeProductsPriceProductDetail(detail);               
         } ELSE {
             changeValueProductsPriceProductDetail(detail);    
         }   
@@ -806,11 +812,12 @@ WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
 calcValueVATProductDetail 'НДС, %' = [= GROUP SUM sumComponentDetailBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) BY b, o](BOMProductDetail(d), orderProductDetail(d)) /
                                                                    sumComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d));
 // Расчет цен для изделий
-
+overFillPriceProductDetail = ABSTRACT ACTION LIST (ProductDetail);
 fillPriceProductDetail 'Заполнить цены для изделий' = ACTION (detail)  {
     valueVATProductDetail(detail) <- calcValueVATProductDetail(detail);
     componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
     costPriceProductDetail(detail) <- calcCostProductDetail(detail);
+    overFillPriceProductDetail(detail);
     IF productsPriceListTypeProductDetail(detail) AND prevPriceBPriceListTypeSkuStockDateTime(productsPriceListTypeProductDetail(detail),
                                                                                               skuProductDetail(detail),
                                                                                               productsStockProductDetail(detail),
