@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimit;
 
-REQUIRE PricingPriceLimit, PricingPurchase, OrderInvoiceDashboard;
+REQUIRE PricingPriceLimit, PricingPurchase;
 
 NAMESPACE Purchase;
 
@@ -55,7 +55,7 @@ limitPriceUserInvoiceDetail (detail) = roundPriceRoundCondition(
                                                 limitMarkupUserInvoiceDetail(detail),
                                                 valueRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)));
 
-WHEN SESSION FORMS userInvoice, orderInvoiceDashboard, orders
+WHEN SESSION FORMS userInvoice GOAFTER retailPriceUserInvoiceDetail 
             (CHANGED(retailPriceUserInvoiceDetail(d)) OR CHANGED(limitBasePriceUserInvoiceDetail(d)) OR CHANGED(limitMarkupUserInvoiceDetail(d))) AND 
              showLimitPriceUserInvoiceDetail(d) AND limitPriceUserInvoiceDetail(d) < retailPriceUserInvoiceDetail(d) DO {
     retailPriceUserInvoiceDetail(d) <- limitPriceUserInvoiceDetail(d);
@@ -68,3 +68,4 @@ WHEN SESSION FORMS userInvoice, orderInvoiceDashboard, orders
 
 showLimitPricePricing(pricing) += showLimitPriceInvoice(invoiceInvoicePricing(pricing));
 limitMarkupPricingDetail(detail) += limitMarkupInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
+
