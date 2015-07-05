@@ -719,14 +719,19 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES ()  addUserOrder TODRAW o
         PROPERTIES (o) editOrder SHOWIF isOpenedOrder(o)
         PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedOrder(o)
+        PROPERTIES (o) closeUserOrder FORCE PANEL TOOLBAR SHOWIF isOpenedOrder(o)
+        PROPERTIES (o) openUserOrder FORCE PANEL TOOLBAR SHOWIF isClosedOrder(o)
             
         FILTERS supplierOrder(o) == supplier() OR (o IS Order AND NOT supplier()),
                 supplierStockOrder(o) == supplierStock() OR (o IS Order AND NOT supplierStock()),
                 customerOrder(o) == customer() OR (o IS Order AND NOT customer()),
                 customerStockOrder(o) == customerStock() OR (o IS Order AND NOT customerStock())            
         
-        FILTERGROUP object##dateFilter
+        FILTERGROUP date
             FILTER 'На дату' dateOrder(o) == d 'F10' DEFAULT         
+
+        FILTERGROUP opened
+            FILTER 'Открыт' isOpenedOrder(o) 'F9' DEFAULT         
                           
         OBJECTS dd=OrderDetail
         PROPERTIES (dd) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
