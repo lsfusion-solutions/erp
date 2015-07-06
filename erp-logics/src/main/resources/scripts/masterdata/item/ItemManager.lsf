@@ -1,6 +1,6 @@
 MODULE ItemManager;
 
-REQUIRE Item;
+REQUIRE Item, EmployeeManager, PurchaseOrder, PurchaseDemandOrder;
 
 NAMESPACE Item;
 
@@ -8,6 +8,19 @@ GROUP management 'Менеджмент' : base;
 @defineItemGroupDefaultValue(itemManager, 'Категорийный менеджер', Employee, nameCustomUser);  
 nameItemManagerItemGroup 'Категорийный менеджер' (itemGroup) = nameContact(itemManagerItemGroup(itemGroup)) IN management; 
 
+countItemGroupEmployee (employee) = GROUP SUM 1 IF dataItemManagerItemGroup(group) == employee BY employee PERSISTENT;
+
+accessEmployeeItemGroup 'Доступ разрешен' (employee, itemGroup) = OVERRIDE
+    employee IS Employee AND itemGroup IS ItemGroup AND NOT countItemGroupEmployee(employee),  
+    nearestItemManagerItemGroup(itemGroup)==employee; // PERSISTENT;
+
+countAccessEmployeeItemGroup 'Кол-во доступных групп' (employee, itemGroup) =
+    GROUP SUM 1 IF accessEmployeeItemGroup(employee, child)
+             AND isParentSkuGroupSkuGroup(child, itemGroup)
+       BY employee, itemGroup PERSISTENT;
+
+accessEmployeeItem = accessEmployeeItemGroup(employee, itemGroupItem(item)) PERSISTENT;                                     
+                   
 EXTEND FORM itemGroup
     PROPERTIES(g) nameItemManagerItemGroup 
 ;
@@ -19,4 +32,13 @@ DESIGN itemGroup {
 
 EXTEND FORM itemGroups
     PROPERTIES(g) READONLYIF  isReadonly() nameItemManagerItemGroup 
+;
+EXTEND FORM userOrder 
+    FILTERS countAccessEmployeeItemGroup(currentManager(), sk) OR NOT sk IS SkuGroup
+    FILTERS accessEmployeeItem(currentManager(), ks)
+;
+
+EXTEND FORM demandOrder 
+    FILTERS countAccessEmployeeItemGroup(currentManager(), sk) OR NOT sk IS SkuGroup
+    FILTERS accessEmployeeItem(currentManager(), s)
 ;
