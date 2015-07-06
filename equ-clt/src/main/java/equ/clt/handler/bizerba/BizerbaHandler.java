@@ -98,8 +98,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
                             }
                         }
                     }
-
-                    errorMessages(errors, ips);
+                    if(!enabledScalesList.isEmpty())
+                    errorMessages(errors, ips, brokenPortsMap);
 
                 }
             } catch (Exception e) {
@@ -144,7 +144,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return enabledScalesList;
     }
 
-    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips) {
+    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
         if (!errors.isEmpty()) {
             String message = "";
             for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
@@ -154,7 +154,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 }
             }
             throw new RuntimeException(message);
-        } else if (ips.isEmpty())
+        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
             throw new RuntimeException("Bizerba: No IP-addresses defined");
     }
 
