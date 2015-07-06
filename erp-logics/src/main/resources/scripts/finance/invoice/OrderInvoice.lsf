@@ -267,13 +267,17 @@ META defineOrderInvoice(sign, stockProp)
     
     TABLE orderUserInvoice (Order, UserInvoice);
     includeOrderUserInvoice 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;  
-    countIncludeOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) BY i;  
+    countIncludeOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) BY i;
+    
+    overCreateOrderInvoice = ABSTRACT ACTION LIST (Order, Invoice);
+    
     createUserInvoiceOrder 'Создать накладную' = ACTION (order) {
         userInvoiceOrder(order) <- NULL;
         FOR ADDOBJ i = UserInvoice DO {
             fillUserInvoiceOrder(i, order);
             userInvoiceOrder(order) <- i;
             includeOrderUserInvoice(order,i) <- TRUE;
+            overCreateOrderInvoice (order, i);
         }
     }
     Invoice.createUserInvoiceOrder (order) += ACTION createUserInvoiceOrder(order);
