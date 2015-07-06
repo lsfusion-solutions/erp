@@ -463,6 +463,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         for (String directory : directorySet) {
 
+            if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
+                String error = "Kristal10: Error! Start DateTime not specified for stopList " + stopListInfo.number;
+                processStopListLogger.error(error);
+                throw Throwables.propagate(new RuntimeException(error));
+            }
+
+            if (stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
+                stopListInfo.dateTo = new Date(2040 - 1900, 0, 1);
+                stopListInfo.timeTo = new Time(23, 59, 59);
+            }
+
             String exchangeDirectory = directory.trim() + "/products/source/";
 
             if (!new File(exchangeDirectory).exists())
@@ -472,79 +483,48 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             Document doc = new Document(rootElement);
             doc.setRootElement(rootElement);
 
-            if (!stopListInfo.exclude) {
-                for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
-                    String idBarcode = entry.getKey();
-                    ItemInfo item = entry.getValue();
+            for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
+                String idBarcode = entry.getKey();
+                ItemInfo item = entry.getValue();
 
-                    //parent: rootElement
-                    Element good = new Element("good");
-                    idBarcode = transformBarcode(idBarcode, null, false);
-                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-                    addStringElement(good, "name", item.name);
-                    rootElement.addContent(good);
+                //parent: rootElement
+                Element restriction = new Element("sale-denied-restriction");
+                idBarcode = transformBarcode(idBarcode, null, false);
+                setAttribute(restriction, "id", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+                setAttribute(restriction, "subject-type", "GOOD");
+                setAttribute(restriction, "subject-code", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+                setAttribute(restriction, "type", "SALE_DENIED");
+                setAttribute(restriction, "value", true);
 
-                    if (useShopIndices) {
-                        String shopIndices = "";
-                        for (String shopIndex : stopListInfo.idStockSet)
-                            shopIndices += shopIndex + " ";
-                        shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
-                        addStringElement(good, "shop-indices", shopIndices);
-                    }
+                addStringElement(restriction, "since-date", formatDate(stopListInfo.dateFrom) + "T00:00:00.000");
+                addStringElement(restriction, "till-date", formatDate(stopListInfo.dateTo) + "T23:59:59.000");
+                addStringElement(restriction, "since-time", formatTime(stopListInfo.timeFrom));
+                addStringElement(restriction, "till-time", formatTime(stopListInfo.timeTo));
+                addStringElement(restriction, "deleted", stopListInfo.exclude ? "true" : "false");
 
-                    if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
-                        String error = "Kristal10: Error! Start DateTime not specified for stopList " + stopListInfo.number;
-                        processStopListLogger.error(error);
-                        throw Throwables.propagate(new RuntimeException(error));
-                    }
-                    if (stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
-                        stopListInfo.dateTo = new Date(2040 - 1900, 0, 1);
-                        stopListInfo.timeTo = new Time(0, 0, 0);
-                    }
-
-                    //parent: good
-                    Element barcode = new Element("bar-code");
-                    setAttribute(barcode, "code", item.idBarcode);
-                    addStringElement(barcode, "default-code", "true");
-                    good.addContent(barcode);
-
-                    //parent: good
-                    Element priceEntry = new Element("price-entry");
-                    setAttribute(priceEntry, "price", 1);
-                    setAttribute(priceEntry, "deleted", "true");
-                    addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom));
-                    addStringElement(priceEntry, "number", "1");
-                    good.addContent(priceEntry);
-
-                    addStringElement(good, "vat", "20");
-
-                    //parent: priceEntry
-                    for (String shopIndex : stopListInfo.idStockSet) {
-                        Element department = new Element("department");
-                        setAttribute(department, "number", shopIndex);
-                        priceEntry.addContent(department);
-                    }
-
-                    //parent: good
-                    Element group = new Element("group");
-                    setAttribute(group, "id", item.idItemGroup);
-                    addStringElement(group, "name", item.nameItemGroup);
-                    good.addContent(group);
-
+                if(useShopIndices) {
+                    String shopIndices = "";
+                    for (String shopIndex : stopListInfo.idStockSet)
+                        shopIndices += shopIndex + " ";
+                    shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
+                    addStringElement(restriction, "shop-indices", shopIndices);
                 }
 
-                if (!stopListInfo.stopListItemMap.isEmpty()) {
-                    XMLOutputter xmlOutput = new XMLOutputter();
-                    xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
-                    xmlOutput.output(doc, fw);
-                    fw.close();
+                rootElement.addContent(restriction);
 
-                    //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ignored) {
-                    }
+            }
+
+            if (!stopListInfo.stopListItemMap.isEmpty()) {
+                XMLOutputter xmlOutput = new XMLOutputter();
+                xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+                PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
+                xmlOutput.output(doc, fw);
+                fw.close();
+
+                //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {
                 }
             }
         }
@@ -559,11 +539,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     private String formatDate(Date date) {
-        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").format(date);
+        return new SimpleDateFormat("yyyy-MM-dd").format(date);
     }
 
     private String formatTime(Time time) {
-        return new SimpleDateFormat("HH:mm:ss").format(time);
+        return new SimpleDateFormat("HH:mm:ss.SSS").format(time);
     }
 
     @Override
