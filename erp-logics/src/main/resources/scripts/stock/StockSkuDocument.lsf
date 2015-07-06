@@ -42,7 +42,7 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
 
     changeQuantityValueSku###object = ACTION (sku, object) {
         IF detail###Sku###object(sku, object) THEN {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
                 overChangeQuantityValueSku###object##Detail(detail###Sku###object(sku, object));
             } ELSE {
@@ -50,7 +50,7 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
                     DELETE d;
             }
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
                     skuProp###detail(d) <- sku;
@@ -236,7 +236,7 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
 
     changeQuantityValueBatch###object = ACTION (batch, object) {
         IF detail###batch###object(batch, object) THEN {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object(batch, object);
                 overChangeQuantityValueBatch###object##Detail(detail###batch###object(batch, object));
             } ELSE {
@@ -244,7 +244,7 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
                     DELETE d;
             }
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
                     stockProp###stockClass###detail (d) <- stockProp###stockClass###object(object);
@@ -355,6 +355,16 @@ END
 
 // ----------- Подбор (товар / несколько складов)---------------//       Не забывать имплементить цвет, если нужно!!!!!!!!
 
+deleteNullDetail 'Удалять строки с нулевым значением' = DATA BOOLEAN ();
+EXTEND FORM options 
+    PROPERTIES deleteNullDetail()
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY (deleteNullDetail());
+    }
+}
+
 META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp)
     @defineDocumentSkuStock(object, sku, stockProp);
     priceListType###object###sku(object, sku) = OVERRIDE priceListType###object(object) IF sku IS Sku, priceListTypeAgreementSku(agreement###object(object), sku);
@@ -392,7 +402,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
 
     changeQuantityValueSku###object###Stock = ACTION (sku, object, stock) {
         IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
                 overChangeQuantityValueSku###object##Detail(detail###Sku###object###stockProp###stock(sku, object, stock));
             } ELSE {
@@ -401,7 +411,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             }
 
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                    object###detail(d) <- object;
                    stockProp###stock###detail (d) <- stock;
@@ -565,7 +575,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
 
     changeQuantityValueBatch###object###Stock = ACTION (batch, object, stock) {
         IF detail###batch###object###stockProp###stock(batch, object, stock) THEN {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp###stock(batch, object, stock);
                 overChangeQuantityValueBatch###object##Detail(detail###batch###object###stockProp###stock(batch, object, stock));
             } ELSE {
@@ -573,7 +583,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
                     DELETE d;
             }
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
                     stockProp###stock###detail (d) <- stock;
