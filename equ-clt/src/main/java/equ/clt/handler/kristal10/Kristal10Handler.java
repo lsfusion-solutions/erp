@@ -496,10 +496,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 setAttribute(restriction, "type", "SALE_DENIED");
                 setAttribute(restriction, "value", true);
 
-                addStringElement(restriction, "since-date", formatDate(stopListInfo.dateFrom) + "T00:00:00.000");
-                addStringElement(restriction, "till-date", formatDate(stopListInfo.dateTo) + "T23:59:59.000");
-                addStringElement(restriction, "since-time", formatTime(stopListInfo.timeFrom));
-                addStringElement(restriction, "till-time", formatTime(stopListInfo.timeTo));
+                addStringElement(restriction, "since-date", formatDate(stopListInfo.dateFrom) + "T" + formatTime(stopListInfo.timeFrom));
+                addStringElement(restriction, "till-date", formatDate(stopListInfo.dateTo) + "T" + formatTime(stopListInfo.timeTo));
+                addStringElement(restriction, "since-time", "00:00:00.000");
+                addStringElement(restriction, "till-time", "23:59:59.000");
                 addStringElement(restriction, "deleted", stopListInfo.exclude ? "true" : "false");
 
                 if(useShopIndices) {
