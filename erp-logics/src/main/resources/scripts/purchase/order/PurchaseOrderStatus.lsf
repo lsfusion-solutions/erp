@@ -117,6 +117,7 @@ calcEmailCustomerOrder 'Отправить заказ поставщику' (ord
 
 
 overEmailCustomerOrder = ABSTRACT ACTION LIST (Order.Order);
+skipCalcEmailCustomerOrder = ABSTRACT BOOLEAN (Order.Order);
 emailCustomerOrder 'Отправить заказ поставщику' (order)= ACTION (order) {
     IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order))) THEN {
         NEWSESSION {
@@ -125,7 +126,7 @@ emailCustomerOrder 'Отправить заказ поставщику' (order)=
             
             overEmailCustomerOrder(order);            
             
-            calcEmailCustomerOrder(order);
+            IF NOT skipCalcEmailCustomerOrder(order) THEN calcEmailCustomerOrder(order);
             apply();
         }
 
