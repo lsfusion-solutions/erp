@@ -210,10 +210,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "descriptionMachineryPriceTransaction"};
+                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction"};
             LCP[] mptProperties = equLM.findProperties("dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "descriptionMachineryPriceTransaction");
+                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction");
             for (int i = 0; i < mptProperties.length; i++) {
                 query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
             }
@@ -232,8 +232,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     DataObject transactionObject = result.getKey(i).singleValue();
                     Boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
                     String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
+                    Timestamp lastErrorDate = (Timestamp) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
                     transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT});
+                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT, lastErrorDate});
                 }
             }
 
@@ -249,6 +250,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 Date date = new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime());
                 Boolean snapshotTransaction = (Boolean) transaction[6];
                 String descriptionTransaction = (String) transaction[7];
+                Timestamp lastErrorDateTransaction = (Timestamp) transaction[8];
 
                 boolean isCashRegisterPriceTransaction = cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClass("CashRegisterPriceTransaction"));
                 boolean isScalesPriceTransaction = scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"));
@@ -409,7 +411,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
-                            cashRegisterInfoList, snapshotTransaction, overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister));
+                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
@@ -474,7 +476,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction));
+                            nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
+                            lastErrorDateTransaction));
 
                 } else if (isPriceCheckerPriceTransaction) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
@@ -521,7 +524,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
-                            snapshotTransaction));
+                            snapshotTransaction, lastErrorDateTransaction));
 
 
                 } else if (isTerminalPriceTransaction) {
@@ -582,7 +585,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
-                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction,
+                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
                             terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
                             nppGroupTerminal, directoryGroupTerminal));
                 }

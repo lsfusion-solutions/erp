@@ -769,26 +769,32 @@ public class EquipmentServer {
         synchronized SingleTransactionTask getTask() {
             SingleTransactionTask resultTask = null;
 
-            //находим первый актуальный transactionInfo в очереди
+            //находим transactionInfo без ошибок либо с самой старой последней ошибкой в очереди
+            String minGroupId = null;
+            Timestamp minLastErrorDate = null;
+            MachineryHandler clsHandler = null;
+            Set<String> checkedGroupIdSet = new HashSet<>();
             for(TransactionInfo transactionInfo : waitingTaskQueueMap.values()) {
-
-                String resultTaskGroupId = null;
-                MachineryHandler clsHandler = null;
                 try {
                     clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
-                    resultTaskGroupId = clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
-
+                    String groupId = clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
+                    if(!checkedGroupIdSet.contains(groupId) && !currentlyProceededGroups.contains(groupId)) {
+                        checkedGroupIdSet.add(groupId);
+                        if(transactionInfo.lastErrorDate == null || minLastErrorDate == null || minLastErrorDate.compareTo(transactionInfo.lastErrorDate) > 0) {
+                            minGroupId = groupId;
+                            minLastErrorDate = transactionInfo.lastErrorDate;
+                            if(minLastErrorDate == null)
+                                break;
+                        }
+                    }
                 } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
                     logger.error(e);
                 }
-                if(resultTaskGroupId != null && !currentlyProceededGroups.contains(resultTaskGroupId)) {
-                    currentlyProceededGroups.add(resultTaskGroupId);
-                    resultTask = new SingleTransactionTask(remote, resultTaskGroupId, clsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
-                    break;
-                }
             }
             //находим все transactionInfo с таким же groupId
-            if(resultTask != null) {
+            if(minGroupId != null) {
+                currentlyProceededGroups.add(minGroupId);
+                resultTask = new SingleTransactionTask(remote, minGroupId, clsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
                 Set<Integer> removingTaskSet = new HashSet<>();
                 for (Map.Entry<Integer, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
                     if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo.getValue()))) {

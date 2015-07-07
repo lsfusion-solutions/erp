@@ -3,6 +3,7 @@ package equ.api.cashregister;
 import equ.api.ItemGroup;
 import equ.api.TransactionInfo;
 
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
                                        Integer nppGroupMachinery, String nameGroupMachinery, String description,
                                        Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItemInfo> itemsList, 
-                                       List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Integer departmentNumberGroupCashRegister,
+                                       List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate, Integer departmentNumberGroupCashRegister,
                                        String weightCodeGroupCashRegister) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
@@ -28,6 +29,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
         this.snapshot = snapshot;
+        this.lastErrorDate = lastErrorDate;
         this.departmentNumberGroupCashRegister = departmentNumberGroupCashRegister;
         this.weightCodeGroupCashRegister = weightCodeGroupCashRegister;
     }

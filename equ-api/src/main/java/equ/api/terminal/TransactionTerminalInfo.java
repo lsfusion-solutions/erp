@@ -1,10 +1,9 @@
 package equ.api.terminal;
 
-import equ.api.MachineryInfo;
 import equ.api.TransactionInfo;
 
-import java.io.IOException;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.List;
 
 public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, TerminalItemInfo> {
@@ -17,7 +16,7 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
     
     public TransactionTerminalInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery, Integer nppGroupMachinery, 
                                    String nameGroupMachinery, String description, List<TerminalItemInfo> itemsList, 
-                                   List<TerminalInfo> machineryInfoList, Boolean snapshot, List<TerminalHandbookType> terminalHandbookTypeList, 
+                                   List<TerminalInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate, List<TerminalHandbookType> terminalHandbookTypeList,
                                    List<TerminalDocumentType> terminalDocumentTypeList, List<TerminalLegalEntity> terminalLegalEntityList, 
                                    List<TerminalAssortment> terminalAssortmentList, Integer nppGroupTerminal, String directoryGroupTerminal) {
         this.id = id;
@@ -31,6 +30,7 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
         this.snapshot = snapshot;
+        this.lastErrorDate = lastErrorDate;
         this.terminalHandbookTypeList = terminalHandbookTypeList;
         this.terminalDocumentTypeList = terminalDocumentTypeList;
         this.terminalLegalEntityList = terminalLegalEntityList;

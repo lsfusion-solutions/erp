@@ -1,6 +1,7 @@
 package equ.api;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -19,4 +20,5 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public List<I> itemsList;
     public List<M> machineryInfoList;
     public Boolean snapshot;
+    public Timestamp lastErrorDate;
 }
