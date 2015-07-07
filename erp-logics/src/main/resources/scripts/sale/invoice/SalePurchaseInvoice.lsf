@@ -99,6 +99,16 @@ DESIGN invoiceInvoices {
     }
 }
 
+notUseBatchPurchaseInvoiceOperation 'Не проставлять партии при выполнении действия "Накладная (закупка)"' = DATA BOOLEAN (Operation); 
+EXTEND FORM operation
+    PROPERTIES notUseBatchPurchaseInvoiceOperation(o)
+;
+DESIGN operation {
+    purchaseContainer {
+        MOVE PROPERTY (notUseBatchPurchaseInvoiceOperation(o));
+    }
+}
+
 invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT INDEXED;
 invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
 invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
@@ -123,7 +133,7 @@ fillInvoiceUserInvoice 'Заполнить на основе накладной'
 
 setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail(d, invoiceDetail) += ACTION (d, invoiceDetail) {
             Purchase.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
-            Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
+            Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail)  WHERE NOT notUseBatchPurchaseInvoiceOperation(operationInvoice(invoiceInvoiceDetail(invoiceDetail)));
             Purchase.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
             Purchase.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
             Purchase.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
@@ -359,7 +369,7 @@ moveUserInvoiceInvoice 'Накладная (закупка)' =  ACTION (invoice)
             ASSIGN Purchase.amountPackUserInvoiceDetail (d) <- amountPackInvoiceDetail(detail);
             ASSIGN Purchase.packQuantityUserInvoiceDetail (d) <- packQuantityInvoiceDetail(detail);
 
-            ASSIGN Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(detail);
+            ASSIGN Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(detail) WHERE NOT notUseBatchPurchaseInvoiceOperation(operationInvoice(invoice));
             EXEC overFillInvoiceUserInvoiceDetailInvoiceDetail(d,detail);
         }
 
