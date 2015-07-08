@@ -5,20 +5,20 @@ REQUIRE OrderRamp;
 NAMESPACE Order;
 
 countOrdersRampDateDateFromTo (ramp, date, dateFrom, dateTo) = GROUP SUM 1 IF 
-    inOrderRampInterval(o,r,i) AND shipmentDateOrder(o) >= (dateFrom AS DATE) AND shipmentDateOrder(o) <= (dateTo AS DATE)
-        BY r, shipmentDateOrder(o), dateFrom, dateTo;
+    orderRampIntervalDate(r,i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE)
+        BY r, d, dateFrom, dateTo;
         
 countOrdersStockDateDateFromTo (stock, date, dateFrom, dateTo) = GROUP SUM 1 IF 
-    inOrderRampInterval(o,r,i) AND shipmentDateOrder(o) >= (dateFrom AS DATE) AND shipmentDateOrder(o) <= (dateTo AS DATE)
-        BY stockRamp(r), shipmentDateOrder(o), dateFrom, dateTo;     
+    orderRampIntervalDate(r,i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE)
+        BY stockRamp(r), d, dateFrom, dateTo;     
 countDatesStockDateFromTo 'Кол-во дней' (stock, dateFrom, dateTo) = GROUP SUM 1 IF 
     countOrdersStockDateDateFromTo (stock, date, dateFrom, dateTo)
         BY stock, dateFrom, dateTo; 
                    
 countLoadIntervalRampDate (ramp, date) = GROUP SUM 1 IF 
-    inOrderRampInterval(o,r,i) BY r, shipmentDateOrder(o);  
+    orderRampIntervalDate(r,i,d) BY r, d;  
 countLoadIntervalStockDate (stock, date) = GROUP SUM 1 IF
-    inOrderRampInterval(o,r,i) BY stockRamp(r), shipmentDateOrder(o);
+    orderRampIntervalDate(r,i,d) BY stockRamp(r), d;
            
 percIntervalRampDate '% загрузки рампы' (r,d) = countLoadIntervalRampDate (r, d) * 100.00 / countIntervalRamp(r);            
 percIntervalStockDate '% загрузки рампы' (st,d) = countLoadIntervalStockDate (st, d)* 100.00 / countIntervalStock(st) ;          
@@ -43,7 +43,7 @@ FORM rampStockDate 'Загрузка рамп'
     PROPERTIES(st,d) READONLY percIntervalStockDate           
         
     FILTERS countOrdersStockDateDateFromTo(st,d,dFrom,dTo),
-            d >= dFrom, d <= dTo                
+            iterateDate(d, dFrom, dTo)               
     
     PROPERTIES(st,dFrom,dTo) READONLY percIntervalStockDateFromTo            
             
