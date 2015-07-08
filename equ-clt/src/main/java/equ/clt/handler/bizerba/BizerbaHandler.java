@@ -59,6 +59,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         Map<String, String> brokenPortsMap = new HashMap<>();
+        if(transactionList.isEmpty()) {
+            processTransactionLogger.error("Bizerba: Empty transaction list!");
+        }
         for(TransactionScalesInfo transaction : transactionList) {
             processTransactionLogger.info("Bizerba: Send Transaction # " + transaction.id);
 

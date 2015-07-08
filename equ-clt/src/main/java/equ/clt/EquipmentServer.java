@@ -772,17 +772,18 @@ public class EquipmentServer {
             //находим transactionInfo без ошибок либо с самой старой последней ошибкой в очереди
             String minGroupId = null;
             Timestamp minLastErrorDate = null;
-            MachineryHandler clsHandler = null;
+            MachineryHandler minClsHandler = null;
             Set<String> checkedGroupIdSet = new HashSet<>();
             for(TransactionInfo transactionInfo : waitingTaskQueueMap.values()) {
                 try {
-                    clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
+                    MachineryHandler clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
                     String groupId = clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
                     if(!checkedGroupIdSet.contains(groupId) && !currentlyProceededGroups.contains(groupId)) {
                         checkedGroupIdSet.add(groupId);
                         if(transactionInfo.lastErrorDate == null || minLastErrorDate == null || minLastErrorDate.compareTo(transactionInfo.lastErrorDate) > 0) {
                             minGroupId = groupId;
                             minLastErrorDate = transactionInfo.lastErrorDate;
+                            minClsHandler = clsHandler;
                             if(minLastErrorDate == null)
                                 break;
                         }
@@ -794,7 +795,7 @@ public class EquipmentServer {
             //находим все transactionInfo с таким же groupId
             if(minGroupId != null) {
                 currentlyProceededGroups.add(minGroupId);
-                resultTask = new SingleTransactionTask(remote, minGroupId, clsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
+                resultTask = new SingleTransactionTask(remote, minGroupId, minClsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
                 Set<Integer> removingTaskSet = new HashSet<>();
                 for (Map.Entry<Integer, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
                     if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo.getValue()))) {
