@@ -1,0 +1,32 @@
+MODULE WareDocument;
+
+NAMESPACE Ware;
+
+META defineDocumentWare(document, NS)
+    skipCreateWareUser###document##Detail = DATA BOOLEAN (NS.User###document##Detail);
+
+    wareUser###document##DetailUser###document##Detail = DATA NS.User###document##Detail(NS.User###document##Detail) INDEXED;
+    itemWareUser###document##DetailUser###document##Detail (user###document##Detail) =
+        GROUP AGGR user###document##Detail BY wareUser###document##DetailUser###document##Detail(user###document##Detail) PERSISTENT;
+
+    createWareUser###document##Detail = ACTION (user###document##Detail) {
+        IF wareUser###document##DetailUser###document##Detail(user###document##Detail) THEN {
+            ASSIGN NS.quantityUser###document##Detail(d) <- NS.quantityUser###document##Detail(user###document##Detail) WHERE d == wareUser###document##DetailUser###document##Detail(user###document##Detail);
+        } ELSE
+            FOR ADDOBJ d = User###document##Detail DO {
+                ASSIGN NS.user###document##User###document##Detail(d) <- NS.user###document##User###document##Detail(user###document##Detail);
+                ASSIGN NS.skuUser###document##Detail(d) <- wareItem(skuUser###document##Detail(user###document##Detail));
+                ASSIGN NS.quantityUser###document##Detail(d) <- NS.quantityUser###document##Detail(user###document##Detail);
+                ASSIGN wareUser###document##DetailUser###document##Detail(user###document##Detail) <- d;
+                ASSIGN invoice##PriceUser###document##Detail(d) <- priceWareDate(NS.skuUser###document##Detail(d), NS.dateUser###document##Detail(d));
+                ASSIGN VATUser###document##Detail(d) <- VATSkuCountry(NS.skuUser###document##Detail(d), countryStock(NS.supplierStockUser###document##Detail(d)));
+                ASSIGN valueVATUser###document##Detail(d) <- valueRateRangeDate(VATUser###document##Detail(d), NS.dateUser###document##Detail(d));
+                ASSIGN priceUser###document##Detail(d) <- round2(invoice##PriceUser###document##Detail(d)*100/(100+calcValueVATUser###document##Detail(d)));
+            }
+    }
+
+    WHEN SESSION FORMS user###document##
+         (CHANGED(NS.skuUser###document##Detail(detail)) OR CHANGED(NS.quantityUser###document##Detail(detail))) AND
+         wareItem(NS.skuUser###document##Detail(detail)) AND NOT skipCreateWareUser###document##Detail(detail)
+            DO EXEC createWareUser###document##Detail(detail);
+END

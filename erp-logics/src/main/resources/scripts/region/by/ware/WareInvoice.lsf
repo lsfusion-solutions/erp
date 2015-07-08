@@ -1,34 +1,10 @@
 MODULE WareInvoice;
 
-REQUIRE Item, WareItem, Invoice, Shipment;
+REQUIRE WareItem, Invoice, Shipment, WareDocument;
+
+NAMESPACE Ware;
 
 META defineInvoiceWare(NS)
-    skipCreateWareUserInvoiceDetail = DATA BOOLEAN (NS.UserInvoiceDetail);
-
-    wareUserInvoiceDetailUserInvoiceDetail = DATA NS.UserInvoiceDetail(NS.UserInvoiceDetail) INDEXED;
-    itemWareUserInvoiceDetailUserInvoiceDetail (userInvoiceDetail) =
-        GROUP AGGR userInvoiceDetail BY wareUserInvoiceDetailUserInvoiceDetail(userInvoiceDetail) PERSISTENT;
-
-    createWareUserInvoiceDetail = ACTION (userInvoiceDetail) {
-        IF wareUserInvoiceDetailUserInvoiceDetail(userInvoiceDetail) THEN {
-            ASSIGN NS.quantityUserInvoiceDetail(d) <- NS.quantityUserInvoiceDetail(userInvoiceDetail) WHERE d == wareUserInvoiceDetailUserInvoiceDetail(userInvoiceDetail);
-        } ELSE
-            FOR ADDOBJ d = UserInvoiceDetail DO {
-                ASSIGN NS.userInvoiceUserInvoiceDetail(d) <- NS.userInvoiceUserInvoiceDetail(userInvoiceDetail);
-                ASSIGN NS.skuUserInvoiceDetail(d) <- wareItem(skuUserInvoiceDetail(userInvoiceDetail));
-                ASSIGN NS.quantityUserInvoiceDetail(d) <- NS.quantityUserInvoiceDetail(userInvoiceDetail);
-                ASSIGN wareUserInvoiceDetailUserInvoiceDetail(userInvoiceDetail) <- d;
-                ASSIGN invoicePriceUserInvoiceDetail(d) <- priceWareDate(NS.skuUserInvoiceDetail(d), NS.dateUserInvoiceDetail(d));
-                ASSIGN VATUserInvoiceDetail(d) <- VATSkuCountry(NS.skuUserInvoiceDetail(d), countryStock(NS.supplierStockUserInvoiceDetail(d)));
-                ASSIGN valueVATUserInvoiceDetail(d) <- valueRateRangeDate(VATUserInvoiceDetail(d), NS.dateUserInvoiceDetail(d));
-                ASSIGN priceUserInvoiceDetail(d) <- round2(invoicePriceUserInvoiceDetail(d)*100/(100+calcValueVATUserInvoiceDetail(d)));
-            }
-    }
-
-    WHEN SESSION FORMS userInvoice
-         (CHANGED(NS.skuUserInvoiceDetail(detail)) OR CHANGED(NS.quantityUserInvoiceDetail(detail))) AND
-         wareItem(NS.skuUserInvoiceDetail(detail)) AND NOT skipCreateWareUserInvoiceDetail(detail)
-            DO EXEC createWareUserInvoiceDetail(detail);
-
+    @defineDocumentWare(invoice, NS);
     NS.skipCreateShipmentInvoiceDetail(detail) += TRUE IF itemWareUserInvoiceDetailUserInvoiceDetail(detail);
 END
