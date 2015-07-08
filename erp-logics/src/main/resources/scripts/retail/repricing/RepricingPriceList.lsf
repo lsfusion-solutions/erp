@@ -107,16 +107,16 @@ DESIGN options {
 
 createOverManagementRepricingAllStocks = ABSTRACT ACTION LIST ();
 isOverManagementRepricingAllStocks = ABSTRACT BOOLEAN ();
+skipManagementRepricingDepartmentStore = ABSTRACT BOOLEAN (DepartmentStore);
 
 toManagementRepricingOperation  = DATA Repricing.Operation ();
 nameToManagementRepricingOperation 'Операция для переоценки упр.' = nameOperation(toManagementRepricingOperation());
-
 
 createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.' = ACTION () NEWSESSION {
     IF isOverManagementRepricingAllStocks() THEN {
         createOverManagementRepricingAllStocks();
     } ELSE {   
-        FOR department IS DepartmentStore AND isCompanyStock(department) DO {
+        FOR department IS DepartmentStore AND isCompanyStock(department) AND NOT skipManagementRepricingDepartmentStore(department)  DO {
             calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
             createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime());                                     
         } 
