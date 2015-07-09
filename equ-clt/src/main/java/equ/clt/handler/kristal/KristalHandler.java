@@ -904,7 +904,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
                                                                 numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard,
                                                                 sumCash, null, barcode, idItem, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
-                                                                discountSumReceipt, discountCard, numberReceiptDetail, fileName));
+                                                                null, discountCard, numberReceiptDetail, fileName));
                                                 }
 
                                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
