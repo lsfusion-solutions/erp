@@ -223,6 +223,9 @@ EXTEND FORM balanceBatchStock
 ;
 //-- печатная форма
 FORM movementSkuStockPrint 'Движение товара по складу'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    
     OBJECTS s = Sku FIXED PANEL
     PROPERTIES(s) READONLY nameSku
 
@@ -239,10 +242,32 @@ FORM movementSkuStockPrint 'Движение товара по складу'
     FILTERS skuSkuLedger(bil) == s,
             isPostedSkuLedger(bil),
             stockSkuLedger(bil)==st,
-            isCompanyStock(st)
+            isCompanyStock(st),
+            dateSkuLedger(bil) >=dFrom,
+            dateSkuLedger(bil) <=dTo
 ;
 
-movementSkuStockPrint 'Движение товара' (s,st) = ACTION FORM movementSkuStockPrint OBJECTS s = s, st = st PRINT IMAGE 'print.png' IN print;
+FORM dialogPeriod 'Выбор периода'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
+;
+
+DESIGN dialogPeriod {
+    MOVE dates.box { 
+        caption = 'Период';
+        PROPERTY (objFrom) {caption = 'Дата с'; font = 'bold 64';}
+        PROPERTY (objTo) {caption = 'Дата по'; font = 'bold 64';}
+    }
+    MOVE functions.box;
+}
+
+movementSkuStockPrint 'Движение товара' (s,st) = ACTION {
+    FORM dialogPeriod MODAL;
+    IF formResult() == FormResult.ok THEN { 
+        FORM movementSkuStockPrint OBJECTS dFrom = chosenDate('dFrom'), dTo = chosenDate('dTo'), s = s, st = st PRINT;
+    }
+    
+}IMAGE 'print.png' IN print;
 
 EXTEND FORM  currentBalanceSkuStock
     PROPERTIES(s,st) movementSkuStockPrint FORCE PANEL TOOLBAR TODRAW bil
