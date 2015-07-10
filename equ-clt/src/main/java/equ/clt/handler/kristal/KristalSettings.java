@@ -20,6 +20,7 @@ public class KristalSettings implements Serializable{
     private Boolean useCheckNumber;
     private Integer maxFilesCount;
     private Integer importGroupType; // 0 - no, 1 - classic, 2 - objValue
+    private Boolean noRestriction;
 
     public KristalSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -106,5 +107,13 @@ public class KristalSettings implements Serializable{
 
     public void setImportGroupType(Integer importGroupType) {
         this.importGroupType = importGroupType;
+    }
+
+    public Boolean getNoRestriction() {
+        return noRestriction;
+    }
+
+    public void setNoRestriction(Boolean noRestriction) {
+        this.noRestriction = noRestriction;
     }
 }

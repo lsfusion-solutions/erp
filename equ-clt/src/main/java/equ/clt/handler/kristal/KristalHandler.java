@@ -27,6 +27,7 @@ import java.util.*;
 
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
+    //protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
@@ -82,6 +83,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 boolean noMessageAndScaleFiles = kristalSettings != null && kristalSettings.getNoMessageAndScaleFiles() != null && kristalSettings.getNoMessageAndScaleFiles();
                 String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
                 Integer importGroupType = kristalSettings != null ? kristalSettings.getImportGroupType() : null;
+                boolean noRestriction = kristalSettings != null && kristalSettings.getNoRestriction() != null && kristalSettings.getNoRestriction();
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
@@ -132,31 +134,33 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
                     }
 
-                    //restriction.txt
-                    File restrictionFile = new File(exchangeDirectory + "restriction.txt");
-                    File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICTION");
-                    if (restrictionFile.exists() && flagRestrictionFile.exists()) {
-                        throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
-                    } else if (flagRestrictionFile.createNewFile()) {
-                        processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
-                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(restrictionFile), "windows-1251"));
+                    if(!noRestriction) {
+                        //restriction.txt
+                        File restrictionFile = new File(exchangeDirectory + "restriction.txt");
+                        File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICTION");
+                        if (restrictionFile.exists() && flagRestrictionFile.exists()) {
+                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                        } else if (flagRestrictionFile.createNewFile()) {
+                            processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
+                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(restrictionFile), "windows-1251"));
 
-                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
-                                //boolean isWeightItem = item.passScalesItem && item.splitItem;
-                                Object code = useIdItem ? item.idItem : item.idBarcode;
-                                //String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
-                                boolean forbid = item.flags != null && ((item.flags & 16) == 0);
-                                String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20210101";
-                                writer.println(record);
+                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                                if (!Thread.currentThread().isInterrupted()) {
+                                    //boolean isWeightItem = item.passScalesItem && item.splitItem;
+                                    Object code = useIdItem ? item.idItem : item.idBarcode;
+                                    //String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                    boolean forbid = item.flags != null && ((item.flags & 16) == 0);
+                                    String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20210101";
+                                    writer.println(record);
+                                }
                             }
-                        }
-                        writer.close();
+                            writer.close();
 
-                        processTransactionLogger.info(String.format("Kristal: waiting for deletion of Restriction file (Transaction #%s)", transactionInfo.id));
-                        waitForDeletion(restrictionFile, flagRestrictionFile);
-                    } else {
-                        throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of Restriction file (Transaction #%s)", transactionInfo.id));
+                            waitForDeletion(restrictionFile, flagRestrictionFile);
+                        } else {
+                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                        }
                     }
 
                     if(!noMessageAndScaleFiles) {
@@ -653,8 +657,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
 
                 for (Map.Entry<String, ItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
-                    Object code = useIdItem ? item.getValue().idItem : item.getKey();
-                    String record = code + "|" + (stopListInfo.exclude ? "1" : "0");
+                    String idBarcode = item.getKey();
+                    String code = useIdItem ? item.getValue().idItem : idBarcode;
+                    String record = (stopListInfo.exclude ? "+" : "-") + "|" + code + "|" + idBarcode;
                     writer.println(record);
                 }
                 writer.close();
@@ -668,7 +673,41 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directorySet) throws IOException {
+        /*machineryExchangeLogger.info("Kristal: Send DiscountCardList");
+
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
+        String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
+
+        for (String directory : directorySet) {
+
+            String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+
+            if (!new File(exchangeDirectory).exists())
+                new File(exchangeDirectory).mkdirs();
+
+            //discountCard.txt
+            File discCardFile = new File(exchangeDirectory + "disccard.txt");
+            File flagDiscCardFile = new File(exchangeDirectory + "WAITDISCCARD");
+            if (discCardFile.exists() && flagDiscCardFile.exists()) {
+                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));
+            } else if (flagDiscCardFile.createNewFile()) {
+                machineryExchangeLogger.info("Kristal: creating DISCCARD file");
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
+
+                for (DiscountCard discountCard : discountCardList) {
+                    String record = discountCard.numberDiscountCard + "|" + discountCard.nameDiscountCard + "|" + "0" + "|" +
+                            discountCard.percentDiscountCard + "|" + discountCard.idDiscountCard + "|" + discountCard.nameDiscountCard;
+                    writer.println(record);
+                }
+                writer.close();
+
+                machineryExchangeLogger.info("Kristal: waiting for deletion of DISCCARD file");
+                waitForDeletion(discCardFile, flagDiscCardFile);
+            } else {
+                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));
+            }
+        }*/
     }
 
     @Override

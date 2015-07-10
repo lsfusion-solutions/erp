@@ -109,7 +109,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             setAttribute(maxDiscountRestriction, "subject-code", idItem);
                             setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
                             setAttribute(maxDiscountRestriction, "value", "0");
-                            addStringElement(maxDiscountRestriction, "since-date", "2001-01-01T00:00:00");
+                            addStringElement(maxDiscountRestriction, "since-date", currentDate());
                             addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
                             addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
                             addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
@@ -148,7 +148,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             Object price = item.price == null ? null : (item.price.intValue() == 0 ? "0.00" : item.price.intValue());
                             setAttribute(priceEntry, "price", price);
                             setAttribute(priceEntry, "deleted", "false");
-                            addStringElement(priceEntry, "begin-date", "2001-01-01T00:00:00");
+                            addStringElement(priceEntry, "begin-date", currentDate());
                             addStringElement(priceEntry, "number", "1");
                             good.addContent(priceEntry);
 
@@ -483,35 +483,56 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             Document doc = new Document(rootElement);
             doc.setRootElement(rootElement);
 
-            for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
-                String idBarcode = entry.getKey();
-                ItemInfo item = entry.getValue();
+            if (!stopListInfo.exclude) {
+                for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
+                    String idBarcode = entry.getKey();
+                    ItemInfo item = entry.getValue();
 
-                //parent: rootElement
-                Element restriction = new Element("sale-denied-restriction");
-                idBarcode = transformBarcode(idBarcode, null, false);
-                setAttribute(restriction, "id", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-                setAttribute(restriction, "subject-type", "GOOD");
-                setAttribute(restriction, "subject-code", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-                setAttribute(restriction, "type", "SALE_DENIED");
-                setAttribute(restriction, "value", true);
+                    //parent: rootElement
+                    Element good = new Element("good");
+                    idBarcode = transformBarcode(idBarcode, null, false);
+                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+                    addStringElement(good, "name", item.name);
+                    rootElement.addContent(good);
 
-                addStringElement(restriction, "since-date", formatDate(stopListInfo.dateFrom) + "T" + formatTime(stopListInfo.timeFrom));
-                addStringElement(restriction, "till-date", formatDate(stopListInfo.dateTo) + "T" + formatTime(stopListInfo.timeTo));
-                addStringElement(restriction, "since-time", "00:00:00.000");
-                addStringElement(restriction, "till-time", "23:59:59.000");
-                addStringElement(restriction, "deleted", stopListInfo.exclude ? "true" : "false");
+                    if (useShopIndices) {
+                        String shopIndices = "";
+                        for (String shopIndex : stopListInfo.idStockSet)
+                            shopIndices += shopIndex + " ";
+                        shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
+                        addStringElement(good, "shop-indices", shopIndices);
+                    }
 
-                if(useShopIndices) {
-                    String shopIndices = "";
-                    for (String shopIndex : stopListInfo.idStockSet)
-                        shopIndices += shopIndex + " ";
-                    shopIndices = shopIndices.isEmpty() ? shopIndices : shopIndices.substring(0, shopIndices.length() - 1);
-                    addStringElement(restriction, "shop-indices", shopIndices);
+                    //parent: good
+                    Element barcode = new Element("bar-code");
+                    setAttribute(barcode, "code", item.idBarcode);
+                    addStringElement(barcode, "default-code", "true");
+                    good.addContent(barcode);
+
+                    //parent: good
+                    Element priceEntry = new Element("price-entry");
+                    setAttribute(priceEntry, "price", 1);
+                    setAttribute(priceEntry, "deleted", "true");
+                    addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom));
+                    addStringElement(priceEntry, "number", "1");
+                    good.addContent(priceEntry);
+
+                    addStringElement(good, "vat", "20");
+
+                    //parent: priceEntry
+                    for (String shopIndex : stopListInfo.idStockSet) {
+                        Element department = new Element("department");
+                        setAttribute(department, "number", shopIndex);
+                        priceEntry.addContent(department);
+                    }
+
+                    //parent: good
+                    Element group = new Element("group");
+                    setAttribute(group, "id", item.idItemGroup);
+                    addStringElement(group, "name", item.nameItemGroup);
+                    good.addContent(group);
+
                 }
-
-                rootElement.addContent(restriction);
-
             }
 
             if (!stopListInfo.stopListItemMap.isEmpty()) {
@@ -544,6 +565,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     private String formatTime(Time time) {
         return new SimpleDateFormat("HH:mm:ss.SSS").format(time);
+    }
+
+    private String currentDate() {
+        return new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "T00:00:00";
     }
 
     @Override

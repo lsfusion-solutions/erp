@@ -78,7 +78,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
     private ScriptingLogicsModule purchaseInvoiceAgreementLM;
-    private ScriptingLogicsModule retailCRMLM;
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule scalesItemLM;
     private ScriptingLogicsModule stopListLM;
@@ -144,7 +143,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
         purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
-        retailCRMLM = getBusinessLogics().getModule("RetailCRM");
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
         scalesItemLM = getBusinessLogics().getModule("ScalesItem");
         stopListLM = getBusinessLogics().getModule("StopList");
@@ -637,7 +635,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<DiscountCard> readDiscountCardList() throws RemoteException, SQLException {
         List<DiscountCard> discountCardList = new ArrayList<>();
-        if(retailCRMLM != null) {
+        if(discountCardLM != null) {
             try (DataSession session = getDbManager().createSession()) {
 
                 KeyExpr discountCardExpr = new KeyExpr("discountCard");
@@ -646,12 +644,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
                         "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard"};
-                LCP[] discountCardProperties = retailCRMLM.findProperties("idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
+                LCP[] discountCardProperties = discountCardLM.findProperties("idDiscountCard", "numberDiscountCard", "nameDiscountCard",
                         "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
-                discountCardQuery.and(retailCRMLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
+                discountCardQuery.and(discountCardLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
 
@@ -727,6 +725,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     stockQuery.and(stopListLM.findProperty("inStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
                     stockQuery.and(stopListLM.findProperty("notSucceededStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
                     stockQuery.and(cashRegisterLM.findProperty("stockGroupMachinery").getExpr(groupCashRegisterExpr).compare(stockExpr, Compare.EQUALS));
+                    stockQuery.and(cashRegisterLM.findProperty("equipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
                     stockQuery.and(cashRegisterLM.findProperty("activeGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> stockResult = stockQuery.execute(session);
                     for (ImMap<Object, Object> stockEntry : stockResult.values()) {
@@ -784,6 +783,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         //cashRegisterQuery.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
         cashRegisterQuery.and(cashRegisterLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
         cashRegisterQuery.and(cashRegisterLM.findProperty("activeGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
+        cashRegisterQuery.and(cashRegisterLM.findProperty("equipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
         for (ImMap<Object, Object> entry : cashRegisterResult.valueIt()) {
             String handlerModel = (String) entry.get("handlerModelGroupMachinery");
