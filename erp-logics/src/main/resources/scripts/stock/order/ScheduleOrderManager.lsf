@@ -7,9 +7,11 @@ nameManagerScheduleOrder 'Менеджер' (scheduleOrder) = shortNameContact(m
 
 managerScheduleOrderDetail (scheduleOrderDetail) = managerScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
 
-inManagerEmployeeScheduleOrder (e, s) = e == managerScheduleOrder(s) OR managerEmployee(e) == managerScheduleOrder(s);
+countInManagersEmployeeScheduleOrder (e, s) = GROUP SUM 1 IF inManagerEmployee(m, e) AND m == managerScheduleOrder(s) BY e, s;
+inManagerEmployeeScheduleOrder (e, s) = TRUE IF countInManagersEmployeeScheduleOrder (e, s) OR e==managerScheduleOrder(s);
 
-inManagerEmployeeOrder (e, o) = e == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o)) OR managerEmployee(e) == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o));
+countInManagersEmployeeOrder (e, o) = GROUP SUM 1 IF inManagerEmployee(m, e) AND m == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o)) BY e, s;
+inManagerEmployeeOrder (e, o) = TRUE IF countInManagersEmployeeOrder (e, o) OR e == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o));
 
 EXTEND FORM scheduleOrder PROPERTIES (s) nameManagerScheduleOrder;
 

@@ -9,9 +9,13 @@ nameItemManagerItemGroup 'Категорийный менеджер' (itemGroup)
 
 countItemGroupEmployee (employee) = GROUP SUM 1 IF dataItemManagerItemGroup(group) == employee BY employee PERSISTENT;
 
-accessEmployeeItemGroup 'Доступ разрешен' (employee, itemGroup) = OVERRIDE
+accessManagerItemGroup 'Доступ разрешен' (employee, itemGroup) = OVERRIDE
     employee IS Employee AND itemGroup IS ItemGroup AND NOT countItemGroupEmployee(employee),  
     nearestItemManagerItemGroup(itemGroup) == employee PERSISTENT;
+
+countAccessManagersEmployeeItemGroup (employee, itemGroup) = GROUP SUM 1 IF accessManagerItemGroup(manager, itemGroup) AND inManagerEmployee(manager, employee) BY employee, itemGroup;
+
+accessEmployeeItemGroup = countAccessManagersEmployeeItemGroup(employee, itemGroup) OR accessManagerItemGroup(employee, itemGroup) PERSISTENT;
 
 countAccessEmployeeItemGroup 'Кол-во доступных групп' (employee, itemGroup) =
     GROUP SUM 1 IF accessEmployeeItemGroup(employee, child)
@@ -20,7 +24,7 @@ countAccessEmployeeItemGroup 'Кол-во доступных групп' (employ
 
 accessEmployeeItem = accessEmployeeItemGroup(employee, itemGroupItem(item));                                     
 
-limitRecommendedQuantitySkuUserOrder(s, o) += o IS UserOrder AND NOT accessEmployeeItem(currentManager(), s);
+limitRecommendedQuantitySkuUserOrder(s, o) += o IS UserOrder AND NOT accessEmployeeItem(currentUser(), s);
  
 EXTEND FORM itemGroup
     PROPERTIES(g) dataNameCustomUserItemManagerItemGroup 
@@ -35,11 +39,11 @@ EXTEND FORM itemGroups
     PROPERTIES(g) READONLYIF  isReadonly() nameItemManagerItemGroup 
 ;
 EXTEND FORM userOrder 
-    FILTERS countAccessEmployeeItemGroup(currentManager(), sk) OR NOT sk IS SkuGroup
-    FILTERS accessEmployeeItem(currentManager(), ks)
+    FILTERS countAccessEmployeeItemGroup(currentUser(), sk) OR NOT sk IS SkuGroup
+    FILTERS accessEmployeeItem(currentUser(), ks)
 ;
 
 EXTEND FORM demandOrder 
-    FILTERS countAccessEmployeeItemGroup(currentManager(), sk) OR NOT sk IS SkuGroup
-    FILTERS accessEmployeeItem(currentManager(), s)
+    FILTERS countAccessEmployeeItemGroup(currentUser(), sk) OR NOT sk IS SkuGroup
+    FILTERS accessEmployeeItem(currentUser(), s)
 ;

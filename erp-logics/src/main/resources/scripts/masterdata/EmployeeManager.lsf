@@ -4,22 +4,30 @@ REQUIRE Employee;
 
 NAMESPACE Employee;
 
-managerEmployee = DATA Employee (Employee);
-nameManagerEmployee 'Менеджер' (e) = shortNameContact(managerEmployee(e));
+inManagerEmployee 'Вкл.' = DATA BOOLEAN (Employee, Employee);
+descriptionManagersEmployee 'Менеджеры' (e) = GROUP CONCAT shortNameContact(m) IF inManagerEmployee(m ,e), ',' BY e;
 
-overManagerEmployee (employee) =  OVERRIDE employee AS Employee, managerEmployee(employee) PERSISTENT;
+FORM inManagerEmployee 'Менеджеры'
+    OBJECTS e = Employee FIXED GRID
+    OBJECTS m = Employee
+    PROPERTIES (m) READONLY lastNameContact, firstNameContact, shortNameContact, nameMainRoleUser
+    PROPERTIES (m, e) inManagerEmployee    
+    FILTERGROUP include FILTER 'Включены' inManagerEmployee (m, e) 'F9' 
+;
 
-currentManager = overManagerEmployee(currentUser());
+fillInManagerEmployee = ACTION (e) {
+    FORM inManagerEmployee OBJECTS e=e MODAL;
+}
 
 EXTEND FORM employee
-    PROPERTIES (e) nameManagerEmployee
+    PROPERTIES (e) descriptionManagersEmployee ON CHANGE fillInManagerEmployee(e)
 ;
 
 DESIGN employee {
     pane { 
         NEW manager{
             caption = 'Менеджмент';
-            MOVE PROPERTY(nameManagerEmployee(e)); 
+            MOVE PROPERTY(descriptionManagersEmployee(e)); 
             NEW managerTabContainer {
                 type = TABBED;
                 fill = 1;
