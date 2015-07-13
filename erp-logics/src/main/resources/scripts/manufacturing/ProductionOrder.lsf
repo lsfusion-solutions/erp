@@ -1,6 +1,6 @@
 MODULE ProductionOrder;
 
-REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation;
+REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation, SkuLedgerTax;
 
 NAMESPACE Production;
 
@@ -743,26 +743,31 @@ calcMarkupProductDetail(d)  = [= round2((X/Y-1)*100)](
     priceProductDetail(d),
     calcComponentsPriceProductDetail(d) IF calcComponentsPriceProductDetail(d) != 0.0);    
 
+notRecalculateMarkupOrder = ABSTRACT BOOLEAN (Order);
+notRecalculateMarkupOrderProductDetail(detail) = notRecalculateMarkupOrder(orderProductDetail(detail)); 
+
 changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
     IF addVATProductDetail(detail) THEN {
         markupProductDetail(detail) <- calcMarkupIsVATProductDetail(detail);
-        pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
+        IF notRecalculateMarkupOrderProductDetail(detail) THEN {
+            pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
+        }
     } ELSE {
         markupProductDetail(detail) <- calcMarkupProductDetail(detail);
-        pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
+        IF notRecalculateMarkupOrderProductDetail(detail) THEN {
+            pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
+        }
     }
 }
 
 //пересчет цены изделия
                                                                                              
-notRecalculateMarkupOrder = ABSTRACT BOOLEAN (Order);
-
 overChangeProductsPriceProductDetail = ABSTRACT ACTION LIST (ProductDetail);
 changeProductsPriceProductDetail (detail) = ACTION (detail) {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
         priceProductDetail (detail) <- requestedNumeric();
-        IF notRecalculateMarkupOrder(orderProductDetail(detail)) THEN {
+        IF notRecalculateMarkupOrderProductDetail(detail) THEN {
             pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
             componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
             costPriceProductDetail(detail) <- calcCostProductDetail(detail); 
@@ -809,7 +814,7 @@ WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
 //calcValueIsVATProductDetail 'НДС, %' (productDetail)= [= 100*X/Y](
 //    calcPriceIsVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail) IF calcComponentsPriceProductDetail(productDetail)!= 0);    
 //
-calcValueVATProductDetail 'НДС, %' = [= GROUP SUM sumComponentDetailBOMSkuOrder(b, s, o) * valueVATSkuOrder(s, o) BY b, o](BOMProductDetail(d), orderProductDetail(d)) /
+calcValueVATProductDetail 'НДС, %' = [= GROUP SUM sumComponentDetail(d) * (OVERRIDE valueVATSkuOrder(skuComponentDetail(d), orderComponentDetail(d)), valueVATBatch(batchComponentDetail(d))) BY BOMComponentDetail(d), orderComponentDetail(d)](BOMProductDetail(d), orderProductDetail(d)) /
                                                                    sumComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d));
 // Расчет цен для изделий
 overFillPriceProductDetail = ABSTRACT ACTION LIST (ProductDetail);
@@ -1186,14 +1191,14 @@ DESIGN order {
                         MOVE PROPERTY(fromDateOrder(o));
                         MOVE PROPERTY(toDateOrder(o));
                     }
-                    NEW headerExtraParams {
-                        caption = 'Дополнительные параметры';
-                        type = CONTAINERH;
-                        MOVE PROPERTY (calcBOMPriceOrder(o));
-                        MOVE PROPERTY (isPricePercentOrder(o));
-                        MOVE PROPERTY (isPriceCoeffOrder(o));
-                    } 
                 }
+                NEW headerExtraParams {
+                    caption = 'Дополнительные параметры';
+                    type = CONTAINERH;
+                    MOVE PROPERTY (calcBOMPriceOrder(o));
+                    MOVE PROPERTY (isPricePercentOrder(o));
+                    MOVE PROPERTY (isPriceCoeffOrder(o));
+                } 
             }
 
             MOVE o.documentSum {

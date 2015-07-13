@@ -14,6 +14,8 @@ nameBatchesSkuOrder 'Партии' = GROUP CONCAT nameBatch(bt) IF quantityCompo
 useBatchSkuOrder 'Использовать партию'  = ACTION (bt,sk,o) {
     batchComponentDetail(d) <- bt WHERE skuComponentDetail(d) == sk AND orderComponentDetail(d) == o;
     costSkuOrder(sk,o) <- costBatch(bt);
+    dataBruttoPriceSkuOrder(sk,o) <- priceStockBatchOrder(bt,o);
+    valueVATSkuOrder(sk, o) <- valueVATBatch(bt);
 }
 
 defaultBatchPriceStockSkuOrder = GROUP LAST batch
@@ -23,7 +25,9 @@ defaultBatchPriceStockSkuOrder = GROUP LAST batch
 
 useBatchSkuOrderAll 'Партия с max остатком (для всех)'  = ACTION (o) {
     batchComponentDetail(d) <- defaultBatchPriceStockSkuOrder(skuComponentDetail(d), o) WHERE  orderComponentDetail(d) == o AND defaultBatchPriceStockSkuOrder(skuComponentDetail(d), o);//skuComponentDetail(d) == sk
-    costSkuOrder(sk,o) <- costBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE  defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
+    costSkuOrder(sk,o) <- costBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
+    dataBruttoPriceSkuOrder(sk,o) <- priceStockBatchOrder(defaultBatchPriceStockSkuOrder(sk, o),o) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o); 
+    valueVATSkuOrder(sk, o) <- valueVATBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
 }
 
 changeBatchSkuOrder = ACTION (s,o) {
