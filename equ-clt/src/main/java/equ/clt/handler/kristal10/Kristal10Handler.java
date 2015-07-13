@@ -133,7 +133,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             if (item.passScalesItem)
                                 productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
                             else
-                                productType = (item.flags & 256) == 0 ? "ProductPieceEntity" : "ProductSpiritsEntity";
+                                productType = (item.flags == null || ((item.flags & 256) == 0)) ? "ProductPieceEntity" : "ProductSpiritsEntity";
                             addStringElement(good, "product-type", productType);
 
                             if(item.splitItem && !item.passScalesItem) {
