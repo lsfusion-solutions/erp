@@ -282,5 +282,13 @@ EXTEND FORM orders
 ;
 DESIGN orders {printTab { MOVE o.print {align = LEADING;}}}
 
+priceBProductDetail 'Розничная цена (до)' (d) = prevRetailPricingPriceBSkuStockDateTime(skuProductDetail(d), productsStockProductDetail(d), dateTimeProductDetail(d));
 
+backgroundPriceBProductDetail (d) = CASE 
+    WHEN priceBProductDetail(d) > priceProductDetail(d) THEN RGB(250,150,150)
+    WHEN priceBProductDetail(d) < priceProductDetail(d) THEN RGB(150,250,200);
+    
+EXTEND FORM order
+    PROPERTIES (pd) READONLY BEFORE deletepd priceBProductDetail BACKGROUND backgroundPriceBProductDetail(pd) SHOWIF createPricingOrder(o)
+;
 
