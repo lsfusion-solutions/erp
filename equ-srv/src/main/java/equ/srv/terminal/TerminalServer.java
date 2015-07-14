@@ -89,6 +89,8 @@ public class TerminalServer extends LifecycleAdapter {
             logger.info("Binding Terminal Server.");
             started = true;
             listenToPort();
+        } else {
+            logger.info("Terminal Server disabled, change serverComputer() to enable");
         }
     }
 

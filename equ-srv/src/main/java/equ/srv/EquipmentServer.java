@@ -161,6 +161,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             } catch (Exception e) {
                 throw new RuntimeException("Error exporting Equipment Server: ", e);
             }
+        } else {
+            logger.info("Equipment Server disabled, change serverComputer() to enable");
         }
     }
 
