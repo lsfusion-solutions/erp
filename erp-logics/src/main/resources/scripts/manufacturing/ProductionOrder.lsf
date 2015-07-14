@@ -1643,19 +1643,23 @@ changeQuantityProductOrder = ACTION (product, order) {
     }
 }
 
+
 EXTEND FORM order
 
     TREE skuTree g = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
-    ORDER BY nameSkuGroup(g)
+    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(g)
+    FILTERGROUP product FILTER 'Готовые изделия' filterProductSkuGroup(g) 'shift F5' DEFAULT
     
     OBJECTS p=Product
     PROPERTIES(p) READONLY idProduct SHOWIF showIDs()
     PROPERTIES(p) READONLY descriptionProduct, nameSkuProduct, shortNameUOMProduct
     PROPERTIES(o,p) quantityOrderProduct ON CHANGE changeQuantityProductOrder(p,o)
-
+    FILTERGROUP inactiveBOM
+        FILTER 'Текущие' isActiveBOM(BOMProduct(p)) 'F7'            
+        FILTER 'Активные' isActiveBOM(BOMProduct(p)) OR (fromDateBOM(BOMProduct(p)) > currentDate()) 'F8' DEFAULT
+        
     ORDER BY nameSkuProduct(p)
     
     FILTERS                isParentSkuGroupSku(g, skuProduct(p)),
@@ -1717,9 +1721,10 @@ EXTEND FORM order
 
     TREE skuTree1 g1 = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(g1), nameSkuGroup(g1)
-    ORDER BY nameSkuGroup(g1)
+    ORDER BY orderSkuGroup(g1), nameSkuGroup(g1)
     FILTERGROUP inactive1 FILTER 'Активные' activeSkuGroup(g1) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(g1)
+    FILTERGROUP component FILTER 'Сырье' filterComponentSkuGroup(g1) 'shift F5' DEFAULT
+
     
     OBJECTS p1=Sku
     PROPERTIES(p1) READONLY idSku SHOWIF showIDs()
