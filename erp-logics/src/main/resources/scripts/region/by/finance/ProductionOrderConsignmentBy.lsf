@@ -1,0 +1,108 @@
+MODULE ProductionOrderConsignmentBy;
+
+REQUIRE ConsignmentBy, PricingProductionOutput;
+
+NAMESPACE Production;
+
+@defineConsignmentHeader (order);
+
+@implementConsignmentHeaderData (Order);
+
+EXTEND CLASS ProductDetail : ConsignmentDetail;
+
+indexConsignmentDetail (d) += indexProductDetail (d);
+consignmentConsignmentDetail (d) += orderProductDetail (d);
+skuConsignmentDetail (d) += skuProductDetail (d);  
+quantityConsignmentDetail (d) += outputQuantityProductDetail (d);
+
+dataPackQuantityConsignmentDetail (d) += 1.0 IF outputQuantityProductDetail (d);
+dataGrossWeightConsignmentDetail (d) += NUMERIC[16,5](outputQuantityProductDetail (d)*overNetWeightSku(skuProductDetail(d)));
+
+dataSupplierConsignment (consignment) += componentsLegalEntityStockOrder(consignment);
+supplierStockConsignment (consignment) += componentsStockOrder(consignment);
+
+overPackQuantityOrder 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Order);
+packQuantityConsignment (c) += WHEN c IS Order THEN overPackQuantityOrder(c);
+
+//overFullNameSupplierConsignment(consignment) += VARISTRING[150](CONCAT ' ', fullNameComponentsLegalEntityStockOrder(consignment), addressComponentsLegalEntityStockOrder(consignment));
+//overAddressSupplierConsignment(consignment) += VARISTRING[150](CONCAT ' ', nameComponentsStockOrder(consignment), addressComponentsStockOrder(consignment));
+
+
+dataCustomerConsignment (consignment) += productsLegalEntityStockOrder(consignment);
+customerStockConsignment (consignment) += productsStockOrder(consignment);
+//overFullNameCustomerConsignment(consignment) += VARISTRING[150](CONCAT ' ', fullNameProductsLegalEntityStockOrder(consignment), addressProductsLegalEntityStockOrder(consignment));
+//overAddressCustomerConsignment(consignment) += VARISTRING[150](CONCAT ' ', nameProductsStockOrder(consignment), addressProductsStockOrder(consignment));
+
+dataCurrencyConsignment (consignment) += currencyProductOrder(consignment);
+
+dataPriceConsignmentDetail (detail) += priceProductDetail(detail);
+invoicePriceConsignmentDetail(detail) += priceProductDetail(detail);
+invoiceSumConsignmentDetail(detail) += outputProductsSumProductDetail(detail);
+
+dataSumConsignmentDetail (detail) += outputProductsSumProductDetail(detail);
+dataVatConsignmentDetail (detail) += valueVATProductDetail(detail);
+
+dataSumVATConsignmentDetail (detail) += retVATSumProductDetail(detail);
+dataSumInvoiceConsignmentDetail (detail) += outputProductsSumProductDetail(detail);
+//noteConsignmentDetail (detail) += noteProductDetail(detail);
+//extraDescriptionConsignmentDetail (detail) += extraDescriptionProductDetail(detail);
+
+
+EXTEND FORM  orders
+    PROPERTIES(o) FORCE PANEL editAttributesConsignment
+    PROPERTIES(o) FORCE PANEL SHOWIF showTTN1Consignment(o)
+                     printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
+                     printConsignmentVerticalB, printConsignmentHorizontalB, printConsignmentAttach,
+                     printConsignmentVertical, printConsignmentHorizontal, printConsignmentAttachXLS 
+    PROPERTIES(o) FORCE PANEL SHOWIF showTN2Consignment(o)
+                     printConsignmentSimpleHorizontal, printConsignmentSimpleVertical, printConsignmentSimpleAttach
+;
+
+DESIGN orders {
+    printTab {
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributesConsignment(o)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printConsignmentSimpleVertical(o));
+                MOVE PROPERTY(printConsignmentSimpleHorizontal(o));
+                MOVE PROPERTY(printConsignmentSimpleAttach(o));
+            }
+        }
+        NEW consignmentRow2 {
+            align = LEADING;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printConsignmentVerticalA(o));
+            MOVE PROPERTY(printConsignmentVerticalAB(o));
+            MOVE PROPERTY(printConsignmentHorizontalA(o));
+            MOVE PROPERTY(printConsignmentVerticalB(o));
+            MOVE PROPERTY(printConsignmentHorizontalB(o));
+            MOVE PROPERTY(printConsignmentAttach(o));      
+            MOVE PROPERTY(printConsignmentVertical(o));  
+            MOVE PROPERTY(printConsignmentHorizontal(o));
+        }
+        NEW consignmentRow3 {
+            type = CONTAINERH;            
+            NEW export {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printConsignmentAttachXLS(o));                
+            }
+        }    
+    }
+}
