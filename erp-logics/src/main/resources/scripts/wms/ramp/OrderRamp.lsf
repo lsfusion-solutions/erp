@@ -16,7 +16,12 @@ countRampIntervalDateSupplier (r,i,d,s)= GROUP SUM 1 IF inOrderRampInterval(o,r,
 
 countSuppliersRampIntervalDate (r,i,d)= GROUP SUM 1 IF countRampIntervalDateSupplier (r,i,d,s) BY r,i,d; 
   
-CONSTRAINT countSuppliersRampIntervalDate (r,i,d) >1
+banDiffSupplierRamp'Запрет резервирования рамы на одно время для разных поставщиков (только заказы)'= DATA BOOLEAN (Ramp);
+EXTEND FORM ramp
+    PROPERTIES (r) banDiffSupplierRamp
+;
+  
+CONSTRAINT countSuppliersRampIntervalDate (r,i,d) >1 AND banDiffSupplierRamp(r)
     MESSAGE 'Рампа не может быть зарезервирована на одно и то же время для разных поставщиков.';    
 
 //descriptionOrdersRampIntervalDate 'Заказ' (r,i,d)= descriptionOrder(orderRampIntervalDate(r,i,d));   
@@ -52,7 +57,9 @@ descriptionRampsOrder 'Рампы' (o)=
 
 defaultShipmentTimeOrderDate (o)= GROUP MIN timeInterval(i) IF inOrderRampInterval(o,r,i) BY o;
 
-backgroundOrdersRampIntervalOrder 'Цвет (свой заказ)' (r,i,o) = RGB(204,255,204) IF inOrderRampInterval(o,r,i);
+backgroundOrdersRampIntervalOrder 'Цвет (свой заказ)' (r,i,o) = ABSTRACT CASE COLOR(Ramp,Interval,Order);
+
+backgroundOrdersRampIntervalOrder(r,i,o) +=  WHEN inOrderRampInterval(o,r,i) THEN  RGB(204,255,204);
 
 changeOrderRampInterval = ACTION (o,r,i) {
     REQUEST BOOLEAN INPUT;
@@ -87,7 +94,10 @@ FORM orderRamp 'Рампы'
     PROPERTIES    BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)           
                                                         
     FILTERGROUP filter
-        FILTER 'Только свободное время' o IS Order AND NOT orderRampIntervalDate(r,i,shipmentDateOrder(o)) 'F10'                                                        
+        FILTER 'Только свободное время' o IS Order AND NOT orderRampIntervalDate(r,i,shipmentDateOrder(o)) 'F10'   
+                                                             
+    FILTERGROUP filter2
+        FILTER 'По заказу' inOrderRampInterval(o,r,i) 'F9'                                                                      
 ;
 DESIGN orderRamp {
     main{ 
