@@ -25,6 +25,7 @@ nameStockStockDocumentLedger 'Отдел' (ledger) = nameStock(stockStockDocumen
 
 numberStockDocumentLedger 'Номер документа' (ledger) = ABSTRACT STRING[18] (StockDocumentLedger) PERSISTENT;
 seriesStockDocumentLedger 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) PERSISTENT;
+seriesNumberStockDocumentLedger 'Серия/номер документа' (ledger) =CONCAT '', seriesStockDocumentLedger(ledger), numberStockDocumentLedger(ledger) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20; 
 
 legalEntityStockDocumentLedger 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) PERSISTENT;
 nameLegalEntityStockDocumentLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntityStockDocumentLedger(ledger));
@@ -239,6 +240,32 @@ subtotalContainerIncStockDocumentStockDateInterval 'Итого с остатко
 // ------------------------------------------- Ответственные лица --------------------------------------------- //
 
 @defineHistorizableCustom(responsiblePerson, 'Материально ответственное лицо', Employee, name, customUser, stock, nameStock, responsibility );
+isResponsiblePersonStockEmployee 'Материально ответственное лицо' = DATA BOOLEAN (Stock, Employee);
+
+namePositionResponsibliesStock 'МОЛ(ы)' (stock) = CONCAT ', ', positionNameEmployee(responsiblePersonStock(stock)),
+     [ = GROUP CONCAT positionNameEmployee(employee) IF isResponsiblePersonStockEmployee(stock, employee), ', '
+     BY stock
+     ORDER employee](stock)
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+
+shortNamePositionResponsibliesStock 'МОЛ(ы)' (stock) = CONCAT ', ', positionShortNameEmployee(responsiblePersonStock(stock)),
+    [ = GROUP CONCAT positionShortNameEmployee(employee) IF isResponsiblePersonStockEmployee(stock, employee), ', '
+    BY stock
+    ORDER employee](stock)
+    MINCHARWIDTH 50 PREFCHARWIDTH 50;
+
+nameResponsibliesStock 'МОЛ(ы)' (stock) = CONCAT ', ', nameContact(responsiblePersonStock(stock)),
+     [ = GROUP CONCAT nameContact(employee) IF isResponsiblePersonStockEmployee(stock, employee), ', '
+     BY stock
+     ORDER employee](stock)
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+     
+shortNameResponsibliesStock 'МОЛ(ы)' (stock) = CONCAT ', ', shortNameContact(responsiblePersonStock(stock)),
+     [ = GROUP CONCAT shortNameContact(employee) IF isResponsiblePersonStockEmployee(stock, employee), ', '
+     BY stock
+     ORDER employee](stock)
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;  
+
 // Должность ФИО
 positionNameResponsiblePersonStock 'Материально ответственное лицо' (stock) = positionNameEmployee(responsiblePersonStock(stock)) IN responsibility; 
 namePositionResponsiblePersonStock 'Материально ответственное лицо (должность)'= namePositionEmployee(responsiblePersonStock(stock));
