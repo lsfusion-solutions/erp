@@ -1287,7 +1287,69 @@ DESIGN statisticalStockReport {
     }
 }
 
+FORM statisticalStockReportPrint 'Статистический отчет по складу'
+    OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
 
+    OBJECTS c = StatisticGroupType FIXED PANEL
+    PROPERTIES SELECTOR nameStatisticGroupType(c)
+
+    OBJECTS s=Stock  FIXED PANEL
+    PROPERTIES(s) SELECTOR nameStock
+    
+    OBJECTS gg=StatisticGroup                                   
+    PROPERTIES READONLY nameLevel4StatisticGroup(gg), sidStatisticGroup(gg), nameUOMStatisticGroup(gg)    
+       
+    PROPERTIES(gg, s, dFrom) READONLY valueByStatisticGroupStockDateFrom, valueResidentByStatisticGroupStockDateFrom,
+                                     sumBalanceBByStatisticGroupStockDate, sumResidentBalanceBByStatisticGroupStockDate
+    PROPERTIES(gg, s, dFrom, dTo) READONLY valueByStatisticGroupDateFromTo, valueResidentByStatisticGroupDateFromTo,
+                                          totalSumSoldByStatisticGroupStockDateFromTo, totalSumResidentSoldByStatisticGroupStockDateFromTo
+    PROPERTIES(gg, s, dTo) READONLY valueByStatisticGroupDateTo, valueResidentByStatisticGroupDateTo,
+                                   sumBalanceAByStatisticGroupStockDate, sumResidentBalanceAByStatisticGroupStockDate  
+    PROPERTIES READONLY canonicalOrderSortStatisticGroup(gg)                                          
+    ORDER BY canonicalOrderSortStatisticGroup(gg)                                                                    
+    FILTERS groupTypeStatisticGroup(gg) == c                                                                   
+                                  
+;
+
+printXLSStatisticalStockReport 'Статистический отчет по складу (XLS)' (c, s, dFrom, dTo) = ACTION FORM statisticalStockReportPrint OBJECTS c = c , s = s, dFrom = dFrom, dTo = dTo PRINT XLS IMAGE 'print.png' IN print;
+
+FORM statisticalReports 'Статистические отчеты'
+
+    OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
+
+    OBJECTS c = StatisticGroupType FIXED PANEL
+    PROPERTIES SELECTOR nameStatisticGroupType(c)
+
+    OBJECTS s=Stock  FIXED PANEL
+    PROPERTIES(s) SELECTOR nameStock
+    FILTERS isCompanyStock(s)
+    
+    PROPERTIES printXLSStatisticalStockReport(c, s, dFrom, dTo)
+;
+
+DESIGN statisticalReports {
+    NEW firstCase {
+        caption = 'Параметры отчета';
+        type = CONTAINERV;
+            NEW top {
+            type = CONTAINERH;
+            MOVE c.box;
+                NEW dateCase {
+                caption = 'Даты';
+                type = CONTAINERH;
+                MOVE PROPERTY(objFrom) {caption = 'Дата (с)';}
+                MOVE PROPERTY(objTo) {caption = 'Дата (по)';}
+                }
+            MOVE s.box;
+        }
+    }
+    MOVE s.print;
+    MOVE functions.box;
+}
+
+   
 //---------------------------------------------- Автоматическое заполнение -----------------------------------------------------//
 
 loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп' = ACTION (iname, isid, isidCountry) {
@@ -1327,6 +1389,7 @@ NAVIGATOR {
             //ADD torgSales;
             ADD statisticalLegalEntityReport;
             ADD statisticalStockReport;
+            ADD statisticalReports;
         }
     }
 }
