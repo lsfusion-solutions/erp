@@ -14,10 +14,11 @@ public class ImportDocumentSettings {
     private Boolean isPosted;
     private String separator;
     private String propertyImportType;
+    private boolean multipleDocuments;
 
     public ImportDocumentSettings(Map<String, String> stockMapping, String fileExtension, String primaryKeyType, 
                                   boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow, 
-                                  Boolean isPosted, String separator, String propertyImportType) {
+                                  Boolean isPosted, String separator, String propertyImportType, boolean multipleDocuments) {
         this.stockMapping = stockMapping;
         this.fileExtension = fileExtension;
         this.primaryKeyType = primaryKeyType;
@@ -28,6 +29,7 @@ public class ImportDocumentSettings {
         this.isPosted = isPosted;
         this.separator = separator;
         this.propertyImportType = propertyImportType;
+        this.multipleDocuments = multipleDocuments;
     }
 
     public Map<String, String> getStockMapping() {
@@ -70,4 +72,7 @@ public class ImportDocumentSettings {
         return propertyImportType;
     }
 
+    public boolean isMultipleDocuments() {
+        return multipleDocuments;
+    }
 }

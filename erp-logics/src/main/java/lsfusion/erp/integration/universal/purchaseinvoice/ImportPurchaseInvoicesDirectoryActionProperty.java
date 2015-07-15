@@ -40,7 +40,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
             LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
-            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
+            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
@@ -57,8 +57,9 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
                 String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetailImportType").read(session, importTypeObject);
                 
-                ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
-                String fileExtension = importDocumentSettings.getFileExtension();
+                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                String fileExtension = settings.getFileExtension();
+                boolean multipleDocuments = settings.isMultipleDocuments();
 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);
@@ -69,12 +70,11 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                             for (File f : listFiles) {
                                 if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                     try (DataSession currentSession = context.createSession()) {
-                                        DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                        DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                                         try {
 
                                             int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, importDocumentSettings,
-                                                    staticNameImportType, staticCaptionImportType, false);
+                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType, false);
 
                                             if (importResult != IMPORT_RESULT_ERROR)
                                                 renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);

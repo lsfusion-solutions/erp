@@ -57,7 +57,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
-            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
+            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
             importTypeQuery.addProperty("autoImportEmailImportType", findProperty("autoImportEmailImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportAccountImportType", findProperty("autoImportAccountImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", findProperty("autoImportCheckInvoiceExistenceImportType").getExpr(session.getModifier(), importTypeKey));
@@ -79,16 +79,17 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
                 String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetailImportType").read(session, importTypeObject);
                 
-                ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
-                String fileExtension = importDocumentSettings.getFileExtension();
-                
+                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                String fileExtension = settings.getFileExtension();
+                boolean multipleDocuments = settings.isMultipleDocuments();
+
                 if (fileExtension != null && emailObject instanceof DataObject && accountObject instanceof DataObject) {
 
                     KeyExpr emailExpr = new KeyExpr("email");
                     KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
                     ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
-                    QueryBuilder<Object, Object> emailQuery = new QueryBuilder<Object, Object>(emailKeys);
+                    QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
                     emailQuery.addProperty("fromAddressEmail", findProperty("fromAddressEmail").getExpr(session.getModifier(), emailExpr));
                     emailQuery.addProperty("dateTimeReceivedEmail", findProperty("dateTimeReceivedEmail").getExpr(session.getModifier(), emailExpr));
                     emailQuery.addProperty("fileAttachmentEmail", findProperty("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr));
@@ -107,10 +108,10 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         Timestamp dateTimeReceivedEmail = (Timestamp) emailEntryValue.get("dateTimeReceivedEmail").getValue();
                         boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (24*60*60*1000); //старше 24 часов
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
-                        if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
+                        if (fromAddressEmail != null && fromAddressEmail.toLowerCase().matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
-                            List<byte[]> files = new ArrayList<byte[]>();
+                            List<byte[]> files = new ArrayList<>();
                             if (nameAttachmentEmail != null) {
                                 if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
                                     files = unpackRARFile(fileAttachment, fileExtension);
@@ -126,13 +127,13 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                             
                             for(byte[] file : files) {
                                 try (DataSession currentSession = context.createSession()) {
-                                    DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
+                                    DataObject invoiceObject = multipleDocuments ? null : currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
                                     try {
 
                                         int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                                 currentSession, invoiceObject, importTypeObject, file, fileExtension,
-                                                importDocumentSettings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
+                                                settings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
 
                                         findProperty("originalInvoice").change(
                                                 new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
@@ -178,19 +179,16 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
     
     private List<byte[]> unpackRARFile(byte[] fileBytes, String extensionFilter) {
 
-        List<byte[]> result = new ArrayList<byte[]>();
+        List<byte[]> result = new ArrayList<>();
         File inputFile = null;
         File outputFile = null;
         try {
             inputFile = File.createTempFile("email", ".rar");
-            FileOutputStream stream = new FileOutputStream(inputFile);
-            try {
+            try (FileOutputStream stream = new FileOutputStream(inputFile)) {
                 stream.write(fileBytes);
-            } finally {
-                stream.close();
             }
 
-            List<File> dirList = new ArrayList<File>();
+            List<File> dirList = new ArrayList<>();
             File outputDirectory = new File(inputFile.getParent() + "/" + getFileName(inputFile));
             if(inputFile.exists() && (outputDirectory.exists() || outputDirectory.mkdir())) {
                 dirList.add(outputDirectory);
@@ -205,11 +203,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     if(!dirList.contains(dir))
                         dirList.add(dir);
                     if(!outputFile.isDirectory()) {
-                        FileOutputStream os = new FileOutputStream(outputFile);
-                        try {
+                        try (FileOutputStream os = new FileOutputStream(outputFile)) {
                             a.extractFile(fh, os);
-                        } finally {
-                            os.close();
                         }
                         String outExtension = BaseUtils.getFileExtension(outputFile);
                         if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
@@ -225,9 +220,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 if(dir != null && dir.exists())
                     dir.delete();
             
-        } catch (RarException e) {
-            throw Throwables.propagate(e);
-        } catch (IOException e) {
+        } catch (RarException | IOException e) {
             throw Throwables.propagate(e);
         } finally {
             if(inputFile != null)
@@ -245,11 +238,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         File outputFile = null;
         try {
             inputFile = File.createTempFile("email", ".zip");
-            FileOutputStream stream = new FileOutputStream(inputFile);
-            try {
+            try (FileOutputStream stream = new FileOutputStream(inputFile)) {
                 stream.write(fileBytes);
-            } finally {
-                stream.close();
             }
 
             byte[] buffer = new byte[1024];

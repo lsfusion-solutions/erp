@@ -128,7 +128,9 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
         String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
         String propertyImportType = trim((String) findProperty("propertyImportTypeDetailImportType").read(session, importTypeObject));
-        return new ImportDocumentSettings(stockMapping, fileExtension, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, propertyImportType);
+        boolean multipleDocuments = findProperty("multipleDocumentsImportType").read(session, importTypeObject) != null;
+        return new ImportDocumentSettings(stockMapping, fileExtension, primaryKeyType, checkExistence, secondaryKeyType,
+                keyIsDigit, startRow, isPosted, separator, propertyImportType, multipleDocuments);
     }
 
     public String parseKeyType(String keyType) {
@@ -150,9 +152,9 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         fields.add(field);
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, DataObject dataObject) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, Object key) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(sidProperty);
-        props.add(new ImportProperty(field, sidProperty.getMapping(dataObject), getReplaceOnlyNull(importColumns, nameField)));
+        props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
