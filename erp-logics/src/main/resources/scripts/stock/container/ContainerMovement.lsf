@@ -52,18 +52,32 @@ includeContainerMovementBatchStockDateFromTo 'Рассчитать' = ACTION (st
     
     inContainerMovementBatch (bt) <- NULL WHERE inContainerMovementBatch (bt) AND NOT overMovementContainerBatchStockDateFromTo(bt, stock, dateFrom, dateTo); 
     
-    balanceInBatch(bt) <- balanceBBatchStockDate(bt, stock, dateFrom) IF inContainerMovementBatch (bt);
-    sumInBatch (bt) <- balanceInBatch(bt) * accountPriceBBatchStockDate(bt, stock, dateFrom);
+    balanceInBatch(bt) <- NULL;
+    balanceInBatch(bt) <- balanceBBatchStockDate(bt, stock, dateFrom) WHERE inContainerMovementBatch (bt);
     
-    balanceOutBatch (bt) <- balanceABatchStockDate(bt, stock, dateTo) IF inContainerMovementBatch (bt);
-    lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, dateTo) IF inContainerMovementBatch (bt);
-    sumOutBatch (bt) <- balanceOutBatch(bt) * lastPriceBatch(bt);
+    sumInBatch (bt) <- NULL;
+    sumInBatch (bt) <- balanceInBatch(bt) * accountPriceBBatchStockDate(bt, stock, dateFrom) WHERE inContainerMovementBatch (bt);
     
-    balanceMoveInBatch (bt) <- costInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
-    sumMoveInBatch (bt) <- accountSumInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
+    balanceOutBatch (bt) <- NULL;
+    balanceOutBatch (bt) <- balanceABatchStockDate(bt, stock, dateTo) WHERE inContainerMovementBatch (bt);
     
-    balanceMoveOutBatch (bt) <- costOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
-    sumMoveOutBatch (bt) <- accountSumOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) IF inContainerMovementBatch (bt);
+    lastPriceBatch(bt) <- NULL;
+    lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, dateTo) WHERE inContainerMovementBatch (bt);
+    
+    sumOutBatch (bt) <- NULL;
+    sumOutBatch (bt) <- balanceOutBatch(bt) * lastPriceBatch(bt) WHERE inContainerMovementBatch (bt);
+    
+    balanceMoveInBatch (bt) <- NULL;
+    balanceMoveInBatch (bt) <- costInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    
+    sumMoveInBatch (bt) <- NULL;
+    sumMoveInBatch (bt) <- accountSumInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    
+    balanceMoveOutBatch (bt) <- NULL;
+    balanceMoveOutBatch (bt) <- costOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+
+    sumMoveOutBatch (bt) <- NULL;
+    sumMoveOutBatch (bt) <- accountSumOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
  
     formRefresh();
 }
