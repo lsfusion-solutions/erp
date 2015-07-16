@@ -1,6 +1,6 @@
 MODULE ContainerMovementBy;
 
-REQUIRE ContainerMovement;
+REQUIRE ContainerMovement, StockDocumentBy;
 
 NAMESPACE ContainerMovement;
 
@@ -11,7 +11,7 @@ FORM printContainerMovementBy 'Отчет по таре'
     PROPERTIES(dep) SELECTOR nameDepartmentStore, nameStoreDepartmentStore, nameLegalEntityDepartmentStore
 
     OBJECTS bt=Batch
-
+    PROPERTIES() balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches,sumMoveInBatches, balanceMoveOutBatches 
     PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
     PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, nameSupplierBatch, lastPriceBatch
     PROPERTIES(bt) READONLY balanceInBatch, sumInBatch, balanceOutBatch, sumOutBatch, balanceMoveInBatch, sumMoveInBatch, balanceMoveOutBatch, sumMoveOutBatch
@@ -33,5 +33,80 @@ DESIGN containerMovement{
 
     print {
         MOVE PROPERTY(printContainerMovementBy(dFrom,dTo,dep));
+    }
+}
+//-- 
+FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
+    OBJECTS params = (dtFrom = DATE, dtTo = DATE) FIXED PANEL,
+            ds = Stock FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dtFrom), objTo = OBJVALUE(dtTo)
+    PROPERTIES(ds) SELECTOR fullNameStock, addressStock, nameLegalEntityStock, fullNameLegalEntityStock, nameCustomUserResponsiblePersonStock, namePositionResponsiblePersonStock, nameCustomUserBookerStock,
+                            namePositionBookerStock, nameCustomUserControllerStock, namePositionControllerStock, UNPStock, 
+                            shortNamePositionResponsibliesStock, positionShortNameResponsiblePersonStock, positionShortNameControllerStock,
+                            positionShortNameBookerStock
+
+    PROPERTIES sumAccountBDocumentLedgerDate(ds, dtFrom), sumItemAccountBDocumentLedgerDate(ds, dtFrom), sumContainerAccountBDocumentLedgerDate(ds, dtFrom),
+               sumItemAccountADocumentLedgerDate(ds, dtTo), sumContainerAccountADocumentLedgerDate(ds, dtTo), sumAccountADocumentLedgerDate(ds, dtTo)
+    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentStockDateInterval, countOutStockDocumentStockDateInterval,
+               sumItemIncStockDocumentStockDateInterval, sumContainerIncStockDocumentStockDateInterval,
+               subtotalItemIncStockDocumentStockDateInterval, subtotalContainerIncStockDocumentStockDateInterval,
+               sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval
+
+    OBJECTS il = IncStockDocumentLedger
+    PROPERTIES(il) SELECTOR iDateTime = dateTimeStockDocumentLedger, iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
+                   sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger, nameLegalEntityStockDocumentLedger,
+                   dateStockDocumentLedger, seriesNumberStockDocumentLedger, nameLegalEntityStockStockDocumentLedger,
+                   overNameStockDocumentLedger
+    FILTERS activeStockDocumentLedger(il),
+            stockStockDocumentLedger(il) == ds,
+            dateStockDocumentLedger(il) >= dtFrom,
+            dateStockDocumentLedger(il) <= dtTo
+    ORDER BY iDateTime
+
+    OBJECTS ol = OutStockDocumentLedger
+    PROPERTIES(ol) SELECTOR oDateTime = dateTimeStockDocumentLedger, oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
+                   sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger, nameLegalEntityStockDocumentLedger,
+                   dateStockDocumentLedger, seriesNumberStockDocumentLedger, nameLegalEntityStockStockDocumentLedger,
+                   overNameStockDocumentLedger
+    FILTERS activeStockDocumentLedger(ol),
+            stockStockDocumentLedger(ol) == ds,
+            dateStockDocumentLedger(ol) >= dtFrom,
+            dateStockDocumentLedger(ol) <= dtTo
+    ORDER BY oDateTime
+    
+    OBJECTS e=Employee 
+    PROPERTIES (e) positionShortNameEmployee
+    FILTERS isResponsiblePersonStockEmployee(ds,e)
+    
+    OBJECTS bt=Batch
+    PROPERTIES() balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches,sumMoveInBatches, balanceMoveOutBatches 
+    PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
+    PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, nameSupplierBatch, lastPriceBatch
+    PROPERTIES(bt) READONLY balanceInBatch, sumInBatch, balanceOutBatch, sumOutBatch, balanceMoveInBatch, sumMoveInBatch, balanceMoveOutBatch, sumMoveOutBatch
+    
+    FILTERS inContainerMovementBatch(bt),
+            bt IS Batch AND ds IS Stock
+    
+    ORDER BY nameSkuBatch(bt)    
+    
+    OBJECTS e1=Employee 
+    PROPERTIES (e1) positionShortNameEmployee
+    FILTERS isResponsiblePersonStockEmployee(ds,e1)    
+;
+
+printStockDocumentContainerBy 'С тарой' (dateFrom, dateTo, stock) = ACTION (dateFrom, dateTo, stock) {    
+
+    includeContainerMovementBatchStockDateFromTo (stock, dateFrom, dateTo);
+    FORM printStockDocumentContainerBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock PRINT;
+    
+}  IMAGE 'print.png' IN print;
+    
+EXTEND FORM sumStockDocumentLedger
+
+    PROPERTIES printStockDocumentContainerBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
+;
+DESIGN sumStockDocumentLedger{
+    print {
+        MOVE PROPERTY(printStockDocumentContainerBy(dtFrom,dtTo,ds));
     }
 }
