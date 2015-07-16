@@ -306,7 +306,7 @@ quantityProductOrder 'Кол-во изделий в заказе' (product, orde
     BY productProductDetail(productDetail), orderProductDetail(productDetail) PERSISTENT;
 
 TABLE BOMOrder(BOM, Order);
-quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [= GROUP MAX NUMERIC[17,6](quantityProductOrder(product, order)) / quantityProduct(product)
+quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [= GROUP MAX NUMERIC[19,8](quantityProductOrder(product, order)) / quantityProduct(product)
     BY BOMProduct(product), order](BOM, order) PERSISTENT;
     
 BOMComponentDetail= DATA BOM (ComponentDetail); 
@@ -366,7 +366,7 @@ updateComponentsOrder 'Пересчитать кол-во для всех' = ACT
 // ------------- Заполнение изделий из спецификаций --------------- //
 
 quantityComponentsBOMOrder 'Кол-во спецификаций' (BOM, order) =
-    [= GROUP MAX NUMERIC[17,6](bruttoQuantityComponentDetail(componentDetail)) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
+    [= GROUP MAX NUMERIC[19,8](bruttoQuantityComponentDetail(componentDetail)) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
     BY BOMComponent(componentComponentDetail(componentDetail)), orderComponentDetail(componentDetail)](BOM, order);
 
 createProductsOrder 'Заполнить изделия из спецификации ' = ACTION (order)  {
@@ -1003,7 +1003,7 @@ backgroundMarkupProductDetail = ABSTRACT CASE COLOR (ProductDetail);
   
   //toSkuSubstitute(substitute)
 bruttoBalanceSkuOrder 'Текущий остаток с учетом замен' (sku,order) = currentBalanceSkuStock(sku, componentsStockOrder(order)) (+) 
-    [ = GROUP SUM NUMERIC[17,6](currentBalanceSubstituteOrder(substitute, order)) / (multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0) 
+    [ = GROUP SUM NUMERIC[19,8](currentBalanceSubstituteOrder(substitute, order)) / (multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0) 
         BY fromSkuSubstitute(substitute), order](sku,order);  
  
 bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом замен' (su, order)= bruttoBalanceSkuOrder(toSkuSubstitute(su), order); 
@@ -1256,16 +1256,17 @@ WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(de
         substituteQuantityComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail);    
     }   
  
-calcPriceComponentDetail(detail) =  OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)), 
-                                                              prevPriceBPriceListTypeBatchStockDateTime(priceListTypeOrder(orderComponentDetail(detail)),
+calcPriceComponentDetail(pt, detail) =  OVERRIDE dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)), 
+                                                              prevPriceBPriceListTypeBatchStockDateTime(pt,
                                                                                                         batchComponentDetail(detail),
                                                                                                         componentsStockOrder(orderComponentDetail(detail)),
                                                                                                         dateTimeOrder(orderComponentDetail(detail)));
-WHEN SESSION FORMS order CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) OR 
-                         CHANGED(batchComponentDetail(detail)) OR 
-                         CHANGED(componentsStockOrder(orderComponentDetail(detail))) OR 
-                         CHANGED(dateTimeOrder(orderComponentDetail(detail))) DO
-    priceComponentDetail (detail) <- calcPriceComponentDetail(detail); 
+WHEN SESSION FORMS order (CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) OR 
+                          CHANGED(batchComponentDetail(detail)) OR 
+                          CHANGED(componentsStockOrder(orderComponentDetail(detail))) OR 
+                          CHANGED(dateTimeOrder(orderComponentDetail(detail)))) AND
+                          pt == priceListTypeOrder(orderComponentDetail(detail)) NOINLINE (pt) DO
+    priceComponentDetail (detail) <- calcPriceComponentDetail(pt, detail); 
          
 calcCostComponentDetail = OVERRIDE costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail)), costBatch(batchComponentDetail(detail));    
 WHEN SESSION FORMS order CHANGED(costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) OR CHANGED(batchComponentDetail(detail)) DO

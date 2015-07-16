@@ -179,17 +179,17 @@ isNotContainerSkuLedger 'Не тара' = isNotContainerSku(skuSkuLedger(l));
 
 // -------------------------------- Количества ---------------------------- //
 
-quantityBatch 'Кол-во в партии' = ABSTRACT NUMERIC[14,3] (Batch) PERSISTENT;
+quantityBatch 'Кол-во в партии' = ABSTRACT NUMERIC[16,5] (Batch) PERSISTENT;
 
-extraShippedQuantityBatch = ABSTRACT NUMERIC[14,3] (Batch);
+extraShippedQuantityBatch = ABSTRACT NUMERIC[16,5] (Batch);
 shippedQuantityBatch 'Кол-во в партии (всего)' (batch) = quantityBatch(batch) (+) extraShippedQuantityBatch(batch) PERSISTENT;
 
-quantityInLIFOSkuLedger 'Кол-во' (ledger) = ABSTRACT NUMERIC[14,3] (InLIFOSkuLedger) PERSISTENT;
+quantityInLIFOSkuLedger 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (InLIFOSkuLedger) PERSISTENT;
 
 quantityInSkuLedger 'Кол-во' (ledger) = MULTI quantityBatch(ledger),
                                               quantityInLIFOSkuLedger(ledger) PERSISTENT;
 
-quantityOutFIFOSkuLedger 'Кол-во' = ABSTRACT NUMERIC[14,3] (OutFIFOSkuLedger) PERSISTENT;
+quantityOutFIFOSkuLedger 'Кол-во' = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger) PERSISTENT;
 
 quantityOutSkuLedger 'Кол-во' (ledger) = MULTI quantityOutFIFOSkuLedger(ledger) PERSISTENT;
 
@@ -218,7 +218,7 @@ orderDataSkuLedger (ledger) = STRUCT(dateTimeDataSkuLedger(ledger), ledger);
 // Свойства для расчета себестоимости
 quantityBatchBatch 'Кол-во' (ledger, batch) = quantityBatch(ledger) IF batch == ledger;
 
-costDataSkuLedgerBatch 'Расписано из партии (перв.)' (ledger, batch) = DATA NUMERIC[14,3] (DataSkuLedger, Batch);
+costDataSkuLedgerBatch 'Расписано из партии (перв.)' (ledger, batch) = DATA NUMERIC[16,5] (DataSkuLedger, Batch);
 
 costSkuLedgerBatch 'Расписано из партии' (ledger, batch) = MULTI quantityBatchBatch(ledger, batch),
                                                                  costDataSkuLedgerBatch(ledger, batch) PERSISTENT;
@@ -723,7 +723,7 @@ DESIGN dialogBatchStock {
 needToCostDataSkuLedger 'Требуется расчет себестоимости' (ledger) = quantitySkuLedger(ledger) > 0 AND isPostedDataSkuLedger(ledger)
                                                                         AND NOT quantitySkuLedger(ledger) == costedDataSkuLedger(ledger);
 
-limitInLIFOSkuLedgerBatch = ABSTRACT NUMERIC[14,3] (InLIFOSkuLedger, Batch);
+limitInLIFOSkuLedgerBatch = ABSTRACT NUMERIC[16,5] (InLIFOSkuLedger, Batch);
 orderInLIFOSkuLedgerBatch = ABSTRACT LONG (InLIFOSkuLedger, Batch);
 limitNewInLIFOSkuLedgerBatch = IF ledger IS InLIFOSkuLedger THEN (
                                                      IF batchSkuLedger(ledger) THEN
@@ -738,7 +738,7 @@ quantityInLIFOSkuLedgerBatch (ledger, batch) =
                   BY ledger
                   ORDER DESC orderInLIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
 
-limitOutFIFOSkuLedgerBatch = ABSTRACT NUMERIC[14,3] (OutFIFOSkuLedger, Batch);
+limitOutFIFOSkuLedgerBatch = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger, Batch);
 orderOutFIFOSkuLedgerBatch = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
 limitNewOutFIFOSkuLedgerBatch = IF ledger IS OutFIFOSkuLedger THEN (
                                                      IF batchSkuLedger(ledger) THEN
@@ -1627,11 +1627,11 @@ END
 // ---------------------------------- Остаток (до) ----------------------- //
 
 META defineDocumentDetailSkuBalanceCustom (detail)
-    balanceBSku###detail 'Количество до' (detail) = DATA NUMERIC[14,3] (###detail);
+    balanceBSku###detail 'Количество до' (detail) = DATA NUMERIC[16,5] (###detail);
 
 END
 META defineDocumentAbstractDetailSkuBalanceCustom (detail)
-    balanceBSku###detail 'Количество до' (detail) = ABSTRACT NUMERIC[14,3] (###detail) PERSISTENT;
+    balanceBSku###detail 'Количество до' (detail) = ABSTRACT NUMERIC[16,5] (###detail) PERSISTENT;
 END
 
 META defineDocumentInterfaceDetailSkuBalanceCustom(detail)
