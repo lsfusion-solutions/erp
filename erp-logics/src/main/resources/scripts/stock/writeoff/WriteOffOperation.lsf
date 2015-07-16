@@ -5,6 +5,17 @@ REQUIRE Operation, LegalEntity, Stock;
 NAMESPACE WriteOff;
 
 @defineOperation(' (списание)');
+nameReturnOperation 'Наименование (возврат)' = DATA VARISTRING[100](Operation);
+Operation.nameReturnOperation(operation) += nameReturnOperation(operation);
+EXTEND FORM operation 
+    PROPERTIES(o)  nameReturnOperation AFTER nameOperation(o)
+;  
+DESIGN operation {
+    propertyContainer{
+        MOVE PROPERTY(nameReturnOperation(o)) AFTER PROPERTY(nameOperation(o));
+    }
+} 
+overNameOperation = OVERRIDE nameOperation(o), nameReturnOperation(o);
 
 @defineOperationRole();
 @extendFormFilterRole(o, dialogOperations);

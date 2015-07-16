@@ -4,15 +4,20 @@ REQUIRE StockDocument, StockBy;
 
 NAMESPACE StockDocument;
 
-//responsiblePersonStock 'Материально ответственное лицо' (stock) = responsiblePersonStockDate(stock, currentDate());
+positionShortNameResponsiblePersonStock 'Материально ответственное лицо' (stock) = positionShortNameEmployee(responsiblePersonStock(stock));
+positionShortNameControllerStock 'Материально ответственное лицо' (stock) = positionShortNameEmployee(controllerStock(stock));
+positionShortNameBookerStock 'Материально ответственное лицо' (stock) = positionShortNameEmployee(bookerStock(stock));
 
+overNameStockDocumentLedger(l) = OVERRIDE objectClassName(l), typeStockDocumentLedger(l), nameOperationStockDocumentLedger(l);
 
 FORM printStockDocumentBy 'Товарный отчет'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) FIXED PANEL,
             ds = Stock FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dtFrom), objTo = OBJVALUE(dtTo)
     PROPERTIES(ds) SELECTOR fullNameStock, addressStock, nameLegalEntityStock, fullNameLegalEntityStock, nameCustomUserResponsiblePersonStock, namePositionResponsiblePersonStock, nameCustomUserBookerStock,
-                            namePositionBookerStock, nameCustomUserControllerStock, namePositionControllerStock, UNPStock
+                            namePositionBookerStock, nameCustomUserControllerStock, namePositionControllerStock, UNPStock, 
+                            shortNamePositionResponsibliesStock, positionShortNameResponsiblePersonStock, positionShortNameControllerStock,
+                            positionShortNameBookerStock
 
     PROPERTIES sumAccountBDocumentLedgerDate(ds, dtFrom), sumItemAccountBDocumentLedgerDate(ds, dtFrom), sumContainerAccountBDocumentLedgerDate(ds, dtFrom),
                sumItemAccountADocumentLedgerDate(ds, dtTo), sumContainerAccountADocumentLedgerDate(ds, dtTo), sumAccountADocumentLedgerDate(ds, dtTo)
@@ -24,7 +29,8 @@ FORM printStockDocumentBy 'Товарный отчет'
     OBJECTS il = IncStockDocumentLedger
     PROPERTIES(il) SELECTOR iDateTime = dateTimeStockDocumentLedger, iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
                    sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger, nameLegalEntityStockDocumentLedger,
-                   dateStockDocumentLedger, seriesNumberStockDocumentLedger 
+                   dateStockDocumentLedger, seriesNumberStockDocumentLedger, nameLegalEntityStockStockDocumentLedger,
+                   overNameStockDocumentLedger
     FILTERS activeStockDocumentLedger(il),
             stockStockDocumentLedger(il) == ds,
             dateStockDocumentLedger(il) >= dtFrom,
@@ -34,12 +40,17 @@ FORM printStockDocumentBy 'Товарный отчет'
     OBJECTS ol = OutStockDocumentLedger
     PROPERTIES(ol) SELECTOR oDateTime = dateTimeStockDocumentLedger, oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
                    sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger, nameLegalEntityStockDocumentLedger,
-                   dateStockDocumentLedger, seriesNumberStockDocumentLedger
+                   dateStockDocumentLedger, seriesNumberStockDocumentLedger, nameLegalEntityStockStockDocumentLedger,
+                   overNameStockDocumentLedger
     FILTERS activeStockDocumentLedger(ol),
             stockStockDocumentLedger(ol) == ds,
             dateStockDocumentLedger(ol) >= dtFrom,
             dateStockDocumentLedger(ol) <= dtTo
     ORDER BY oDateTime
+    
+    OBJECTS e=Employee 
+    PROPERTIES (e) positionShortNameEmployee
+    FILTERS isResponsiblePersonStockEmployee(ds,e)
 ;
 
 printStockDocumentBy 'Распечатать' (dateFrom, dateTo, stock) =
