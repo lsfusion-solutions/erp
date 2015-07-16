@@ -1,0 +1,28 @@
+MODULE LegalEntityRegion;
+
+REQUIRE LegalEntity, Stock;
+
+NAMESPACE LegalEntity;
+
+TABLE legalEntityRegion (LegalEntity, Region);
+
+emailLegalEntityRegion 'E-mail' = DATA VARSTRING[400](LegalEntity, Region);
+
+EXTEND FORM legalEntity
+    OBJECTS r = Region
+    PROPERTIES nameRegion (r) READONLY, emailLegalEntityRegion(l,r)
+    PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+;
+
+DESIGN legalEntity {
+    extendContainer {
+        NEW regional{
+            caption = 'Регионы';
+            MOVE r.box;
+        }
+    }
+}
+
+regionalEmailLegalEntityStock (l, s) = OVERRIDE emailLegalEntityRegion(l, regionStockGroup(stockGroupStock(s))), emailLegalEntityRegion(l, regionStock(s));
+
+overRegionalEmailLegalEntityStock = OVERRIDE emailLegalEntity(l) IF s IS Stock, regionalEmailLegalEntityStock(l, s);
