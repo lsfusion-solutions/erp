@@ -21,7 +21,6 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ImportActionProperty extends DefaultImportActionProperty {
@@ -46,7 +45,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     public boolean skipExtraInvoiceParams;
     public boolean skipCertificateInvoiceParams;
 
-    DataObject defaultDate = new DataObject(new Date(2001 - 1900, 0, 01), DateClass.instance);
+    DataObject defaultDate = new DataObject(new Date(2001 - 1900, 0, 1), DateClass.instance);
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
@@ -166,9 +165,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importItemGroups");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(itemGroupsList.size());
 
@@ -205,9 +204,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importWares");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(waresList.size());
 
@@ -257,9 +256,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     System.gc();
                 }
             }
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
+        } catch (xBaseJException | IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -270,9 +267,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ServerLoggers.systemLogger.info("importUOMs");
 
-        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-        List<ImportField> fields = new ArrayList<ImportField>();
-        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+        List<ImportProperty<?>> props = new ArrayList<>();
+        List<ImportField> fields = new ArrayList<>();
+        List<ImportKey<?>> keys = new ArrayList<>();
 
         List<List<Object>> data = initData(uomsList.size());
 
@@ -314,9 +311,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ServerLoggers.systemLogger.info("importItems " + itemsList.size());
 
-        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-        List<ImportField> fields = new ArrayList<ImportField>();
-        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+        List<ImportProperty<?>> props = new ArrayList<>();
+        List<ImportField> fields = new ArrayList<>();
+        List<ImportKey<?>> keys = new ArrayList<>();
 
         List<List<Object>> data = initData(itemsList.size());
 
@@ -668,9 +665,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ServerLoggers.systemLogger.info("importUserInvoices " + dataUserInvoiceDetail.size());
                 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+                List<ImportProperty<?>> props = new ArrayList<>();
+                List<ImportField> fields = new ArrayList<>();
+                List<ImportKey<?>> keys = new ArrayList<>();
 
                 List<List<Object>> data = initData(dataUserInvoiceDetail.size());
 
@@ -1374,9 +1371,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importLegalEntities");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(legalEntitiesList.size());
 
@@ -1558,9 +1555,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importEmployees");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(employeesList.size());
 
@@ -1620,9 +1617,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importWarehouseGroups");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(warehouseGroupsList.size());
 
@@ -1659,9 +1656,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importWarehouses");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(warehousesList.size());
 
@@ -1725,9 +1722,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importStores");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(storesList.size());
 
@@ -1802,9 +1799,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importDepartmentStores");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(departmentStoresList.size());
 
@@ -1851,9 +1848,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importBanks");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(banksList.size());
 
@@ -1914,9 +1911,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importRateWastes");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(rateWastesList.size());
 
@@ -1969,9 +1966,9 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ServerLoggers.systemLogger.info("importContacts");
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(contractsList.size());
 
