@@ -40,13 +40,15 @@ priceListTypeBeforeUserPriceList(priceList) <- priceListTypeBeforeOperation(oper
     
 showPriceBeforeOperation 'Цена до' = DATA BOOLEAN (PriceList.Operation);
 showPriceBeforeUserPriceList(priceList) <- showPriceBeforeOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));  
+    WHEN CHANGED(operationUserPriceList(priceList));
+skipConstraintPriceBeforeOperation 'Может быть не задана Цена до' = DATA BOOLEAN (PriceList.Operation);
     
-EXTEND FORM operation PROPERTIES(o) showPriceBeforeOperation, namePriceListTypeBeforeOperation;
+EXTEND FORM operation PROPERTIES(o) showPriceBeforeOperation, skipConstraintPriceBeforeOperation, namePriceListTypeBeforeOperation;
 
 DESIGN operation {
     showContainer {
         MOVE PROPERTY(showPriceBeforeOperation(o));
+        MOVE PROPERTY(skipConstraintPriceBeforeOperation(o));
         MOVE PROPERTY(namePriceListTypeBeforeOperation(o));
     }
 }
@@ -57,10 +59,18 @@ DESIGN operation {
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, toPriceBefore, ' по (Цена до)');
 @deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceBefore);
 
-CONSTRAINT priceListTypeBeforePriceList(p) AND 
+CONSTRAINT priceListTypeBeforeUserPriceList(p) AND isPostedUserPriceList(p) AND
             ((fromPriceBeforeDateTimeUserPriceList(p) >= fromDateTimeUserPriceList(p) AND fromPriceBeforeDateTimeUserPriceList(p) <= toDateTimeUserPriceList(p)) OR
-            (toPriceBeforeDateTimeUserPriceList(p) >= fromDateTimeUserPriceList(p) AND toPriceBeforeDateTimeUserPriceList(p) <= toDateTimeUserPriceList(p)))
-    MESSAGE 'Дата с (Цена до) и Дата по (Цена до) не могут быть в интервале самого прайса.';
+            (toPriceBeforeDateTimeUserPriceList(p) >= fromDateTimeUserPriceList(p) AND toPriceBeforeDateTimeUserPriceList(p) <= toDateTimeUserPriceList(p))) 
+    MESSAGE 'Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса.';
+    
+CONSTRAINT priceListTypeBeforeUserPriceList(p) AND isPostedUserPriceList(p) AND
+            (NOT fromPriceBeforeDateTimeUserPriceList(p) OR NOT toPriceBeforeDateTimeUserPriceList(p))
+    MESSAGE 'Дата с (Цена до) и Дата по (Цена до) должны быть заданы для прайса';
+    
+CONSTRAINT priceListTypeBeforeUserPriceList(userPriceListUserPriceListDetail(d)) AND isPostedUserPriceList(userPriceListUserPriceListDetail(d))
+            AND NOT skipConstraintPriceBeforeOperation(operationUserPriceListDetail(d)) AND NOT priceBeforeUserPriceListDetail(d)
+    MESSAGE 'Цена до должна быть задана для строки прайса.';
     
 EXTEND FORM userPriceList
     PROPERTIES (p) SHOWIF showPriceBeforeUserPriceList(p) fromPriceBeforeDateUserPriceList, fromPriceBeforeTimeUserPriceList, toPriceBeforeDateUserPriceList, toPriceBeforeTimeUserPriceList
