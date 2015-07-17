@@ -404,7 +404,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
 
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
-                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, itemGroupObject, description, idUOM, shortNameUOM, idBrand, nameBrand, idSeason,
+                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
                                 nameSeason, idDepartmentStoreGroupCashRegister, section));
                     }
                     
@@ -807,11 +807,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
-        sldQuery.addProperty("idBarcodeSkuStopListDetail", stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr));
-        sldQuery.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSkuStopListDetail").getExpr(sldExpr));
-        sldQuery.addProperty("nameSkuStopListDetail", stopListLM.findProperty("nameSkuStopListDetail").getExpr(sldExpr));
-        sldQuery.addProperty("idSkuGroupStopListDetail", stopListLM.findProperty("idSkuGroupStopListDetail").getExpr(sldExpr));
-        sldQuery.addProperty("nameSkuGroupStopListDetail", stopListLM.findProperty("nameSkuGroupStopListDetail").getExpr(sldExpr));
+        String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail"};
+        LCP[] sldProperties = stopListLM.findProperties("idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail");
+        for (int i = 0; i < sldProperties.length; i++) {
+            sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
+        }
         sldQuery.and(stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> sldResult = sldQuery.execute(session);
@@ -821,7 +823,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             String nameItem = trim((String) sldEntry.get("nameSkuStopListDetail"));
             String idSkuGroup = trim((String) sldEntry.get("idSkuGroupStopListDetail"));
             String nameSkuGroup = trim((String) sldEntry.get("nameSkuGroupStopListDetail"));
-            stopListItemList.put(idBarcode, new ItemInfo(idItem, idBarcode, nameItem, null, false, null, null, false, null, null, null, idSkuGroup, nameSkuGroup));
+            String idUOM = trim((String) sldEntry.get("idUOMSkuStopListDetail"));
+            String shortNameUOM = trim((String) sldEntry.get("shortNameUOMSkuStopListDetail"));
+            stopListItemList.put(idBarcode, new ItemInfo(idItem, idBarcode, nameItem, null, false, null, null, false,
+                    null, null, null, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
         }
         return stopListItemList;
     }

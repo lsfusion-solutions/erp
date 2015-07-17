@@ -517,6 +517,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(priceEntry, "number", "1");
                     good.addContent(priceEntry);
 
+                    Element measureType = new Element("measure-type");
+                    setAttribute(measureType, "id", item.idUOM);
+                    addStringElement(measureType, "name", item.shortNameUOM);
+                    good.addContent(measureType);
+
                     addStringElement(good, "vat", "20");
 
                     //parent: priceEntry
