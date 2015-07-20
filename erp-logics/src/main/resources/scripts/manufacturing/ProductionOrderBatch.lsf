@@ -29,12 +29,19 @@ useBatchSkuOrderAll 'Партия с max остатком (для всех)'  = 
     dataBruttoPriceSkuOrder(sk,o) <- priceStockBatchOrder(defaultBatchPriceStockSkuOrder(sk, o),o) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o); 
     valueVATSkuOrder(sk, o) <- valueVATBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
 }
+maxBatchSkuOrder (s,o)=  GROUP MAX bt IF quantityComponentDetailBatchSkuOrder (bt,s,o) BY s,o;
 
 changeBatchSkuOrder = ACTION (s,o) {
-    FORM dialogBatchStock OBJECTS st = componentsStockOrder(o),
+    IF maxBatchSkuOrder(s,o) THEN {
+        FORM dialogBatchStock OBJECTS st = componentsStockOrder(o),
                              t = dateTimeOrder(o),
-                             sk = s DIALOG SHOWDROP;
-
+                             sk = s ,
+                             bt = maxBatchSkuOrder(s,o) DIALOG SHOWDROP;
+    } ELSE {
+        FORM dialogBatchStock OBJECTS st = componentsStockOrder(o),
+                             t = dateTimeOrder(o),
+                             sk = s DIALOG SHOWDROP;    
+    }
     IF formResult() == FormResult.ok THEN {
         useBatchSkuOrder(chosenObject('bt'),s,o);
     } ELSE IF formResult() == FormResult.drop THEN {
