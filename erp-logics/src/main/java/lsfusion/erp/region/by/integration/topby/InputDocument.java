@@ -6,11 +6,14 @@ import java.util.List;
 
 public class InputDocument {
     List<InputDocumentDetail> detailList;
+    String userId;
     String uniqueNumber;
     String seriesNumber;
     Date date;
     Time time;
     String dateTime;
+    String creationDateTime;
+    String paperDate;
     String glnSupplier;
     String nameSupplier;
     String addressSupplier;
@@ -26,16 +29,20 @@ public class InputDocument {
     String addressCustomerStock;
     String contactCustomerStock;
 
-    public InputDocument(List<InputDocumentDetail> detailList, String uniqueNumber, String seriesNumber, Date date, Time time, String dateTime,
-                         String glnSupplier, String nameSupplier, String addressSupplier, String UNPSupplier, String glnCustomer,
-                         String nameCustomer, String addressCustomer, String UNPCustomer, String glnSupplierStock, String addressSupplierStock,
+    public InputDocument(List<InputDocumentDetail> detailList, String userId, String uniqueNumber, String seriesNumber,
+                         Date date, Time time, String dateTime, String creationDateTime, String paperDate, String glnSupplier,
+                         String nameSupplier, String addressSupplier, String UNPSupplier, String glnCustomer, String nameCustomer,
+                         String addressCustomer, String UNPCustomer, String glnSupplierStock, String addressSupplierStock,
                          String contactSupplierStock, String glnCustomerStock, String addressCustomerStock, String contactCustomerStock) {
         this.detailList = detailList;
+        this.userId = userId;
         this.uniqueNumber = uniqueNumber;
         this.seriesNumber = seriesNumber;
         this.date = date;
         this.time = time;
         this.dateTime = dateTime;
+        this.creationDateTime = creationDateTime;
+        this.paperDate = paperDate;
         this.glnSupplier = glnSupplier;
         this.nameSupplier = nameSupplier;
         this.addressSupplier = addressSupplier;

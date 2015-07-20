@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.commons.lang.StringUtils.trimToEmpty;
+
 public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
     private static final Logger logger = ServerLoggers.systemLogger;
 
@@ -106,33 +108,32 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 sleep = 10000;
             while (true) {
                 try {
-                    File[] files = new File(directoryIn).listFiles(getFileFilter("blr_BLRWBL", "blr_BLRDLN"));
-                    File[] apnFiles = new File(directoryIn).listFiles(getFileFilter("blr_BLRAPN"));
-
+                    File[] files = new File(directoryIn).listFiles(getFileFilter("BLRWBL", "BLRDLN"));
+                    File[] apnFiles = new File(directoryIn).listFiles(getFileFilter("BLRAPN"));
+                    List<File> filesToDelete = new ArrayList<>();
                     if (files != null && files.length > 0) {
                         logger.info(String.format("TopByDaemon: %s file(s) found in %s", files.length, directoryIn));
                         for (File file : files) {
                             try {
                                 //step0: получили файл BLRWBL/BLRDLN
                                 String[] fileName = file.getName().split("_");
-                                if (fileName.length == 4) {
-                                    boolean failed = false;
-                                    boolean wbl = fileName[1].equals("BLRWBL");
+                                if (fileName.length == 3) {
+                                    boolean wbl = fileName[0].equals("BLRWBL");
 
                                     boolean apnFound = false;
                                     for (File apnFile : apnFiles) {
                                         APNDocument apnDocument = readAPNDocument(apnFile);
                                         if (apnDocument != null && apnDocument.code.equals("2560")) {
-                                            safeFileDelete(apnFile);
+                                            if (!apnFile.delete())
+                                                filesToDelete.add(apnFile);
                                             apnFound = true;
                                         }
                                     }
                                     if (!apnFound) {
-                                        failed = true;
-                                        logger.info("warning: no apn file found");
+                                        logger.info("Warning: no apn file found in " + directoryIn);
                                     }
 
-                                    final InputDocument inputDocument = readInputFile(file);
+                                    final InputDocument inputDocument = readInputFile(file, wbl);
 
                                     Integer uniqueMessageNumber;
                                     try (DataSession session = dbManager.createSession()) {
@@ -142,38 +143,50 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                                     }
 
                                     //step1: формируем ответ на BLRWBL/BLRDLN
-                                    createAPNDocument(directoryOut, uniqueMessageNumber, wbl ? "BLRWBL" : "BLRDLN", inputDocument.uniqueNumber, inputDocument.dateTime,
-                                            inputDocument.glnCustomer, inputDocument.glnSupplier, inputDocument.seriesNumber, failed, "2650");
+                                    createAPNDocument(directoryOut, inputDocument, uniqueMessageNumber, wbl ? "BLRWBL" : "BLRDLN", "2650");
 
                                     //step2: ждём подтверждения приёма нашего ответа
-                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2551")) {
-                                        logger.info("waiting for creation of BLRAPN 2551");
+                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2551", filesToDelete)) {
+                                        logger.info("waiting for creation of BLRAPN 2551 in" + directoryIn);
                                         Thread.sleep(sleep);
                                     }
 
                                     //step3: формируем сообщение
-                                    createOutputDocument(directoryOut, uniqueMessageNumber, inputDocument, wbl, "");
+                                    createOutputDocument(directoryOut, uniqueMessageNumber, inputDocument, wbl);
 
                                     //step4: ждём подтверждения приёма нашего сообщения
-                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2550") && !proceededAPNDocument(directoryIn, inputDocument, "2650")) {
-                                        logger.info("waiting for creation of BLRAPN 2550");
+                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2550", filesToDelete)) {
+                                        logger.info("waiting for creation of BLRAPN 2550 in " + directoryIn);
                                         Thread.sleep(sleep);
                                     }
-                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2650")) {
-                                        logger.info("waiting for creation of BLRAPN 2650");
+                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2650", filesToDelete)) {
+                                        logger.info("waiting for creation of BLRAPN 2650 in " + directoryIn);
                                         Thread.sleep(sleep);
                                     }
 
                                     //step5: сохраняем накладную
+                                    logger.info(String.format("Import %s: started", file.getAbsolutePath()));
                                     importUserInvoice(inputDocument, uniqueMessageNumber);
-
+                                    logger.info(String.format("Import %s: successfully finished", file.getAbsolutePath()));
                                 } else {
                                     logger.info("Incorrect file found, will be deleted: " + file.getAbsolutePath());
                                 }
                             } catch (Exception e) {
                                 logger.error("TopByDaemon error", e);
                             } finally {
-                                safeFileDelete(file);
+                                if (!file.delete())
+                                    filesToDelete.add(file);
+                            }
+                            File[] aFiles = new File(directoryIn).listFiles(getFileFilter("A_"));
+                            if (aFiles != null) {
+                                for (File aFile : aFiles) {
+                                    if (!aFile.delete())
+                                        aFile.deleteOnExit();
+                                }
+                            }
+                            for (File f : filesToDelete) {
+                                if (!f.delete())
+                                    f.deleteOnExit();
                             }
                         }
                     }
@@ -402,13 +415,15 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
             }
         }
 
-        private InputDocument readInputFile(File file) throws IOException, ParseException {
+        private InputDocument readInputFile(File file, boolean wbl) throws IOException, ParseException {
 
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 List<InputDocumentDetail> detailList = new ArrayList<>();
                 String uniqueNumber = null;
                 String seriesNumber = null;
                 String dateTime = null;
+                String creationDateTime = null;
+                String paperDate = null;
                 String glnSupplier = null;
                 String nameSupplier = null;
                 String addressSupplier = null;
@@ -432,26 +447,28 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                         dateTime = params.length > 2 ? params[2] : null;
                         glnSupplier = params.length > 4 ? params[4] : null;
                         glnCustomer = params.length > 5 ? params[5] : null;
+                        creationDateTime = params.length > 9 ? params[9] : null;
                         seriesNumber = params.length > 11 ? params[11] : null;
-                        nameCustomer = params.length > 17 ? params[17] : null;
-                        addressCustomer = params.length > 18 ? params[18] : null;
-                        unnCustomer = params.length > 19 ? params[19] : null;
-                        nameSupplier = params.length > 22 ? params[22] : null;
-                        addressSupplier = params.length > 23 ? params[23] : null;
-                        unnSupplier = params.length > 24 ? params[24] : null;
-                        glnSupplierStock = params.length > 25 ? params[25] : null; //по документации 29
-                        addressSupplierStock = params.length > 26 ? params[26] : null;//по документации 30
-                        contactSupplierStock = params.length > 27 ? params[27] : null;//по документации 31
-                        glnCustomerStock = params.length > 28 ? params[28] : null; //по документации 32
-                        addressCustomerStock = params.length > 29 ? params[29] : null;//по документации 33
-                        contactCustomerStock = params.length > 30 ? params[30] : null;//по документации 34
+                        paperDate = params.length > 12 ? params[12] : null;
+                        nameSupplier = wbl ? (params.length > 17 ? params[17] : null) : (params.length > 16 ? params[16] : null);
+                        addressSupplier = wbl ? (params.length > 18 ? params[18] : null) : params.length > 17 ? params[17] : null;
+                        unnSupplier = wbl ? (params.length > 19 ? params[19] : null) : (params.length > 18 ? params[18] : null);
+                        nameCustomer = wbl ? (params.length > 22 ? params[22] : null) : (params.length > 21 ? params[21] : null);
+                        addressCustomer = wbl ? (params.length > 23 ? params[23] : null) : (params.length > 22 ? params[22] : null);
+                        unnCustomer = wbl ? (params.length > 24 ? params[24] : null) : (params.length > 23 ? params[23] : null);
+                        glnSupplierStock = wbl ? (params.length > 32 ? params[32] : null) : null;
+                        addressSupplierStock = wbl ? (params.length > 33 ? params[33] : null) : null;
+                        contactSupplierStock = wbl ? (params.length > 34 ? params[34] : null) : null;
+                        glnCustomerStock = wbl ? (params.length > 29 ? params[29] : null) : null;
+                        addressCustomerStock = wbl ? (params.length > 30 ? params[30] : null) : null;
+                        contactCustomerStock = wbl ? (params.length > 31 ? params[31] : null) : null;
                     } else if (params[0].equals("3")) {
                         String barcode = params.length > 2 ? params[2] : null;
-                        BigDecimal netWeight = params.length > 6 ? new BigDecimal(params[6]) : null;
-                        BigDecimal quantity = params.length > 7 ? new BigDecimal(params[7]) : null;
-                        BigDecimal vat = params.length > 12 ? new BigDecimal(params[12]) : null;
-                        BigDecimal vatSum = params.length > 14 ? new BigDecimal(params[14]) : null;
-                        BigDecimal price = params.length > 16 ? new BigDecimal(params[16]) : null;
+                        BigDecimal netWeight = wbl ? (params.length > 6 ? new BigDecimal(params[6]) : null) : null;
+                        BigDecimal quantity = wbl ? (params.length > 7 ? new BigDecimal(params[7]) : null) : (params.length > 6 ? new BigDecimal(params[6]) : null);
+                        BigDecimal vat = wbl ? (params.length > 12 ? new BigDecimal(params[12]) : null) : (params.length > 10 ? new BigDecimal(params[10]) : null);
+                        BigDecimal vatSum = wbl ? (params.length > 14 ? new BigDecimal(params[14]) : null) : (params.length > 12 ? new BigDecimal(params[12]) : null);
+                        BigDecimal price = wbl ? (params.length > 16 ? new BigDecimal(params[16]) : null) : (params.length > 16 ? new BigDecimal(params[16]) : null);
                         String id = uniqueNumber + "/" + barcode;
                         detailList.add(new InputDocumentDetail(id, barcode, quantity, price, vat, vatSum, netWeight));
                     }
@@ -459,19 +476,22 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 Long timestamp = dateTime == null ? null : new SimpleDateFormat("yyyyMMddHHmmss").parse(dateTime).getTime();
                 Date date = timestamp == null ? null : new Date(timestamp);
                 Time time = timestamp == null ? null : new Time(timestamp);
-                return new InputDocument(detailList, uniqueNumber, seriesNumber, date, time, dateTime, glnSupplier, nameSupplier, addressSupplier,
-                        unnSupplier, glnCustomer, nameCustomer, addressCustomer, unnCustomer, glnSupplierStock, addressSupplierStock,
-                        contactSupplierStock, glnCustomerStock, addressCustomerStock, contactCustomerStock);
+                return new InputDocument(detailList, "123456789", uniqueNumber, seriesNumber, date, time, dateTime, creationDateTime,
+                        paperDate, glnSupplier, nameSupplier, addressSupplier, unnSupplier, glnCustomer, nameCustomer,
+                        addressCustomer, unnCustomer, glnSupplierStock, addressSupplierStock, contactSupplierStock,
+                        glnCustomerStock, addressCustomerStock, contactCustomerStock);
             }
 
         }
 
-        private boolean proceededAPNDocument(String directoryIn, InputDocument inputDocument, String code) throws IOException {
-            File[] files = new File(directoryIn).listFiles(getFileFilter("blr_BLRAPN_" + inputDocument.glnSupplier));
+        private boolean proceededAPNDocument(String directoryIn, InputDocument inputDocument, String code, List<File> filesToDelete) throws IOException {
+            File[] files = new File(directoryIn).listFiles(getFileFilter("BLRAPN_"));
             for (File file : files) {
                 APNDocument apnDocument = readAPNDocument(file);
-                if (apnDocument != null && apnDocument.code.equals(code)) {
-                    safeFileDelete(file);
+                if (apnDocument != null && apnDocument.seriesNumber != null && apnDocument.seriesNumber.equals(inputDocument.seriesNumber)
+                        && apnDocument.code != null && apnDocument.code.equals(code)) {
+                    if (!file.delete())
+                        filesToDelete.add(file);
                     return true;
                 }
             }
@@ -484,45 +504,53 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 while ((line = reader.readLine()) != null) {
                     String[] params = line.split("\\|");
                     if (params[0].equals("0")) {
+                        String seriesNumber = params.length > 10 ? params[10] : null;
                         String code = params.length > 17 ? params[17] : null;
-                        return new APNDocument(code);
+                        return new APNDocument(seriesNumber, code);
                     }
                 }
                 return null;
             }
         }
 
-        private void createAPNDocument(String directoryIn, Integer uniqueMessageNumber, String parentDocumentType, String parentDocumentNumber,
-                                       String parentDocumentDate, String ownGLN, String gln, String seriesNumberInvoice,
-                                       boolean failed, String apnCode) throws IOException {
+        private void createAPNDocument(String directoryIn, InputDocument inputDocument, Integer uniqueMessageNumber, String parentDocumentType, String apnCode) throws IOException {
             java.util.Date dateTime = Calendar.getInstance().getTime();
-            File apnFile = new File(String.format("%s/blr_BLRAPN_%s_%s", directoryIn, gln, dateTime.getTime()));
+            File apnFile = new File(String.format("%s/BLRAPN_%s_%s.txt", directoryIn, inputDocument.glnSupplier, dateTime.getTime()));
             try (FileWriter writer = new FileWriter(apnFile)) {
                 String dateTimeString = new SimpleDateFormat("yyyyMMddHHmmss").format(dateTime);
-                String dateString = new SimpleDateFormat("yyyyMMdd").format(dateTime);
                 uniqueMessageNumber++;
-                String data = String.format("0|%s|%s|BLRAPN|%s|%s||%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|",
-                        uniqueMessageNumber, dateTimeString, ownGLN, gln, uniqueMessageNumber, failed ? 27 : 6,
-                        dateTimeString, seriesNumberInvoice, dateString, parentDocumentType, parentDocumentNumber,
-                        parentDocumentDate, gln, ownGLN, apnCode);
+                String data = String.format("0|%s|%s|BLRAPN|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|",
+                        uniqueMessageNumber, dateTimeString, inputDocument.glnCustomer, inputDocument.glnSupplier, inputDocument.userId, uniqueMessageNumber, 6,
+                        dateTimeString, inputDocument.seriesNumber, inputDocument.paperDate, parentDocumentType, inputDocument.uniqueNumber,
+                        inputDocument.creationDateTime, inputDocument.glnSupplier, inputDocument.glnCustomer, apnCode);
                 writer.write(data);
             }
         }
 
-        private void createOutputDocument(String directoryOut, Integer uniqueMessageNumber, InputDocument inputDocument, boolean wbl, String seriesNumberInvoice) throws IOException {
+        private void createOutputDocument(String directoryOut, Integer uniqueMessageNumber, InputDocument inputDocument, boolean wbl) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+            String nameChief;
+            try (DataSession session = dbManager.createSession()) {
+                nameChief = (String) topByLM.findProperty("nameCustomUserChiefLegalEntity").read(session, topByLM.findProperty("legalEntityGLN").readClasses(session, new DataObject(inputDocument.glnCustomer)));
+            }
             java.util.Date dateTime = Calendar.getInstance().getTime();
-            File outputFile = new File(String.format("%s/%s_%s_%s", directoryOut, wbl ? "blr_BLRWBR" : "blr_BLRDNR", inputDocument.glnCustomer, dateTime.getTime()));
+            File outputFile = new File(String.format("%s/%s_%s_%s.txt", directoryOut, wbl ? "BLRWBR" : "BLRDNR", inputDocument.glnCustomer, dateTime.getTime()));
             try (FileWriter writer = new FileWriter(outputFile)) {
                 String dateTimeString = new SimpleDateFormat("yyyyMMddHHmmss").format(dateTime);
-                String dateString = new SimpleDateFormat("yyyyMMdd").format(dateTime);
                 uniqueMessageNumber++;
-                String data = String.format("0|%s|%s|%s|%s|%s||%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|",
-                        uniqueMessageNumber, dateTimeString, wbl ? "BLRWBR" : "BLRDNR", inputDocument.glnCustomer, inputDocument.glnSupplier,
-                        wbl ? "700" : "270", uniqueMessageNumber, dateTimeString, "11", inputDocument.uniqueNumber, inputDocument.dateTime,
-                        seriesNumberInvoice, dateString, inputDocument.glnSupplier, inputDocument.nameSupplier, inputDocument.addressSupplier,
-                        inputDocument.UNPSupplier, inputDocument.glnCustomer, inputDocument.nameCustomer, inputDocument.addressCustomer,
-                        inputDocument.UNPCustomer, inputDocument.glnCustomerStock, inputDocument.addressCustomerStock, inputDocument.contactCustomerStock);
-                writer.write(data);
+                if (wbl)
+                    writer.write(String.format("0|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|",
+                            uniqueMessageNumber, dateTimeString, "BLRWBR", inputDocument.glnCustomer, inputDocument.glnSupplier, //5
+                            inputDocument.userId, "700", uniqueMessageNumber, dateTimeString, "11", inputDocument.uniqueNumber, inputDocument.creationDateTime, //12
+                            inputDocument.seriesNumber, inputDocument.paperDate, inputDocument.glnSupplier, inputDocument.nameSupplier, inputDocument.addressSupplier, //17
+                            inputDocument.UNPSupplier, inputDocument.glnCustomer, inputDocument.nameCustomer, inputDocument.addressCustomer, //21
+                            inputDocument.UNPCustomer, inputDocument.glnSupplierStock, inputDocument.addressSupplierStock, inputDocument.contactSupplierStock)); //25;
+                else
+                    writer.write(String.format("0|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|",
+                            uniqueMessageNumber, dateTimeString, "BLRDNR", inputDocument.glnCustomer, inputDocument.glnSupplier, //5
+                            inputDocument.userId, "270", uniqueMessageNumber, dateTimeString, "11", inputDocument.uniqueNumber, inputDocument.creationDateTime, //12
+                            inputDocument.seriesNumber, inputDocument.paperDate, inputDocument.glnSupplier, inputDocument.nameSupplier, inputDocument.addressSupplier, //17
+                            inputDocument.UNPSupplier, inputDocument.glnCustomer, inputDocument.nameCustomer, inputDocument.addressCustomer, //21
+                            inputDocument.UNPCustomer, trimToEmpty(nameChief))); //23;
             }
         }
 
@@ -545,11 +573,6 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 data.add(new ArrayList<>());
             }
             return data;
-        }
-
-        private void safeFileDelete(File file) {
-            if (file != null && !file.delete())
-                file.deleteOnExit();
         }
     }
 }
