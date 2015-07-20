@@ -137,37 +137,54 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
 
                                     Integer uniqueMessageNumber;
                                     try (DataSession session = dbManager.createSession()) {
-                                        uniqueMessageNumber = (Integer) topByLM.findProperty("maxMessageNumber").read(session);
-                                        if (uniqueMessageNumber == null)
-                                            uniqueMessageNumber = 0;
+                                        uniqueMessageNumber = readUniqueMessageNumber(session);
                                     }
-
                                     //step1: формируем ответ на BLRWBL/BLRDLN
                                     createAPNDocument(directoryOut, inputDocument, uniqueMessageNumber, wbl ? "BLRWBL" : "BLRDLN", "2650");
 
                                     //step2: ждём подтверждения приёма нашего ответа
                                     while (!proceededAPNDocument(directoryIn, inputDocument, "2551", filesToDelete)) {
-                                        logger.info("waiting for creation of BLRAPN 2551 in" + directoryIn);
+                                        logger.info("waiting for creation of BLRAPN 2551 in " + directoryIn);
                                         Thread.sleep(sleep);
                                     }
 
-                                    //step3: формируем сообщение
-                                    createOutputDocument(directoryOut, uniqueMessageNumber, inputDocument, wbl);
+                                    if(inputDocument.status != null && inputDocument.status.equals("9")) {
+                                        //step3: формируем сообщение
+                                        createOutputDocument(directoryOut, uniqueMessageNumber, inputDocument, wbl);
 
-                                    //step4: ждём подтверждения приёма нашего сообщения
-                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2550", filesToDelete)) {
-                                        logger.info("waiting for creation of BLRAPN 2550 in " + directoryIn);
-                                        Thread.sleep(sleep);
-                                    }
-                                    while (!proceededAPNDocument(directoryIn, inputDocument, "2650", filesToDelete)) {
-                                        logger.info("waiting for creation of BLRAPN 2650 in " + directoryIn);
-                                        Thread.sleep(sleep);
+                                        //step4: ждём подтверждения приёма нашего сообщения
+                                        while (!proceededAPNDocument(directoryIn, inputDocument, "2550", filesToDelete)) {
+                                            logger.info("waiting for creation of BLRAPN 2550 in " + directoryIn);
+                                            Thread.sleep(sleep);
+                                        }
+                                        while (!proceededAPNDocument(directoryIn, inputDocument, "2650", filesToDelete)) {
+                                            logger.info("waiting for creation of BLRAPN 2650 in " + directoryIn);
+                                            Thread.sleep(sleep);
+                                        }
                                     }
 
                                     //step5: сохраняем накладную
-                                    logger.info(String.format("Import %s: started", file.getAbsolutePath()));
-                                    importUserInvoice(inputDocument, uniqueMessageNumber);
-                                    logger.info(String.format("Import %s: successfully finished", file.getAbsolutePath()));
+                                    if(inputDocument.status != null) {
+                                        switch (inputDocument.status) {
+                                            case "9":
+                                                logger.info(String.format("Import %s: started", file.getAbsolutePath()));
+                                                importUserInvoice(inputDocument, uniqueMessageNumber);
+                                                logger.info(String.format("Import %s: successfully finished", file.getAbsolutePath()));
+                                                break;
+                                            case "1":
+                                                try (DataSession session = dbManager.createSession()) {
+                                                    ObjectValue invoiceObject = topByLM.findProperty("Purchase.userInvoiceId").readClasses(session, new DataObject(inputDocument.seriesNumber));
+                                                    if (invoiceObject instanceof DataObject) {
+                                                        topByLM.findProperty("isCancelledUserInvoice").change(true, session, (DataObject) invoiceObject);
+                                                        session.apply(businessLogics);
+                                                    }
+                                                }
+                                                break;
+                                            default:
+                                                logger.error("Unknown status of document, file: " + file.getAbsolutePath());
+                                                break;
+                                        }
+                                    }
                                 } else {
                                     logger.info("Incorrect file found, will be deleted: " + file.getAbsolutePath());
                                 }
@@ -213,7 +230,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 props.add(new ImportProperty(idUserInvoiceField, topByLM.findProperty("idUserInvoice").getMapping(userInvoiceKey)));
                 fields.add(idUserInvoiceField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
-                    data.get(i).add(inputDocument.uniqueNumber);
+                    data.get(i).add(inputDocument.seriesNumber);
 
                 ImportField idOperationField = new ImportField(topByLM.findProperty("Purchase.idOperation"));
                 ImportKey<?> operationKey = new ImportKey((CustomClass) topByLM.findClass("Purchase.Operation"),
@@ -415,11 +432,25 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
             }
         }
 
+        private Integer readUniqueMessageNumber(DataSession session) {
+            Integer uniqueMessageNumber;
+            try {
+                uniqueMessageNumber = (Integer) topByLM.findProperty("maxMessageNumber").read(session);
+                if (uniqueMessageNumber == null)
+                    uniqueMessageNumber = 0;
+            } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                logger.error("TopBy session error: ", e);
+                return 0;
+            }
+            return uniqueMessageNumber;
+        }
+
         private InputDocument readInputFile(File file, boolean wbl) throws IOException, ParseException {
 
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 List<InputDocumentDetail> detailList = new ArrayList<>();
                 String uniqueNumber = null;
+                String status = null;
                 String seriesNumber = null;
                 String dateTime = null;
                 String creationDateTime = null;
@@ -448,6 +479,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                         glnSupplier = params.length > 4 ? params[4] : null;
                         glnCustomer = params.length > 5 ? params[5] : null;
                         creationDateTime = params.length > 9 ? params[9] : null;
+                        status = params.length > 10 ? params[10] : null;
                         seriesNumber = params.length > 11 ? params[11] : null;
                         paperDate = params.length > 12 ? params[12] : null;
                         nameSupplier = wbl ? (params.length > 17 ? params[17] : null) : (params.length > 16 ? params[16] : null);
@@ -476,7 +508,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 Long timestamp = dateTime == null ? null : new SimpleDateFormat("yyyyMMddHHmmss").parse(dateTime).getTime();
                 Date date = timestamp == null ? null : new Date(timestamp);
                 Time time = timestamp == null ? null : new Time(timestamp);
-                return new InputDocument(detailList, "123456789", uniqueNumber, seriesNumber, date, time, dateTime, creationDateTime,
+                return new InputDocument(detailList, status, "123456789", uniqueNumber, seriesNumber, date, time, dateTime, creationDateTime,
                         paperDate, glnSupplier, nameSupplier, addressSupplier, unnSupplier, glnCustomer, nameCustomer,
                         addressCustomer, unnCustomer, glnSupplierStock, addressSupplierStock, contactSupplierStock,
                         glnCustomerStock, addressCustomerStock, contactCustomerStock);
@@ -513,9 +545,9 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
             }
         }
 
-        private void createAPNDocument(String directoryIn, InputDocument inputDocument, Integer uniqueMessageNumber, String parentDocumentType, String apnCode) throws IOException {
+        private void createAPNDocument(String directoryOut, InputDocument inputDocument, Integer uniqueMessageNumber, String parentDocumentType, String apnCode) throws IOException {
             java.util.Date dateTime = Calendar.getInstance().getTime();
-            File apnFile = new File(String.format("%s/BLRAPN_%s_%s.txt", directoryIn, inputDocument.glnSupplier, dateTime.getTime()));
+            File apnFile = new File(String.format("%s/BLRAPN_%s_%s.txt", directoryOut, inputDocument.glnSupplier, dateTime.getTime()));
             try (FileWriter writer = new FileWriter(apnFile)) {
                 String dateTimeString = new SimpleDateFormat("yyyyMMddHHmmss").format(dateTime);
                 uniqueMessageNumber++;

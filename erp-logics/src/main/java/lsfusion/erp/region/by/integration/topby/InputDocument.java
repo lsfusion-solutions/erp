@@ -6,6 +6,7 @@ import java.util.List;
 
 public class InputDocument {
     List<InputDocumentDetail> detailList;
+    String status;
     String userId;
     String uniqueNumber;
     String seriesNumber;
@@ -29,12 +30,13 @@ public class InputDocument {
     String addressCustomerStock;
     String contactCustomerStock;
 
-    public InputDocument(List<InputDocumentDetail> detailList, String userId, String uniqueNumber, String seriesNumber,
+    public InputDocument(List<InputDocumentDetail> detailList, String status, String userId, String uniqueNumber, String seriesNumber,
                          Date date, Time time, String dateTime, String creationDateTime, String paperDate, String glnSupplier,
                          String nameSupplier, String addressSupplier, String UNPSupplier, String glnCustomer, String nameCustomer,
                          String addressCustomer, String UNPCustomer, String glnSupplierStock, String addressSupplierStock,
                          String contactSupplierStock, String glnCustomerStock, String addressCustomerStock, String contactCustomerStock) {
         this.detailList = detailList;
+        this.status = status;
         this.userId = userId;
         this.uniqueNumber = uniqueNumber;
         this.seriesNumber = seriesNumber;
