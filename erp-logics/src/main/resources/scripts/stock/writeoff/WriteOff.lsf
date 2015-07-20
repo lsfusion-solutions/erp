@@ -222,9 +222,15 @@ reasonWriteOff(writeOff) += reasonUserWriteOff(writeOff);
 nameReasonWriteOff 'Причина списания' (writeOff) = nameReason(reasonWriteOff (writeOff)) IN documentPrm;
 nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameReason(reasonUserWriteOff (userWriteOff)) IN documentPrm;
 
-reasonWriteOffDetail = reasonWriteOff(writeOffWriteOffDetail(d));
-reasonUserWriteOffDetail = reasonUserWriteOff(userWriteOffUserWriteOffDetail(d));
+dataReasonWriteOffDetail= ABSTRACT Reason (WriteOffDetail);
+dataReasonUserWriteOffDetail= DATA Reason (UserWriteOffDetail);
+dataReasonWriteOffDetail(d) += dataReasonUserWriteOffDetail(d);
 
+reasonWriteOffDetail = OVERRIDE reasonWriteOff(writeOffWriteOffDetail(d)), dataReasonWriteOffDetail(d);
+reasonUserWriteOffDetail = OVERRIDE reasonUserWriteOff(userWriteOffUserWriteOffDetail(d)), dataReasonUserWriteOffDetail(d);
+
+nameReasonWriteOffDetail 'Причина списания' (d) = nameReason(reasonWriteOffDetail(d));
+nameReasonUserWriteOffDetail 'Причина списания' (d) = nameReason(reasonUserWriteOffDetail(d));
 
 @defineDocumentInterfaceLegalEntity (writeOff, contact, 'Контрагент');
 
