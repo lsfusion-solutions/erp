@@ -938,6 +938,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         if(discountCard == null || discountCard.isEmpty())
                                                             discountCard = ((Element) card).getAttributeValue("CARDNUMBER");
                                                     }
+                                                    if (discountCard != null && discountCard.isEmpty())
+                                                        discountCard = null;
 
                                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
