@@ -27,7 +27,7 @@ import java.util.*;
 
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
-    //protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
@@ -674,7 +674,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directorySet) throws IOException {
-        /*machineryExchangeLogger.info("Kristal: Send DiscountCardList");
+        machineryExchangeLogger.info("Kristal: Send DiscountCardList");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
@@ -695,9 +695,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 machineryExchangeLogger.info("Kristal: creating DISCCARD file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
 
-                for (DiscountCard discountCard : discountCardList) {
-                    String record = discountCard.numberDiscountCard + "|" + discountCard.nameDiscountCard + "|" + "0" + "|" +
-                            discountCard.percentDiscountCard + "|" + discountCard.idDiscountCard + "|" + discountCard.nameDiscountCard;
+                for (DiscountCard card : discountCardList) {
+                    String record = String.format("+|%s|%s|1|%s|%s|3", card.numberDiscountCard, card.nameDiscountCard,
+                            card.percentDiscountCard == null ? 0 : card.percentDiscountCard.intValue(), formatCardNumber(card.numberDiscountCard));
                     writer.println(record);
                 }
                 writer.close();
@@ -707,7 +707,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             } else {
                 throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));
             }
-        }*/
+        }
+    }
+
+    String formatCardNumber(String value) {
+        if (value != null && !value.isEmpty())
+            while (value.startsWith("0"))
+                value = value.substring(1);
+        return value;
     }
 
     @Override
