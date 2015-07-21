@@ -73,6 +73,8 @@ public class FiscalVMK {
 
         Boolean vmk_indik(byte[] firstLine, byte[] secondLine);
 
+        Boolean vmk_indik2(byte[] firstLine);
+
         Boolean vmk_ksastat(ByReference rej, ByReference stat);
 
         Boolean vmk_ksainfo(byte[] buffer, int buflen);
@@ -234,6 +236,8 @@ public class FiscalVMK {
                 secondLine = " " + secondLine;
             secondLine = "ИТОГ:" + secondLine;
             logAction("vmk_indik", firstLine, secondLine);
+            if(!vmkDLL.vmk.vmk_indik2((secondLine + "\0").getBytes("cp1251")))
+                checkErrors(true);
             if (!vmkDLL.vmk.vmk_indik((firstLine + "\0").getBytes("cp1251"), (secondLine + "\0").getBytes("cp1251")))
                 checkErrors(true);
         } catch (UnsupportedEncodingException e) {
