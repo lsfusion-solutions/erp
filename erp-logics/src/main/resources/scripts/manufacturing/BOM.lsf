@@ -614,9 +614,6 @@ inBOMStock 'Вкл.' (BOM, stock) = OVERRIDE
     nearestInCompanyBOMStockGroup(BOM, stockGroupStock(stock)),
     dataInStockBOM(stock, BOM);
     
-WHEN SESSION SET(BOM IS BOM) DO {
-    inBOMStock(BOM, stock) <- TRUE WHERE accessCompanyEmployeeStock(currentUser(), stock); 
-};
     
 countStocksBOM = GROUP SUM 1 IF inBOMStock(BOM, stock) BY BOM PERSISTENT;
     
@@ -730,6 +727,11 @@ DESIGN BOM {
         }
     }
 }
+
+WHEN SESSION FORMS BOM SET(BOM IS BOM) DO {
+    inBOMStock(BOM, stock) <- TRUE WHERE accessCompanyEmployeeStock(currentUser(), stock); 
+};
+
 copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
     FOR ADDOBJ b = BOM DO {
 
