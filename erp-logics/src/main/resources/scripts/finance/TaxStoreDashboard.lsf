@@ -1,0 +1,54 @@
+MODULE TaxStoreDashboard;
+
+REQUIRE TaxReverse, Store;
+
+NAMESPACE Tax;
+
+addVATRangeTaxUnit 'Добавить ставку' = ACTION (taxUnit) {
+    IF rangeTaxTaxUnit(Tax.taxVAT, taxUnit) THEN {
+        FOR ADDOBJ rt = Rate DO {
+            rangeRate (rt) <- rangeTaxTaxUnit(Tax.taxVAT, taxUnit);
+        }    
+    } ELSE {    
+        FOR ADDOBJ r = Range DO {
+            taxRange(r) <- Tax.taxVAT;
+            rangeTypeRange(r) <- RangeType.units;
+            reverseRange(r) <- TRUE;
+            inRangeTaxUnit(r, taxUnit) <- TRUE;
+            countryRange(r) <- defaultCountry();
+            FOR ADDOBJ rt = Rate DO {
+                rangeRate (rt) <- r;
+            }
+        }    
+    }
+} TOOLBAR IMAGE 'add.png';
+
+FORM storeTaxUnit 'Налоговые субъекты'
+    OBJECTS u = TaxUnit
+    PROPERTIES (u) READONLY descriptionTaxUnit
+    FILTERGROUP store FILTER 'Магазины' u IS Store 'F9' DEFAULT
+    DIALOG TaxUnit OBJECT u
+;
+
+FORM VATUnitDashboard 'Ввод расчетной ставки'
+    OBJECTS u = TaxUnit FIXED PANEL 
+    PROPERTIES (u) descriptionTaxUnit SELECTOR
+    FILTERS u IS Store
+        
+    OBJECTS rt = Rate
+    PROPERTIES (rt) valueRate, dateFromRate, DELETE TOOLBAR
+    PROPERTIES (u) addVATRangeTaxUnit TODRAW rt
+    FILTERS inRateTaxUnit(rt, u)
+;
+
+DESIGN VATUnitDashboard {
+    PROPERTY (descriptionTaxUnit(u)) {
+        caption = 'Магазин';
+    }
+}
+
+NAVIGATOR {
+    saleDashboardNavigator {
+        ADD VATUnitDashboard;
+    }    
+}
