@@ -541,10 +541,6 @@ changeLevelRangeStoreTypeDate (r, t, d)= ACTION (r, t, d) {
 
 backgroundLevelRangeStoreTypeDate(range, storeType, dateIn) = (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn));
 
-countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
-countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
-countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreTypeDate(s, storeTypeDepartmentStore(ds), d); 
-
 countSkuRangeStoreTypeDate 'Кол-во товаров' (r, t, d) = countRecSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), levelRangeStoreTypeDate(r, t, d));
      
 quantityShelfRangeStoreTypeSkuDate 'Количество на полке'  = GROUP SUM quantityShelfRangeRevRangeLevelSku(rangeRevRangeDate(range, date), levelRangeStoreTypeDate(range, type, date), sku) 
@@ -568,10 +564,6 @@ levelRangeStoreDate (r, st, d) = GROUP LAST dataLevelRangeStoreDate(range, st, d
                                               ORDER dateIn
                                               WHERE (dataLevelRangeStoreDate(range, st, dateIn) OR excludeLevelRangeStoreDate(range, st, dateIn)) AND dateIn <= (date AS DATE); 
 
-overLevelRangeStoreDate(r, st, d) = OVERRIDE levelRangeStoreTypeDate(r, storeTypeStore(st), d), levelRangeStoreDate(r, st, d);  
-nameOverLevelRangeStoreDate 'Уровень (перегруженный)' (r, st, d)= nameRangeLevel(overLevelRangeStoreDate(r, st, d));               
-nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));               
- 
 changeLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
     REQUEST OBJECT l
         IF levelRangeStoreDate(r, st, d) THEN {
@@ -588,7 +580,18 @@ changeLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
     }
 }              
 backgroundLevelRangeStoreDate(range, store, dateIn) = (dataLevelRangeStoreDate(range, store, dateIn) OR excludeLevelRangeStoreDate(range, store, dateIn));
-              
+
+countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+
+overLevelRangeStoreDate(r, st, d) = OVERRIDE levelRangeStoreTypeDate(r, storeTypeStore(st), d), levelRangeStoreDate(r, st, d);  
+nameOverLevelRangeStoreDate 'Уровень (перегруженный)' (r, st, d)= nameRangeLevel(overLevelRangeStoreDate(r, st, d));               
+nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));    
+
+overCountRangeSkuStoreDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+//countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
+countRangeSkuStoreDate 'В ассортименте' (s, st, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreDate(s, storeDepartmentStore(ds), d); 
+
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
     PROPERTIES(d) OBJVALUE
