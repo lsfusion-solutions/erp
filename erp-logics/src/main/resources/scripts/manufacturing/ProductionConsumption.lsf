@@ -136,13 +136,10 @@ quantityOutputProductOrder 'Кол-во изделий в заказе (прои
 quantityOutputBOMOrder 'Кол-во спецификаций (произведенных)' (BOM, order) = [= GROUP MAX quantityOutputProductOrder(product, order)/ quantityProduct(product)
     BY BOMProduct(product), order](BOM, order);
 
-recBruttoQuantityOutputOrderSku 'Кол-во для произ-го' (order, sku) = [= GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoNodeQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY order, sku](
-    order, sku) IF bruttoQuantitySkuOrder(sku, order);
+recBruttoQuantityOutputBOMOrderSku 'Кол-во для произ-го' (BOM, order, sku) = GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY BOM, order, sku;
 
 createOutputComponentOrder 'Заполнить списание' = ACTION (order)  {
-    FOR recBruttoQuantityOutputOrderSku(order, bruttoSkuComponentDetail(componentDetail)) == q DO {
-        ASSIGN consumedQuantityComponentDetail(componentDetail) <- q*bruttoQuantityComponentDetail(componentDetail)/(bruttoQuantitySkuOrder(bruttoSkuComponentDetail(componentDetail), order) IF bruttoQuantitySkuOrder(bruttoSkuComponentDetail(componentDetail), order)!=0);
-    }
+    consumedQuantityComponentDetail(d) <- recBruttoQuantityOutputBOMOrderSku(BOMComponentDetail(d), order, bruttoSkuComponentDetail(d)) WHERE orderComponentDetail(d) == order;
 } TOOLBAR;
 
 backgroundConsumptionOrder 'Цвет' (order) = RGB(212, 255, 212) IF order IS Order;
