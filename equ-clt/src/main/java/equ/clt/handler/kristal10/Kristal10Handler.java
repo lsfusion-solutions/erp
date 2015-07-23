@@ -49,7 +49,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         Map<File, Integer> fileMap = new HashMap<>();
         Map<Integer, Exception> failedTransactionMap = new HashMap<>();
-
+        Set<Integer> emptyTransactionSet = new HashSet<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -70,6 +70,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
                         directoriesList.add(cashRegisterInfo.directory.trim());
                 }
+
+                if(directoriesList.isEmpty())
+                    emptyTransactionSet.add(transaction.id);
 
                 for (String directory : directoriesList) {
 
@@ -225,10 +228,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
         }
         processTransactionLogger.info(String.format("Kristal10: starting to wait for deletion %s files", fileMap.size()));
-        return waitForDeletion(fileMap, failedTransactionMap);
+        return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
     }
 
-    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap) {
+    private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap, Set<Integer> emptyTransactionSet) {
         int count = 0;
         Map<Integer, SendTransactionBatch> result = new HashMap<>();
         while (!Thread.currentThread().isInterrupted() && !filesMap.isEmpty()) {
@@ -263,6 +266,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
         for(Map.Entry<Integer, Exception> entry : failedTransactionMap.entrySet()) {
             result.put(entry.getKey(), new SendTransactionBatch(entry.getValue()));
+        }
+        for(Integer emptyTransaction : emptyTransactionSet) {
+            result.put(emptyTransaction, new SendTransactionBatch(null));
         }
         return result;
     }

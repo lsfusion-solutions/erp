@@ -915,18 +915,20 @@ public class EquipmentServer {
 
                     for (TransactionInfo transactionInfo : transactionEntry) {
                         boolean noErrors = true;
-                        Throwable exception = succeededMachineryInfoMap.get(transactionInfo.id).exception;
-                        if(exception != null) {
+                        SendTransactionBatch batch = succeededMachineryInfoMap.get(transactionInfo.id);
+                        if(batch != null && batch.exception != null) {
                             noErrors = false;
-                            errorTransactionReport(transactionInfo.id, exception);
+                            errorTransactionReport(transactionInfo.id, batch.exception);
                         }
 
                         try {
-                            List<MachineryInfo> succeededMachineryInfoList = succeededMachineryInfoMap.get(transactionInfo.id).succeededMachineryList;
-                            if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
-                                noErrors = false;
-                            if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
-                                remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                            if (batch != null) {
+                                List<MachineryInfo> succeededMachineryInfoList = batch.succeededMachineryList;
+                                if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
+                                    noErrors = false;
+                                if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
+                                    remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                            }
                         } catch (Exception e) {
                             noErrors = false;
                             errorTransactionReport(transactionInfo.id, e);
@@ -937,7 +939,7 @@ public class EquipmentServer {
                             transactionInfoMap.put(transactionInfo, true);
                         }
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     errorEquipmentServerReport(e);
                 }
 
