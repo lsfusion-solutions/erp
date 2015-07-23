@@ -113,9 +113,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                         for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
+                                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
                                 String idItemGroup = importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0" :
-                                        importGroupType.equals(1) ? makeIdItemGroup(transactionInfo.itemGroupMap.get(item.idItemGroup)) :
-                                                String.valueOf(item.itemGroupObject);
+                                        importGroupType.equals(1) ? makeIdItemGroup(hierarchyItemGroup, false)
+                                        : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
+                                        : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size(), 3)), true) : "";
                                 boolean isWeightItem = item.passScalesItem && item.splitItem;
                                 Object code = useIdItem ? item.idItem : item.idBarcode;
                                 String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
@@ -252,9 +254,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                     hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
                                     for (int i = 0; i < hierarchyItemGroup.size(); i++) {
                                         String idItemGroup = importGroupType.equals(1) ?
-                                                makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i)) : String.valueOf(item.itemGroupObject);
+                                                makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false)
+                                                : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
+                                                : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size() - i, 3)), true) : "";
                                         if (!numberGroupItems.contains(idItemGroup)) {
-                                            String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
+                                            String record = String.format("+|%s|%s", hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup, idItemGroup);
                                             writer.println(record);
                                             numberGroupItems.add(idItemGroup);
                                         }
@@ -1007,16 +1011,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         return input;
     }
 
-    private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup) {
+    private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3) {
         String idItemGroup = "";
         for (int i = 0; i < hierarchyItemGroup.size(); i++) {
             String id = hierarchyItemGroup.get(i).idItemGroup;
-            idItemGroup += (id == null ? "0" : id) + "|";
+            if(id == null) id = "0";
+            if(type3) {
+                String[] splitted = id.split("_");
+                idItemGroup += splitted[(Math.min(splitted.length, 2) - 1)] + "|";
+            } else {
+                idItemGroup += id + "|";
+            }
         }
-        for (int i = hierarchyItemGroup.size(); i < 5; i++) {
+        for (int i = hierarchyItemGroup.size(); i < (type3 ? 2 : 5); i++) {
             idItemGroup += "0|";
         }
-        idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
+        if(type3 && idItemGroup.isEmpty()) {
+            idItemGroup = "0|0";
+        } else
+            idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
         return idItemGroup;
     }
 

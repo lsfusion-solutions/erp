@@ -19,7 +19,7 @@ public class KristalSettings implements Serializable{
     private String transformUPCBarcode; //12to13 or 13to12
     private Boolean useCheckNumber;
     private Integer maxFilesCount;
-    private Integer importGroupType; // 0 - no, 1 - classic, 2 - objValue
+    private Integer importGroupType; // 0 - no, 1 - classic, 2 - objValue, 3 - newType
     private Boolean noRestriction;
 
     public KristalSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
