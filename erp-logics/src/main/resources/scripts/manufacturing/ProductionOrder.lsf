@@ -816,8 +816,13 @@ WHEN SESSION (CHANGED(componentsCountryOrder(order)) OR
 //calcValueIsVATProductDetail 'НДС, %' (productDetail)= [= 100*X/Y](
 //    calcPriceIsVATProductDetail(productDetail), calcComponentsPriceProductDetail(productDetail) IF calcComponentsPriceProductDetail(productDetail)!= 0);    
 //
-calcValueVATProductDetail 'НДС, %' = [= GROUP SUM sumComponentDetail(d) * (OVERRIDE valueVATSkuOrder(skuComponentDetail(d), orderComponentDetail(d)), valueVATBatch(batchComponentDetail(d))) BY BOMComponentDetail(d), orderComponentDetail(d)](BOMProductDetail(d), orderProductDetail(d)) /
-                                                                   sumComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d));
+
+// todo : надо поддержать галочку Включает НДС (проблема в том, что для учетной цены определить включает она НДС или нет тяжело)
+valueVATComponentDetail(d) = OVERRIDE valueVATSkuOrder(skuComponentDetail(d), orderComponentDetail(d)), valueVATBatch(batchComponentDetail(d)) PERSISTENT;
+sumVATComponentDetail (d) = sumComponentDetail(d) * valueVATComponentDetail(d) / (100.0 + valueVATComponentDetail(d));
+sumVATComponentsProductDetail (d) = [= GROUP SUM sumVATComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d)](BOMProductDetail(d), orderProductDetail(d)); 
+calcValueVATProductDetail 'НДС, %' = OVERRIDE 0.0, (sumVATComponentsProductDetail(d) * 100.0 /
+                                                                     (sumComponentDetailBOMOrder(BOMProductDetail(d), orderProductDetail(d)) - sumVATComponentsProductDetail(d)));
 // Расчет цен для изделий
 overFillPriceProductDetail = ABSTRACT ACTION LIST (ProductDetail);
 fillPriceProductDetail 'Заполнить цены для изделий' = ACTION (detail)  {
