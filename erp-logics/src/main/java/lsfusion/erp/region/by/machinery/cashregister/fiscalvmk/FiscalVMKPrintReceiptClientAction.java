@@ -70,6 +70,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                     
 
                 FiscalVMK.closePort();
+                FiscalVMK.logReceipt(receipt, numberReceipt);
 
                 return numberReceipt;
             } catch (RuntimeException e) {
