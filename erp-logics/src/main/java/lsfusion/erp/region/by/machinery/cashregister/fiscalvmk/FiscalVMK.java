@@ -6,9 +6,11 @@ import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
 import org.apache.log4j.*;
 
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 public class FiscalVMK {
 
@@ -163,21 +165,21 @@ public class FiscalVMK {
     public static boolean totalCash(BigDecimal sum) {
         if (sum == null)
             return true;
-        logAction("vmk_oplat", 0, Math.abs(sum.intValue()), 0);
+        logFileAction("vmk_oplat", 0, Math.abs(sum.intValue()), 0);
         return vmkDLL.vmk.vmk_oplat(0, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
     public static boolean totalCard(BigDecimal sum) {
         if (sum == null)
             return true;
-        logAction("vmk_oplat", 1, Math.abs(sum.intValue()), 0);
+        logFileAction("vmk_oplat", 1, Math.abs(sum.intValue()), 0);
         return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
     public static boolean totalGiftCard(BigDecimal sum) {
         if (sum == null)
             return true;
-        logAction("vmk_oplat", 2, Math.abs(sum.intValue()), 0);
+        logFileAction("vmk_oplat", 2, Math.abs(sum.intValue()), 0);
         return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
@@ -247,7 +249,7 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item) {
         try {
-            logAction("vmk_sale", item.barcode, item.name, (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
+            logFileAction("vmk_sale", item.barcode, item.name, (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
             return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, (int) (item.sumPos - item.articleDiscSum));
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -268,7 +270,7 @@ public class FiscalVMK {
             return true;
         boolean discount = item.articleDiscSum < 0;
         try {
-            logAction("vmk_discount", discount ? "Скидка" : "Наценка", (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
+            logFileAction("vmk_discount", discount ? "Скидка" : "Наценка", (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
             return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -280,7 +282,7 @@ public class FiscalVMK {
             return true;
         boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
         try {
-            logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
+            logFileAction("vmk_discountpi", discount ? "Скидка" : "Наценка", (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
             return vmkDLL.vmk.vmk_discountpi(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -348,7 +350,30 @@ public class FiscalVMK {
         String result = Native.toString(buffer, "cp1251");
         return Long.parseLong(result.split(",")[2]);
     }
-    
+
+    private static void logFileAction(Object... actionParams) {
+        logAction(false, actionParams);
+        OutputStreamWriter sw = null;
+        try {
+            String checkPattern = "";
+            for (Object param : actionParams)
+                checkPattern += "%s|";
+            sw = new OutputStreamWriter(new FileOutputStream(new File("logs/vmk.txt"), true), "UTF-8");
+            sw.write(new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime()) + "|" + String.format(checkPattern, actionParams) + "\r\n");
+        } catch (IOException e) {
+            logger.error(e);
+        } finally {
+            if (sw != null) {
+                try {
+                    sw.flush();
+                    sw.close();
+                } catch (IOException e) {
+                    logger.error(e);
+                }
+            }
+        }
+    }
+
     private static void logAction(Object... actionParams) {
         String pattern = "";
         for(Object param : actionParams)
