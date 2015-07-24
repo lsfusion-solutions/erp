@@ -326,6 +326,8 @@ FORM printListBackSheet 'Оборотная ведомость'
 
 printListBackSheet 'Списком' (stock, dateFrom, dateTo) =
     ACTION FORM printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
+xlsListBackSheet 'Списком (Excel)' (stock, dateFrom, dateTo) =
+    ACTION FORM printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
 
 FORM printBackSheet 'Оборотная ведомость'
     OBJECTS df=DATE FIXED PANEL
@@ -369,6 +371,9 @@ FORM printBackSheet 'Оборотная ведомость'
 
 printBackSheet 'По группам' (stock, dateFrom, dateTo) =
     ACTION FORM printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
+
+xlsBackSheet 'По группам' (stock, dateFrom, dateTo) =
+    ACTION FORM printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
 
 fillDocumentReport 'Подбор документа' = ACTION () {
     FORM documents DIALOG;
@@ -421,7 +426,7 @@ FORM reportBackSheet 'Оборотная ведомость'
     
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
-    PROPERTIES(st, df, dt) printListBackSheet, printBackSheet
+    PROPERTIES(st, df, dt) printListBackSheet, xlsListBackSheet, printBackSheet, xlsBackSheet
     PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
 
     FILTERGROUP include FILTER 'Отмеченные' includeGroupTypeSku(gt, s) DEFAULT 
@@ -470,7 +475,9 @@ DESIGN reportBackSheet {
                     type = CONTAINERH;
                     caption = 'Печать';
                     MOVE PROPERTY(printListBackSheet(st,df,dt));
+                    MOVE PROPERTY(xlsListBackSheet(st,df,dt));
                     MOVE PROPERTY(printBackSheet(st,df,dt));
+                    MOVE PROPERTY(xlsBackSheet(st,df,dt));
                 }
                 MOVE s.box;
                 PROPERTY(balanceBSkuStockDate(s, st, df)){caption = 'Остаток на начало периода';}
