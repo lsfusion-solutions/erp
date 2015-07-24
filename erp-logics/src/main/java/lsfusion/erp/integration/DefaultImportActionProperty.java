@@ -7,10 +7,10 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,16 +33,18 @@ public class DefaultImportActionProperty extends DefaultIntegrationActionPropert
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
+    protected Time defaultTimeFrom = new Time(0, 0, 0);
+    protected Time defaultTimeTo = new Time(23, 59, 59);
 
+    private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
     protected BigDecimal VATifAllowed(BigDecimal VAT) {
         return VAT == null || !allowedVAT.contains(VAT.doubleValue()) ? null : VAT;
     }
 
     protected List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
+        List<List<Object>> data = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
+            data.add(new ArrayList<>());
         }
         return data;
     }
