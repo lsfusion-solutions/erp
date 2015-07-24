@@ -446,21 +446,26 @@ calcSaleSkuParamsInterval 'Рассчитать продажи в день и т
     IF turnoverSkuSnapshot(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
     
         LOCAL daysOnStock = INTEGER (Sku, Stock);
-        LOCAL balance = NUMERIC[16,2] (Sku, Stock);
+        LOCAL balance = NUMERIC[16,5] (Sku, Stock);
+        LOCAL quantity = NUMERIC[16,2] (Sku, Stock);
         LOCAL cumBalance = NUMERIC[16,2] (Sku, Stock);
         LOCAL dateCur = DATE();    
     
         dateCur() <- dateFrom;
+        quantity(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND balanceBSkuStockDate(sku, stock, dateFrom);
         balance(sku, stock) <- sumBSkuStockDate(sku, stock, dateFrom) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND sumBSkuStockDate(sku, stock, dateFrom);
         daysOnStock(sku, stock) <- NULL;
         
         WHILE dateCur() <= dateTo DO {
-            daysOnStock(sku, stock) <- daysOnStock(sku, stock) (+) (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))) 
+            daysOnStock(sku, stock) <- daysOnStock(sku, stock) (+) (1 IF ((quantity(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))) 
                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND 
-                       (daysOnStock(sku, stock) (+) (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))));
+                       (daysOnStock(sku, stock) (+) (1 IF ((quantity(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))));
             cumBalance(sku, stock) <- cumBalance(sku, stock) (+) balance(sku, stock)
                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND
                              balance(sku, stock);
+            quantity(sku, stock) <- quantity(sku, stock) (+) signedQuantitySkuStockDate(sku, stock, dateCur()) 
+                       WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND
+                             signedQuantitySkuStockDate(sku, stock, dateCur());    
             balance(sku, stock) <- balance(sku, stock) (+) signedSumSkuStockDate(sku, stock, dateCur()) 
                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND
                              signedSumSkuStockDate(sku, stock, dateCur());    
