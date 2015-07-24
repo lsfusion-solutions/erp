@@ -288,7 +288,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             while (!Thread.currentThread().isInterrupted() && file.exists()) {
                 try {
                     count++;
-                    if(count>=60)
+                    if(count>=180)
                         throw Throwables.propagate(new RuntimeException(String.format("file %s has been created but not processed by server", file.getAbsolutePath())));                  
                     else
                         Thread.sleep(1000);
@@ -696,17 +696,20 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (discCardFile.exists() && flagDiscCardFile.exists()) {
                 throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));
             } else if (flagDiscCardFile.createNewFile()) {
-                machineryExchangeLogger.info("Kristal: creating DISCCARD file");
+                machineryExchangeLogger.info("Kristal: creating DISCCARD file " + discCardFile.getAbsolutePath());
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
 
                 for (DiscountCard card : discountCardList) {
-                    String record = String.format("+|%s|%s|1|%s|%s|3", card.numberDiscountCard, card.nameDiscountCard,
-                            card.percentDiscountCard == null ? 0 : card.percentDiscountCard.intValue(), formatCardNumber(card.numberDiscountCard));
-                    writer.println(record);
+                    boolean active = card.dateFromDiscountCard != null && startDate != null && card.dateFromDiscountCard.compareTo(startDate) >= 0;
+                    if (active) {
+                        String record = String.format("+|%s|%s|1|%s|%s|3", card.numberDiscountCard, card.nameDiscountCard,
+                                card.percentDiscountCard == null ? 0 : card.percentDiscountCard.intValue(), formatCardNumber(card.idDiscountCard));
+                        writer.println(record);
+                    }
                 }
                 writer.close();
 
-                machineryExchangeLogger.info("Kristal: waiting for deletion of DISCCARD file");
+                machineryExchangeLogger.info("Kristal: waiting for deletion of DISCCARD file " + discCardFile.getAbsolutePath());
                 waitForDeletion(discCardFile, flagDiscCardFile);
             } else {
                 throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));

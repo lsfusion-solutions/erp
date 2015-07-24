@@ -5,6 +5,7 @@ import equ.api.cashregister.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.terminal.*;
 import lsfusion.base.OrderedMap;
+import lsfusion.base.Pair;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -580,36 +581,36 @@ public class EquipmentServer {
 
         if (!requestExchangeList.isEmpty()) {
 
-            Map<String, Map<Integer, String>> handlerModelMachineryMap = new HashMap<>();
+            Map<String, Set<Pair<Integer, String>>> handlerModelMachineryMap = new HashMap<>();
             for (MachineryInfo machinery : machineryInfoList) {
                 if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
-                    handlerModelMachineryMap.put(machinery.handlerModel, new HashMap<Integer, String>());
-                handlerModelMachineryMap.get(machinery.handlerModel).put(machinery.numberGroup, machinery.directory);
+                    handlerModelMachineryMap.put(machinery.handlerModel, new HashSet<Pair<Integer, String>>());
+                handlerModelMachineryMap.get(machinery.handlerModel).add(new Pair<Integer, String>(machinery.numberGroup, machinery.directory));
             }
 
-            for (Map.Entry<String, Map<Integer, String>> entry : handlerModelMachineryMap.entrySet()) {
+            for (Map.Entry<String, Set<Pair<Integer, String>>> entry : handlerModelMachineryMap.entrySet()) {
                 String handlerModel = entry.getKey();
-                Map<Integer, String> machineryMap = entry.getValue();
+                Set<Pair<Integer, String>> machineryMap = entry.getValue();
                 if (handlerModel != null) {
                     try {
                         for (RequestExchange requestExchange : requestExchangeList) {
                             try {
-                                for (Map.Entry<Integer, String> machineryEntry : machineryMap.entrySet()) {
-                                    Integer nppGroupMachinery = machineryEntry.getKey();
-                                    String directoryGroupMachinery = machineryEntry.getValue();
+                                for (Pair<Integer, String> machineryEntry : machineryMap) {
+                                    Integer nppGroupMachinery = machineryEntry.first;
+                                    String directoryGroupMachinery = machineryEntry.second;
 
                                     MachineryHandler clsHandler = (MachineryHandler) getHandler(handlerModel, remote);
                                     boolean isCashRegisterHandler = clsHandler instanceof CashRegisterHandler;
                                     boolean isTerminalHandler = clsHandler instanceof TerminalHandler;
 
                                     if(isCashRegisterHandler) {
-                                        Set<String> directorySet = new HashSet<>(entry.getValue().values());
-                                        
+                                        if (!requestExchange.directorySet.contains(directoryGroupMachinery)) continue;
+
                                         //DiscountCard
                                         if (requestExchange.isDiscountCard()) {
                                             List<DiscountCard> discountCardList = remote.readDiscountCardList();
                                             if (discountCardList != null && !discountCardList.isEmpty())
-                                                ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange.startDate, directorySet);
+                                                ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange.startDate, requestExchange.directorySet);
                                             remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         } 
 
@@ -617,7 +618,7 @@ public class EquipmentServer {
                                         else if (requestExchange.isPromotion()) {
                                             PromotionInfo promotionInfo = remote.readPromotionInfo();
                                             if (promotionInfo != null)
-                                                ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, directorySet);
+                                                ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, requestExchange.directorySet);
                                             remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         }
                                     }
