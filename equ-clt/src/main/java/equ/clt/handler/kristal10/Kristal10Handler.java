@@ -597,7 +597,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 if (c.number != null && c.startDate != null)
                     directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
                 if (c.weightCodeGroupCashRegister != null)
-                    directoryWeightCodeMap.put(c.directory + "_" + c.number, c.weightCodeGroupCashRegister);
+                    directoryWeightCodeMap.put(c.directory + "_" + c.number + "_" + c.overDepartNumber, c.weightCodeGroupCashRegister);
             }
         }
 
@@ -647,8 +647,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             String operationType = readStringXMLAttribute(purchaseNode, "operationType");
                             Boolean isSale = operationType == null || operationType.equals("true");
                             Integer numberCashRegister = readIntegerXMLAttribute(purchaseNode, "cash");
-                            String weightCode = directoryWeightCodeMap.containsKey(directory + "_" + numberCashRegister) ?
-                                    directoryWeightCodeMap.get(directory + "_" + numberCashRegister) : "21";
                             String numberZReport = readStringXMLAttribute(purchaseNode, "shift");
                             Integer numberReceipt = readIntegerXMLAttribute(purchaseNode, "number");
                             String idEmployee = readStringXMLAttribute(purchaseNode, "tabNumber");
@@ -723,6 +721,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 String departNumber = null;
                                 for (Object positionEntryNode : positionEntryList) {
 
+                                    if (departNumber == null)
+                                        departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
+
+                                    String weightCode = directoryWeightCodeMap.containsKey(directory + "_" + numberCashRegister + "_" + departNumber) ?
+                                            directoryWeightCodeMap.get(directory + "_" + numberCashRegister + "_" + departNumber) : "21";
+
                                     String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
 
                                     //обнаруживаем продажу сертификатов
@@ -745,8 +749,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
                                     //discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
                                     Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
-                                    if (departNumber == null)
-                                        departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
 
                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
