@@ -35,6 +35,7 @@ public class DefaultImportActionProperty extends DefaultIntegrationActionPropert
 
     protected Time defaultTimeFrom = new Time(0, 0, 0);
     protected Time defaultTimeTo = new Time(23, 59, 59);
+    protected Date defaultDateFrom = new Date(2001 - 1900, 0, 1);
 
     private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
     protected BigDecimal VATifAllowed(BigDecimal VAT) {
