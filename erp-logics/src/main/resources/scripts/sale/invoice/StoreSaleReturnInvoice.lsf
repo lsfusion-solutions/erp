@@ -1,0 +1,61 @@
+MODULE StoreSaleReturnInvoice;
+
+REQUIRE SaleReturnInvoice, Store;
+
+NAMESPACE SaleReturn;
+
+// --------------------- НДС расчетный ----------------------- //
+dateSaleInvoice 'Дата продажи' = ABSTRACT DATE (Invoice) IN documentPrm;
+dateSaleUserInvoice 'Дата продажи' = DATA DATE (UserInvoice) IN documentPrm;
+dateSaleInvoice (invoice) += dateSaleUserInvoice(invoice);
+
+WHEN SESSION SET(o IS UserInvoice) DO {
+    IF o IS UserInvoice AND NOT dateSaleUserInvoice(o) THEN dateSaleUserInvoice(o) <- currentDate();
+}
+
+showDateSaleOperation 'Показывать дату продажи' = DATA BOOLEAN (Sale.Operation);
+
+EXTEND FORM Sale.operation
+    PROPERTIES (o) showDateSaleOperation
+;
+
+DESIGN Sale.operation {
+    showContainer {
+        MOVE PROPERTY(showDateSaleOperation(o));
+    }    
+}
+
+showDateSaleUserInvoice = showDateSaleOperation(operationUserInvoice(invoice));
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) dateSaleUserInvoice SHOWIF showDateSaleUserInvoice(i)
+;
+
+VATInvoice = ABSTRACT Range(Invoice);
+numberVATInvoice 'НДС расч.' (invoice) = numberRange(VATInvoice(invoice)) IN documentPrm;
+
+VATUserInvoice = DATA Range(UserInvoice);
+numberVATUserInvoice 'НДС расч.' (userInvoice) = numberRange(VATUserInvoice(userInvoice)) IN documentPrm;
+valueVATUserInvoice 'НДС расч.' (userInvoice) = valueRateRangeDate (VATUserInvoice(userInvoice),  dateSaleUserInvoice(userInvoice)) IN documentPrm;
+VATInvoice (invoice) += VATUserInvoice(invoice);
+
+CONSTRAINT taxRange(VATUserInvoice(userInvoice)) != Tax.taxVAT OR
+           countryRange(VATUserInvoice(userInvoice)) != countryStock(supplierStockInvoice(userInvoice)) OR
+           rangeTypeRange(VATUserInvoice(userInvoice)) != RangeType.units
+           CHECKED BY VATUserInvoice
+           MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: продажа';
+
+useCountVATOperationuserInvoice = useCountVATOperation(operationUserInvoice(invoice));
+
+VATUserInvoice (userInvoice) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserInvoice(userInvoice)))
+        IF useCountVATOperationuserInvoice(userInvoice)
+        WHEN CHANGED(supplierStockUserInvoice(userInvoice));
+
+//@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
+
+over2VATUserInvoiceDetail (d) += VATUserInvoice(userInvoiceUserInvoiceDetail(d));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) numberVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i), valueVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i);
+;
+

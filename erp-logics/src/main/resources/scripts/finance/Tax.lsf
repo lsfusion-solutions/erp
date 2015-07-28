@@ -96,13 +96,13 @@ dateFromRate 'Действует с' = DATA DATE (Rate) IN base INDEXED;
 valueRateRangeDate 'На дату' (range, date) =
                              GROUP LAST valueRate(rate)
                                    BY rangeRate(rate), date
-                                   ORDER rate
+                                   ORDER dateFromRate(rate), rate
                                    WHERE dateFromRate(rate) <= date COMPLEX;
 
 dateFromRateRangeDate 'Действует (с)' (range, date) =
                              GROUP LAST dateFromRate(rate)
                                    BY rangeRate(rate), date
-                                   ORDER rate
+                                   ORDER dateFromRate(rate), rate
                                    WHERE dateFromRate(rate) <= date COMPLEX;
 
 valueCurrentRateRange 'Действующая ставка' (range) = valueRateRangeDate(range, currentDate()) IN base PERSISTENT;
@@ -137,6 +137,7 @@ FORM tax 'Налог'
     OBJECTS           rt=Rate
     PROPERTIES(rt)    valueRate, dateFromRate, createdTimeRate, createdNameUserRate, ADDOBJ, DELETESESSION
     FILTERS           rangeRate(rt) == ra
+    ORDER BY dateFromRate(rt)
 
     TREE treeTaxUnit  a=STRING[3], ug = TaxUnitGroup PARENT parentTaxUnitGroup
     PROPERTIES READONLY OBJVALUE(a), nameTaxUnitGroup(ug)
