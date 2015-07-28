@@ -781,6 +781,30 @@ NAVIGATOR {
 
 // ---------------------------- Создание PriceList ----------------------------------- //
 
+changeSupplierPriceOperation 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) changeSupplierPriceOperation
+;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(changeSupplierPriceOperation(o));
+    }
+} 
+
+changeSupplierPriceRepricing 'Проводить по регистру изменение цены поставщика' = ABSTRACT BOOLEAN (Repricing) PERSISTENT;
+changeSupplierPriceUserRepricing 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (UserRepricing) IN documentPrm;
+changeSupplierPriceRepricing(r) += changeSupplierPriceUserRepricing(r);
+
+changeSupplierPriceRepricingDetail 'Проводить по регистру изменение цены поставщика' = changeSupplierPriceRepricing(repricingRepricingDetail(d)) PERSISTENT;
+changeSupplierPriceUserRepricingDetail 'Проводить по регистру изменение цены поставщика' = changeSupplierPriceUserRepricing(userRepricingUserRepricingDetail(d)) PERSISTENT;
+
+@deriveDocumentOperationProperty(UserRepricing, changeSupplierPrice);
+
+showChangeSupplierPriceUserRepricing (r) = r IS UserRepricing AND NOT skipChangeLedgerUserRepricing(r);
+EXTEND FORM userRepricing
+    PROPERTIES (p) changeSupplierPriceUserRepricing SHOWIF showChangeSupplierPriceUserRepricing(p) AFTER skipChangeLedgerUserRepricing(p)
+; 
+
 EXTEND CLASS RepricingDetail : PriceListLedger;
 
 fromDateTimePriceListLedger (ledger) += dateTimeRepricingDetail(ledger);
@@ -793,8 +817,8 @@ inPriceListLedgerBatch (ledger, batch) += batchRepricingDetail(ledger) == batch;
 
 descriptionPriceListLedger (ledger) += descriptionRepricingDetail(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN priceRepricingDetail(ledger);
+inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN changeSupplierPriceRepricingDetail(ledger);
+pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType AND changeSupplierPriceRepricingDetail(ledger) THEN priceRepricingDetail(ledger);
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPriceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPriceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPriceRepricingDetail(ledger);
