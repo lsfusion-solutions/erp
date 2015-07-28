@@ -1026,11 +1026,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 idItemGroup += id + "|";
             }
         }
-        for (int i = hierarchyItemGroup.size(); i < (type3 ? 2 : 5); i++) {
+        for (int i = hierarchyItemGroup.size(); i < 5; i++) {
             idItemGroup += "0|";
         }
         if(type3 && idItemGroup.isEmpty()) {
-            idItemGroup = "0|0";
+            idItemGroup = "0|0|0|0|0";
         } else
             idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
         return idItemGroup;
