@@ -22,7 +22,7 @@ nameStatisticGroupTypeStatisticReportType 'Тип классификатора' 
 
 //------------------------------ Строки -------------------------------//
 
-nameStatisticReportTypeDetail 'Примечание' = DATA VARISTRING[255] (StatisticReportTypeDetail);
+nameStatisticReportTypeDetail 'Наименование' = DATA VARISTRING[255] (StatisticReportTypeDetail);
 nameUOMStatisticReportTypeDetail 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportTypeDetail);
 isIntegerStatisticReportTypeDetail 'Целое' = DATA BOOLEAN (StatisticReportTypeDetail);
 
@@ -34,7 +34,9 @@ CONSTRAINT statisticGroupStatisticReportTypeDetail(d) AND statisticGroupTypeStat
     AND NOT groupTypeStatisticGroup(statisticGroupStatisticReportTypeDetail(d)) == statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReportTypeDetail(d))
     CHECKED BY statisticGroupStatisticReportTypeDetail
     MESSAGE 'Для строки типа статистического отчета выбрана группа, которая не соответствует выбранному классификатору.';
-    
+
+numberStatisticReportTypeDetail 'Код строки' = DATA STRING[10] (StatisticReportTypeDetail);    
+
 FORM statisticReportType 'Тип статистического отчета'
 
     OBJECTS r = StatisticReportType FIXED PANEL
@@ -43,7 +45,7 @@ FORM statisticReportType 'Тип статистического отчета'
     PROPERTIES (r) countStatisticReportTypeDetailStatisticReportType
 
     OBJECTS d = StatisticReportTypeDetail
-    PROPERTIES (d) indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
+    PROPERTIES (d) indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, numberStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
                    sidStatisticGroupStatisticReportTypeDetail, nameUOMStatisticReportTypeDetail, isIntegerStatisticReportTypeDetail
                 
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION    
@@ -75,7 +77,7 @@ DESIGN statisticReportType {
             }
         }
         MOVE functions.box;
-
+        PROPERTY (indexStatisticReportTypeDetail(d)) {caption ='Порядок';}
     }
 }
 
@@ -89,7 +91,7 @@ FORM statisticReportTypes 'Типы статистических отчетов'
     PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReportType, createdTimeStatisticReportType, createdHostnameComputerStatisticReportType 
         
     OBJECTS d = StatisticReportTypeDetail
-    PROPERTIES (d) READONLY indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
+    PROPERTIES (d) READONLY indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, numberStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
                    sidStatisticGroupStatisticReportTypeDetail, nameUOMStatisticReportTypeDetail, isIntegerStatisticReportTypeDetail 
     ORDER BY indexStatisticReportTypeDetail(d)
 
@@ -133,6 +135,7 @@ DESIGN statisticReportTypes {
                 }
             }
         }
+        PROPERTY (indexStatisticReportTypeDetail(d)) {caption ='Порядок';}
     }
 }
 
@@ -177,9 +180,10 @@ nameStatisticReportTypeStatisticReport 'Тип отчета' = nameStatisticRepo
 @defineDocumentDialogStocks(statisticReport, stock, company, , );
 //------------------------------ Строки -------------------------------//
 
-nameStatisticReportDetail 'Примечание' = DATA VARISTRING[255] (StatisticReportDetail);
+nameStatisticReportDetail 'Наименование' = DATA VARISTRING[255] (StatisticReportDetail);
 nameUOMStatisticReportDetail 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportDetail);
 isIntegerStatisticReportDetail 'Целое' = DATA BOOLEAN (StatisticReportDetail);
+numberStatisticReportDetail 'Код строки' = DATA STRING[10] (StatisticReportDetail);
 
 statisticGroupStatisticReportDetail  = DATA StatisticGroup (StatisticReportDetail);
 nameStatisticGroupStatisticReportDetail 'Наименование группы' = nameStatisticGroup(statisticGroupStatisticReportDetail(d));
@@ -235,6 +239,7 @@ changeStatisticReportTypeStatisticReport (r) = ACTION (r) {
             indexStatisticReportDetail(d) <- indexStatisticReportTypeDetail(detail);
             
             indexStatisticReportDetail(d) <- indexStatisticReportTypeDetail(detail);
+            numberStatisticReportDetail(d) <-numberStatisticReportTypeDetail(detail);
             nameStatisticReportDetail(d) <- nameStatisticReportTypeDetail(detail);
             statisticGroupStatisticReportDetail(d) <- statisticGroupStatisticReportTypeDetail(detail);
             nameUOMStatisticReportDetail(d) <- nameUOMStatisticReportTypeDetail(detail);
@@ -254,7 +259,7 @@ FORM statisticReport 'Статистический отчет'
     PROPERTIES (r) countStatisticReportDetailStatisticReport
 
     OBJECTS d = StatisticReportDetail
-    PROPERTIES (d) indexStatisticReportDetail, nameStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
+    PROPERTIES (d) indexStatisticReportDetail, nameStatisticReportDetail, numberStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
                    sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail,
                    soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail  
                 
@@ -276,7 +281,7 @@ DESIGN statisticReport {
         preferredSize = (1024, 768);
         NEW header.box {
             type = CONTAINERH;
-
+            PROPERTY (indexStatisticReportDetail(d)) {caption ='Порядок';}
             NEW headerParams {
                 fill = 1;
                 type = CONTAINERV;
@@ -334,7 +339,7 @@ FORM statisticReportPrint '4-торг (продажа)'
     PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReport, createdTimeStatisticReport, createdHostnameComputerStatisticReport 
         
     OBJECTS d = StatisticReportDetail
-    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
+    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, numberStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
                    sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail, 
                    soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail 
     ORDER BY indexStatisticReportDetail(d)
@@ -357,7 +362,7 @@ FORM statisticReports 'Статистические отчеты'
     PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReport, createdTimeStatisticReport, createdHostnameComputerStatisticReport 
         
     OBJECTS d = StatisticReportDetail
-    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
+    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, numberStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
                    sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail, 
                    soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail 
     ORDER BY indexStatisticReportDetail(d)
@@ -403,6 +408,7 @@ DESIGN statisticReports {
                 }
             }
         }
+        PROPERTY (indexStatisticReportDetail(d)) {caption ='Порядок';}
     }
 }
 
