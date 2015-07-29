@@ -104,7 +104,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     File pluFile = new File(exchangeDirectory + "plu.txt");
                     File flagPluFile = new File(exchangeDirectory + "WAITPLU");
                     if (pluFile.exists() && flagPluFile.exists()) {
-                        throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
+                        throw new RuntimeException(String.format("files %s and %s already exists. Maybe there are some problems with server", pluFile.getAbsolutePath(), flagPluFile.getAbsolutePath()));
                     } else if (flagPluFile.createNewFile()) {
                         processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
                         PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
