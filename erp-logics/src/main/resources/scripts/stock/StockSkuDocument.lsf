@@ -414,7 +414,8 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                    object###detail(d) <- object;
-                   stockProp###stock###detail (d) <- stock;
+//                  Пока работаем с одним складом                   
+//                   stockProp###stock###detail (d) <- stock;
                    skuProp###detail(d) <- sku;
                    quantity###detail (d) <- requestedNumeric();
                    overChangeQuantityValueSku###object##Detail(d);
@@ -469,10 +470,12 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
 
         FILTERS           isParentSkuGroupSku(sk, ks),
-                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
-                          st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
-                          legalEntityStock(st) == legalEntityProp###object(concrete),
-                          activeStock(st)
+                          // пока отключаем работу по многим складам, а то люди путаются
+//                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
+//                          st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
+//                          legalEntityStock(st) == legalEntityProp###object(concrete),
+//                          activeStock(st)
+                          st == stockProp###stock###object(concrete)
 
         FILTERS           nameSku(ks)
         ORDER BY          nameSku(ks)
@@ -586,7 +589,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
-                    stockProp###stock###detail (d) <- stock;
+//                    stockProp###stock###detail (d) <- stock;
                     skuProp###detail(d) <- skuBatch(batch);
                     batchProp###detail(d) <- batch;
                     quantity###detail (d) <- requestedNumeric();
