@@ -132,12 +132,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             addStringElement(barcode, "default-code", "true");
                             good.addContent(barcode);
 
-                            String productType;
-                            if (item.passScalesItem)
-                                productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
-                            else
-                                productType = (item.flags == null || ((item.flags & 256) == 0)) ? "ProductPieceEntity" : "ProductSpiritsEntity";
-                            addStringElement(good, "product-type", productType);
+                            addProductType(good, item);
 
                             if(item.splitItem && !item.passScalesItem) {
                                 Element pluginProperty = new Element("plugin-property");
@@ -229,6 +224,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
         processTransactionLogger.info(String.format("Kristal10: starting to wait for deletion %s files", fileMap.size()));
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
+    }
+
+    private void addProductType(Element good, ItemInfo item) {
+        String productType;
+        if (item.passScalesItem)
+            productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
+        else
+            productType = (item.flags == null || ((item.flags & 256) == 0)) ? "ProductPieceEntity" : "ProductSpiritsEntity";
+        addStringElement(good, "product-type", productType);
     }
 
     private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap, Set<Integer> emptyTransactionSet) {
@@ -499,6 +503,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     idBarcode = transformBarcode(idBarcode, null, false);
                     setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     addStringElement(good, "name", item.name);
+
+                    addProductType(good, item);
+
                     rootElement.addContent(good);
 
                     if (useShopIndices) {
