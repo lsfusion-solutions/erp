@@ -117,7 +117,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 String idItemGroup = importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0" :
                                         importGroupType.equals(1) ? makeIdItemGroup(hierarchyItemGroup, false)
                                         : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
-                                        : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size(), 3)), true) : "";
+                                        : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
                                 boolean isWeightItem = item.passScalesItem && item.splitItem;
                                 Object code = useIdItem ? item.idItem : item.idBarcode;
                                 String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
@@ -1016,13 +1016,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3) {
         String idItemGroup = "";
-        for (int i = 0; i < hierarchyItemGroup.size(); i++) {
-            String id = hierarchyItemGroup.get(i).idItemGroup;
-            if(id == null) id = "0";
-            if(type3) {
+        if (type3) {
+            for (int i = hierarchyItemGroup.size() - 1; i >=0 ; i--) {
+                String id = hierarchyItemGroup.get(i).idItemGroup;
+                if (id == null) id = "0";
                 String[] splitted = id.split("_");
                 idItemGroup += splitted[(Math.min(splitted.length, 2) - 1)] + "|";
-            } else {
+            }
+        } else {
+            for (int i = 0; i < hierarchyItemGroup.size(); i++) {
+                String id = hierarchyItemGroup.get(i).idItemGroup;
+                if (id == null) id = "0";
                 idItemGroup += id + "|";
             }
         }
