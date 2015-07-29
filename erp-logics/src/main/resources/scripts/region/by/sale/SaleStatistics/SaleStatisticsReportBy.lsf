@@ -1,0 +1,418 @@
+MODULE SaleStatisticsReportBy;
+
+REQUIRE SaleStatistics;
+
+NAMESPACE Sale;
+
+
+////////////////////// Тип отчета ////////////////////////////
+
+CLASS StatisticReportType 'Тип статистического отчета';
+CLASS StatisticReportTypeDetail 'Строка типа статистического отчета';
+
+nameStatisticReportType 'Наименование' = DATA VARISTRING[255] (StatisticReportType) MINCHARWIDTH 20 PREFCHARWIDTH 30 IN documentPrm;
+@defineDocument(statisticReportType);
+@deriveDocumentHeaderTimePrefix(StatisticReportType, );
+
+
+@deriveDocumentHeaderTimePrefix(StatisticReportType, );
+
+statisticGroupTypeStatisticReportType = DATA StatisticGroupType (StatisticReportType) AUTOSET NOT NULL DELETE;
+nameStatisticGroupTypeStatisticReportType 'Тип классификатора' = nameStatisticGroupType(statisticGroupTypeStatisticReportType(r)) IN documentPrm;
+
+//------------------------------ Строки -------------------------------//
+
+nameStatisticReportTypeDetail 'Примечание' = DATA VARISTRING[255] (StatisticReportTypeDetail);
+nameUOMStatisticReportTypeDetail 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportTypeDetail);
+isIntegerStatisticReportTypeDetail 'Целое' = DATA BOOLEAN (StatisticReportTypeDetail);
+
+statisticGroupStatisticReportTypeDetail  = DATA StatisticGroup (StatisticReportTypeDetail);
+nameStatisticGroupStatisticReportTypeDetail 'Наименование группы' = nameStatisticGroup(statisticGroupStatisticReportTypeDetail(d));
+sidStatisticGroupStatisticReportTypeDetail 'Код группы' = sidStatisticGroup(statisticGroupStatisticReportTypeDetail(d));
+
+CONSTRAINT statisticGroupStatisticReportTypeDetail(d) AND statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReportTypeDetail(d)) 
+    AND NOT groupTypeStatisticGroup(statisticGroupStatisticReportTypeDetail(d)) == statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReportTypeDetail(d))
+    CHECKED BY statisticGroupStatisticReportTypeDetail
+    MESSAGE 'Для строки типа статистического отчета выбрана группа, которая не соответствует выбранному классификатору.';
+    
+FORM statisticReportType 'Тип статистического отчета'
+
+    OBJECTS r = StatisticReportType FIXED PANEL
+    PROPERTIES (r) nameStatisticReportType, noteStatisticReportType,  nameStatisticGroupTypeStatisticReportType               
+                
+    PROPERTIES (r) countStatisticReportTypeDetailStatisticReportType
+
+    OBJECTS d = StatisticReportTypeDetail
+    PROPERTIES (d) indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
+                   sidStatisticGroupStatisticReportTypeDetail, nameUOMStatisticReportTypeDetail, isIntegerStatisticReportTypeDetail
+                
+    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION    
+    
+    ORDER BY indexStatisticReportTypeDetail(d)
+
+    PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetailStatisticReportType
+    
+    FILTERS statisticReportTypeStatisticReportTypeDetail(d) == r
+
+    EDIT StatisticReportType OBJECT r
+;
+
+DESIGN statisticReportType {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+
+            MOVE r.documentPrm;            
+            MOVE r.documentSum {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
+            fill = 1;
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+        }
+        MOVE functions.box;
+
+    }
+}
+
+FORM statisticReportTypes 'Типы статистических отчетов'
+
+    OBJECTS r = StatisticReportType 
+    PROPERTIES (r) READONLY nameStatisticReportType, nameStatisticGroupTypeStatisticReportType, noteStatisticReportType   
+                
+    PROPERTIES (r) READONLY countStatisticReportTypeDetailStatisticReportType
+    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReportType, createdTimeStatisticReportType, createdHostnameComputerStatisticReportType 
+        
+    OBJECTS d = StatisticReportTypeDetail
+    PROPERTIES (d) READONLY indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
+                   sidStatisticGroupStatisticReportTypeDetail, nameUOMStatisticReportTypeDetail, isIntegerStatisticReportTypeDetail 
+    ORDER BY indexStatisticReportTypeDetail(d)
+
+    FILTERS statisticReportTypeStatisticReportTypeDetail(d) == r
+                
+    DIALOG StatisticReportType OBJECT r
+;
+DESIGN statisticReportTypes {
+    main {
+        preferredSize = (1024, 768);
+        PROPERTY (deleter) {
+            askConfirm = TRUE;
+        }
+
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE r.box;    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE r.created;                       
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+//////////////////////Отчет ////////////////////////////
+
+CLASS StatisticReport 'Статистический отчет';
+CLASS StatisticReportDetail 'Строка статистического отчета';
+
+nameStatisticReport 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+@defineDocument(statisticReport);
+@deriveDocumentHeaderTimePrefix(StatisticReport, );
+
+
+@deriveDocumentHeaderTimePrefix(StatisticReport, );
+@defineDocumentHeaderNumber(StatisticReport);
+@defineNumeratedDefault(StatisticReport, 'Статистический отчет', 'СО');
+@defineDocumentHeaderDescription (StatisticReport, 'Статистический отчет');
+
+fromDateStatisticReport 'Дата с' = DATA DATE (StatisticReport) IN documentHeader;
+toDateStatisticReport 'Дата по' = DATA DATE (StatisticReport) IN documentHeader;
+
+fromDateStatisticReportDetail 'Дата с' = fromDateStatisticReport(statisticReportStatisticReportDetail(d));
+toDateStatisticReportDetail 'Дата по' = toDateStatisticReport(statisticReportStatisticReportDetail(d));
+
+startTimeStatisticReport 'Время начала формирования' = DATA DATETIME (StatisticReport) IN created;
+finishTimeStatisticReport 'Время окончания формирования' = DATA DATETIME (StatisticReport) IN created;
+
+WHEN SESSION SET(o IS StatisticReport) DO {
+    IF o IS StatisticReport AND NOT fromDateStatisticReport(o) THEN fromDateStatisticReport(o) <- currentDate();
+    IF o IS StatisticReport AND NOT toDateStatisticReport(o) THEN toDateStatisticReport(o) <- currentDate();
+};
+
+statisticGroupTypeStatisticReport = DATA StatisticGroupType (StatisticReport) AUTOSET NOT NULL DELETE;
+nameStatisticGroupTypeStatisticReport 'Тип классификатора' = nameStatisticGroupType(statisticGroupTypeStatisticReport(r)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+statisticReportTypeStatisticReport = DATA StatisticReportType (StatisticReport);
+nameStatisticReportTypeStatisticReport 'Тип отчета' = nameStatisticReportType(statisticReportTypeStatisticReport(r));
+
+@defineDocumentDataStock(statisticReport, stock, 'Склад', );
+@defineDocumentDialogStocks(statisticReport, stock, company, , );
+//------------------------------ Строки -------------------------------//
+
+nameStatisticReportDetail 'Примечание' = DATA VARISTRING[255] (StatisticReportDetail);
+nameUOMStatisticReportDetail 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportDetail);
+isIntegerStatisticReportDetail 'Целое' = DATA BOOLEAN (StatisticReportDetail);
+
+statisticGroupStatisticReportDetail  = DATA StatisticGroup (StatisticReportDetail);
+nameStatisticGroupStatisticReportDetail 'Наименование группы' = nameStatisticGroup(statisticGroupStatisticReportDetail(d));
+sidStatisticGroupStatisticReportDetail 'Код группы' = sidStatisticGroup(statisticGroupStatisticReportDetail(d));
+
+CONSTRAINT statisticGroupStatisticReportDetail(d) AND statisticGroupTypeStatisticReport(statisticReportStatisticReportDetail(d)) 
+    AND NOT groupTypeStatisticGroup(statisticGroupStatisticReportDetail(d)) == statisticGroupTypeStatisticReport(statisticReportStatisticReportDetail(d))
+    CHECKED BY statisticGroupStatisticReportDetail
+    MESSAGE 'Для строки статистического отчета выбрана группа, которая не соответствует выбранному классификатору.';
+    
+soldStatisticReportDetail 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+soldResidentStatisticReportDetail 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
+balanceStatisticReportDetail 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+balanceResidentStatisticReportDetail 'Запас отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
+
+
+fillDataStatisticReport 'Заполнить данные' = ACTION (report) {
+    soldStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
+    soldResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
+    balanceStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;    
+    balanceResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
+    
+    FOR statisticGroupStatisticReportDetail(d) AND  statisticReportStatisticReportDetail(d) == report DO {
+    
+        soldStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
+            THEN NUMERIC[16,2](INTEGER(valueByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d))))
+            ELSE NUMERIC[16,2](valueByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d)));
+            
+        soldResidentStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
+            THEN NUMERIC[16,2](INTEGER (valueResidentByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d))))
+            ELSE NUMERIC[16,2](valueResidentByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d)));
+        
+        balanceStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
+            THEN NUMERIC[16,2](INTEGER (valueByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d))))
+            ELSE NUMERIC[16,2](valueByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d)));
+        
+        balanceResidentStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
+            THEN NUMERIC[16,2](INTEGER(valueResidentByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d))))
+            ELSE NUMERIC[16,2](valueResidentByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d)));
+    }                                                                                                                                                  
+}
+
+changeStatisticReportTypeStatisticReport (r) = ACTION (r) {
+    FORM statisticReportTypes DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN { 
+        statisticReportTypeStatisticReport(r) <- chosenObject('r');
+        nameStatisticReport(r) <- nameStatisticReportType(statisticReportTypeStatisticReport(r));
+        statisticGroupTypeStatisticReport(r) <- statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReport(r));     
+        DELETE d WHERE statisticReportStatisticReportDetail(d) ==r;
+        
+        FOR statisticReportTypeStatisticReport(r) == statisticReportTypeStatisticReportTypeDetail(detail) ADDOBJ d = StatisticReportDetail DO {
+            statisticReportStatisticReportDetail(d) <-r;
+            indexStatisticReportDetail(d) <- indexStatisticReportTypeDetail(detail);
+            
+            indexStatisticReportDetail(d) <- indexStatisticReportTypeDetail(detail);
+            nameStatisticReportDetail(d) <- nameStatisticReportTypeDetail(detail);
+            statisticGroupStatisticReportDetail(d) <- statisticGroupStatisticReportTypeDetail(detail);
+            nameUOMStatisticReportDetail(d) <- nameUOMStatisticReportTypeDetail(detail);
+            isIntegerStatisticReportDetail(d) <- isIntegerStatisticReportTypeDetail(detail);            
+        }               
+    }
+}
+
+FORM statisticReport 'Статистический отчет'
+
+    OBJECTS r = StatisticReport FIXED PANEL
+    PROPERTIES (r) nameStatisticReport, nameStockStatisticReport ON CHANGE changeStockCompanyStatisticReport(r),  nameNumeratorStatisticReport, 
+                   nameStatisticReportTypeStatisticReport ON CHANGE changeStatisticReportTypeStatisticReport(r),
+                   numberStatisticReport, seriesStatisticReport, dateStatisticReport, timeStatisticReport,
+                   noteStatisticReport, fromDateStatisticReport, toDateStatisticReport, nameStatisticGroupTypeStatisticReport               
+                
+    PROPERTIES (r) countStatisticReportDetailStatisticReport
+
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) indexStatisticReportDetail, nameStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
+                   sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail,
+                   soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail  
+                
+    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
+    
+    PROPERTIES(r)  fillDataStatisticReport FORCE PANEL TOOLBAR TODRAW d  
+    
+    ORDER BY indexStatisticReportDetail(d)
+
+    PROPERTIES(r) TODRAW d deleteStatisticReportDetailStatisticReport
+    
+    FILTERS statisticReportStatisticReportDetail(d) == r
+
+    EDIT StatisticReport OBJECT r
+;
+
+DESIGN statisticReport {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+
+            NEW headerParams {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE r.documentHeader {
+                    type = CONTAINERV;
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameStatisticReportTypeStatisticReport(r));
+                        MOVE PROPERTY(nameStatisticReport(r));
+                        MOVE PROPERTY(fromDateStatisticReport(r));
+                        MOVE PROPERTY(toDateStatisticReport(r));
+                        MOVE PROPERTY(nameStockStatisticReport(r));
+                    }
+                    NEW second { 
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameNumeratorStatisticReport(r));
+                        MOVE PROPERTY(numberStatisticReport(r));
+                        MOVE PROPERTY(seriesStatisticReport(r));
+                        MOVE PROPERTY(dateStatisticReport(r));
+                        MOVE PROPERTY(timeStatisticReport(r));
+                    }   
+
+                                                                                                                   
+                }
+                MOVE r.documentPrm;
+            }
+            MOVE r.documentSum {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
+            fill = 1;
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+        }
+        MOVE functions.box;
+
+    }
+}
+
+fromMonthStatisticReport = extractMonthName(fromDateStatisticReport(r));
+toMonthStatisticReport = extractMonthName(toDateStatisticReport(r));
+
+FORM statisticReportPrint '4-торг (продажа)'
+
+    OBJECTS r = StatisticReport FIXED PANEL 
+    PROPERTIES (r) READONLY nameStatisticReport, nameStockStatisticReport,  fullNameLegalEntityStockStatisticReport, 
+                   addressLegalEntityStockStatisticReport, addressStockStatisticReport,
+                   noteStatisticReport, fromDateStatisticReport, toDateStatisticReport,   
+                   fromMonthStatisticReport, toMonthStatisticReport
+                
+    PROPERTIES (r) READONLY countStatisticReportDetailStatisticReport
+    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReport, createdTimeStatisticReport, createdHostnameComputerStatisticReport 
+        
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
+                   sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail, 
+                   soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail 
+    ORDER BY indexStatisticReportDetail(d)
+
+    FILTERS statisticReportStatisticReportDetail(d) == r
+;
+statisticReportPrint '4-торг (продажа)' (r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT  IMAGE 'print.png' IN print;   
+
+
+FORM statisticReports 'Статистические отчеты'
+
+    OBJECTS r = StatisticReport 
+    PROPERTIES (r) READONLY nameStatisticReport, nameStockStatisticReport,  nameNumeratorStatisticReport, 
+                   numberStatisticReport, seriesStatisticReport, dateStatisticReport, timeStatisticReport,
+                   noteStatisticReport, fromDateStatisticReport, toDateStatisticReport, nameStatisticGroupTypeStatisticReport   
+
+                
+    PROPERTIES (r) READONLY countStatisticReportDetailStatisticReport
+    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReport, createdTimeStatisticReport, createdHostnameComputerStatisticReport 
+        
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
+                   sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail, 
+                   soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail 
+    ORDER BY indexStatisticReportDetail(d)
+    PROPERTIES statisticReportPrint(r) FORCE PANEL 
+    FILTERS statisticReportStatisticReportDetail(d) == r
+                
+    DIALOG StatisticReport OBJECT r
+;
+DESIGN statisticReports {
+    main {
+        preferredSize = (1024, 768);
+        PROPERTY (deleter) {
+            askConfirm = TRUE;
+        }
+
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE r.box;    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE r.created;                       
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                        MOVE r.print;
+                    }
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    statisticsNavigator {
+        NEW statisticsReports 'Отчеты' {
+            ADD statisticReportTypes;
+            ADD statisticReports;        
+        }
+
+    }    
+}
+
