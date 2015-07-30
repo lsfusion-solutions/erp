@@ -86,6 +86,24 @@ dataAccessCustomerEmployee 'Доступ разрешен (покупатель)
 dataAccessCustomerStockEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Stock, Employee);
 dataAccessCustomerStockGroupEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (StockGroup, Employee);
 
+overCopyEmployee(e,employee) += ACTION {
+    dataAccessCompanyEmployee(e) <- dataAccessCompanyEmployee(employee); 
+    dataAccessSupplierEmployee(e) <- dataAccessSupplierEmployee(employee); 
+    dataAccessCustomerEmployee(e) <- dataAccessCustomerEmployee(employee); 
+    dataStockEmployee(e) <- dataStockEmployee(employee); 
+               
+    inStockEmployee(l,e) <- inStockEmployee(l,employee) WHERE inStockEmployee(l,employee);       
+       
+    dataAccessCompanyStockEmployee(l,e) <- dataAccessCompanyStockEmployee(l,employee) WHERE dataAccessCompanyStockEmployee(l,employee);
+    dataAccessCompanyStockGroupEmployee(lg,e) <- dataAccessCompanyStockGroupEmployee(lg,employee) WHERE dataAccessCompanyStockGroupEmployee(lg,employee);
+    
+    dataAccessSupplierStockEmployee(l,e) <- dataAccessSupplierStockEmployee(l,employee) WHERE dataAccessSupplierStockEmployee(l,employee);
+    dataAccessSupplierStockGroupEmployee(lg,e) <- dataAccessSupplierStockGroupEmployee(lg,employee) WHERE dataAccessSupplierStockGroupEmployee(lg,employee);
+    
+    dataAccessCustomerStockEmployee(l,e) <- dataAccessCustomerStockEmployee(l,employee) WHERE dataAccessCustomerStockEmployee(l,employee);
+    dataAccessCustomerStockGroupEmployee(lg,e) <- dataAccessCustomerStockGroupEmployee(lg,employee) WHERE dataAccessCustomerStockGroupEmployee(lg,employee);    
+};
+
 levelParentCustomerEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataAccessCustomerStockGroupEmployee(parent, employee)
                                                                BY employee, stockGroup PERSISTENT;
 nearestParentCustomerEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCustomerEmployeeStockGroup(employee, stockGroup));
