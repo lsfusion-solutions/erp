@@ -2,7 +2,8 @@ MODULE ReceiptProcessing;
 
 REQUIRE ZReport;
   
-diffsumPaymentReceipt 'Отклонение' = sumReceiptDetailReceipt(b) (-) sumPaymentReceipt(b);                                                                       
+diffsumPaymentReceipt 'Отклонение' = sumReceiptDetailReceipt(b) (-) sumPaymentReceipt(b);
+prevDiffsumPaymentReceipt 'Отклонение' = PREV(diffsumPaymentReceipt(b));                                                                        
    
 filterProcessingStock  = DATA LOCAL DepartmentStore ();
 nameFilterProcessingStock 'Склад' = nameStock(filterProcessingStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
@@ -15,7 +16,7 @@ FORM receiptProcessing 'Обработка чеков'
     PROPERTIES(b) READONLY nameDepartmentStoreReceipt, numberReceipt, dateTimeReceipt, nameEmployeeReceipt, overNumberCashRegisterReceipt,
                   sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
                   discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
-                  sumPaymentReceipt, diffsumPaymentReceipt
+                  sumPaymentReceipt, prevDiffsumPaymentReceipt
     ORDER BY   dateTimeReceipt(b)           
     PROPERTIES  nameFilterProcessingStock()            
     FILTERS filterStockProcessing (b),
@@ -42,7 +43,7 @@ FORM receiptProcessing 'Обработка чеков'
             ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) > sumPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) < 0 AND sumReceiptDetailReceipt(b) != sumPaymentReceipt(b)))
         FILTER  'Сумма по безналу больше суммы чека' 
             ((sumReceiptDetailReceipt(b) > 0 AND sumReceiptDetailReceipt(b) < sumCardPaymentReceipt(b)) OR (sumReceiptDetailReceipt(b) <0 AND sumReceiptDetailReceipt(b) > sumCardPaymentReceipt(b)))   
-        FILTER  'С отклонениями'  diffsumPaymentReceipt(b)  DEFAULT              
+        FILTER  'С отклонениями'  prevDiffsumPaymentReceipt(b)  DEFAULT              
                                                            
 ;
 DESIGN receiptProcessing {
