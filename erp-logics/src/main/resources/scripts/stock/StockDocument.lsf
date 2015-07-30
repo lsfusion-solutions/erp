@@ -468,3 +468,157 @@ EXTEND FORM options
     PROPERTIES documentsClosedDateStock(s)
 ;
 
+//Учетный документ проводимый только по товарному отчету
+
+CLASS UserStockDocument 'Учетный документ (польз.)';
+CLASS UserStockDocumentDetail 'Строка учетного документа (польз.)';
+
+@defineDocumentTables(userStockDocument);
+@defineDocumentHeaderTimePrefix(UserStockDocument, , ' документа');
+@deriveDocumentHeaderTimePrefix(UserStockDocument, );
+@defineDocumentHeaderNumber(UserStockDocument);
+@defineDocumentHeaderStock (userStockDocument, stock, 'Склад', );
+@defineDocumentDialogStocks(UserStockDocument, stock, company, , );
+@defineDocumentHeaderDescription(UserStockDocument, 'Учетный документ');
+
+@defineDocumentRelation(userStockDocument, UserStockDocumentDetail, );
+@defineDocumentDetailIndex(userStockDocument, UserStockDocumentDetail);
+@defineDocumentDetailNumber(userStockDocument, UserStockDocumentDetail);
+@defineDocumentDetailTimePrefix(userStockDocument, UserStockDocumentDetail, , ' документа');
+@defineDocumentDetailDataStockInner (userStockDocument, UserStockDocumentDetail, stock, Stock, stock, 'Склад');
+@defineDocumentDetailDescription(userStockDocument, UserStockDocumentDetail);
+
+@defineDocumentHeaderNote(UserStockDocument);
+
+@defineDocumentHeaderClosed(UserStockDocumentDetail);
+
+idUserStockDocumentDetail = DATA VARSTRING[100] (UserStockDocumentDetail);
+userStockDocumentDetailIdUserStockDocument (id, UserStockDocument) = GROUP AGGR detail BY idUserStockDocumentDetail(detail), userStockDocumentUserStockDocumentDetail(detail) WHERE detail IS UserStockDocumentDetail;
+
+sumContainerUserStockDocumentDetail 'Сумма прихода, тара' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
+sumContainerUserStockDocument 'Сумма прихода, тара' = 
+    GROUP SUM sumContainerUserStockDocumentDetail(detail) BY userStockDocumentUserStockDocumentDetail(detail) IN documentSum;
+
+sumItemUserStockDocumentDetail 'Сумма прихода, товар' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
+sumItemUserStockDocument 'Сумма прихода, товар' = 
+    GROUP SUM sumItemUserStockDocumentDetail(detail) BY userStockDocumentUserStockDocumentDetail(detail) IN documentSum;
+
+sumUserStockDocumentDetail 'Суммы (всего)' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
+sumUserStockDocument 'Суммы (всего)' = 
+    GROUP SUM sumUserStockDocumentDetail(detail) BY userStockDocumentUserStockDocumentDetail(detail) IN documentSum;
+ 
+FORM userStockDocument 'Учетный документ'
+    OBJECTS i = UserStockDocument FIXED PANEL
+    PROPERTIES (i) nameStockUserStockDocument ON CHANGE changeStockCompanyUserStockDocument(i),
+                   numberUserStockDocument, seriesUserStockDocument, dateUserStockDocument, timeUserStockDocument,
+                   sumContainerUserStockDocument, sumItemUserStockDocument,
+                   sumUserStockDocument, noteUserStockDocument,
+                   countUserStockDocumentDetailUserStockDocument
+
+    OBJECTS d = UserStockDocumentDetail
+    PROPERTIES (d) indexUserStockDocumentDetail, sumContainerUserStockDocumentDetail, sumItemUserStockDocumentDetail,
+                   sumUserStockDocumentDetail, ADDOBJ, DELETE
+    FILTERS userStockDocumentUserStockDocumentDetail(d) == i
+
+    EDIT UserStockDocument OBJECT i
+;
+
+DESIGN userStockDocument {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+            NEW headerRow1 {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE i.documentHeader {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(nameStockUserStockDocument(i));
+                    MOVE PROPERTY(numberUserStockDocument(i));
+                    MOVE PROPERTY(seriesUserStockDocument(i));
+                    MOVE PROPERTY(dateUserStockDocument(i));
+                    MOVE PROPERTY(timeUserStockDocument(i));
+                }
+                MOVE i.documentPrm {
+                    columns = 2;
+                }
+            }
+            MOVE i.documentSum {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
+            fill = 1;
+            type = TABBED;
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+FORM stockDocuments 'Учетный документ'
+    OBJECTS i = UserStockDocument
+    PROPERTIES (i) READONLYIF isReadonly() numberUserStockDocument, seriesUserStockDocument, dateUserStockDocument, timeUserStockDocument,
+                            nameStockUserStockDocument
+    PROPERTIES (i) READONLY countUserStockDocumentDetailUserStockDocument, sumContainerUserStockDocument, sumItemUserStockDocument, sumUserStockDocument 
+    PROPERTIES (i) READONLYIF isReadonly() noteUserStockDocument
+    PROPERTIES (i) FORCE PANEL TOOLBAR ADDFORM, EDITFORM, DELETE 
+
+    OBJECTS d = UserStockDocumentDetail
+    PROPERTIES (d) READONLY indexUserStockDocumentDetail, sumContainerUserStockDocumentDetail, sumItemUserStockDocumentDetail, sumUserStockDocumentDetail
+
+    FILTERS userStockDocumentUserStockDocumentDetail(d) == i
+
+    DIALOG UserStockDocument OBJECT i
+;
+@extendFormFilterAccessStock(UserStockDocument, i, stockDocuments, stock, company);
+
+DESIGN stockDocuments {
+    main {
+        preferredSize = (1024, 768);
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+            type = SPLITV;
+            MOVE i.box { fill = 2; }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+                MOVE d.box {
+                    caption = 'Спецификация';
+                }
+            }
+        }
+    }
+}
+@extendFormEditable(stockDocuments);
+
+NAVIGATOR {
+    stockNavigator {
+        NEW stockDocumentNavigator 'Изменение товарного отчета'  BEFORE stockReports { 
+            ADD stockDocuments;
+        }
+    }
+}
+
+WHEN SESSION FORMS userStockDocument
+    CHANGED(sumContainerUserStockDocumentDetail(detail)) OR CHANGED(sumItemUserStockDocumentDetail(detail)) DO {
+        sumUserStockDocumentDetail(detail) <- sumItemUserStockDocumentDetail(detail) (+) sumContainerUserStockDocumentDetail(detail);    
+}   
+
+//проводим по товарному отчету
+EXTEND CLASS UserStockDocumentDetail : IncStockDocumentLedger;
+                                                                          
+isPostedStockDocumentLedger (ledger) += TRUE IF ledger IS UserStockDocumentDetail;  
+isClosedStockDocumentLedger (ledger) += TRUE IF ledger IS UserStockDocumentDetail;                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+seriesStockDocumentLedger (ledger) += seriesUserStockDocumentDetail(ledger);
+numberStockDocumentLedger (ledger) += numberUserStockDocumentDetail(ledger);
+dateTimeStockDocumentLedger (ledger) += dateTimeUserStockDocumentDetail(ledger);
+stockStockDocumentLedger (ledger) += stockUserStockDocumentDetail(ledger);
+descriptionStockDocumentLedger (ledger) += descriptionUserStockDocumentDetail(ledger);                                                                                                                                                                                                                                   
+sumContainerIncStockDocumentLedger(ledger) += sumContainerUserStockDocumentDetail(ledger);
+sumItemIncStockDocumentLedger(ledger) += sumItemUserStockDocumentDetail(ledger);
+editStockDocumentLedger(ledger) += ACTION (ledger) NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(ledger), d = ledger MANAGESESSION DOCKEDMODAL;}
+closeStockDocumentLedger(ledger) += ACTION closeUserStockDocumentDetail(ledger);
+typeStockDocumentLedger(l) += 'Учетный документ' IF l IS UserStockDocumentDetail;
