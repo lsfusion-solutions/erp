@@ -50,6 +50,42 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
+    public String readItemHtml(DataSession session, String barcode, String idStock) throws RemoteException, SQLException {
+        try {
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+            if(terminalHandlerLM != null) {
+                String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSkuBarcode").read(session, terminalHandlerLM.findProperty("barcodeId").readClasses(session, new DataObject(barcode)));
+                if(nameSkuBarcode == null)
+                    return null;
+
+                ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcodeId").readClasses(session, new DataObject(barcode));
+                ObjectValue stockObject = terminalHandlerLM.findProperty("stockId").readClasses(session, new DataObject(idStock));
+                BigDecimal price = null;
+                BigDecimal oldPrice = null;
+                if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
+                    price = (BigDecimal) terminalHandlerLM.findProperty("transactionPriceSkuStock").read(session, skuObject, stockObject);
+                    oldPrice = (BigDecimal) terminalHandlerLM.findProperty("transactionPriceSkuStock").read(session, skuObject, stockObject);
+                }
+                boolean action = price != null && oldPrice != null && price.compareTo(oldPrice) == 0;
+
+                /*boolean action = barcode.equals("1");
+                String nameSkuBarcode = barcode.equals("1") ? "Товар 1 со скидкой" : "Товар 2 без скидки";
+                BigDecimal price = barcode.equals("1") ? BigDecimal.valueOf(5000) : BigDecimal.valueOf(10000);
+                BigDecimal oldPrice = BigDecimal.valueOf(12000);*/
+
+                return action ?
+                        String.format("<html><body bgcolor=\"#FFFF00\">Наименование: <b>%s</b><br/><b><font color=\"#FF0000\">Акция</font></b> Цена: <b>%s</b>, Скидка: <b>%s</b></body></html>",
+                        nameSkuBarcode, String.valueOf(price.longValue()), String.valueOf(oldPrice.longValue() - price.longValue()))
+                        : String.format("<html><body>Наименование: <b>%s</b><br/>Цена: <b>%s</b></body></html>",
+                        nameSkuBarcode, price == null ? "0" : String.valueOf(price.longValue()));
+            } else return null;
+
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public String importTerminalDocument(DataSession session, DataObject userObject, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
         try {
 

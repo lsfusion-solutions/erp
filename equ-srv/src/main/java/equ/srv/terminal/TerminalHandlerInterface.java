@@ -11,6 +11,8 @@ public interface TerminalHandlerInterface {
 
     List<String> readItem(DataSession session, DataObject user, String barcode) throws RemoteException, SQLException;
 
+    String readItemHtml(DataSession session, String barcode, String idStock) throws RemoteException, SQLException;
+
     String importTerminalDocument(DataSession session, DataObject userObject, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
 
     DataObject getUserObject(DataSession session, String login, String password) throws RemoteException, SQLException;

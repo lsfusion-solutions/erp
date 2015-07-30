@@ -41,6 +41,7 @@ public class TerminalServer extends LifecycleAdapter {
     public static final byte GET_USER_INFO = 4;
     public static final byte GET_ITEM_INFO = 5;
     public static final byte SAVE_DOCUMENT = 6;
+    public static final byte GET_ITEM_HTML = 7;
 
     private static final Logger logger = Logger.getLogger("TerminalLogger");
 
@@ -290,6 +291,25 @@ public class TerminalServer extends LifecycleAdapter {
                             error = UNKNOWN_ERROR;
                         }
                         break;
+                    case GET_ITEM_HTML:
+                        try {
+                            logger.info("requested getItemHtml");
+                            String[] params = readParams(inFromClient);
+                            if(params != null && params.length == 2) {
+                                logger.info("requested barcode " + params[0]);
+                                String barcode = params[0];
+                                String idStock = params[1];
+                                result = readItemHtml(barcode, idStock);
+                                if (result == null)
+                                    error = ITEM_NOT_FOUND;
+                            } else {
+                                error = WRONG_PARAMETER_COUNT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("Unknown error: ", e);
+                            error = UNKNOWN_ERROR;
+                        }
+                        break;
                     default:
                         result = "unknown command";
                         error = UNKNOWN_COMMAND;
@@ -330,8 +350,9 @@ public class TerminalServer extends LifecycleAdapter {
                         }
                         break;
                     case SAVE_DOCUMENT:
+                    case GET_ITEM_HTML:
                         if (result != null) {
-                            outToClient.writeBytes(result);
+                            outToClient.write(result.getBytes("cp1251"));
                             outToClient.flush();
                         }
                         break;
@@ -438,6 +459,10 @@ public class TerminalServer extends LifecycleAdapter {
 
     protected List<String> readItem(DataObject user, String barcode) throws RemoteException, SQLException {
         return terminalHandlerInterface.readItem(createSession(), user, barcode);
+    }
+
+    protected String readItemHtml(String barcode, String idStock) throws RemoteException, SQLException {
+        return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
     }
 
     protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
