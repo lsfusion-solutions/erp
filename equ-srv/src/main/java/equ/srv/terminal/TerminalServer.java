@@ -333,7 +333,7 @@ public class TerminalServer extends LifecycleAdapter {
                             outToClient.flush();
                             outToClient.writeByte(esc);
                             outToClient.flush();
-                            outToClient.writeLong(System.currentTimeMillis());
+                            outToClient.write(String.valueOf(System.currentTimeMillis()).getBytes("cp1251"));
                             outToClient.flush();
                         }
                         break;
