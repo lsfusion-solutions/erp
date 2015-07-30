@@ -1,6 +1,6 @@
 MODULE ProductionOrder;
 
-REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation, SkuLedgerTax;
+REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation, SkuLedgerTax, StockMovement;
 
 NAMESPACE Production;
 
@@ -1782,3 +1782,26 @@ balanceBProductDetail 'Остаток (до)' (d) = prevBalanceBSkuStockDateTime
 EXTEND FORM order
     PROPERTIES (pd) READONLY BEFORE deletepd balanceBProductDetail
 ;
+
+@defineMovementSku(productDetail, productsStock); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(componentDetail, componentsStock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(productDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(componentDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineMovementPriceSku(productDetail, productsStock); //-- показываем по нажатию правой клавиши изменение цены товара
+@defineMovementPriceSku(componentDetail, componentsStock); //-- показываем по нажатию правой клавиши  изменение цены товара
+
+showMovementBruttoSkuStockComponentDetail 'Показать движение товара по складу' (componentDetail) = ACTION FORM movementSkuStock OBJECTS s = skuComponentDetail(componentDetail), st = componentsStockComponentDetail(componentDetail) MODAL SHORTCUT bruttoNameSkuComponentDetail;
+showMovementBruttoSkuComponentDetail 'Показать движение товара' (componentDetail) = ACTION FORM movementSku OBJECTS s = skuComponentDetail(componentDetail) MODAL SHORTCUT bruttoNameSkuComponentDetail;
+showBalancesBruttoSkuStockComponentDetail 'Показать остатки товара' (componentDetail) = ACTION FORM balancesSkuStock OBJECTS s = skuComponentDetail(componentDetail) MODAL SHORTCUT bruttoNameSkuComponentDetail;
+showMovementPriceBruttoSkuStockComponentDetail 'Показать изменение цены товара по складу' (componentDetail) = ACTION FORM movementPriceSkuStock OBJECTS s = skuComponentDetail(componentDetail), st = componentsStockComponentDetail(componentDetail) MODAL SHORTCUT bruttoNameSkuComponentDetail;
+showMovementPriceBruttoSkuStocksComponentDetail 'Показать изменение цены товара' (componentDetail) = ACTION FORM movementPriceSkuStocks OBJECTS s = skuComponentDetail(componentDetail) MODAL SHORTCUT bruttoNameSkuComponentDetail;
+
+showMovementSubstituteSkuStockComponentDetail 'Показать движение товара по складу' (componentDetail) = ACTION FORM movementSkuStock OBJECTS s = skuComponentDetail(componentDetail), st = componentsStockComponentDetail(componentDetail) MODAL SHORTCUT substituteNameSkuComponentDetail;
+showMovementSubstituteSkuComponentDetail 'Показать движение товара' (componentDetail) = ACTION FORM movementSku OBJECTS s = skuComponentDetail(componentDetail) MODAL SHORTCUT substituteNameSkuComponentDetail;
+showBalancesSubstituteSkuStockComponentDetail 'Показать остатки товара' (componentDetail) = ACTION FORM balancesSkuStock OBJECTS s = skuComponentDetail(componentDetail) MODAL SHORTCUT substituteNameSkuComponentDetail;
+showMovementPriceSubstituteSkuStockComponentDetail 'Показать изменение цены товара по складу' (componentDetail) = ACTION FORM movementPriceSkuStock OBJECTS s = skuComponentDetail(componentDetail), st = componentsStockComponentDetail(componentDetail) MODAL SHORTCUT substituteNameSkuComponentDetail;
+showMovementPriceSubstituteSkuStocksComponentDetail 'Показать изменение цены товара' (componentDetail) = ACTION FORM movementPriceSkuStocks OBJECTS s = skuComponentDetail(componentDetail) MODAL SHORTCUT substituteNameSkuComponentDetail;
+
+@defineBalancesBatch(componentDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(componentDetail, componentsStock); //-- показываем по нажатию правой клавиши движение по партии
