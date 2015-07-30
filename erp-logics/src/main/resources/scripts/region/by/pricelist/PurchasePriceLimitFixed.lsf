@@ -7,8 +7,11 @@ NAMESPACE Purchase;
 fixedLimitPriceListType = DATA DataPriceListType();
 nameFixedLimitPriceListType 'Вид цены для ограничений по максимальным ценам' = nameDataPriceListType(fixedLimitPriceListType());
 
+minLimitPriceListType = DATA DataPriceListType();
+nameMinLimitPriceListType 'Вид цены для ограничений по минимальным ценам' = nameDataPriceListType(minLimitPriceListType());
+
 EXTEND FORM options
-    PROPERTIES() nameFixedLimitPriceListType
+    PROPERTIES() nameFixedLimitPriceListType, nameMinLimitPriceListType 
 ;
 
 DESIGN options {
@@ -25,6 +28,18 @@ WHEN SESSION FORMS userInvoice GOAFTER retailPriceUserInvoiceDetail
 
     retailMarkupUserInvoiceDetail(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                        retailPriceUserInvoiceDetail(d),
-                                                       pricingPriceUserInvoiceDetail(d) IF pricingPriceUserInvoiceDetail(d)!= 0.0,
+                                                       pricingPriceUserInvoiceDetail(d),
+                                                       valueRetailVATUserInvoiceDetail(d));
+}
+
+minLimitPriceUserInvoiceDetail(d) = priceALedgerPriceListTypeSkuStockDateTime(minLimitPriceListType(), skuUserInvoiceDetail(d), customerStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
+WHEN SESSION FORMS userInvoice GOAFTER retailPriceUserInvoiceDetail 
+            CHANGED(retailPriceUserInvoiceDetail(d))
+            AND minLimitPriceUserInvoiceDetail(d) > retailPriceUserInvoiceDetail(d) DO {
+    retailPriceUserInvoiceDetail(d) <- minLimitPriceUserInvoiceDetail(d);
+
+    retailMarkupUserInvoiceDetail(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPriceUserInvoiceDetail(d),
+                                                       pricingPriceUserInvoiceDetail(d),
                                                        valueRetailVATUserInvoiceDetail(d));
 }
