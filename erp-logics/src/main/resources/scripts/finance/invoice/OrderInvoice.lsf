@@ -158,11 +158,12 @@ META defineOrderInvoice(sign, stockProp)
                                                                ORDER orderBatch(batch);
 
     orderCreateUserInvoiceOrderDetail = ABSTRACT STRING[100] (OrderDetail);
+    skipCreateUserInvoiceOrderDetail = ABSTRACT BOOLEAN (OrderDetail);
 
     createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
         IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(stockProp###stockOrder(order)) THEN {
             // проходим по строкам, для которых не задана партия
-            FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
+            FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail) AND NOT skipCreateUserInvoiceOrderDetail(orderDetail)
                 ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
@@ -175,7 +176,7 @@ META defineOrderInvoice(sign, stockProp)
                     overFillUserInvoiceDetailOrderDetail(d, orderDetail);
             }
             // проходим по строкам, для которых задана партия
-            FOR orderOrderDetail(orderDetail) == order AND PREV(toInvoiceOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
+            FOR orderOrderDetail(orderDetail) == order AND PREV(toInvoiceOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail) AND NOT skipCreateUserInvoiceOrderDetail(orderDetail)
                 ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
@@ -190,7 +191,7 @@ META defineOrderInvoice(sign, stockProp)
         } ELSE
             FOR orderOrderDetail(orderDetail) == order AND
                 toInvoiceOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
-                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
+                AND inOrderDetailUserInvoice(orderDetail, userInvoice) AND NOT skipCreateUserInvoiceOrderDetail(orderDetail)
                 ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
