@@ -15,7 +15,7 @@ nameStatisticGroupType 'Наименование' = DATA VARISTRING[100](Statist
 
 idStatisticGroupType 'Идентификатор' = DATA VARSTRING[20] (StatisticGroupType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
 
-typeIdStatisticGroupType (string1) = GROUP AGGR type
+statisticGroupTypeId (string1) = GROUP AGGR type
     BY idStatisticGroupType(type) WHERE type IS StatisticGroupType;
 
 FORM statisticGroupType 'Тип классификатора статистических групп'
@@ -88,8 +88,6 @@ sidStatisticGroup 'Код группы' (statisticGroup) = DATA STRING[12] (Stat
 canonicalNumberStatisticGroup 'Канонический код' (statisticGroup) = VARSTRING[255](
                            [= GROUP CONCAT sidStatisticGroup(parent), ' / ' BY child ORDER DESC levelStatisticGroupStatisticGroup(child, parent)](statisticGroup))
                            MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
-
-statisticGroupTypeId (id) = GROUP AGGR (statisticGroupType) BY idStatisticGroupType (statisticGroupType);
 
 canonicalNumberNameStatisticGroup 'Канонический код-название' (statisticGroup) = canonicalNumberStatisticGroup(statisticGroup) + ' / ' + nameStatisticGroup(statisticGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
@@ -1363,7 +1361,7 @@ loadDefaultStatisticGroupType 'Добавить значение классиф�
 
 loadDefaultStatisticGroup 'Добавить значение статистические группы' = ACTION (sidType, sidParent, iname, isid, groupStatic, value) {
     FOR ADDOBJ g = StatisticGroup DO {
-        ASSIGN groupTypeStatisticGroup(g) <- typeIdStatisticGroupType(sidType);
+        ASSIGN groupTypeStatisticGroup(g) <- statisticGroupTypeId(sidType);
         ASSIGN parentStatisticGroup(g) <- groupIdTypeIdGroup(sidType, sidParent);
 
         ASSIGN nameStatisticGroup(g) <- iname;
