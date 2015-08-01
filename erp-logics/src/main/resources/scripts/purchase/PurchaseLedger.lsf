@@ -120,18 +120,20 @@ valueVATPurchaseLedger 'НДС, %' (ledger) = valueRateRangeDate(VATPurchaseLedg
 sumVATPurchaseLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
         sumPurchaseLedger(ledger), valueVATPurchaseLedger(ledger)));
 
+TABLE purchaseSkuStockDate(Sku, Stock, DATE);
+
 //по складу и SKU
 quantityPurchaseSkuStockDate (sku, stock, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
+    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;
 
 sumVATPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
+    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;
 
 sumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
+    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;
     
 costSumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM costSumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger);    
+    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;    
 
 //по складу, поставщику и SKU
 quantityPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
