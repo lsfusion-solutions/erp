@@ -12,7 +12,36 @@ NAMESPACE Purchase;
 
 Order.inOrder(o) += o IS Order;
 
-@defineOrderBatch(customer, customer);
+//использовать цены склада поставщика
+usePriceSupplierStockOrder 'Использовать цены поставщика' = ABSTRACT BOOLEAN (Order);
+usePriceSupplierStockUserOrder 'Использовать цены поставщика'  = DATA BOOLEAN (Order);
+
+usePriceSupplierStockOrder(order) += usePriceSupplierStockUserOrder(order);
+
+EXTEND FORM userOrder
+    PROPERTIES (o) usePriceSupplierStockUserOrder         
+;          
+
+DESIGN userOrder {
+    headerExtraParams{
+        NEW prices {
+            caption = 'Цены';
+            type = COLUMNS;
+            columns = 1;
+            MOVE PROPERTY(usePriceSupplierStockUserOrder(o));
+        }         
+    }
+}
+    
+overCustomerStockUserOrder = IF usePriceSupplierStockUserOrder(order) 
+                            THEN supplierStockUserOrder(order)
+                            ELSE customerStockUserOrder(order);
+                            
+overCustomerStockUserOrderDetail = overCustomerStockUserOrder(userOrderUserOrderDetail(detail));                         
+
+notOverCustomerStockUserOrder (o) = NOT customerStockUserOrder(o);
+
+@defineOrderBatch(customer, customer, overCustomer);
 @defineOrderBatchDialog();
 
 @implementOrderDestination(supplier, customer);
@@ -58,6 +87,21 @@ overCopyOrder(s, d) += ACTION(s, d) {
 }
 
 @defineOperationFilterProperty(order, o, orders, nameFilterOrderSupplier);
+
+usePriceSupplierStockOperation 'Использовать склад поставщика' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) usePriceSupplierStockOperation
+;
+
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(usePriceSupplierStockOperation(o));   
+    }
+}
+
+usePriceSupplierStockUserOrder (order) <- usePriceSupplierStockOperation(operationUserOrder(order))   
+        WHEN CHANGED(operationUserOrder(order));
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
 CONSTRAINT supplierUserOrder(userOrder) AND NOT isSupplierLegalEntity(supplierUserOrder(userOrder))
@@ -150,7 +194,7 @@ EXTEND FORM userOrder
 
     FILTERGROUP filter4
         FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserOrderCustomerStock(b, o, sto) 'F9'
+        FILTER 'В документе ' quantityBatchUserOrderOverCustomerStock(b, o, sto) 'F9'
         
     FILTERGROUP filter5
         FILTER 'С поступлением ' quantityPurchaseSupplierSku(supplierUserOrder(o), skuBatch(b)) 'F8'

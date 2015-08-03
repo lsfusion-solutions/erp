@@ -102,6 +102,42 @@ Sale.packQuantityOrderDetail(orderDetail) +=  packQuantityOrderDetail(orderDetai
 Sale.editOrder(order) += ACTION EXEC editOrder(orderSaleOrder(order));
 Sale.createdUserOrder(order) += createdUserOrder(orderSaleOrder(order));
 Sale.editOrderDetail(order) += ACTION EXEC editOrderDetail(orderDetailSaleOrderDetail(order));
+
+@defineOperationProperty(createSale, 'Заказ (продажа)', createContainer);
+
+@deriveDocumentOperationProperty(UserOrder, createSale);
+
+@defineDocumentInterfaceOperationPrefix (order, sale, Sale, ' (продажа)');
+
+saleOperationOperation  = DATA Sale.Operation (Operation);
+nameSaleOperationOperation 'Операция (продажа)' (operation)= Sale.nameOperation(saleOperationOperation(operation));
+
+EXTEND FORM operation
+    PROPERTIES(o) nameSaleOperationOperation
+;
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(nameSaleOperationOperation(o));
+    }
+}
+
+@deriveDocumentOperationProperty(UserOrder, saleOperation);
+
+// Записываем операцию для закупки по умолчанию из операции
+saleOperationUserOrder (order) <- saleOperationOperation(operationUserOrder(order))
+    WHEN CHANGED(operationUserOrder(order));
+
+Sale.operationOrder(order) += saleOperationOrder(orderSaleOrder(order));
+
+EXTEND FORM userOrder
+    PROPERTIES(o) BACKGROUND backgroundSaleOrder(o) SHOWIF createSaleOrder(o) nameSaleOperationUserOrder
+
+;
+DESIGN userOrder {
+    headerOrder {
+        MOVE PROPERTY(nameSaleOperationUserOrder(o)) AFTER PROPERTY(createSaleUserOrder(o));
+    }
+}
 //-- Действие
 
 moveUserOrderOrder 'Заказ (продажа)' =  ACTION (order) NEWSESSION{

@@ -799,7 +799,7 @@ META implementOrderDestination(fromProp, toProp)
 END
 
 // Партии приход
-META defineOrderBatch(legalEntityProp, stockProp)
+META defineOrderBatch(legalEntityProp, stockProp, priceProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
     Order.batchOrderDetail(d) += batchOrderDetail(d);
     
@@ -811,7 +811,7 @@ META defineOrderBatch(legalEntityProp, stockProp)
     } 
     replaceSkuBatch(s, b) += ACTION (s, b){ skuUserOrderDetail(detail) <- s WHERE batchUserOrderDetail(detail) == b;}
     // Пишем в цену заказа из вида цен в зависимости от партии
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp###stock, userOrder);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceProp###stock, userOrder);
 
     // История по правой кнопке
     @defineBalancesBatch(orderDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -820,10 +820,14 @@ META defineOrderBatch(legalEntityProp, stockProp)
     @defineMovementBatch(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор
-    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp);
-    @extendFormDocumentBatchStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
+    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, priceProp);
+    @extendFormDocumentBatchStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, priceProp);
     @implementDocumentBatch(order);
 //    overFillDocumentOrderDetailDocumentDetail(o, d) += ACTION (o, d) { batchUserOrderDetail(o) <- batchDocumentDetail(d);}                    
+END
+
+META defineOrderBatch(legalEntityProp, stockProp)
+    @defineOrderBatch(legalEntityProp, stockProp, stockProp);
 END
 
 META defineOrderBatchDialog(dumb)
