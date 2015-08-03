@@ -649,7 +649,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             try {
                 statement = conn.createStatement();
                 String query = "SELECT i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
-                        " i.position, i.real_amount, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login" +
+                        " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login" +
                         " FROM receipt_item AS i LEFT JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
                         " WHERE r.ext_processed = 0 AND r.result = 0";
                 ResultSet rs = statement.executeQuery(query);
@@ -673,17 +673,18 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     BigDecimal sum = rs.getBigDecimal(10); //i.total
                     Integer position = rs.getInt(11) + 1;
                     BigDecimal realAmount = rs.getBigDecimal(12); //i.real_amount
+                    String idSection = rs.getString(13);
 
                     Map<Integer, BigDecimal> paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
                     if (paymentEntry != null && totalQuantity != null) {
-                        Integer receiptType = rs.getInt(13); //r.type
+                        Integer receiptType = rs.getInt(14); //r.type
                         boolean isSale = receiptType == 0 || receiptType == 8;
                         boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
-                        String numberZReport = rs.getString(14); //r.shift_open
-                        Integer numberReceipt = rs.getInt(15); //r.global_number
-                        Date dateReceipt = rs.getDate(16); // r.date
-                        Time timeReceipt = rs.getTime(16); //r.date
-                        Integer login = rs.getInt(17); //r.login
+                        String numberZReport = rs.getString(15); //r.shift_open
+                        Integer numberReceipt = rs.getInt(16); //r.global_number
+                        Date dateReceipt = rs.getDate(17); // r.date
+                        Time timeReceipt = rs.getTime(17); //r.date
+                        Integer login = rs.getInt(18); //r.login
                         String idEmployee = loginMap.get(login);
 
                         BigDecimal sumCash = paymentEntry.get(0);
@@ -696,7 +697,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                     sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, totalQuantity, price,
-                                    isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null, position, null));
+                                    isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null,
+                                    position, null, idSection));
                             receiptSet.add(Pair.create(idReceipt, cash_id));
                         }
                     }

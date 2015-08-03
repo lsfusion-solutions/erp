@@ -875,7 +875,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                     currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                             numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode, idItem,
-                                                            null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName));
+                                                            null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null));
                                             }
 
                                             //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
@@ -960,7 +960,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
                                                                 numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard,
                                                                 sumCash, null, barcode, idItem, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
-                                                                null, discountCard, numberReceiptDetail, fileName));
+                                                                null, discountCard, numberReceiptDetail, fileName, null));
                                                 }
 
                                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.

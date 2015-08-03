@@ -165,7 +165,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         SalesInfo salesInfo = new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport, receiptNumber, date, 
                                                 time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode, null, null,
                                                 quantityReceiptDetail, itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null,
-                                                numberReceiptDetail, null);
+                                                numberReceiptDetail, null, null);
                                         receiptSalesInfoList.add(salesInfo);
                                         itemZReportInfo.count = safeSubtract(itemZReportInfo.count, quantityReceiptDetail);
                                     }

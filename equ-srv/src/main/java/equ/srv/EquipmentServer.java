@@ -84,6 +84,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule zReportLM;
     private ScriptingLogicsModule zReportDiscountCardLM;
+    private ScriptingLogicsModule zReportSectionLM;
     
     private boolean started = false;
 
@@ -149,6 +150,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
+        zReportSectionLM = getBusinessLogics().getModule("ZReportSection");
     }
 
     @Override
@@ -1674,9 +1676,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         ImportField sumPaymentField = new ImportField(zReportLM.findProperty("ZReport.sumPayment"));
                         ImportField numberPaymentField = new ImportField(zReportLM.findProperty("ZReport.numberPayment"));
 
-                        ImportField seriesNumberDiscountCardField = null;
-                        if (discountCardLM != null)
-                            seriesNumberDiscountCardField = new ImportField(discountCardLM.findProperty("seriesNumberDiscountCard"));
+                        ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumberDiscountCard"));
+                        ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("idSection"));
 
                         List<ImportProperty<?>> saleProperties = new ArrayList<>();
                         List<ImportProperty<?>> returnProperties = new ArrayList<>();
@@ -1689,12 +1690,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receiptId").getMapping(idReceiptField));
                         ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
                         ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employeeId").getMapping(idEmployeeField));
-                        ImportKey<?> discountCardKey = null;
-                        if (discountCardLM != null)
-                            discountCardKey = new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
-                        ImportKey<?> giftCardKey = null;
-                        if (giftCardLM != null)
-                            giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCardId").getMapping(idGiftCardField));
+
+                        ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+                        ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCardId").getMapping(idGiftCardField));
+                        ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("sectionId").getMapping(idSectionField));
 
                         //sale 2
                         saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("idZReport").getMapping(zReportKey)));
@@ -1738,6 +1737,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
                                 zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
 
+                        if(zReportSectionLM != null) {
+                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("idSection").getMapping(sectionKey), true));
+                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("sectionReceiptDetail").getMapping(receiptSaleDetailKey),
+                                    zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
+                        }
+
                         //return 2
                         returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("idZReport").getMapping(zReportKey)));
                         returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("numberZReport").getMapping(zReportKey)));
@@ -1780,6 +1785,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                         returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
                                 zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
+
+                        if(zReportSectionLM != null) {
+                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("idSection").getMapping(sectionKey), true));
+                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("sectionReceiptDetail").getMapping(receiptReturnDetailKey),
+                                    zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
+                        }
 
                         //giftCard 2
                         ImportKey<?> receiptGiftCardSaleDetailKey = null;
@@ -1857,6 +1868,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                     row = new ArrayList<>(row);
                                     row.add(sale.seriesNumberDiscountCard);
                                 }
+                                if (zReportSectionLM != null) {
+                                    row = new ArrayList<>(row);
+                                    row.add(sale.idSection);
+                                }
                                 dataReturn.add(row);
                             } else {
                                 //sale 3
@@ -1867,6 +1882,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 if (discountCardLM != null) {
                                     row = new ArrayList<>(row);
                                     row.add(sale.seriesNumberDiscountCard);
+                                }
+                                if (zReportSectionLM != null) {
+                                    row = new ArrayList<>(row);
+                                    row.add(sale.idSection);
                                 }
                                 dataSale.add(row);
                             }
@@ -1892,6 +1911,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             saleImportFields = new ArrayList<>(saleImportFields);
                             saleImportFields.add(seriesNumberDiscountCardField);
                         }
+                        if (zReportSectionLM != null) {
+                            saleImportFields = new ArrayList<>(saleImportFields);
+                            saleImportFields.add(idSectionField);
+                        }
 
                         //return 4
                         List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
@@ -1903,6 +1926,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         if (discountCardLM != null) {
                             returnImportFields = new ArrayList<>(returnImportFields);
                             returnImportFields.add(seriesNumberDiscountCardField);
+                        }
+                        if (zReportSectionLM != null) {
+                            returnImportFields = new ArrayList<>(returnImportFields);
+                            returnImportFields.add(idSectionField);
                         }
 
                         //giftCard 4
@@ -1918,6 +1945,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             saleKeys = new ArrayList<>(saleKeys);
                             saleKeys.add(discountCardKey);
                         }
+                        if (zReportSectionLM != null) {
+                            saleKeys = new ArrayList<>(saleKeys);
+                            saleKeys.add(sectionKey);
+                        }
                         new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
 
                         //return 5
@@ -1925,6 +1956,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         if (discountCardLM != null) {
                             returnKeys = new ArrayList<>(returnKeys);
                             returnKeys.add(discountCardKey);
+                        }
+                        if (zReportSectionLM != null) {
+                            returnKeys = new ArrayList<>(returnKeys);
+                            returnKeys.add(sectionKey);
                         }
                         new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), returnKeys, returnProperties).synchronize(true);
 

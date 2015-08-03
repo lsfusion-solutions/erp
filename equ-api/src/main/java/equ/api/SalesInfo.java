@@ -31,13 +31,14 @@ public class SalesInfo implements Serializable {
     public String seriesNumberDiscountCard;
     public Integer numberReceiptDetail;
     public String filename;
+    public String idSection;
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Integer numberReceipt,
                      Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact, String lastNameContact,
                      BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem, String idItem,
                      Integer itemObject, BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail,
                      BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt, String seriesNumberDiscountCard, 
-                     Integer numberReceiptDetail, String filename) {
+                     Integer numberReceiptDetail, String filename, String idSection) {
         this.isGiftCard = isGiftCard;
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
@@ -62,6 +63,7 @@ public class SalesInfo implements Serializable {
         this.seriesNumberDiscountCard = seriesNumberDiscountCard;
         this.numberReceiptDetail = numberReceiptDetail;
         this.filename = filename;
+        this.idSection = idSection;
     }
 
     //startDate - для обратной совместимости
