@@ -236,13 +236,16 @@ outputProductsSumProductDetail(productDetail) <-
     WHEN CHANGED (outputQuantityProductDetail(productDetail)) OR
          CHANGED (priceProductDetail(productDetail)) OR
          CHANGED(currencyProductDetail(productDetail));
-         
-fillOutputQuantityProductDetailOrder 'Заполнить кол-во (произведено) из остатков' (order)= ACTION (order) {
+
+overFillOutputQuantityProductDetailOrder = ABSTRACT ACTION (Order);
+fillOutputQuantityProductDetailOrder 'Заполнить из остатков' (order) = ACTION (order) {
     createOutputOrder(order) <- TRUE;
 
     outputQuantityProductDetail(d) <- (- balanceASkuStockDate(skuProductDetail(d), productsStockProductDetail(d), dateProductDetail(d))) 
         IF balanceASkuStockDate(skuProductDetail(d), productsStockProductDetail(d), dateProductDetail(d)) < 0 
-        WHERE orderProductDetail(d) == order;    
+        WHERE orderProductDetail(d) == order;
+    
+    overFillOutputQuantityProductDetailOrder(order);
 } TOOLBAR;        
 
 outputProductsSumProductDetailOrder 'Сумма произведенных изделий' (order) = GROUP SUM outputProductsSumProductDetail(detail) BY orderProductDetail(detail) IN documentSum;
