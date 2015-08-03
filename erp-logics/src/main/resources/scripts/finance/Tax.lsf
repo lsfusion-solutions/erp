@@ -47,10 +47,13 @@ FORM rangeTypes 'Тип шкалы'
     DIALOG RangeType OBJECT t
 ;
 
+//extraRange 'Дополнительная' = DATA BOOLEAN (Range);
+
 rangeTypeRange = DATA RangeType (Range) NOT NULL;
 nameRangeTypeRange 'Тип шкалы' = staticCaption(rangeTypeRange(range)) IN base;
 
 isUnitsTypeRange(range) = rangeTypeRange(range) == RangeType.units;
+isCommonssTypeRange(range) = rangeTypeRange(range) == RangeType.common;
 
 rangeTypeRange(range) <- RangeType.common WHEN SET(range IS Range);     /// потом согласовать, какое значение должно быть по-умолчанию ///
 
@@ -74,8 +77,11 @@ TABLE rangeTaxUnit (Range, TaxUnit);
 inRangeTaxUnit 'Вкл.' (range, taxUnit) = DATA BOOLEAN (Range, TaxUnit);
 inRangeTaxUnit (range, taxUnit) => isUnitsTypeRange(range) RESOLVE RIGHT;
 
+extraRange 'Дополнительная' = DATA BOOLEAN (Range); // Когда несколько расчетных ставок
+noteRange 'Примечание' = DATA VARISTRING[100] (Range);
+
 rangeTaxTaxUnit 'Шкала по налогу и субъекту' (tax, taxUnit) = GROUP AGGR range BY taxRange(range), taxUnit
-                                                                       WHERE inRangeTaxUnit(range, taxUnit) AND Tax.taxVAT == taxRange(range);
+                                                                       WHERE inRangeTaxUnit(range, taxUnit) AND Tax.taxVAT == taxRange(range) AND NOT extraRange(range);
 
 rangeVATTaxUnit 'Шкала субъекту' (taxUnit) = rangeTaxTaxUnit (Tax.taxVAT, taxUnit);
 
@@ -128,8 +134,8 @@ FORM tax 'Налог'
     PROPERTIES(c) SELECTOR    nameCountry
 
     OBJECTS           ra = Range
-    PROPERTIES(ra)    numberRange, nameRangeTypeRange, DELETESESSION
-    PROPERTIES(ra)    READONLY valueCurrentRateRange, dateFromCurrentRateRange
+    PROPERTIES(ra)    numberRange, nameRangeTypeRange, extraRange READONLYIF isCommonssTypeRange(ra), noteRange, DELETESESSION
+    PROPERTIES(ra)    READONLY valueCurrentRateRange, dateFromCurrentRateRange    
     PROPERTIES(t, c)  addNewRange TODRAW ra
     FILTERS           taxRange(ra) == t
     FILTERS           countryRange(ra) == c
