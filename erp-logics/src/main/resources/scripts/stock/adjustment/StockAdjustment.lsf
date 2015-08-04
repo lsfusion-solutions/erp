@@ -288,12 +288,13 @@ TABLE adjustmentSkuDetail (AdjustmentSkuDetail);
 CLASS OutAdjustmentSkuDetail 'Изменение остатка (-)' : AdjustmentSkuDetail;
 CLASS InAdjustmentSkuDetail 'Изменение остатка (+)' : AdjustmentSkuDetail;
 
-needToOutLedgerAdjustmentDetail (adjustmentDetail) = quantityAdjustmentDetail(adjustmentDetail) < 0
+needToOutLedgerAdjustmentDetail (adjustmentDetail) = quantityAdjustmentDetail(adjustmentDetail) < 0 OR batchAdjustmentDetail(adjustmentDetail)
     AND isPostedAdjustmentDetail(adjustmentDetail);
 needToOutLedgerAdjustment (adjustment) = GROUP SUM 1 IF needToOutLedgerAdjustmentDetail(adjustmentDetail)
     BY adjustmentAdjustmentDetail(adjustmentDetail);
 
-needToInLedgerAdjustmentDetail (adjustmentDetail) = quantityAdjustmentDetail(adjustmentDetail) > 0
+// Все партии проводим по OutLedger
+needToInLedgerAdjustmentDetail (adjustmentDetail) = quantityAdjustmentDetail(adjustmentDetail) > 0 AND NOT batchAdjustmentDetail(adjustmentDetail)
     AND isPostedAdjustmentDetail(adjustmentDetail);
 needToInLedgerAdjustment (adjustment) = GROUP SUM 1 IF needToInLedgerAdjustmentDetail(adjustmentDetail)
     BY adjustmentAdjustmentDetail(adjustmentDetail);
