@@ -128,7 +128,20 @@ calcExpiryDateProductDetail (d) = OVERRIDE
     (IF expiryMonthSku(skuProductDetail(d)) 
         THEN sumDateMonth(manufactureDateProductDetail(d), expiryMonthSku(skuProductDetail(d)))
         ELSE sumDate(manufactureDateProductDetail(d), expiryDaysSku(skuProductDetail(d)))),
-    overExpiryDateProductDetail(d);      
+    overExpiryDateProductDetail(d);
+    
+denyRepeatSkuOrder 'Запретить повтор изделий в производственном заказе' = DATA BOOLEAN ();
+
+EXTEND FORM options 
+    PROPERTIES denyRepeatSkuOrder();
+
+DESIGN options {
+    manufacturing{
+        MOVE PROPERTY (denyRepeatSkuOrder());
+    }
+}
+
+CONSTRAINT denyRepeatSkuOrder() AND [= GROUP SUM 1 BY skuProductDetail(d), orderProductDetail(d)](s, o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
 
 // Кол-во
 @defineDocumentDetailQuantityCustom (productDetail);
