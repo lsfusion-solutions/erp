@@ -6,12 +6,14 @@ NAMESPACE Repricing;
 
 //----------------- Переоценка товаров, которые были возвращены покупателями по кассе -----------------//
 
-retailPricingPriceBReceiptDetail 'Розничная цена (действующая)' (d) =
-    priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuReceiptDetail(d), departmentStoreReceiptDetail(d), dateTimeReceiptDetail(d));
+retailPricingPriceBReceiptReturnDetail 'Розничная цена (действующая)' (d) =
+    priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuReceiptReturnDetail(d), departmentStoreReceiptReturnDetail(d), dateTimeReceiptReturnDetail(d));
 
 userRepricingDetailReceiptReturnDetail = DATA  UserRepricingDetail(ReceiptReturnDetail);
 
-toRepricingReceiptReturnDetail (d) = (d IS ReceiptReturnDetail) AND NOT (retailPricingPriceBReceiptDetail(d) == priceReceiptDetail(d)) AND
+soldPriceReceiptReturnDetail (d) = (sumReceiptReturnDetail(d) (+) discountSumReceiptReturnDetail(d)) / quantityReceiptReturnDetail(d); // priceReceiptReturnDetail(d) просто цену брать не можем, так как при внешнем POS'е в этой цене неправильно 
+
+toRepricingReceiptReturnDetail (d) = (d IS ReceiptReturnDetail) AND NOT (retailPricingPriceBReceiptReturnDetail(d) == soldPriceReceiptReturnDetail(d)) AND
             NOT userRepricingDetailReceiptReturnDetail(d);
 toRepricingReceiptReturnDetailDepartment (stock) =  GROUP SUM 1 IF toRepricingReceiptReturnDetail(d) BY departmentStoreReceiptReturnDetail(d);
 
@@ -31,8 +33,8 @@ setReceiptReturnDetailUserRepricingStockOperation 'Создать акт пер�
                                 
                 skuUserRepricingDetail(d) <- skuReceiptReturnDetail(detail);
                 quantityUserRepricingDetail(d) <- quantityReceiptReturnDetail(detail);
-                curRetailPriceUserRepricingDetail(d) <- priceReceiptDetail(detail);
-                retailPriceUserRepricingDetail(d) <- retailPricingPriceBReceiptDetail(detail);
+                curRetailPriceUserRepricingDetail(d) <- soldPriceReceiptReturnDetail(detail);
+                retailPriceUserRepricingDetail(d) <- retailPricingPriceBReceiptReturnDetail(detail);
             }  
             FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL;
         }
@@ -52,7 +54,7 @@ FORM returnReceiptDetail 'Дооценка на возврате (касса)'
    
     PROPERTIES(d) FORCE GRID READONLY dateTimeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerDepartmentStore(st),
                   descriptionSaleReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
-                  numberVATReceiptDetail,retailPricingPriceBReceiptDetail
+                  numberVATReceiptDetail, retailPricingPriceBReceiptReturnDetail
     FILTERS departmentStoreReceiptDetail(d) == st,
             toRepricingReceiptReturnDetail(d)
             
