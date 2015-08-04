@@ -19,6 +19,7 @@ skipManagementPriceListPriceSku = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, D
 
 overSetManagementRetailPriceDepartmentStoreDateTime = ABSTRACT ACTION LIST (DepartmentStore, DATETIME);
 
+includeExtraDashboardRepricingStockDateTime = ABSTRACT ACTION (Stock, DATETIME);
 calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION (d, o, dt) {
     FORM dialogSkuGroup MODAL;
     IF formResult() == FormResult.ok THEN {              
@@ -39,6 +40,7 @@ calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION
         overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
         
         inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+        includeExtraDashboardRepricingStockDateTime(d, dt);
         
         assignAttributeSku(d, o, dt);
         formRefresh();
@@ -60,6 +62,7 @@ calculateDashboardManagementRepricing 'По прайсам' = ACTION (d, o, dt) 
     overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
     
     inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+    includeExtraDashboardRepricingStockDateTime(d, dt);
     
     assignAttributeSku(d, o, dt);    
     formRefresh();
@@ -162,7 +165,6 @@ createManagementRepricingAllStocks 'Создать автоматическую 
 
 EXTEND FORM options
     PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks
-//    , aaaaa
 ;
 DESIGN options {
     repricings {
@@ -170,7 +172,6 @@ DESIGN options {
             caption = 'Автоматическая переоценка упр.';
             MOVE PROPERTY(nameToManagementRepricingOperation());
             MOVE PROPERTY(createManagementRepricingAllStocks());
-//            MOVE PROPERTY(aaaaa());
         }
     }
 }
