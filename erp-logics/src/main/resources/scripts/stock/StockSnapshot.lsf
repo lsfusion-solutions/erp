@@ -1156,6 +1156,11 @@ createSnapshotString 'Создать отчет' = ACTION (string, dateTo) NEWSE
     }
 }
 
+filterSnapshotSupplier = DATA LOCAL LegalEntity ();
+nameFilterSnapshotSupplier 'Поставщик' = nameLegalEntity(filterSnapshotSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterSupplierSnapshot (bt) = supplierBatch(bt) == filterSnapshotSupplier() OR (bt IS Batch AND NOT filterSnapshotSupplier());   
+filterSupplierSnapshotSkuStock (s,st)   = supplierLastOrderBatchSkuStock(s, st) == filterSnapshotSupplier() OR (s IS Sku AND st IS Stock AND NOT filterSnapshotSupplier());   
+
 FORM snapshot 'Аналитический отчет'                                   
     OBJECTS r = Snapshot FIXED PANEL
     PROPERTIES (r) nameNumeratorSnapshot, 
@@ -1198,6 +1203,8 @@ FORM snapshot 'Аналитический отчет'
     ORDER BY orderSkuGroup(sk), nameSkuGroup(sk)
     FILTERGROUP inactivesk FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
     
+    PROPERTIES() nameFilterSnapshotSupplier
+    
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY nameSku(s), idBarcodeSku(s), idSku(s) SHOWIF showIDs(), nameStock(st), nameSupplierLastOrderBatchSkuStock(s, st)
     FILTERGROUP inactiveStockst FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
@@ -1206,7 +1213,8 @@ FORM snapshot 'Аналитический отчет'
     FILTERS           isParentSkuGroupSku(sk, s),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(st),
-                      includeSnapshotStock(r,st)
+                      includeSnapshotStock(r,st),
+                      filterSupplierSnapshotSkuStock(s,st)
 
     PROPERTIES(s, st, r) BACKGROUND hintBalanceBBackground() balanceBSkuStockSnapshot SHOWIF isQuantityBalanceBSnapshot(r), 
                          sumBSkuStockSnapshot SHOWIF isSumBalanceBSnapshot(r),                         
@@ -1235,13 +1243,16 @@ FORM snapshot 'Аналитический отчет'
         FILTER 'С продажей' outQuantitySkuStockSnapshot(s,st,r) OR outSumSkuStockSnapshot(s,st,r)'F8' 
                                                                                                                                                                                       
 //--batch
+    PROPERTIES()      nameB = nameFilterSnapshotSupplier
     OBJECTS           stb=(ss=Stock, bt=Batch) FIXED GRID
     PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuBatch(bt), idBarcodeSkuBatch(bt), nameStock(ss), nameBatch(bt)
     ORDER BY          nameSkuBatch(bt)
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       ss == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, ss) AND NOT ts OR ss IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(ss),
-                      includeSnapshotStock(r,ss)
+                      includeSnapshotStock(r,ss),
+                      filterSupplierSnapshot(bt)
+                      
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ss) 'ctrl F10' DEFAULT
 
     PROPERTIES(bt, ss, r) BACKGROUND hintBalanceBBackground() balanceBBatchStockSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
@@ -1527,10 +1538,20 @@ DESIGN snapshot {
                                 fill = 1;
                                 caption = 'Товары'; 
                                 type = TABBED;
-                                MOVE sts.box {caption = 'Итоги';}
+                                MOVE sts.box {
+                                    caption = 'Итоги';
+                                    MOVE sts.panel FIRST{
+                                        caption = 'Фильтр';
+                                        MOVE PROPERTY (nameFilterSnapshotSupplier());
+                                    }                           
+                                }
                                 MOVE sts3.box {caption = 'В динамике';}
                             }    
                             MOVE stb.box {caption = 'Партии'; 
+                                MOVE stb.panel FIRST{
+                                    caption = 'Фильтр';
+                                    MOVE PROPERTY (nameB);
+                                }                                
                                 PROPERTY(dateBatch(bt)) { caption = 'Дата прихода'; }
                             }                                                  
                         }   
