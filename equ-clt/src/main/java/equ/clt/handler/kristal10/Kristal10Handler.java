@@ -705,6 +705,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                                 sumCash = safeSubtract(sumCash, sum);
                                                 break;
                                             case "ExternalBankTerminalPaymentEntity":
+                                            case "BankCardPaymentEntity":
                                                 sumCard = safeAdd(sumCard, sum);
                                                 break;
                                             case "GiftCardPaymentEntity":
