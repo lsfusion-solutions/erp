@@ -323,6 +323,7 @@ EXTEND FORM technology
 skuProduct = DATA Sku (Product);
 nameSkuProduct 'SKU' (product) = nameSku(skuProduct(product)) IN recognize;
 idBarcodeSkuProduct 'Штрихкод' (product)= idBarcodeSku(skuProduct(product));
+idSkuProduct 'Код' (product)= idSku(skuProduct(product));
 
 idProduct 'Код изделия' (product) = idSku(skuProduct(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
 idMaterial(p) += idProduct(p);
@@ -345,7 +346,11 @@ descriptionProduct 'Название документа' (product) = description
 productsBOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](nameSkuProduct(p)), ', '
                                        BY BOMProduct(p)
                                        ORDER indexProduct(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
-                                       
+
+idProductsBOM 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idSkuProduct(p)), ', '
+                                      BY BOMProduct(p)
+                                      ORDER indexProduct(p) MINCHARWIDTH 13 PREFCHARWIDTH 13 PERSISTENT; 
+                                                                              
 fullNameBOM 'Полное название' (BOM) = VARISTRING[255] (CONCAT '/',
                                                               productsBOM(BOM),                                                                  
                                                               nameBOM(BOM));
