@@ -62,6 +62,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
                 boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -132,7 +133,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             addStringElement(barcode, "default-code", "true");
                             good.addContent(barcode);
 
-                            addProductType(good, item);
+                            addProductType(good, item, tobaccoGroups);
 
                             if(item.splitItem && !item.passScalesItem) {
                                 Element pluginProperty = new Element("plugin-property");
@@ -226,13 +227,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
     }
 
-    private void addProductType(Element good, ItemInfo item) {
+    private void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups) {
         String productType;
-        if (item.passScalesItem)
+        if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
+            productType = "ProductCiggyEntity";
+        else if (item.passScalesItem)
             productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
         else
             productType = (item.flags == null || ((item.flags & 256) == 0)) ? "ProductPieceEntity" : "ProductSpiritsEntity";
         addStringElement(good, "product-type", productType);
+    }
+
+    private List<String> getTobaccoGroups (String tobaccoGroup) {
+        List<String> tobaccoGroups = new ArrayList<>();
+        if (tobaccoGroup != null)
+            Collections.addAll(tobaccoGroups, tobaccoGroup.split(","));
+        return tobaccoGroups;
     }
 
     private Map<Integer, SendTransactionBatch> waitForDeletion(Map<File, Integer> filesMap, Map<Integer, Exception> failedTransactionMap, Set<Integer> emptyTransactionSet) {
@@ -470,6 +480,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
 
         for (String directory : directorySet) {
 
@@ -504,7 +515,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     addStringElement(good, "name", item.name);
 
-                    addProductType(good, item);
+                    addProductType(good, item, tobaccoGroups);
 
                     rootElement.addContent(good);
 

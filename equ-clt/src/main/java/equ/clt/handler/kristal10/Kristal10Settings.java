@@ -10,6 +10,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean useShopIndices;
     private String transformUPCBarcode; //12to13 or 13to12
     private Integer maxFilesCount;
+    private String tobaccoGroup;
 
     public Kristal10Settings() {
     }
@@ -60,5 +61,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setMaxFilesCount(Integer maxFilesCount) {
         this.maxFilesCount = maxFilesCount;
+    }
+
+    public String getTobaccoGroup() {
+        return tobaccoGroup;
+    }
+
+    public void setTobaccoGroup(String tobaccoGroup) {
+        this.tobaccoGroup = tobaccoGroup;
     }
 }
