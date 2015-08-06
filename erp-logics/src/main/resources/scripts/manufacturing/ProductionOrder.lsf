@@ -1037,6 +1037,9 @@ bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом
 @defineDocumentDialogStock(order, company,  products, company, );
 
 backgroundBalanceSkuPriceStockOrder(s,o) = RGB (255,156,156) IF quantityComponentDetailSkuOrder(s,o) > currentBalanceSkuPriceStockOrder(s,o);  
+editSkuProductDetail 'Редактировать SKU' (d) = ACTION editSku(skuProductDetail(d));
+editBruttoSkuComponentDetail 'Редактировать SKU' (d) = ACTION editSku(bruttoSkuComponentDetail(d));
+
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
@@ -1046,7 +1049,7 @@ FORM order 'Производственный заказ'
                   quantityComponentDetailOrder, sumComponentDetailOrder, calcBOMPriceOrder, isPricePercentOrder, isPriceCoeffOrder 
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) indexProductDetail, nameSkuProductDetail,  idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
+    PROPERTIES(pd) indexProductDetail, nameSkuProductDetail ON EDIT editSkuProductDetail(pd), idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
                    shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, quantityProductDetail,
                    calcComponentsPriceProductDetail READONLY, componentsPriceProductDetail ON CHANGE changeComponentsPriceProductDetail(pd),
                    costPriceProductDetail
@@ -1061,7 +1064,7 @@ FORM order 'Производственный заказ'
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
-    PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd),
+    PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail ON EDIT editBruttoSkuComponentDetail(cd), nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd),
                    nameMaterialComponentDetail, 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
                    fullNameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
@@ -1822,3 +1825,7 @@ showMovementPriceSubstituteSkuStocksComponentDetail 'Показать измен
 
 @defineBalancesBatch(componentDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineMovementBatch(componentDetail, componentsStock); //-- показываем по нажатию правой клавиши движение по партии
+
+showBOMProductDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMProductDetail(d), p = productProductDetail(d)  MODAL SHORTCUT nameProductProductDetail;
+showBOMComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d), c = componentComponentDetail(d)  MODAL SHORTCUT nameComponentComponentDetail;
+showBOMNameComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d)  MODAL SHORTCUT fullNameBOMComponentDetail;
