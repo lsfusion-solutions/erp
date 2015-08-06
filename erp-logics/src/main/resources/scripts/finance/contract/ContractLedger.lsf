@@ -194,15 +194,13 @@ bonusDebtSumInContractLedgerDate 'Сумма долга по документу 
 CONSTRAINT costedInContractLedgerOutContractLedger(outContractLedger) > sumOutContractLedger(outContractLedger)
     MESSAGE 'Расписанная сумма должна быть равна сумме платежа';
 
-orderInContractLedger(inContractLedger) = STRUCT(dateInContractLedger(inContractLedger), numberInContractLedger(inContractLedger), inContractLedger);
-
 sumInFIFOOutContractLedgerInContractLedger (outContractLedger, inContractLedger) =
     PARTITION UNGROUP sumOutContractLedger
               LIMIT debtInContractLedger(inContractLedger) IF
                     contractOutContractLedger(outContractLedger) == contractInContractLedger(inContractLedger) AND
                     activeInContractLedger(inContractLedger)
               BY outContractLedger
-              ORDER orderInContractLedger(inContractLedger);
+              ORDER dateInContractLedger(inContractLedger), numberInContractLedger(inContractLedger), inContractLedger;
 
 sumInLIFOOutContractLedgerInContractLedger (outContractLedger, inContractLedger) =
     PARTITION UNGROUP sumOutContractLedger
@@ -210,7 +208,7 @@ sumInLIFOOutContractLedgerInContractLedger (outContractLedger, inContractLedger)
                     contractOutContractLedger(outContractLedger) == contractInContractLedger(inContractLedger) AND
                     activeInContractLedger(inContractLedger)
               BY outContractLedger
-              ORDER DESC orderInContractLedger(inContractLedger);
+              ORDER DESC dateInContractLedger(inContractLedger), numberInContractLedger(inContractLedger), inContractLedger;
 
 writeOutContractLedgerFIFO 'Расписать по FIFO' = ACTION (outContractLedger) {
 
