@@ -466,3 +466,25 @@ idBarcodeSkuDocumentDetail 'Товар' (documentDetail) = idBarcodeSku(skuDocum
 EXTEND FORM documents
     PROPERTIES (dd) idBarcodeSkuDocumentDetail BEFORE nameSkuDocumentDetail(dd)
 ;
+
+FORM barcodeSku 'Штрихкоды'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS b = Barcode
+    PROPERTIES(b) READONLY idBarcode, dateBarcode, shortNameUOMBarcode,  amountBarcode, activeBarcode, primaryBarcode
+                
+    ORDER BY dateBarcode(b)
+    FILTERS skuBarcode(b) == s
+;
+DESIGN barcodeSku {
+    main {
+        preferredSize = (768, 400);
+    }
+}
+
+showBarcodeSku'Показать штрихкоды' (sku) = ACTION FORM barcodeSku OBJECTS s = sku MODAL SHORTCUT idBarcodeSku;
+
+META defineBarcodeSku(detail)
+    showBarcodeSku###detail 'Показать штрихкоды' (detail) = ACTION FORM barcodeSku OBJECTS s = sku###detail(detail) MODAL SHORTCUT idBarcodeSku###detail;
+END
