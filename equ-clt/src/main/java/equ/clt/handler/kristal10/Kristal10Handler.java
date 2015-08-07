@@ -86,7 +86,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     }
 
                     //catalog-goods.xml
-                    processTransactionLogger.info("Kristal10: creating catalog-goods file (Transaction " + transaction.id + ") - " + transaction.itemsList + " items");
+                    processTransactionLogger.info("Kristal10: creating catalog-goods file (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
                     
                     Element rootElement = new Element("goods-catalog");
                     Document doc = new Document(rootElement);
