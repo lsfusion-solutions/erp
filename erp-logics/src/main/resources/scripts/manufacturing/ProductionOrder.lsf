@@ -354,6 +354,9 @@ createComponentsOrder 'Заполнить компоненты из специф
 } TOOLBAR;
 
 recBruttoQuantityBOMOrderSku 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM quantityProductsBOMOrder(BOM, order) * recBruttoQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY BOM, order, sku;
+
+productionCoeffComponentDetail = ABSTRACT NUMERIC[20,9] (ComponentDetail);
+quantityCoeffComponentDetail(d) = OVERRIDE 1.0, productionCoeffComponentDetail(d); 
 createRecComponentsOrder 'Заполнить из спецификации (рекурсивно)' = ACTION (order)  {
 
     FOR q == recBruttoQuantityBOMOrderSku(BOM, order, sku) ORDER BOM ADDOBJ d = ComponentDetail DO {
@@ -364,18 +367,9 @@ createRecComponentsOrder 'Заполнить из спецификации (ре
     }
 } TOOLBAR;
 
-countBOMBruttoSkuOrder 'Кол-во строк' (BOM, sku, order) = GROUP SUM 1 BY BOMComponentDetail(d), bruttoSkuComponentDetail(d), orderComponentDetail(d);
-countBOMsOrder (order) = GROUP SUM 1 IF countBOMBruttoSkuOrder (BOM, sku, order) >1 BY order;
-
-
+calcBruttoQuantityComponentDetail (d) = recBruttoQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
 updateComponentsOrder 'Пересчитать кол-во для всех' = ACTION (order) {
-    IF NOT countBOMsOrder(order) THEN {
-        FOR q == recBruttoQuantityBOMOrderSku(BOM, order, sku) DO {    
-            bruttoQuantityComponentDetail(d) <- q WHERE BOMComponentDetail(d)==BOM AND orderComponentDetail(d)==order AND bruttoSkuComponentDetail(d) == sku;
-        }        
-    } ELSE {
-        MESSAGE 'Изменить количество нет возможности. Попробуйте заново содтать строки компонента, предварительно удалив старые.';
-    }
+    bruttoQuantityComponentDetail(d) <- calcBruttoQuantityComponentDetail (d);
 } TOOLBAR;
 
 // ------------- Заполнение изделий из спецификаций --------------- //
@@ -420,33 +414,18 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
 
 backgroundComponentDetail 'Цвет' (componentDetail) = RGB(255,255,229) IF productComponentDetail(componentDetail);
 
-createForRecComponentsOrder 'Заполнить из спец. (рекурсивно по компонентам)' = ACTION (order) {
+recBruttoQuantityBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityProductsBOMOrder(BOM, order) * recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
 
-    FOR quantityProductsBOMOrder(BOM, order) DO {
+createForRecComponentsOrder 'Заполнить из спецификации (рекурсивно по компонентам)' = ACTION (order)  {
 
-        FOR BOMComponent(component) == BOM DO {
-            FOR ADDOBJ d=ComponentDetail DO {
-                orderComponentDetail(d) <- order;
-                componentComponentDetail(d) <- component;
-                bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order))*quantityProductsBOMOrder(BOM,order);
-                BOMComponentDetail(d) <- BOM; 
-                
-                IF materialComponent(component) IS Sku THEN {
-                    bruttoSkuComponentDetail(d) <- materialComponent(component);
-                } ELSE {
-                    IF materialComponent(component) IS Product THEN {
-                        productComponentDetail(d) <- materialComponent(component);
-                        bruttoSkuComponentDetail(d) <- skuProduct(materialComponent(component));
-                    }
-                }
-            }
-        }
-    }
-    WHILE productComponentDetail(detail) AND orderComponentDetail(detail) == order DO {
-        expandComponentDetail(detail);
+    FOR q == recBruttoQuantityBOMOrderComponent(BOM, order, component) IF materialComponent(component) IS Sku ORDER BOM ADDOBJ d = ComponentDetail DO {
+        orderComponentDetail(d) <- order;
+        BOMComponentDetail(d) <- BOM;
+        bruttoSkuComponentDetail(d) <- materialComponent(component);
+        componentComponentDetail(d) <- component;
+        bruttoQuantityComponentDetail(d) <- q;
     }
 } TOOLBAR;
-
 
 // ---------------- Подбор цен и замен для sku --------------------------- //
 
@@ -1330,7 +1309,7 @@ WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) AND NOT CHANGED(co
     componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d));
     BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));              
 }
-WHEN SESSION FORMS order CHANGED(componentComponentDetail(d)) NOINLINE DO {
+WHEN SESSION FORMS order CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) NOINLINE DO {
     BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));    
     bruttoSkuComponentDetail(d) <- skuMaterial(materialComponent(componentComponentDetail(d)));       
 }

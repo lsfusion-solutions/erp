@@ -1,0 +1,13 @@
+MODULE ProductionConsumptionBatch;
+
+REQUIRE ProductionConsumption, ProductionOrderBatch;
+
+NAMESPACE Production;
+
+WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND componentComponentDetail(d) AND (productionCoeffBatch(batchComponentDetail(d)) OR PREV(productionCoeffBatch(batchComponentDetail(d)))) DO {
+    consumedQuantityComponentDetail(d) <- calcComponentConsumedQuantityComponentDetail (d);
+}
+
+WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND NOT componentComponentDetail(d) AND (productionCoeffBatch(batchComponentDetail(d)) OR PREV(productionCoeffBatch(batchComponentDetail(d)))) DO {
+    consumedQuantityComponentDetail(d) <- calcSkuConsumedQuantityComponentDetail (d);
+}

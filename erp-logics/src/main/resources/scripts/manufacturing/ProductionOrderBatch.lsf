@@ -74,3 +74,15 @@ DESIGN order {
         }
     }   
 }
+
+productionNormComponent 'Норма партии' = DATA NUMERIC[20,9] (Component);
+EXTEND FORM BOM
+    PROPERTIES(c) productionNormComponent
+;
+
+productionCoeffBatch 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) PERSISTENT;
+productionCoeffComponentDetail (d) += productionNormComponent(componentComponentDetail(d)) / productionCoeffBatch(batchComponentDetail(d));
+
+WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND productionNormComponent(componentComponentDetail(d)) DO {
+    bruttoQuantityComponentDetail(d) <- calcBruttoQuantityComponentDetail (d);
+}
