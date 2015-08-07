@@ -631,6 +631,13 @@ backgroundInBOMStockGroup 'Цвет' (BOM, stockGroup) = CASE
     WHEN quantityChildWithStockGroupBOM (stockGroup, BOM) != descendantNumberStockGroup(stockGroup) AND NOT quantityParentWithStockGroupBOM (stockGroup, BOM) THEN RGB(203,203,203);    
 
 editMaterialComponent 'Редактировать компонент' (d) = ACTION editMaterial(materialComponent(d));
+
+stocksBOM 'Склады' (BOM) = GROUP CONCAT nameStock(stock) IF inBOMStock(BOM, stock) , ', '
+                                                 BY BOM
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+stocksIDBOM 'Склады' (BOM) = GROUP CONCAT idStock(stock) IF inBOMStock(BOM, stock) , ', '
+                                                 BY BOM
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;                                                 
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
@@ -793,7 +800,7 @@ FORM BOMs 'Спецификации'
     OBJECTS b=BOM
 
     PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM,  dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM,  
-                   overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
+                   overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
     PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
     FILTERGROUP inactiveBOM

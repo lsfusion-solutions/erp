@@ -108,6 +108,11 @@ nameProductProductDetail 'Изделие' (productDetail) = nameMaterial(product
 idProductProductDetail 'Код изделия' (d) = idProduct(productProductDetail(d));
 BOMProductDetail 'Спецификация' (d) = BOMProduct(productProductDetail(d));
 
+CONSTRAINT BOMProductDetail(d) AND componentsStockProductDetail(d) AND countStocksBOM(BOMProductDetail(d)) AND NOT inBOMStock(BOMProductDetail(d), componentsStockProductDetail(d))
+    CHECKED BY productProductDetail
+    MESSAGE 'Для строки изделия в производственном заказе выбрана спецификация, которая не действует для склада компонента.';
+
+
 UOMProductDetail = UOMProduct(productProductDetail(productDetail));
 shortNameUOMProductDetail 'Ед.изм.' (productDetail) = shortNameUOM(UOMProductDetail(productDetail)) IN recognize;
 
@@ -358,6 +363,10 @@ quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [
 BOMComponentDetail= DATA BOM (ComponentDetail); 
 nameBOMComponentDetail 'Спецификация' = nameBOM(BOMComponentDetail(d));    
 fullNameBOMComponentDetail 'Спецификация (полное название)' = fullNameBOM(BOMComponentDetail(d));    
+
+CONSTRAINT BOMComponentDetail(d) AND componentsStockComponentDetail(d) AND countStocksBOM(BOMComponentDetail(d)) AND NOT inBOMStock(BOMComponentDetail(d), componentsStockComponentDetail(d))
+    CHECKED BY BOMComponentDetail
+    MESSAGE 'Для строки компонента в производственном заказе выбрана спецификация, которая не действует для склада компонента.';
 
 createComponentsOrder 'Заполнить компоненты из спецификации' = ACTION (order) {
 
@@ -1324,24 +1333,30 @@ WHEN SESSION FORMS order CHANGED(costSkuOrder(skuComponentDetail(detail), orderC
 WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
     skuProductDetail(detail) <- skuProduct(productProductDetail(detail));                 
               
-countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
-defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
+//countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
+//defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
+
+countProductsSkuStock (sku, stock) = GROUP SUM 1 IF inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock;
+defaultProductSkuStock (sku,stock)= GROUP MIN product IF inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock;
 
 WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
-    productProductDetail(d) <- defaultProductSku(skuProductDetail(d))
-        WHERE countProductsSku(skuProductDetail(d)) == 1;
+    productProductDetail(d) <- defaultProductSkuStock(skuProductDetail(d), componentsStockProductDetail(d))
+        WHERE countProductsSkuStock(skuProductDetail(d),componentsStockProductDetail(d)) == 1;
 }     
                                                                      
-countComponentsSku (material) = GROUP SUM 1 BY materialComponent(c) AS Sku;
-defaultComponentsSku (material)= GROUP MIN component BY materialComponent(component) AS Sku;                                                                     
+//countComponentsSku (material) = GROUP SUM 1 BY materialComponent(c) AS Sku;
+//defaultComponentsSku (material)= GROUP MIN component BY materialComponent(component) AS Sku;     
+                                                                
+countComponentsSkuStock (material, stock) = GROUP SUM 1 IF inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock;
+defaultComponentsSkuStock (material, stock)= GROUP MIN component IF inBOMStock(BOMComponent(c),stock) BY materialComponent(component) AS Sku, stock;                                                                  
                                                                      
 //WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
 //    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
 //        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
 //}  todo: переделано, потому что не срабатывает событие по CHANGED(componentComponentDetail(d)), которое следует за ним.
 
-WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) AND NOT CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) AND countComponentsSku(bruttoSkuComponentDetail(d)) == 1 NOINLINE DO {
-    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d));
+WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) AND NOT CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) AND countComponentsSkuStock(bruttoSkuComponentDetail(d), componentsStockComponentDetail(d)) == 1 NOINLINE DO {
+    componentComponentDetail(d) <- defaultComponentsSkuStock(bruttoSkuComponentDetail(d), componentsStockComponentDetail(d));
     BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));              
 }
 WHEN SESSION FORMS order CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) NOINLINE DO {
@@ -1711,7 +1726,8 @@ EXTEND FORM order
     ORDER BY nameSkuProduct(p)
     
     FILTERS                isParentSkuGroupSku(g, skuProduct(p)),
-                           activeSku(skuProduct(p))    
+                           activeSku(skuProduct(p)),
+                           (inBOMStock(BOMProduct(p), componentsStockOrder(o)) AND countStocksBOM(BOMProduct(p))) OR NOT countStocksBOM(BOMProduct(p))
 ;
 
 DESIGN order{
