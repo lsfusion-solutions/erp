@@ -877,15 +877,23 @@ END
 // Партии с диалогом по складам
 META defineInvoiceBatchDialogStock(stockProp)
 
-    changeBatchUserInvoiceDetail = ACTION (userInvoiceDetail) {
-        FORM dialogBatchStock OBJECTS st = stockProp###userInvoiceDetail(userInvoiceDetail),
-                                 t = dateTimeUserInvoiceDetail(userInvoiceDetail),
-                                 sk = skuUserInvoiceDetail(userInvoiceDetail) DIALOG SHOWDROP;
+    changeBatchUserInvoiceDetail = ACTION (d) {
+        IF batchUserInvoiceDetail(d) THEN {
+            FORM dialogBatchStock OBJECTS st = stockProp###userInvoiceDetail(d),
+                                     t = dateTimeUserInvoiceDetail(d),
+                                     sk = skuUserInvoiceDetail(d),
+                                     bt = batchUserInvoiceDetail(d) DIALOG SHOWDROP;        
+        } ELSE {
+            FORM dialogBatchStock OBJECTS st = stockProp###userInvoiceDetail(d),
+                                     t = dateTimeUserInvoiceDetail(d),
+                                     sk = skuUserInvoiceDetail(d) DIALOG SHOWDROP;        
+        }
+
 
         IF formResult() == FormResult.ok THEN {
-            batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
+            batchUserInvoiceDetail(d) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
+            batchUserInvoiceDetail(d) <- NULL;
         }
     }
 

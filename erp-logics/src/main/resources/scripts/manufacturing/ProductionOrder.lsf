@@ -298,10 +298,41 @@ quantityComponentDetailSkuOrder 'Кол-во (всего) (компонент)' 
 batchComponentDetail = DATA Batch (ComponentDetail);
 nameBatchComponentDetail 'Партия' (d) = nameBatch(batchComponentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
+FORM dialogBatchStockOrder 'Партии'
+    OBJECTS st = Stock FIXED PANEL
+    OBJECTS t = DATETIME FIXED PANEL
+    OBJECTS sk = Sku FIXED PANEL
+    PROPERTIES(sk) READONLY nameSku
+    
+    OBJECTS bt = Batch
+    PROPERTIES (bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, idBarcodeSkuBatch, idBatch SHOWIF showIDs(), shippedQuantityBatch, costBatch, expiryDateBatch
+    PROPERTIES  READONLY balanceBBatchStockDateTime(bt, st, t)
+    PROPERTIES  READONLY currentBalanceBatchStock(bt, st)
+    PROPERTIES(bt, st, t) READONLY accountPriceABatchStockDateTime
+    
+    FILTERS skuBatch(bt) == sk
+    ORDER BY dateTimeBatch(bt)
+    
+    FILTERGROUP income
+        FILTER 'Партии с приходом на склад' countLedgerBatchStock(bt, st) 'F10' DEFAULT  
+    FILTERGROUP batch
+        FILTER 'Партии с остатком до операции' balanceBBatchStockDateTime(bt, st, t) 'F11'
+        FILTER 'Партии с текущим остатком' currentBalanceBatchStock(bt, st) 'F9' DEFAULT
+;
+
+
 changeBatchComponentDetail = ACTION (d) {
-    FORM dialogBatchStock OBJECTS st = componentsStockComponentDetail(d),
-                             t = dateTimeComponentDetail(d),
-                             sk = skuComponentDetail(d) DIALOG SHOWDROP;
+    IF batchComponentDetail(d) THEN {
+        FORM dialogBatchStockOrder OBJECTS st = componentsStockComponentDetail(d),
+                                 t = dateTimeComponentDetail(d),
+                                 sk = skuComponentDetail(d),
+                                 bt = batchComponentDetail(d) DIALOG SHOWDROP;    
+    } ELSE {
+        FORM dialogBatchStockOrder OBJECTS st = componentsStockComponentDetail(d),
+                                 t = dateTimeComponentDetail(d),
+                                 sk = skuComponentDetail(d) DIALOG SHOWDROP;    
+    }
+
 
     IF formResult() == FormResult.ok THEN {
         batchComponentDetail(d) <- chosenObject('bt');
@@ -1018,6 +1049,10 @@ bruttoBalanceToSkuSubstituteOrder 'Текущий остаток с учетом
 backgroundBalanceSkuPriceStockOrder(s,o) = RGB (255,156,156) IF quantityComponentDetailSkuOrder(s,o) > currentBalanceSkuPriceStockOrder(s,o);  
 editSkuProductDetail 'Редактировать SKU' (d) = ACTION editSku(skuProductDetail(d));
 editBruttoSkuComponentDetail 'Редактировать SKU' (d) = ACTION editSku(bruttoSkuComponentDetail(d));
+
+
+
+
 
 FORM order 'Производственный заказ'
 
