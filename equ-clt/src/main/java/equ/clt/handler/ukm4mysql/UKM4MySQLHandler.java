@@ -696,7 +696,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         if(totalQuantity != null) {
                             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
-                                    sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, totalQuantity, price,
+                                    sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, totalQuantity, price,
                                     isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null,
                                     position, null, idSection));
                             receiptSet.add(Pair.create(idReceipt, cash_id));

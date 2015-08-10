@@ -773,10 +773,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(directory + "_" + numberCashRegister + "_" + departNumber);
                                         nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
+
+                                        String idSaleReceiptReceiptReturnDetail = null;
+                                        Element originalPurchase = ((Element) purchaseNode).getChild("original-purchase");
+                                        if(originalPurchase != null) {
+                                            Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
+                                            String numberZReportOriginal = readStringXMLAttribute(originalPurchase, "shift");
+                                            Integer numberReceiptOriginal = readIntegerXMLAttribute(originalPurchase, "number");
+                                            Date dateReceiptOriginal = new Date(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(readStringXMLAttribute(originalPurchase, "saletime")).getTime());
+                                            idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
+                                                    + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
+                                        }
+
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                sumGiftCard, barcode, null, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, discountCard,
-                                                numberReceiptDetail, fileName, null));
+                                                sumGiftCard, barcode, null, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
+                                                discountSumReceipt, discountCard, numberReceiptDetail, fileName, null));
                                     }
                                     count++;
                                 }

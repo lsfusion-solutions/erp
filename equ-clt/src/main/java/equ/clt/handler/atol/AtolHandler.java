@@ -530,7 +530,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                 currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
                                         numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, null, null, null, null,
-                                        null, null, barcodeItem, null, itemObject, quantityReceiptDetail, priceReceiptDetail,
+                                        null, null, barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
                                         sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(), null));
                         } else if (isCancelDocument) {
                             cancelReceiptSet.add(numberReceipt);

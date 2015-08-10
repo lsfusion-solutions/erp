@@ -257,13 +257,17 @@ idBarcodeReceiptDetail 'Штрихкод' (receiptDetail) = DATA STRING[15] (Rec
 
 // Возвраты
 
+saleReceiptReceiptReturnDetail = DATA Receipt (ReceiptReturnDetail);
+receiptDetailSkuReceipt(sku, receipt) = GROUP MAX receiptDetail BY skuReceiptDetail(receiptDetail), receiptReceiptDetail(receiptDetail);
+saleReceiptDetailReceiptReturnDetail(returnReceiptDetail) = receiptDetailSkuReceipt(skuReceiptDetail(returnReceiptDetail), saleReceiptReceiptReturnDetail(returnReceiptDetail));                                                                                                                                                             
 receiptSaleDetailReceiptReturnDetail = DATA ReceiptSaleDetail (ReceiptReturnDetail);
-receiptSaleReceiptReturnDetail (returnDetail) = receiptReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(returnDetail));
+overReceiptSaleDetailReceiptReturnDetail(detail) = OVERRIDE receiptSaleDetailReceiptReturnDetail(detail), saleReceiptDetailReceiptReturnDetail(detail);
+receiptSaleReceiptReturnDetail (returnDetail) = receiptReceiptSaleDetail(overReceiptSaleDetailReceiptReturnDetail(returnDetail));
 
 descriptionSaleReceiptReturnDetail 'Чек продажи' (returnDetail) = CONCAT ' ',
     'Чек № ' + numberReceipt(receiptSaleReceiptReturnDetail(returnDetail)),
     'от ' + dateTimeReceipt(receiptSaleReceiptReturnDetail(returnDetail)),
-    'позиция ' + indexReceiptDetail(receiptSaleDetailReceiptReturnDetail(returnDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+    'позиция ' + indexReceiptDetail(overReceiptSaleDetailReceiptReturnDetail(returnDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 // Количества и суммы
 

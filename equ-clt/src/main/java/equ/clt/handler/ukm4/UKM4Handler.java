@@ -329,7 +329,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                     salesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), Integer.parseInt(numberCashRegister), zNumber,
                             receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
-                            null, null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
+                            null, null, null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                             priceReceiptDetail,
                             operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
                             discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null, null));

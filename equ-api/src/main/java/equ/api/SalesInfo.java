@@ -23,6 +23,7 @@ public class SalesInfo implements Serializable {
     public String barcodeItem;
     public String idItem;
     public Integer itemObject;
+    public String idSaleReceiptReceiptReturnDetail;
     public BigDecimal quantityReceiptDetail;
     public BigDecimal priceReceiptDetail;
     public BigDecimal sumReceiptDetail;
@@ -36,9 +37,10 @@ public class SalesInfo implements Serializable {
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Integer numberReceipt,
                      Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact, String lastNameContact,
                      BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem, String idItem,
-                     Integer itemObject, BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail,
-                     BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt, String seriesNumberDiscountCard, 
-                     Integer numberReceiptDetail, String filename, String idSection) {
+                     Integer itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
+                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
+                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
+                     String idSection) {
         this.isGiftCard = isGiftCard;
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
@@ -55,6 +57,7 @@ public class SalesInfo implements Serializable {
         this.barcodeItem = barcodeItem;
         this.idItem = idItem;
         this.itemObject = itemObject;
+        this.idSaleReceiptReceiptReturnDetail = idSaleReceiptReceiptReturnDetail;
         this.quantityReceiptDetail = quantityReceiptDetail;
         this.priceReceiptDetail = priceReceiptDetail;
         this.sumReceiptDetail = sumReceiptDetail;
