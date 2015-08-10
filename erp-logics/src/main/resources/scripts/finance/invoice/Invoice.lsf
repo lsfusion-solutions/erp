@@ -196,10 +196,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     @defineDocumentInterfacePosted(invoice);
     Invoice.isPostedInvoice (invoice) += isPostedInvoice(invoice);
     
-    isStockInvoices 'Разрешить ввод накладной'##sign##' без склада ' = DATA BOOLEAN ();    
-    
+    isStockInvoices 'Разрешить ввод накладной'##sign##' без склада' = DATA BOOLEAN ();    
+    equalsSeriesNumberInvoices 'Запретить ввод накладных'##sign##' с одинаковым "Серия/номер"' = DATA BOOLEAN (); 
     EXTEND FORM options
-        PROPERTIES() NS###isStockInvoices = isStockInvoices
+        PROPERTIES() NS###isStockInvoices = isStockInvoices, NS###equalsSeriesNumberInvoices = equalsSeriesNumberInvoices
     ;
     
     DESIGN options {
@@ -207,12 +207,15 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
             NEW invoice##NS {
                 caption = 'Накладная'##sign;
                 MOVE PROPERTY(NS###isStockInvoices);
+                MOVE PROPERTY(NS###equalsSeriesNumberInvoices);
             } 
         }
     }
 
     CONSTRAINT isPostedUserInvoice(i) AND NOT isStockInvoices() AND NOT stockProp###stock###userInvoice(i) 
-        MESSAGE 'Для накладной'##sign##' должен быть задан склад';         
+        MESSAGE 'Для накладной'##sign##' должен быть задан склад';   
+    CONSTRAINT  equalsSeriesNumberInvoices() AND [ = GROUP SUM 1 IF isPostedInvoice(i) BY seriesNumberInvoice(i)](series) >1
+        MESSAGE 'Запрещено вводить накладные'##sign##' с одинаковым "Серия/номер"';                 
     
     @defineDocumentInterfaceClosed(invoice);
     @defineDocumentClosedConstraint(UserInvoice);
