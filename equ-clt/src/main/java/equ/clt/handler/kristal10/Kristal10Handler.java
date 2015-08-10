@@ -202,21 +202,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     }
                     processTransactionLogger.info("Kristal10: created catalog-goods file (Transaction " + transaction.id + ")");
 
-                    String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
+                    File file = makeGoodsFilePath(exchangeDirectory);
                     XMLOutputter xmlOutput = new XMLOutputter();
                     xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(filePath), encoding));
+                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
                     xmlOutput.output(doc, fw);
                     fw.close();
                     processTransactionLogger.info("Kristal10: output catalog-goods file (Transaction " + transaction.id + ")");
 
-                    //чит для избежания ситуации, совпадения имён у двух файлов (в основе имени - текущее время с точностью до секунд)
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ignored) {
-                    }
-
-                    fileMap.put(new File(filePath), transaction.id);
+                    fileMap.put(file, transaction.id);
                 }
             } catch (Exception e) {
                 processTransactionLogger.error("Kristal10: ", e);
@@ -286,11 +280,19 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
         return result;
     }
-    
-    private String makeGoodsFilePath() {
+
+    private synchronized File makeGoodsFilePath(String exchangeDirectory) {
         DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm-ss");
-        Calendar cal = Calendar.getInstance();
-        return "catalog-goods_" + dateFormat.format(cal.getTime());
+        File file = new File(exchangeDirectory + "//" + "catalog-goods_" + dateFormat.format(Calendar.getInstance().getTime()) + ".xml");
+        //чит для избежания ситуации, совпадения имён у двух файлов (в основе имени - текущее время с точностью до секунд)
+        while(file.exists()) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ignored) {
+            }
+            file = new File(exchangeDirectory + "//" + "catalog-goods_" + dateFormat.format(Calendar.getInstance().getTime()) + ".xml");
+        }
+        return file;
     }
     
     private void addStringElement(Element parent, String id, String value) {
@@ -566,15 +568,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
                     XMLOutputter xmlOutput = new XMLOutputter();
                     xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), encoding));
+
+                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(makeGoodsFilePath(exchangeDirectory)), encoding));
                     xmlOutput.output(doc, fw);
                     fw.close();
-
-                    //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ignored) {
-                    }
                 }
             }
         }
