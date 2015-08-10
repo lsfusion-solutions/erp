@@ -16,7 +16,7 @@ supplierSumPurchaseSkuSupplierStockDateFromTo 'Закуплено за инте�
     sumVATPurchaseSkuStockSupplierStockDateFromTo (sku, stock, supplierStock, dateFrom, dateTo)) IF inReportStock(stock)
         BY sku, supplierStock, dateFrom, dateTo;       
 averagePricePurchaseSkuSupplierStockDateFromTo 'Средняя цена закупки с НДС' =  sumPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) /
-    (quantityPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF quantityPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) !=0);         
+    quantityPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo);         
 
 quantityPurchaseSupplierStockDateFromTo 'Закуплено за интервал (кол-во)' = GROUP SUM quantityPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) BY supplierStock, dateFrom, dateTo;
 sumPurchaseSupplierStockDateFromTo 'Закуплено за интервал (сумма с НДС)' = GROUP SUM sumPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) BY supplierStock, dateFrom, dateTo;
@@ -91,7 +91,7 @@ FORM supplierStockReportPrint 'По поставщикам'
     PROPERTIES(sk) idSku, idBarcodeSku, nameSku, shortNameUOMSku
 
     PROPERTIES (sk,st,dFrom,dTo) quantityPurchaseSkuSupplierStockDateFromTo, sumPurchaseSkuSupplierStockDateFromTo,
-                supplierSumPurchaseSkuSupplierStockDateFromTo,averagePricePurchaseSkuSupplierStockDateFromTo, 
+                supplierSumPurchaseSkuSupplierStockDateFromTo, averagePricePurchaseSkuSupplierStockDateFromTo, 
                 quantitySoldSkuSupplierStockDateFromTo, sumSoldSkuSupplierStockDateFromTo, averagePriceSkuSupplierStockDateFromTo,
                 sumSaleSkuSupplierStockDateFromTo, supplierSumSaleSkuSupplierStockDateFromTo, averageSalePriceSkuSupplierStockDateFromTo
     PROPERTIES (sk,st,dFrom) balanceBSkuSupplierStockDateFrom, sumBSkuSupplierStockDateFrom, supplierSumBSkuSupplierStockDateFrom 
@@ -103,10 +103,11 @@ FORM supplierStockReportPrint 'По поставщикам'
     PROPERTIES(st,dFrom) balanceBSupplierStockDateFrom,  sumBSupplierStockDateFrom,  supplierSumBSupplierStockDateFrom        
     PROPERTIES(st,dTo) balanceASupplierStockDateTo,  sumASupplierStockDateTo,  supplierSumASupplierStockDateTo              
     
+    ORDER BY nameSku(sk)
+    
     FILTERS quantityPurchaseSkuSupplierStockDateFromTo(sk,st,dFrom,dTo) OR 
             quantitySoldSkuSupplierStockDateFromTo(sk,st,dFrom,dTo) OR 
-            balanceBSkuSupplierStockDateFrom(sk,st,dFrom) OR
-            balanceASkuSupplierStockDateTo(sk,st,dTo)
+            balanceASkuSupplierStockDateFrom(sk,st,dFrom)
 ;
 supplierStockReportPrintXLS 'Отчет по поставщику (xls)' (st,dFrom,dTo) = ACTION (st,dFrom,dTo) {
     FORM supplierStockReportPrint OBJECTS st=st, dFrom = dFrom, dTo=dTo PRINT XLS;
