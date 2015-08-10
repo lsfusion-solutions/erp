@@ -62,11 +62,13 @@ dateScales 'Дата следующей обязательной поверки'
 groupScalesNpp (npp) = GROUP AGGR groupScales BY nppGroupMachinery(groupScales) WHERE groupScales IS GroupScales;  
 scalesNppGroupScalesNpp (g, npp) = GROUP AGGR scales BY nppGroupMachinery(groupScalesScales(scales)), nppMachinery(scales);  
 
-activeScales 'Активный' (scales) = activeGroupScales(groupScalesScales(scales));
+inactiveScales 'Неактивный' = DATA BOOLEAN (Scales);
+overInactiveMachinery(scales) += inactiveScales(scales);
+activeScales 'Активный' (scales) = scales IS Scales AND NOT (OVERRIDE inactiveGroupScales(groupScalesScales(scales)), inactiveScales(scales));
 
 FORM scales 'Весы'
     OBJECTS s=Scales FIXED PANEL
-    PROPERTIES(s) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales, dateScales
+    PROPERTIES(s) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery,inactiveScales, portMachinery, numberScales, dateScales
     EDIT Scales OBJECT s
 ;
 
@@ -79,7 +81,7 @@ FORM groupScales 'Группа весов'
                     namePriceListTypeGroupMachinery, inactiveGroupScales
 
     OBJECTS s=Scales
-    PROPERTIES(s)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberScales,
+    PROPERTIES(s)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, inactiveScales, portMachinery, numberScales,
                     dateScales, ADDOBJ, DELETESESSION
     FILTERGROUP filters1
         FILTER 'Показывать только для данной группы' groupScalesScales(s) == grs 'F10' DEFAULT
@@ -94,7 +96,7 @@ FORM groupsScales 'Группы весов'
     PROPERTIES(grs) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS s=Scales
-    PROPERTIES(s)   READONLY nppMachinery, descriptionMachinery, portMachinery, numberScales, dateScales
+    PROPERTIES(s)   READONLY nppMachinery, descriptionMachinery, inactiveScales, portMachinery, numberScales, dateScales
     FILTERS groupScalesScales(s) == grs
     
     FILTERGROUP active1
