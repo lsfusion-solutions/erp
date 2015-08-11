@@ -203,6 +203,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     
     isStockInvoices 'Разрешить ввод накладной'##sign##' без склада' = DATA BOOLEAN ();    
     equalsSeriesNumberInvoices 'Запретить ввод накладных'##sign##' с одинаковым "Серия/номер"' = DATA BOOLEAN (); 
+    skipEqualsSeriesNumberInvoice = ABSTRACT BOOLEAN (Invoice);
+    
     EXTEND FORM options
         PROPERTIES() NS###isStockInvoices = isStockInvoices, NS###equalsSeriesNumberInvoices = equalsSeriesNumberInvoices
     ;
@@ -219,7 +221,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
 
     CONSTRAINT isPostedUserInvoice(i) AND NOT isStockInvoices() AND NOT stockProp###stock###userInvoice(i) 
         MESSAGE 'Для накладной'##sign##' должен быть задан склад';   
-    CONSTRAINT  equalsSeriesNumberInvoices() AND [ = GROUP SUM 1 IF isPostedInvoice(i) BY seriesNumberInvoice(i)](series) >1
+    CONSTRAINT  equalsSeriesNumberInvoices() AND [ = GROUP SUM 1 IF isPostedInvoice(i) AND NOT skipEqualsSeriesNumberInvoice(i) BY seriesNumberInvoice(i)](series) >1
         MESSAGE 'Запрещено вводить накладные'##sign##' с одинаковым "Серия/номер"';                 
     
     @defineDocumentInterfaceClosed(invoice);
