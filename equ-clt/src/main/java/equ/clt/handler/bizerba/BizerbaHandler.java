@@ -84,8 +84,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                         TCPPort port = new TCPPort(scales.port, 1025);
                         if (scales.port != null) {
                             ips.add(scales.port);
-                            if (openPort(port, scales.port, brokenPortsMap, errors))
-                                taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters));
+                            taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters));
                         }
                     }
 
@@ -113,22 +112,15 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    private boolean openPort(TCPPort port, String ip, Map<String, String> brokenPortsMap, Map<String, List<String>> errors) {
-        boolean result = false;
+    private String openPort(TCPPort port, String ip) {
         try {
-            if (brokenPortsMap.containsKey(ip)) {
-                errors.put(ip, Collections.singletonList(brokenPortsMap.get(ip)));
-            } else {
-                processTransactionLogger.info("Bizerba: Connecting..." + ip);
-                port.open();
-                result = true;
-            }
+            processTransactionLogger.info("Bizerba: Connecting..." + ip);
+            port.open();
         } catch (Exception e) {
             processTransactionLogger.error(e);
-            brokenPortsMap.put(ip, "Bizerba: error " + e.getMessage());
-            errors.put(ip, Collections.singletonList(e.getMessage()));
+            return e.getMessage();
         }
-        return result;
+        return null;
     }
 
     protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
@@ -536,42 +528,47 @@ public abstract class BizerbaHandler extends ScalesHandler {
         @Override
         public SendTransactionResult call() throws Exception {
             List<String> localErrors = new ArrayList<>();
-            int globalError = 0;
-            try {
-                if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
-                    clearAll(localErrors, port, scales, charset, encode);
-                }
-
-                processTransactionLogger.info("Bizerba: Sending items..." + scales.port);
-                if (localErrors.isEmpty()) {
-                    synchronizeTime(localErrors, port, charset, scales.port, encode);
-                    int count = 0;
-                    for (ScalesItemInfo item : transaction.itemsList) {
-                        count++;
-                        if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                            if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                String result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
-                                if (!result.equals("0")) {
-                                    logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
-                                    globalError++;
-                                }
-                            } else {
-                                processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
-                            }
-                        } else break;
-                    }
-                }
-                port.close();
-
-            } catch (Exception e) {
-                logError(localErrors, String.format("Bizerba: IP %s error ", scales.port), e);
-            } finally {
-                processTransactionLogger.info("Bizerba: Finally disconnecting..." + scales.port);
+            String openPortResult = openPort(port, scales.port);
+            if(openPortResult != null) {
+                localErrors.add(openPortResult);
+            } else {
+                int globalError = 0;
                 try {
+                    if (!transaction.itemsList.isEmpty() && transaction.snapshot) {
+                        clearAll(localErrors, port, scales, charset, encode);
+                    }
+
+                    processTransactionLogger.info("Bizerba: Sending items..." + scales.port);
+                    if (localErrors.isEmpty()) {
+                        synchronizeTime(localErrors, port, charset, scales.port, encode);
+                        int count = 0;
+                        for (ScalesItemInfo item : transaction.itemsList) {
+                            count++;
+                            if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                    processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                    String result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
+                                    if (!result.equals("0")) {
+                                        logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                        globalError++;
+                                    }
+                                } else {
+                                    processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                                }
+                            } else break;
+                        }
+                    }
                     port.close();
-                } catch (CommunicationException e) {
-                    logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
+
+                } catch (Exception e) {
+                    logError(localErrors, String.format("Bizerba: IP %s error ", scales.port), e);
+                } finally {
+                    processTransactionLogger.info("Bizerba: Finally disconnecting..." + scales.port);
+                    try {
+                        port.close();
+                    } catch (CommunicationException e) {
+                        logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
+                    }
                 }
             }
             processTransactionLogger.info("Bizerba: Completed ip: " + scales.port);
