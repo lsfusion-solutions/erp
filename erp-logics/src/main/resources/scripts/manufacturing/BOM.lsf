@@ -300,6 +300,8 @@ descriptionBOM 'Название спецификации' (BOM) = VARSTRING[200
 fromDateBOM 'Дата с' = DATA DATE (BOM) IN documentPrm;
 toDateBOM 'Дата по' = DATA DATE (BOM) IN documentPrm;
 
+inactiveBOM 'Неактивная' = DATA BOOLEAN (BOM) IN documentPrm;
+
 // ------------- Изделия ----------- //
 CLASS Product 'Изделие' : Material;
 TABLE product (Product);
@@ -338,6 +340,7 @@ UOMProduct(product) <- UOMSku(skuProduct(product)) WHEN CHANGED (skuProduct(prod
 @defineDocumentRelation (BOM, Product, ' (изделие)');
 @defineDocumentDetailTimePrefix(BOM, Product, , ' документа');
 
+inactiveProduct 'Неактивный' (product) = inactiveBOM(BOMProduct(product));
 descriptionProduct 'Название документа' (product) = descriptionBOM(BOMProduct(product));
 
 @defineDocumentDetailIndex (BOM, Product);
@@ -390,8 +393,10 @@ changePriceCoeffProduct = ACTION (product) {
 FORM products 'Изделия'
     OBJECTS p=Product
     PROPERTIES(p) idProduct SHOWIF showIDs()
-    PROPERTIES(p) READONLY descriptionProduct, indexProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct
+    PROPERTIES(p) READONLY inactiveProduct, descriptionProduct, indexProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct
 //    PROPERTIES (p) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
+    FILTERGROUP active
+        FILTER 'Активные' NOT inactiveProduct(p) DEFAULT
 
     DIALOG Product OBJECT p
 ;
@@ -642,7 +647,7 @@ FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
 
-    PROPERTIES(b) nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, dateBOM, timeBOM, noteBOM, fromDateBOM, toDateBOM 
+    PROPERTIES(b) inactiveBOM, nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, dateBOM, timeBOM, noteBOM, fromDateBOM, toDateBOM 
     PROPERTIES(b) READONLY overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, 
                   overCurBruttoNetWeightyComponentBOM BACKGROUND backgroundBruttoQuantityBOM(b), pricePercentBOM
     OBJECTS p = Product
@@ -716,6 +721,7 @@ DESIGN BOM {
                 NEW headerRow11 {
                     caption = 'Шапка';
                     type = CONTAINERH;
+                    MOVE PROPERTY(inactiveBOM(b));
                     MOVE PROPERTY(nameBOM(b)) { preferredCharWidth = 20; }
                     MOVE PROPERTY(nameNumeratorBOM(b));
                     MOVE PROPERTY(numberBOM(b));
@@ -775,10 +781,10 @@ editMaterial(p) += ACTION [= ACTION EDITFORM BOM](BOMProduct(p));
 relationProductsSkuBOM (sku,BOM)= GROUP SUM 1 BY skuProduct(p), BOMProduct(p);
 relationComponentsSkuBOM (sku,BOM)= GROUP SUM 1 BY materialComponent(c), BOMComponent(c);
 
-isActiveBOMDate(BOM, date) = (fromDateBOM(BOM) <= (date AS DATE) AND toDateBOM(BOM) >= date) OR
-                                         (fromDateBOM(BOM) <= (date AS DATE) AND NOT toDateBOM(BOM)) OR 
-                                         (toDateBOM(BOM) >= (date AS DATE) AND NOT fromDateBOM(BOM)) OR 
-                                         (BOM IS BOM AND date IS DATE AND NOT fromDateBOM(BOM) AND NOT toDateBOM(BOM));
+isActiveBOMDate(BOM, date) = BOM IS BOM AND date IS DATE
+                                        AND NOT inactiveBOM(BOM)
+                                        AND NOT fromDateBOM(BOM) > date
+                                        AND NOT toDateBOM(BOM) < date;
 isActiveBOM(BOM) = isActiveBOMDate(BOM, currentDate());
 
 backgroundBOM 'Цвет' (BOM) = CASE WHEN fromDateBOM(BOM) > currentDate() THEN RGB(224,255,224)
@@ -799,7 +805,7 @@ FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
-    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM,  dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM,  
+    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) inactiveBOM, productsBOM, nameBOM, numberBOM, seriesBOM,  dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM,  
                    overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
     PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
@@ -825,8 +831,8 @@ FORM BOMs 'Спецификации'
     FILTERS        isProductGroupSku(p1)
     
     OBJECTS b1=BOM    
-    PROPERTIES(b1) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
-                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b1) READONLY inactiveBOM, productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
+                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
     PROPERTIES(b1) EDITFORM
     PROPERTIES     addBOMSku(p1) TODRAW b1
     FILTERS        relationProductsSkuBOM(p1,b1)
@@ -843,8 +849,8 @@ FORM BOMs 'Спецификации'
     PROPERTIES     TODRAW c2 addSku(), editSku(c2), DELETE(c2) FORCE PANEL TOOLBAR  
     FILTERS        isComponentGroupSku(c2)                   
     OBJECTS b2=BOM    
-    PROPERTIES(b2) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
-                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b2) READONLY inactiveBOM, productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
+                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
     PROPERTIES(b2) EDITFORM                
     FILTERS        relationComponentsSkuBOM(c2,b2)           
     
