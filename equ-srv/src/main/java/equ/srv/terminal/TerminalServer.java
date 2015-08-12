@@ -12,10 +12,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
@@ -403,11 +400,12 @@ public class TerminalServer extends LifecycleAdapter {
 
     private String[] readParams(DataInputStream inFromClient) throws IOException {
         byte b;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         String escStr = Character.toString((char) esc);
-        String result = "";
         while ((b = inFromClient.readByte()) != 3) {
-            result += (char) b;
+            baos.write(b);
         }
+        String result = baos.toString();
         return result.isEmpty() ? null : result.split(escStr, -1);
     }
 
