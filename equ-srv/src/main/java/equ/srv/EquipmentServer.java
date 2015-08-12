@@ -180,6 +180,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
 
+    public EquipmentServer() {
+        super(HIGH_DAEMON_ORDER);
+    }
+
     @Override
     public boolean enabledSoftCheckInfo() throws RemoteException, SQLException {
         return softCheck != null;

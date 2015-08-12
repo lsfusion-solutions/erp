@@ -109,9 +109,7 @@ public class TerminalServer extends LifecycleAdapter {
     }
 
     public TerminalServer() {
-
-        //listenToPort();
-
+        super(HIGH_DAEMON_ORDER);
     }
 
     public void listenToPort() {
@@ -142,10 +140,6 @@ public class TerminalServer extends LifecycleAdapter {
             thread.setDaemon(true);
             thread.start();
         }
-    }
-
-    protected String trim(String input) {
-        return input == null ? null : input.trim();
     }
 
     protected DataSession createSession() throws SQLException {
