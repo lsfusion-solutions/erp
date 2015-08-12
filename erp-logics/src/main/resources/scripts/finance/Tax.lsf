@@ -543,7 +543,16 @@ END
 META deriveDocumentDetailReverseVATSumPrefix(object, prefixA, prefixB)
     @deriveDocumentDetailReverseVATSumPrefix(object, prefixA, prefixB, currency);
 END
-
+META deriveDocumentDetailReverseVATSumRoundCustomPrefix(detail, prefixA, prefixB, currencyProp, roundProp)
+    prefixA###VATSum###detail (detail)  <- NUMERIC[16,2](round([= X*Y/(100+Y)](prefixB###sum###detail(detail), calcValue###prefixA###VAT###detail(detail)), roundProp###detail(detail)))
+                    WHEN CHANGED(prefixB###sum###detail(detail)) OR CHANGED (calcValue###prefixA###VAT###detail(detail)) OR CHANGED (currencyProp###detail(detail));
+END
+META deriveDocumentDetailReverseVATSumRoundPrefix(object, prefixA, prefixB, currencyProp,roundProp)
+    @deriveDocumentDetailReverseVATSumRoundCustomPrefix(object##Detail, prefixA, prefixB, currencyProp,roundProp);
+END
+META deriveDocumentDetailReverseVATSumRoundPrefix(object, prefixA, prefixB, roundProp)
+    @deriveDocumentDetailReverseVATSumRoundPrefix(object, prefixA, prefixB, currency, roundProp);
+END
 //-- Сумма НДС в документе
 META defineDocumentHeaderVATSum (object, detail, prefix)
     VATSum###detail###object 'Сумма НДС' (object) = GROUP SUM VATSum###detail(idetail) BY object###detail(idetail) IN documentSum;

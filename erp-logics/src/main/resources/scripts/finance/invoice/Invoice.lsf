@@ -329,13 +329,15 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     @defineDocumentDetailNumberVATOnChange(userInvoice, stockProp###stock);
     @defineDocumentDetailValueVATOnChange(userInvoice);
     @defineDocumentDetailInvoicePriceVATOnChange(userInvoice);
+    overPriceRoundUserInvoiceDetail = ABSTRACT INTEGER (UserInvoiceDetail);
+    priceRoundUserInvoiceDetail (detail) = OVERRIDE defaultRoundCurrency(currencyUserInvoiceDetail(detail)), overPriceRoundUserInvoiceDetail(detail); 
 
     @defineDocumentInterfacePriceListType(invoice); // объявляем вид цены
     @deriveDocumentDetailPriceListTypeAgreement(userInvoice); // записываем вид цены из соглашения
 //    @deriveDocumentDetailPricePriceListTypeVAT (userInvoice, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
     @defineDocumentInterfaceDetailDataSum(invoice); // объявляем сумму без НДС
-    @deriveDocumentDetailSum(userInvoice, quantity);
+    @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, , currency, quantity, priceRound);
     Invoice.sumInvoiceDetail(detail) += sumInvoiceDetail(detail);
 
     @defineDocumentInterfaceDetailVATDataSum (invoice, invoice); // объявляем свойства суммы НДС и суммы с НДС
