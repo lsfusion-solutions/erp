@@ -1090,7 +1090,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail ON EDIT editBruttoSkuComponentDetail(cd), nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd),
                    nameMaterialComponentDetail, 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
-                   fullNameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
+                   fullNameBOMComponentDetail, shortNameUOMComponentDetail READONLY, bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
     PROPERTIES(cd) BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail ON CHANGE chooseSubstituteComponentDetail(cd), substituteQuantityComponentDetail
     PROPERTIES(cd) costComponentDetail, priceComponentDetail
     PROPERTIES(cd) sumComponentDetail
@@ -1347,16 +1347,16 @@ WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
 //countComponentsSku (material) = GROUP SUM 1 BY materialComponent(c) AS Sku;
 //defaultComponentsSku (material)= GROUP MIN component BY materialComponent(component) AS Sku;     
                                                                 
-countComponentsSkuStock (material, stock) = GROUP SUM 1 IF inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock;
-defaultComponentsSkuStock (material, stock)= GROUP MIN component IF inBOMStock(BOMComponent(c),stock) BY materialComponent(component) AS Sku, stock;                                                                  
+countComponentsSkuStockDate (material, stock, date) = GROUP SUM 1 IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock, date;
+defaultComponentsSkuStockDate (material, stock, date)= GROUP MIN component IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(component) AS Sku, stock, date;                                                                  
                                                                      
 //WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
 //    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
 //        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
 //}  todo: переделано, потому что не срабатывает событие по CHANGED(componentComponentDetail(d)), которое следует за ним.
 
-WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) AND NOT CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) AND countComponentsSkuStock(bruttoSkuComponentDetail(d), componentsStockComponentDetail(d)) == 1 NOINLINE DO {
-    componentComponentDetail(d) <- defaultComponentsSkuStock(bruttoSkuComponentDetail(d), componentsStockComponentDetail(d));
+WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) AND NOT CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) AND countComponentsSkuStockDate(bruttoSkuComponentDetail(d), componentsStockComponentDetail(d), dateComponentDetail(d)) == 1 NOINLINE DO {
+    componentComponentDetail(d) <- defaultComponentsSkuStockDate(bruttoSkuComponentDetail(d), componentsStockComponentDetail(d), dateComponentDetail(d));
     BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));              
 }
 WHEN SESSION FORMS order CHANGED(componentComponentDetail(d)) AND NOT CHANGED(BOMComponentDetail(d)) NOINLINE DO {
