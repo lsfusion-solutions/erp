@@ -252,13 +252,13 @@ CONSTRAINT bruttoSkuComponentDetail(d) AND NOT isComponentGroupSku(bruttoSkuComp
 UOMComponentDetail = UOMComponent(componentComponentDetail(componentDetail));
 shortNameUOMComponentDetail 'Ед. изм.' (componentDetail) = shortNameUOM(UOMComponentDetail(componentDetail));
 
-CONSTRAINT componentComponentDetail(componentDetail) AND NOT bruttoSkuComponentDetail(componentDetail) == skuComponent(componentComponentDetail(componentDetail))
+CONSTRAINT componentComponentDetail(componentDetail) AND bruttoSkuComponentDetail(componentDetail) AND NOT bruttoSkuComponentDetail(componentDetail) == skuComponent(componentComponentDetail(componentDetail))
     CHECKED BY componentComponentDetail MESSAGE 'Sku компонента и строки компонента не соответствуют друг другу';
 
 productComponentDetail = DATA Product (ComponentDetail);
 nameMaterialComponentDetail 'Изделие' (componentDetail) = nameMaterial(productComponentDetail(componentDetail));
 
-CONSTRAINT productComponentDetail(componentDetail) AND NOT bruttoSkuComponentDetail(componentDetail) == skuProduct(productComponentDetail(componentDetail))
+CONSTRAINT productComponentDetail(componentDetail) AND bruttoSkuComponentDetail(componentDetail) AND NOT bruttoSkuComponentDetail(componentDetail) == skuProduct(productComponentDetail(componentDetail))
     CHECKED BY productComponentDetail MESSAGE 'Sku изделия и строки компонента не соответствуют друг другу';
 
 // Кол-во
@@ -367,6 +367,10 @@ fullNameBOMComponentDetail 'Спецификация (полное назван�
 CONSTRAINT BOMComponentDetail(d) AND componentsStockComponentDetail(d) AND countStocksBOM(BOMComponentDetail(d)) AND NOT inBOMStock(BOMComponentDetail(d), componentsStockComponentDetail(d))
     CHECKED BY BOMComponentDetail
     MESSAGE 'Для строки компонента в производственном заказе выбрана спецификация, которая не действует для склада компонента.';
+
+CONSTRAINT componentComponentDetail(d) AND componentsStockComponentDetail(d) AND countStocksBOM(BOMComponent(componentComponentDetail(d))) AND NOT inBOMStock(BOMComponent(componentComponentDetail(d)), componentsStockComponentDetail(d))
+    CHECKED BY BOMComponentDetail
+    MESSAGE 'Для строки компонента в производственном заказе выбрана компонента, которая не действует для склада компонента.';
 
 createComponentsOrder 'Заполнить компоненты из спецификации' = ACTION (order) {
 
@@ -1348,7 +1352,7 @@ WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
 //defaultComponentsSku (material)= GROUP MIN component BY materialComponent(component) AS Sku;     
                                                                 
 countComponentsSkuStockDate (material, stock, date) = GROUP SUM 1 IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock, date;
-defaultComponentsSkuStockDate (material, stock, date)= GROUP MIN component IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(component) AS Sku, stock, date;                                                                  
+defaultComponentsSkuStockDate (material, stock, date)= GROUP MIN c IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock, date;                                                                  
                                                                      
 //WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
 //    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
