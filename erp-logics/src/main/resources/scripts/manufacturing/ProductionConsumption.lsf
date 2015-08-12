@@ -134,7 +134,7 @@ quantityOutputProductOrder 'Кол-во изделий в заказе (прои
     BY productProductDetail(productDetail), orderProductDetail(productDetail);
 
 quantityOutputBOMOrder 'Кол-во спецификаций (произведенных)' (BOM, order) = [= GROUP MAX quantityOutputProductOrder(product, order)/ quantityProduct(product)
-    BY BOMProduct(product), order](BOM, order);
+    BY BOMProduct(product), order](BOM, order) PERSISTENT;
 
 recBruttoQuantityOutputBOMOrderSku 'Кол-во для произ-го' (BOM, order, sku) = GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY BOM, order, sku;
 recBruttoQuantityOutputBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
@@ -143,7 +143,7 @@ calcComponentConsumedQuantityComponentDetail (d) = recBruttoQuantityOutputBOMOrd
 calcSkuConsumedQuantityComponentDetail (d) = recBruttoQuantityOutputBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), bruttoSkuComponentDetail(d)) * quantityCoeffComponentDetail(d);
 createOutputComponentOrder 'Заполнить списание' = ACTION (order)  {
     consumedQuantityComponentDetail(d) <- calcComponentConsumedQuantityComponentDetail(d) WHERE orderComponentDetail(d) == order AND componentComponentDetail(d);
-    consumedQuantityComponentDetail(d) <- calcComponentConsumedQuantityComponentDetail(d) WHERE orderComponentDetail(d) == order AND NOT componentComponentDetail(d);
+    consumedQuantityComponentDetail(d) <- calcSkuConsumedQuantityComponentDetail(d) WHERE orderComponentDetail(d) == order AND NOT componentComponentDetail(d);
 } TOOLBAR;
 
 backgroundConsumptionOrder 'Цвет' (order) = RGB(212, 255, 212) IF order IS Order;

@@ -445,7 +445,7 @@ UOMComponent(component) <- UOMMaterial(materialComponent(component)) WHEN CHANGE
 TABLE  technologyComponent (Technology, Component);
 
 inTechnologyComponent 'Вкл.' = DATA BOOLEAN (Technology, Component);
-countTechnologiesComponent = GROUP SUM 1 IF inTechnologyComponent(technology, component) BY component;
+countTechnologiesComponent = GROUP SUM 1 IF inTechnologyComponent(technology, component) BY component PERSISTENT;
 
 technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](nameTechnology(technology)) IF inTechnologyComponent(technology, component) , ', '
                                          BY component
@@ -485,9 +485,9 @@ backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF countTec
 
 
 // todo: пока считаем, что более двух технологий для компонента не будет включено
-minTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) BY c;
+minTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) BY c PERSISTENT;
 maxTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) BY c;
-equalsMaxMinTechnologyComponent (c) = minTechnologyComponent (c) == maxTechnologyComponent (c);
+equalsMaxMinTechnologyComponent (c) = minTechnologyComponent (c) == maxTechnologyComponent (c) PERSISTENT;
 
 calcMinMaxWastageTechnologyMaterialDate (c,date)= [= (1-((100-X)*(100-Y)/10000))*100](
     (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)),
@@ -564,7 +564,7 @@ changeBruttoQuantityComponent = ACTION (component) {
 backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 backgroundBruttoQuantityBOM 'Цвет' (b) = RGB(229,229,229) IF b IS BOM;
 
-bruttoQuantityComponentDate 'Кол-во (брутто) с учетом технологий' (component, date) = NUMERIC[16,5](bruttoQuantityComponent(component)/(1 - (wastageTechnologiesComponentDate(component, date)/100)));
+bruttoQuantityComponentDate 'Кол-во (брутто) с учетом технологий' (component, date) = NUMERIC[16,5](bruttoQuantityComponent(component)/(1.0 - (wastageTechnologiesComponentDate(component, date)/100.0))) COMPLEX;
                                                                                 
 overCurBruttoQuantityComponent 'Кол-во (брутто) с уч. тех-ий' (component) = bruttoQuantityComponentDate(component, currentDate());
 
