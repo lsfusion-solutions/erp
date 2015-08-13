@@ -343,7 +343,7 @@ UOMProduct(product) <- UOMSku(skuProduct(product)) WHEN CHANGED (skuProduct(prod
 inactiveProduct 'Неактивный' (product) = inactiveBOM(BOMProduct(product));
 descriptionProduct 'Название документа' (product) = descriptionBOM(BOMProduct(product));
 
-@defineDocumentDetailIndex (BOM, Product);
+@defineDocumentDetailIndexPersistent (BOM, Product);
 @defineDocumentDetailActionsCustom (BOM, Product);
 
 productsBOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](CONCAT '', nameSkuProduct(p), ' ('+idSkuProduct(p)+')'), ', '
@@ -408,7 +408,12 @@ TABLE component (Component);
 
 //nameComponent 'Наименование' = DATA VARISTRING[100](Component);
 
-@defineExternalizable(component, VARSTRING[100], ext);
+extIdComponent 'Код' = DATA VARSTRING[100] (Component) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+extComponentId (id) = GROUP MAX (component) BY extIdComponent (component);
+//@defineExternalizable(component, VARSTRING[100], ext){
+//    extIdComponent 'Код' = DATA VARSTRING[100] (Component) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+//    extComponentId (id) = GROUP AGGR (component) BY extIdComponent (component);
+//};
 
 @defineDocumentRelation (BOM, Component, ' (компонент)');
 @defineDocumentDetailTimePrefix(BOM, Component, , ' документа');
@@ -416,7 +421,7 @@ TABLE component (Component);
 descriptionComponent 'Спецификация' (component)= descriptionBOM(BOMComponent(component));
 productsBOMComponent 'Название' = productsBOM(BOMComponent(component));
 
-@defineDocumentDetailIndex (BOM, Component);
+@defineDocumentDetailIndexPersistent (BOM, Component);
 @defineDocumentDetailActionsCustom (BOM, Component);
 
 materialComponent = DATA Material (Component);
