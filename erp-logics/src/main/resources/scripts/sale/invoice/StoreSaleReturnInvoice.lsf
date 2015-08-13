@@ -59,3 +59,9 @@ EXTEND FORM userInvoice
     PROPERTIES(i) numberVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i), valueVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i);
 ;
 
+WHEN SESSION FORMS userInvoice (CHANGED(quantityUserInvoiceDetail(d)) OR CHANGED(invoicePriceUserInvoiceDetail(d)) OR CHANGED(valueVATUserInvoiceDetail(d)))
+                               AND VATUserInvoice(userInvoiceUserInvoiceDetail(d)) AND includeVATPriceListType(priceListTypeUserInvoiceDetail(d)) DO {
+    invoiceSumUserInvoiceDetail(d) <- roundPriceCurrency(quantityUserInvoiceDetail(d) * invoicePriceUserInvoiceDetail(d), currencyUserInvoiceDetail(d));
+    VATSumUserInvoiceDetail(d) <- roundPriceCurrency(invoiceSumUserInvoiceDetail(d) * calcValueVATUserInvoiceDetail(d) / (100.0 + calcValueVATUserInvoiceDetail(d)), currencyUserInvoiceDetail(d));
+    sumUserInvoiceDetail(d) <- invoiceSumUserInvoiceDetail(d) (-) VATSumUserInvoiceDetail(d); 
+}
