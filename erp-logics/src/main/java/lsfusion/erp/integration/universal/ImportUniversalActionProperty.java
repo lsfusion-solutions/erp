@@ -944,7 +944,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String from = (String) fromSymbol;
             Integer indexFrom = value.indexOf(from);
             String fromSubstring = trim(value.substring(Math.min(indexFrom == -1 ? 0 : value.length(), indexFrom + from.length())));
-            return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
+            return (fromSubstring != null && toSymbol != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
         }
     }
 
