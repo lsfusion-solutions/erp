@@ -506,8 +506,32 @@ overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
 @defineAddDetailDialogBarcode(userPricing, sku);
 
 // Не изменить текущие цены
-@defineDocumentInterfaceHeaderSkip(Pricing, changeLedger, 'Не изменять текущие цены');
-@defineDocumentInterfaceDetailSkip(pricing, changeLedger, 'Не изменять текущие цены');
+@defineDocumentHeaderSkip(UserPricing, changeLedger, 'Не изменять текущие цены');
+skipChangeLedgerPricingDetail 'Не изменять текущие цены' = ABSTRACT BOOLEAN(PricingDetail);
+
+skipChangeLedgerUserPricingDetail 'Не изменять текущие цены' (d) = skipChangeLedgerUserPricing(userPricingUserPricingDetail(d)) IN documentPrm;
+skipChangeLedgerPricingDetail (o) += skipChangeLedgerUserPricingDetail(o);
+
+//@defineDocumentInterfaceHeaderSkip(PricingDetail, changeLedger, 'Не изменять текущие цены'){
+//    @defineDocumentAbstractHeaderSkip (PricingDetail, changeLedger, 'Не изменять текущие цены'){
+//    skipChangeLedgerPricingDetail 'Не изменять текущие цены' = ABSTRACT BOOLEAN(PricingDetail);
+//};
+//    @defineDocumentHeaderSkip (UserPricingDetail, changeLedger, 'Не изменять текущие цены'){
+//    skipChangeLedgerUserPricingDetail 'Не изменять текущие цены' = DATA BOOLEAN(UserPricingDetail) IN documentPrm;
+//};
+//    skipChangeLedgerPricingDetail (o) += skipChangeLedgerUserPricingDetail(o);
+//};
+
+//@defineDocumentInterfaceDetailSkip(pricing, changeLedger, 'Не изменять текущие цены'){
+//    @defineDocumentInterfaceDetailSkip(pricing, PricingDetail, changeLedger, 'Не изменять текущие цены'){
+//    @defineDocumentDetailSkip(pricing, PricingDetail, changeLedger, 'Не изменять текущие цены'){
+//    skipChangeLedgerPricingDetail 'Не изменять текущие цены' (d) = skipChangeLedgerPricing(pricingPricingDetail(d));
+//};
+//    @defineDocumentDetailSkip(userPricing, UserPricingDetail, changeLedger, 'Не изменять текущие цены'){
+//    skipChangeLedgerUserPricingDetail 'Не изменять текущие цены' (d) = skipChangeLedgerUserPricing(userPricingUserPricingDetail(d));
+//};
+//};
+//};
 
 // Основание
 descriptionDocumentPricing 'Документы-основания' = ABSTRACT VARSTRING[255] (Pricing) PERSISTENT;
@@ -701,7 +725,7 @@ FORM pricings 'Акты расценки'
                             nameDepartmentStorePricing, nameSupplierPricing, nameCurrencyPricing, nameCalcRetailPriceListTypePricing, nameCalcRetailCalcPriceListTypePricing                              
     PROPERTIES (p) READONLY countPricingDetailPricing, quantityPricingDetailPricing, sumPricingDetailPricing,
                             retailSumPricingDetailPricing BACKGROUND backgroundRetailPricing(p)
-    PROPERTIES (p) READONLYIF isReadonly() skipChangeLedgerPricing, notePricing
+    PROPERTIES (p) READONLYIF isReadonly() notePricing
 
     PROPERTIES (p) READONLY FORCE PANEL createdNameUserUserPricing, createdTimeUserPricing, createdHostnameComputerUserPricing, 
                                         postedNameUserUserPricing, postedTimeUserPricing, postedHostnameComputerUserPricing
