@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -32,6 +33,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
+            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
             Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister").read(context);
@@ -47,13 +49,11 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(baudRate, comPort, placeNumber, null, sumPayment, typePayment));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment));
             findProperty("printReceiptResult").change(result == null ? new DataObject(true) : null, context);
             
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
 
 

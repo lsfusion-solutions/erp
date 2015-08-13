@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -45,13 +46,13 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             String fiscalVMKReceiptBottom = (String) findProperty("fiscalVMKReceiptBottom").read(context, receiptObject);
             
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
-            ScriptingLogicsModule zReportNlibLM = context.getBL().getModule("ZReportNlib");
 
             boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
                 findAction("createCurrentReceipt").execute(context);
             } else {
+                String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
                 Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister").read(context);
@@ -74,7 +75,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 KeyExpr paymentExpr = new KeyExpr("payment");
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
-                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
+                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", findProperty("sumPayment").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.and(findProperty("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
@@ -100,7 +101,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
-                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
+                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 receiptDetailQuery.addProperty("nameSkuReceiptDetail", findProperty("nameSkuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.addProperty("quantityReceiptDetail", findProperty("quantityReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
                 receiptDetailQuery.addProperty("quantityReceiptSaleDetail", findProperty("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
@@ -117,8 +118,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
-                List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
-                List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
+                List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
+                List<ReceiptItem> receiptReturnItemList = new ArrayList<>();
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
@@ -152,7 +153,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 }
 
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(baudRate, comPort, placeNumber,
+                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(ip, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList), 
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom));
@@ -164,10 +165,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
 
 

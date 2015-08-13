@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -29,17 +30,16 @@ public class FiscalVMKCancelReceiptActionProperty extends ScriptingActionPropert
 
             boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
+                String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(4, baudRate, comPort));
+                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 4));
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 }

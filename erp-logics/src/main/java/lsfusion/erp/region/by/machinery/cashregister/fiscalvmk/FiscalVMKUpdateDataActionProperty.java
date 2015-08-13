@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -29,6 +30,7 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
         DataSession session = context.getSession();
 
         try {
+            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
 
@@ -37,7 +39,7 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
             KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
             ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
 
-            QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<Object, Object>(operatorKeys);
+            QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<>(operatorKeys);
             operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
             operatorQuery.addProperty("firstNameContact", findProperty("firstNameContact").getExpr(context.getModifier(), customUserExpr));
             operatorQuery.addProperty("lastNameContact", findProperty("lastNameContact").getExpr(context.getModifier(), customUserExpr));
@@ -48,16 +50,14 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
 
 
             if (context.checkApply()) {
-                String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(baudRate, comPort));
+                String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(ip, comPort, baudRate));
                 if (result == null)
                     context.apply();
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
 
 

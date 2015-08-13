@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -15,6 +16,8 @@ import lsfusion.server.session.DataSession;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
+
+import static org.apache.commons.lang.StringUtils.trim;
 
 public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
@@ -36,6 +39,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
             boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
 
+                String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
 
@@ -53,20 +57,14 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSumReceiptDetail").read(session, receiptDetailObject);
                 long articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.longValue();
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum)));
+                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate, new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum)));
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
 
 
-    }
-
-    protected String trim(String input) {
-        return input == null ? null : input.trim();
     }
 }

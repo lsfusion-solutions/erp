@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -22,20 +23,19 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
 
             DataObject zReportObject = (DataObject) findProperty("currentZReport").readClasses(context);
 
+            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
 
-            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(5, baudRate, comPort));
+            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5));
             if (result instanceof Long) {
                 context.requestUserInteraction(new MessageClientAction(String.valueOf(result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
                 context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 }

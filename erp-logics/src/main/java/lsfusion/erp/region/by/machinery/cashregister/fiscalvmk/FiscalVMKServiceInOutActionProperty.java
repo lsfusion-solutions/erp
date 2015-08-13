@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -28,13 +29,14 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
+            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
             Boolean isDone = findProperty("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
             BigDecimal sum = (BigDecimal) findProperty("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(baudRate, comPort, sum));
+                String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(ip, comPort, baudRate, sum));
                 if (result == null){
                     findProperty("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 }
@@ -42,10 +44,8 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 }

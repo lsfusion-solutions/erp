@@ -110,9 +110,9 @@ public class FiscalVMK {
         return Native.toString(lastErrorText, "cp1251");
     }
 
-    public static void openPort(int comPort, int baudRate) {
-        logAction("vmk_open", "COM" + comPort, baudRate);
-        if (!vmkDLL.vmk.vmk_open("COM" + comPort, baudRate))
+    public static void openPort(String ip, int comPort, int baudRate) {
+        logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
+        if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
             checkErrors(true);
     }
 

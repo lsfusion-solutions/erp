@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -21,18 +22,17 @@ public class FiscalVMKPrintCopyReceiptActionProperty extends ScriptingActionProp
 
         try {
 
+            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(baudRate, comPort));
+            String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(ip, comPort, baudRate));
             if (result != null) {
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
 
 

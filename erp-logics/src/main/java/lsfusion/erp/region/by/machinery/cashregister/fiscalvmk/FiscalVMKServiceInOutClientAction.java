@@ -9,13 +9,15 @@ import java.math.BigDecimal;
 
 public class FiscalVMKServiceInOutClientAction implements ClientAction {
 
-    int baudRate;
+    String ip;
     int comPort;
+    int baudRate;
     BigDecimal sum;
 
-    public FiscalVMKServiceInOutClientAction(Integer baudRate, Integer comPort, BigDecimal sum) {
-        this.baudRate = baudRate == null ? 0 : baudRate;
+    public FiscalVMKServiceInOutClientAction(String ip, Integer comPort, Integer baudRate, BigDecimal sum) {
+        this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
+        this.baudRate = baudRate == null ? 0 : baudRate;
         this.sum = sum;
     }
 
@@ -25,7 +27,7 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
         try {
             FiscalVMK.init();
 
-            FiscalVMK.openPort(comPort, baudRate);
+            FiscalVMK.openPort(ip, comPort, baudRate);
 
             FiscalVMK.opensmIfClose();
 

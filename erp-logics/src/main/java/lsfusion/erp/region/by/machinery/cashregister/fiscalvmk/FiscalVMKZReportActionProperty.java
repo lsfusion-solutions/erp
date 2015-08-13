@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -23,12 +23,13 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
 
             DataObject zReportObject = (DataObject) findProperty("currentZReport").readClasses(context);
 
+            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
             String fiscalVMKReportTop = (String) findProperty("fiscalVMKReportTop").read(context);
 
             if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(2, baudRate, comPort, fiscalVMKReportTop));
+                Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 2, fiscalVMKReportTop));
                 if (result instanceof Integer) {
                     if ((Integer) result != 0)
                         findProperty("numberZReport").change(String.valueOf(result), context, zReportObject);
@@ -37,10 +38,8 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
                 }
             }
             findAction("closeCurrentZReport").execute(context);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 }
