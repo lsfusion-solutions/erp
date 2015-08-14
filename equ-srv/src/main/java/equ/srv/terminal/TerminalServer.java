@@ -405,7 +405,7 @@ public class TerminalServer extends LifecycleAdapter {
         while ((b = inFromClient.readByte()) != 3) {
             baos.write(b);
         }
-        String result = baos.toString();
+        String result = baos.toString("cp1251");
         return result.isEmpty() ? null : result.split(escStr, -1);
     }
 
