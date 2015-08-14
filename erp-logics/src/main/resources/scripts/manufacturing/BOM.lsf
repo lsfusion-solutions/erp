@@ -429,6 +429,9 @@ skuComponent 'Sku' (c) = skuMaterial(materialComponent(c)) PERSISTENT;
 componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARSTRING[2550](CONCAT '', nameMaterialComponent(component), ' ('+idComponent(component)+')'), ', '
                                        BY BOMComponent(component)
                                        ORDER indexComponent(component) MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;
+idComponentsBOM 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idComponent(component)), ', '
+                                       BY BOMComponent(component)
+                                       ORDER indexComponent(component) MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;                                       
                                      
 nameComponent 'Компонент' (component) = VARSTRING[255](CONCAT '/', nameBOM(BOMComponent(component)), 
                                                      nameMaterialComponent(component)) PERSISTENT;
@@ -672,7 +675,7 @@ FORM BOM 'Спецификация'
                   wastageTechnologiesComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c),                   
                   overCurBruttoQuantityComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c),
                   overCurBruttoNetWeightComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c)
-
+    ORDER BY indexComponent(c)
     PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
     PROPERTIES(b) TODRAW c deleteComponentBOM
     FILTERS       BOMComponent(c) == b
@@ -1166,7 +1169,7 @@ recPriceCoeffBOMSkuDate (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOMDate(BOM
 
 // ----- Рекурсивный расчет потребностей нетто ---------- //
 
-nettoQuantityBOMMaterial (BOM, material) = GROUP SUM nettoQuantityComponent(component) BY BOMComponent(component), materialComponent(component);
+nettoQuantityBOMMaterial 'Кол-во нетто компонентов в документе' (BOM, material) = GROUP SUM nettoQuantityComponent(component) BY BOMComponent(component), materialComponent(component);
 nettoQuantityBOMSku(BOM, sku) = nettoQuantityBOMMaterial(BOM, sku) IF sku IS Sku;
 
 nettoQuantityBOMBOM (parent, child) = GROUP MAX nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
@@ -1179,6 +1182,94 @@ recNettoQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childB
 recNettoNodeQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childBOM) * nettoQuantityBOMMaterial(childBOM, material) BY BOM, skuMaterial(material); //](BOM, sku);
 
 //recNettoNodeQuantityBOMSku (BOM, sku) =  DATA NUMERIC[16,5] (BOM, Sku);   // пока сделал так, потому что очень тормозит.
+
+//-------------------- Подбор компонентов -----------------//
+componentBOMMaterial (BOM,material) =  GROUP MAX component
+    BY BOMComponent(component), materialComponent(component);
+   
+changeQuantityBOMMaterial = ACTION (BOM,material) {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF componentBOMMaterial(BOM,material) THEN {
+        IF requestedNumeric() THEN {
+            nettoQuantityComponent(detail) <- requestedNumeric() WHERE detail == componentBOMMaterial(BOM,material);
+            bruttoQuantityComponent(detail) <- requestedNumeric() WHERE detail == componentBOMMaterial(BOM,material);
+        } ELSE {
+            DELETE detail WHERE detail == componentBOMMaterial(BOM,material);
+        }
+    } ELSE {
+        IF requestedNumeric() THEN {
+            FOR ADDOBJ d = Component DO {
+                BOMComponent(d) <- BOM;
+                materialComponent(d) <- material;
+                nettoQuantityComponent (d) <- requestedNumeric();
+                bruttoQuantityComponent (d) <- requestedNumeric();
+            }
+        }
+    }
+}
+componentsStockBOM = DATA LOCAL Stock(BOM);
+nameComponentsStockBOM 'Склад' = nameStock(componentsStockBOM(BOM));
+prevCurrentBalanceBOMMaterial 'Остаток' (BOM,material) = prevCurrentBalanceSkuStock(material, componentsStockBOM(BOM));
+
+CONSTRAINT componentsStockBOM(b) AND NOT isCompanyStock(componentsStockBOM(b))
+    CHECKED BY componentsStockBOM MESSAGE 'Выбран склад для Спецификации, которые не принадлежит компании';
+
+EXTEND FORM BOM
+
+    PROPERTIES nameComponentsStockBOM(b)
+
+    TREE skuTree g = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
+    ORDER BY nameSkuGroup(g)
+    FILTERGROUP inactive1 FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+    ORDER BY orderSkuGroup(g)
+    
+    OBJECTS m = Material
+    PROPERTIES(m) READONLY idMaterial SHOWIF showIDs(), nameMaterial, shortNameUOMMaterial 
+    PROPERTIES nettoQuantityBOMMaterial(b,m) ON CHANGE changeQuantityBOMMaterial(b,m)
+    
+    PROPERTIES(b,m) READONLY FORCE GRID prevCurrentBalanceBOMMaterial     
+
+    FILTERS isParentSkuGroupMaterial(g, m)
+    ORDER BY nameMaterial(m)    
+  
+    FILTERGROUP filters
+        FILTER 'Изделие' m IS Product 'F11'
+        FILTER 'Sku' m IS Sku 'F10'
+                    
+    FILTERGROUP filter
+        FILTER 'С остатком (склад)' prevCurrentBalanceBOMMaterial(b,m) 'F10' DEFAULT 
+        FILTER 'В документе (нетто)' nettoQuantityBOMMaterial(b,m) 'F9'
+;
+
+DESIGN BOM{
+   
+    specification.box {
+        NEW tabContainerComponent AFTER p.box {
+            caption = 'Компонент';
+            type = TABBED;
+            MOVE c.box {caption = 'Компонент';}
+            NEW selectPane {
+                caption = 'Подбор';
+                fill = 1;
+                type = SPLITH;
+                
+                MOVE skuTree.tree.box { caption = 'Группы'; fill = 1;}                
+                NEW selectPane21 {
+                    fill = 2;
+                    type = CONTAINERV;
+                    NEW selectPane1 {
+                        caption = 'Выбор склада для отображения остатков';
+                        MOVE PROPERTY (nameComponentsStockBOM(b));
+                    }
+                    MOVE m.box;
+                }
+                        
+            }            
+        }        
+    }
+}
+
 
 NAVIGATOR {
     manufacturingMasterData {
