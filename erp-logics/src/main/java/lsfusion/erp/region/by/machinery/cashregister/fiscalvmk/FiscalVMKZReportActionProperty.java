@@ -29,12 +29,30 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
             String fiscalVMKReportTop = (String) findProperty("fiscalVMKReportTop").read(context);
 
             if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 2, fiscalVMKReportTop));
-                if (result instanceof Integer) {
-                    if ((Integer) result != 0)
-                        findProperty("numberZReport").change(String.valueOf(result), context, zReportObject);
-                } else if (result instanceof String) {
-                    context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                if(ip == null) { //rs-232
+                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 2, fiscalVMKReportTop));
+                    if (result instanceof Integer) {
+                        if ((Integer) result != 0)
+                            findProperty("numberZReport").change(String.valueOf(result), context, zReportObject);
+                    } else if (result instanceof String) {
+                        context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                    }
+                } else { //ethernet
+                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 6, fiscalVMKReportTop));
+                    if(result == null) {
+                        context.requestUserInteraction(new MessageClientAction("Дождитесь окончания печати z-отчета и нажмите ОК", "Подождите..."));
+                        result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 7, fiscalVMKReportTop));
+                        if (result instanceof Integer) {
+                            if ((Integer) result != 0)
+                                findProperty("numberZReport").change(String.valueOf(result), context, zReportObject);
+                        } else if (result instanceof String) {
+                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        }
+                    } else if (result instanceof String) {
+                        context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 8, fiscalVMKReportTop));
+                    }
+
                 }
             }
             findAction("closeCurrentZReport").execute(context);
