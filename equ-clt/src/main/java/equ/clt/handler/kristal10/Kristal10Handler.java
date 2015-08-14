@@ -619,6 +619,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
         Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
+        boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
@@ -753,8 +754,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     }
 
                                     //временное решение для весовых товаров
-                                    if (barcode != null && barcode.startsWith(weightCode) && barcode.length() <= 7)
-                                        barcode = barcode.substring(2);
+                                    if(barcode != null) {
+                                        if (barcode.length() == 7 && barcode.startsWith("2") && ignoreSalesWeightPrefix) {
+                                            barcode = barcode.substring(2);
+                                        } else if (barcode.startsWith(weightCode) && barcode.length() <= 7)
+                                            barcode = barcode.substring(2);
+                                    }
 
                                     BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
                                     quantity = (quantity != null && !isSale) ? quantity.negate() : quantity;
