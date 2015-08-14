@@ -307,9 +307,6 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     Shipment.shipmentQuantityInvoiceDetail(d)+=shipmentQuantityInvoiceDetail(d);
     @defineDocumentInterfaceHeaderQuantityCustomPrefix (invoice, invoiceDetail, shipment, ' (поставлено)');
     
-    skipChangedShipmentQuantityUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
-    shipmentQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) WHEN CHANGED(quantityUserInvoiceDetail(detail)) AND NOT skipChangedShipmentQuantityUserInvoiceDetail(detail);
-
     @defineDocumentInterfaceDetailDataSumPrefix (invoice, shipment, ' (учетная)');
     @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, shipment, currency, shipmentQuantity, priceRound);
     Shipment.shipmentSumInvoiceDetail(detail) += shipmentSumInvoiceDetail(detail);
@@ -373,7 +370,11 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     createShipmentUserInvoiceDetail 'Создать поставку' (invoiceDetail) = createShipmentUserInvoice(userInvoiceUserInvoiceDetail(invoiceDetail)) AND
                                                                          isStockSkuUserInvoiceDetail(invoiceDetail);
-
+                                                                        
+    skipChangedShipmentQuantityUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
+    shipmentQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) IF createShipmentUserInvoiceDetail(detail)
+        WHEN CHANGED(quantityUserInvoiceDetail(detail)) OR CHANGED(createShipmentUserInvoiceDetail(detail)) AND NOT skipChangedShipmentQuantityUserInvoiceDetail(detail);
+            
     showShipmentInvoice (invoice) =  invoice IS Invoice AND NOT createShipmentInvoice(invoice);
     
     skipShowShipmentQuantityInvoice = ABSTRACT BOOLEAN (Invoice);
