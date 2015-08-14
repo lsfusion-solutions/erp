@@ -1340,14 +1340,29 @@ closeStockDocumentLedger(l) += ACTION closeInventory(inventoryCollationSheet(l))
 
 accessCompanyStockCurrentUserInventory (in) = GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), ts) AND includeStockInventory(ts,in) BY in;
 
+overShowEditInventory = ABSTRACT BOOLEAN (Inventory);
+overShowDeleteInventory = ABSTRACT BOOLEAN (Inventory);
+skipShowEditInventory = ABSTRACT BOOLEAN (Inventory); 
+
+overPreventCloseInventory = ABSTRACT BOOLEAN (Inventory);
+overPreventOpenInventory = ABSTRACT BOOLEAN (Inventory);
+showCloseInventory (i) = isOpenedInventory(i) AND NOT overPreventCloseInventory(i);   
+showOpenInventory (i) = isClosedInventory(i) AND NOT overPreventOpenInventory(i);   
+
+
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory
-    PROPERTIES(in) READONLY             isPostedInventory FORCE GRID, isBatchInventory, numberInventory, seriesInventory, dateInventory, timeInventory,
+    PROPERTIES(in) READONLY             isClosedInventory FORCE GRID, isPostedInventory FORCE GRID, isBatchInventory, numberInventory, seriesInventory, dateInventory, timeInventory,
                                         nameStockInventory, nameInventory, noteInventory
     PROPERTIES(in) FORCE PANEL READONLY createdNameUserInventory, createdTimeInventory, createdHostnameComputerInventory, 
                                         postedNameUserInventory, postedTimeInventory, postedHostnameComputerInventory
-    PROPERTIES(in)                      ADDFORM, EDITFORM SHOWIF isDraftInventory(in), deletein=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftInventory(in),
+    
+    PROPERTIES(in)                      ADDFORM, editInventory SHOWIF overShowEditInventory(in),// SHOWIF isDraftInventory(in), 
+                                        deletein=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDeleteInventory(in),
                                         postInventory SHOWIF isDraftInventory(in), unpostInventory SHOWIF isPostedInventory(in)
+    FILTERGROUP open FILTER 'Открыт' isOpenedInventory(in) 'F6' DEFAULT
+    
+    PROPERTIES (in) closeInventory SHOWIF showCloseInventory(in), openInventory SHOWIF showOpenInventory(in)
 
     OBJECTS il=InventorySkuDetail FIXED GRID
     PROPERTIES(il) READONLY SHOWIF isSkuInventory(in) nameStockInventorySkuDetail, idBarcodeInventorySkuDetail, nameSkuInventorySkuDetail, quantityInventorySkuDetail, sumInventorySkuDetail
@@ -1529,6 +1544,7 @@ nameTypeOfAdditionOperation 'Тип инвентаризации' (o) = staticCa
 
 @defineOperationProperty(isPrice, 'Сумму остатка считать по цене', commonContainer);
 @deriveDocumentOperationProperty(inventory, isPrice) ;
+@defineOperationProperty(preventChangesDocument, 'Запрет на изменение документа другим пользователем', showContainer);
 
 EXTEND FORM operation
     PROPERTIES(o) nameTypeOfAdditionOperation
@@ -1583,3 +1599,11 @@ DESIGN operation {
 
 skipStockDocumentLedgerCollationSheet (cs) = skipStockDocumentLedgerInventory(inventoryCollationSheet(cs));
 skipStockDocumentLedger(l) += skipStockDocumentLedgerCollationSheet(l);
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(inventory, UserInventory, preventChangesDocument, created);
+
+overShowEditInventory (i) += showEditDeleteUserInventory(i) AND isOpenedInventory(i) AND NOT skipShowEditInventory(i);
+overShowDeleteInventory (i) += showEditDeleteUserInventory(i) AND isOpenedInventory(i); 
+
+overPreventCloseInventory (i) += preventCloseDocumentUserOperation(currentUser(), operationInventory(i));
