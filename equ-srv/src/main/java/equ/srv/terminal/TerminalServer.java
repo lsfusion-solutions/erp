@@ -287,7 +287,7 @@ public class TerminalServer extends LifecycleAdapter {
                             logger.info("requested getItemHtml");
                             String[] params = readParams(inFromClient);
                             if(params != null && params.length == 2) {
-                                logger.info("requested barcode " + params[0]);
+                                logger.info(String.format("requested barcode %s, stock %s", params[0], params[1]));
                                 String barcode = params[0];
                                 String idStock = params[1];
                                 result = readItemHtml(barcode, idStock);
