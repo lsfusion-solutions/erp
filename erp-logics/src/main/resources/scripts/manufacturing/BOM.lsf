@@ -754,6 +754,8 @@ WHEN SESSION FORMS BOM SET(BOM IS BOM) DO {
     inBOMStock(BOM, stock) <- TRUE WHERE accessCompanyEmployeeStock(currentUser(), stock); 
 };
 
+overCopyBOM = ABSTRACT ACTION LIST (BOM, BOM);
+
 copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
     FOR ADDOBJ b = BOM DO {
 
@@ -775,7 +777,8 @@ copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
             ASSIGN bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
             ASSIGN wastageComponent(c) <- wastageComponent(component);
         }
-
+        EXEC overCopyBOM(BOM, b);
+        
         FORM BOM OBJECTS b = b MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
