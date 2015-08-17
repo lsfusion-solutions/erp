@@ -18,6 +18,8 @@ import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.commons.lang.StringUtils.trimToEmpty;
+
 public abstract class BizerbaHandler extends ScalesHandler {
 
     //Таблица PLST – список все PLUшек
@@ -344,31 +346,33 @@ public abstract class BizerbaHandler extends ScalesHandler {
     private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
         OrderedMap<Integer, String> messageMap = new OrderedMap<>();
         Integer pluNumber = getPluNumber(item);
-        String description = item.description == null ? "" : item.description;
-        if(description.length() > 3000)
-            description = description.substring(0, 2999);
         int count = 0;
-        List<String> splittedMessage = new ArrayList<>();
-        for (String line : description.split("\\\\n")) {
-            while (line.length() > 750) {
-                splittedMessage.add(line.substring(0, 749));
-                line = line.substring(749);
+        String description = trimToEmpty(item.description);
+        if(!description.isEmpty()) {
+            if(description.length() > 3000)
+                description = description.substring(0, 2999);
+            List<String> splittedMessage = new ArrayList<>();
+            for (String line : description.split("\\\\n")) {
+                while (line.length() > 750) {
+                    splittedMessage.add(line.substring(0, 749));
+                    line = line.substring(749);
+                }
+                splittedMessage.add(line);
             }
-            splittedMessage.add(line);
-        }
 
-        boolean isDouble = splittedMessage.size() > 4;
-        for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
-            String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
-            line = line.replace('@', 'a');
-            if (line.length() >= 750) {
-                line = line.substring(0, 749);
+            boolean isDouble = splittedMessage.size() > 4;
+            for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
+                String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
+                line = line.replace('@', 'a');
+                if (line.length() >= 750) {
+                    line = line.substring(0, 749);
+                }
+                int messageNumber = pluNumber * 10 + count;
+                messageMap.put(messageNumber, line);
+                ++count;
             }
-            int messageNumber = pluNumber * 10 + count;
-            messageMap.put(messageNumber, line);
-            ++count;
         }
-        while(count < 4) {
+        while (count < 4) {
             clearMessage(errors, port, scales, pluNumber * 10 + count, charset, encode);
             ++count;
         }
