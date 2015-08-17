@@ -316,29 +316,13 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return receiveReply(errors, port, charset, ip, true);
     }
 
-    /*private String clearMessages(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
-        for (int i = 0; i <= 9; i++) {
-            String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + (getPluNumber(item) * 10 + i) + endCommand;
-            clearReceiveBuffer(port);
-            sendCommand(errors, port, command, charset, ip, encode);
-            String result = receiveReply(errors, port, charset, ip);
-            if (!result.equals("0"))
-                return result;
-        }
-        return "0";
-    }*/
-
-    /*protected String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean splitMessage, String charset, String ip, boolean encode) throws CommunicationException, IOException {
-        if(splitMessage) {
-            return clearMessages(errors, port, scales, item, charset, ip, encode);
-        } else {
-
-            String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + getPluNumber(item) * 10 + endCommand;
-            clearReceiveBuffer(port);
-            sendCommand(errors, port, command, charset, ip, true);
-            return receiveReply(errors, port, charset, ip);
-        }
-    }*/
+    private String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int messageNumber, String charset, boolean encode) throws CommunicationException, IOException {
+        String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + messageNumber + endCommand;
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, command, charset, scales.port, encode);
+        String result = receiveReply(errors, port, charset, scales.port);
+        return result.equals("0") ? null : result;
+    }
 
     private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
@@ -357,7 +341,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return "0";
     }
 
-    private Map<Integer, String> getMessageMap(ScalesItemInfo item) {
+    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
         OrderedMap<Integer, String> messageMap = new OrderedMap<>();
         Integer pluNumber = getPluNumber(item);
         String description = item.description == null ? "" : item.description;
@@ -385,8 +369,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             ++count;
         }
         while(count < 4) {
-            int messageNumber = pluNumber * 10 + count;
-            messageMap.put(messageNumber, "");
+            clearMessage(errors, port, scales, pluNumber * 10 + count, charset, encode);
             ++count;
         }
         return messageMap;
@@ -407,7 +390,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         boolean manualWeight = false;
         boolean nonWeight = false;
 
-        Map<Integer, String> messageMap = getMessageMap(item);
+        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, charset, encode);
         String messagesResult = loadPLUMessages(errors, port, scales, messageMap, item, charset, scales.port, encode);
         if(!messagesResult.equals("0")) {
             return messagesResult;
