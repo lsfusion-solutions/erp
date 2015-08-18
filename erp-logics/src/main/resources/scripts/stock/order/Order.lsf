@@ -387,6 +387,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     backgroundQuantityUserOrderDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
     backgroundNameUserOrderDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
 // --------------------------- Формы Заказа ---------------------------------
+    backgroundSkuUserOrderDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
 
     editOrder 'Редактировать' = ABSTRACT ACTION LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
     Order.editOrder (order) += ACTION editOrder(order);
@@ -417,16 +418,18 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        seriesNumberContractSkuUserOrder, isCommissionUserOrder
 
         OBJECTS d = UserOrderDetail
-        PROPERTIES (d) indexUserOrderDetail
-        PROPERTIES (d) ON EDIT editSkuUserOrderDetail(d) idBarcodeSkuUserOrderDetail, idSkuUserOrderDetail, nameSkuUserOrderDetail BACKGROUND backgroundNameUserOrderDetail(d), shortNameUOMSkuUserOrderDetail
-        PROPERTIES (d) quantityUserOrderDetail BACKGROUND backgroundQuantityParamOrderDetail(d), namePriceListTypeUserOrderDetail,
-                       priceUserOrderDetail ON CHANGE changePriceUserOrderDetail(d) BACKGROUND backgroundParamOrderDetail(d), sumUserOrderDetail,
-                       numberVATUserOrderDetail ON CHANGE changeNumberVATUserOrderDetail(d),
-                       valueVATUserOrderDetail ON CHANGE changeValueVATUserOrderDetail(d),
-                       invoicePriceUserOrderDetail ON CHANGE changeInvoicePriceUserOrderDetail(d),
-                       VATSumUserOrderDetail, invoiceSumUserOrderDetail,
-                       name###stockProp###stock###userOrderDetail ON CHANGE changeData###stockProp###stock###filter###userOrderDetail(d), shipmentDateUserOrderDetail,
-                       shipmentTimeUserOrderDetail, closeDateUserOrderDetail, ADDOBJ, deleteod = DELETESESSION
+        PROPERTIES (d) indexUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d)
+        PROPERTIES (d) ON EDIT editSkuUserOrderDetail(d) BACKGROUND backgroundSkuUserOrderDetail(d) idBarcodeSkuUserOrderDetail, 
+                       idSkuUserOrderDetail, nameSkuUserOrderDetail BACKGROUND backgroundNameUserOrderDetail(d), shortNameUOMSkuUserOrderDetail
+        PROPERTIES (d) quantityUserOrderDetail BACKGROUND backgroundQuantityParamOrderDetail(d), namePriceListTypeUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d),
+                       priceUserOrderDetail ON CHANGE changePriceUserOrderDetail(d) BACKGROUND backgroundParamOrderDetail(d), sumUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d),
+                       numberVATUserOrderDetail ON CHANGE changeNumberVATUserOrderDetail(d) BACKGROUND backgroundSkuUserOrderDetail(d),
+                       valueVATUserOrderDetail ON CHANGE changeValueVATUserOrderDetail(d) BACKGROUND backgroundSkuUserOrderDetail(d),
+                       invoicePriceUserOrderDetail ON CHANGE changeInvoicePriceUserOrderDetail(d) BACKGROUND backgroundSkuUserOrderDetail(d),
+                       VATSumUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d), invoiceSumUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d),
+                       name###stockProp###stock###userOrderDetail ON CHANGE changeData###stockProp###stock###filter###userOrderDetail(d) BACKGROUND backgroundSkuUserOrderDetail(d), 
+                       shipmentDateUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d), shipmentTimeUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d), 
+                       closeDateUserOrderDetail BACKGROUND backgroundSkuUserOrderDetail(d), ADDOBJ, deleteod = DELETESESSION
         ORDER BY indexUserOrderDetail(d)
 
         PROPERTIES(o) TODRAW d fillDocumentOrder, addDetailDialogSkuStockUserOrderDetailUserOrder,
@@ -843,7 +846,7 @@ META defineOrderBatchDialog(dumb)
     }
 
     EXTEND FORM userOrder
-        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail(d)
+        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail(d)  BACKGROUND backgroundSkuUserOrderDetail(d)
     ;
     EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail(d);
 END
