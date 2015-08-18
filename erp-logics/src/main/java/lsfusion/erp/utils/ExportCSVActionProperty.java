@@ -36,8 +36,13 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
         this.idGroupObject = idGroupObject;
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator, String charset) 
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator, String charset)
             throws SQLException, SQLHandledException {
+
+        if (separator == null)
+            separator = ";";
+        if (charset == null)
+            charset = "cp1251";
 
         try {
 
@@ -50,7 +55,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 if (valuesMap != null)
                     for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())
                         formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
-                
+
                     /*ftp://username:password@host:port/path_to_file*/
                 Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@(.*):([^\\/]*)(?:\\/(.*))?");
                 Matcher connectionStringMatcher = connectionStringPattern.matcher(filePath);
@@ -86,8 +91,8 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                         throw Throwables.propagate(e);
                     } finally {
                         try {
-                            if (localFile != null)
-                                localFile.delete();
+                            if (localFile != null && !localFile.delete())
+                                localFile.deleteOnExit();
                             if (ftpClient.isConnected()) {
                                 ftpClient.logout();
                                 ftpClient.disconnect();
@@ -104,13 +109,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 }
             }
 
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (FileNotFoundException e) {
-            throw Throwables.propagate(e);
-        } catch (UnsupportedEncodingException e) {
-            throw Throwables.propagate(e);
-        } catch (IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -120,7 +119,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
         File exportFile = new File(filePath);
 
         OutputStream os = new FileOutputStream(exportFile);
-        if (charset != null && charset.equals("UTF-8-BOM")) {
+        if (charset.equals("UTF-8-BOM")) {
             os.write(239);
             os.write(187);
             os.write(191);
@@ -142,7 +141,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                     }
                 }
                 headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
-                bw.println(headerString);
+                bw.print(headerString + "\r\n");
                 printHeader = false;
             }
             String rowString = "";
