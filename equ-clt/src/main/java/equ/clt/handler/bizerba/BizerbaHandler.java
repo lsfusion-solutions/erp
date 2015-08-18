@@ -85,8 +85,12 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     for (ScalesInfo scales : enabledScalesList) {
                         TCPPort port = new TCPPort(scales.port, 1025);
                         if (scales.port != null) {
-                            ips.add(scales.port);
-                            taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters));
+                            if(brokenPortsMap.containsKey(scales.port)) {
+                                errors.put(scales.port, Collections.singletonList("broken ip"));
+                            } else {
+                                ips.add(scales.port);
+                                taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters));
+                            }
                         }
                     }
 
