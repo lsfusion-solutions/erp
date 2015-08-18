@@ -1152,30 +1152,35 @@ DESIGN BOM {
 // ----- Рекурсивный расчет потребностей брутто ---------- //
 
 // кол-во требуемых материалов материалов
+// без учета технологий
+bruttoQuantityBOMMaterial(BOM, material) = GROUP SUM bruttoQuantityComponent(component) BY BOMComponent(component), materialComponent(component);
+// с учетом технологий
 bruttoQuantityBOMMaterialDate (BOM, material, date) = GROUP SUM bruttoQuantityComponentDate(component, date) BY BOMComponent(component), materialComponent(component), date;
+
 bruttoQuantityBOMSkuDate(BOM, sku, date) = bruttoQuantityBOMMaterialDate(BOM, sku, date) IF sku IS Sku;
 
-bruttoQuantityBOMBOMDate (parent, child, date) = GROUP MAX bruttoQuantityBOMMaterialDate(BOM, material, date) / quantityProduct(material) BY BOM, BOMProduct(material), date;
+bruttoQuantityBOMBOM (parent, child) = GROUP MAX bruttoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
-recBruttoQuantityBOMBOMDateResult (parent, child, date, q) = RECURSION 1.00000000000 IF q == 1.00000000000 AND child == (parent AS BOM) AND date IS DATE STEP 1.00000000000 IF q == $q * bruttoQuantityBOMBOMDate($child, child, date) CYCLES YES;
-recBruttoQuantityBOMBOMDate (parent, child, date) = GROUP SUM recBruttoQuantityBOMBOMDateResult(parent, child, date, q) * q BY parent, child, date;
+TABLE BOMBOM(BOM, BOM);
+recBruttoQuantityBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES YES;
+recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
 //recBruttoQuantityBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
-recBruttoQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOMDate(BOM, childBOM, date) * bruttoQuantityBOMSkuDate(childBOM, sku, date) BY BOM, sku, date; //](BOM, sku);
+recBruttoQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMSkuDate(childBOM, sku, date) BY BOM, sku, date; //](BOM, sku);
 
-recBruttoQuantityBOMComponentDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOMDate(BOM, BOMComponent(component), date) * bruttoQuantityComponentDate(component, date) BY BOM, component, date; //](BOM, sku);
+recBruttoQuantityBOMComponentDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, BOMComponent(component)) * bruttoQuantityComponentDate(component, date) BY BOM, component, date; //](BOM, sku);
 
-recBruttoNodeQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOMDate(BOM, childBOM, date) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date; //](BOM, sku);
+recBruttoNodeQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date; //](BOM, sku);
 
 // Расчет цены
-priceCoeffBOMBOMDate(parent, child, date) = GROUP SUM bruttoQuantityBOMMaterialDate(BOM, material, date) * priceCoeffProduct(material) / quantityProduct(material) BY BOM, BOMProduct(material), date;
+priceCoeffBOMBOM(parent, child) = GROUP SUM bruttoQuantityBOMMaterial(BOM, material) * priceCoeffProduct(material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
-recPriceCoeffBOMBOMDateResult (parent, child, date, q) = RECURSION 1.00000000000 IF q == 1.00000000000 AND child == (parent AS BOM) AND date IS DATE STEP 1.00000000000 IF q == $q * priceCoeffBOMBOMDate($child, child, date) CYCLES YES;
-recPriceCoeffBOMBOMDate (parent, child, date) = GROUP SUM recPriceCoeffBOMBOMDateResult(parent, child, date, q) * q BY parent, child, date;
+recPriceCoeffBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES YES;
+recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
 //recPriceCoeffBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 //
-recPriceCoeffBOMSkuDate (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOMDate(BOM, childBOM, date) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date;
+recPriceCoeffBOMSkuDate (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOM(BOM, childBOM) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date;
 //recPricePercentProductSkuDate (product, sku, date) = recPriceCoeffBOMSkuDate (BOMProduct(product), sku, date) * pricePercentProduct(product);
 
 // ----- Рекурсивный расчет потребностей нетто ---------- //
@@ -1185,8 +1190,8 @@ nettoQuantityBOMSku(BOM, sku) = nettoQuantityBOMMaterial(BOM, sku) IF sku IS Sku
 
 nettoQuantityBOMBOM (parent, child) = GROUP MAX nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
-recNettoQuantityBOMBOMResult (parent, child, q) = RECURSION 1.00000000000 IF q == 1.00000000000 AND child == (parent AS BOM)  STEP 1.00000000000 IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES YES;
-recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child;
+recNettoQuantityBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES YES;
+recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
 
 recNettoQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childBOM) * nettoQuantityBOMSku(childBOM, sku) BY BOM, sku; //](BOM, sku);
 
