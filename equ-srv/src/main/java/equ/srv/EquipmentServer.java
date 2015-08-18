@@ -48,6 +48,8 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static org.apache.commons.lang.StringUtils.trim;
+
 public class EquipmentServer extends LifecycleAdapter implements EquipmentServerInterface, InitializingBean {
     private static final Logger logger = Logger.getLogger(EquipmentServer.class);
 
@@ -74,6 +76,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
     private ScriptingLogicsModule machineryPriceTransactionSectionLM;
+    private ScriptingLogicsModule machineryPriceTransactionSupplierPriceLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
@@ -140,6 +143,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
         machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
+        machineryPriceTransactionSupplierPriceLM = getBusinessLogics().getModule("MachineryPriceTransactionSupplierPrice");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
@@ -335,6 +339,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             machineryPriceTransactionSectionLM.findProperty("sectionMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                 }
 
+                if(machineryPriceTransactionSupplierPriceLM != null) {
+                    skuQuery.addProperty("supplierPriceMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionSupplierPriceLM.findProperty("supplierPriceMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                }
+
                 skuQuery.and(equLM.findProperty("inMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
@@ -408,10 +417,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
+                        BigDecimal minPrice = machineryPriceTransactionSupplierPriceLM == null ? null : (BigDecimal) row.get("supplierPriceMachineryPriceTransactionBarcode");
 
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
-                                nameSeason, idDepartmentStoreGroupCashRegister, section));
+                                nameSeason, idDepartmentStoreGroupCashRegister, section, minPrice));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
@@ -2373,10 +2383,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     private String getRowValue(ImMap<Object, Object> row, String key) {
         return trim((String) row.get(key));
-    }
-    
-    private String trim(String input) {
-        return input == null ? null : input.trim();
     }
 
     protected boolean notNullNorEmpty(String value) {

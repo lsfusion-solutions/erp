@@ -281,7 +281,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     ps.setInt(1, transaction.nppGroupMachinery); //pricelist
                     ps.setString(2, trim(item.idItem, 40, "")); //item
                     ps.setBigDecimal(3, item.price); //price
-                    BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : BigDecimal.ZERO;
+                    BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO;
                     ps.setBigDecimal(4, minPrice); //minprice
                     ps.setInt(5, version); //version
                     ps.setInt(6, 0); //deleted

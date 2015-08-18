@@ -585,7 +585,7 @@ public class EquipmentServer {
             for (MachineryInfo machinery : machineryInfoList) {
                 if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
                     handlerModelMachineryMap.put(machinery.handlerModel, new HashSet<Pair<Integer, String>>());
-                handlerModelMachineryMap.get(machinery.handlerModel).add(new Pair<Integer, String>(machinery.numberGroup, machinery.directory));
+                handlerModelMachineryMap.get(machinery.handlerModel).add(new Pair<>(machinery.numberGroup, machinery.directory));
             }
 
             for (Map.Entry<String, Set<Pair<Integer, String>>> entry : handlerModelMachineryMap.entrySet()) {
