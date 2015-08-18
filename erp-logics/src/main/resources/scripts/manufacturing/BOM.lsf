@@ -750,8 +750,14 @@ DESIGN BOM {
     }
 }
 
+dataAccessCompanyEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (Employee);
+dataAccessCompanyStockEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, Employee);
+dataAccessCompanyStockGroupEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, Employee);
+
 WHEN SESSION FORMS BOM SET(BOM IS BOM) DO {
-    inBOMStock(BOM, stock) <- TRUE WHERE accessCompanyEmployeeStock(currentUser(), stock); 
+    dataInStockBOM(stock, BOM) <- TRUE WHERE dataAccessCompanyStockEmployee(stock, currentUser());
+    dataInStockGroupBOM(group, BOM) <- TRUE WHERE dataAccessCompanyStockGroupEmployee(group, currentUser());
+    dataInBOM(BOM) <- dataAccessCompanyEmployee(currentUser());
 };
 
 overCopyBOM = ABSTRACT ACTION LIST (BOM, BOM);
@@ -777,6 +783,11 @@ copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
             ASSIGN bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
             ASSIGN wastageComponent(c) <- wastageComponent(component);
         }
+
+        dataInBOM(b) <- dataInBOM(BOM);
+        dataInStockBOM(s, b) <- dataInStockBOM(s, BOM); 
+        dataInStockGroupBOM(g, b) <- dataInStockGroupBOM(g, BOM);
+
         EXEC overCopyBOM(BOM, b);
         
         FORM BOM OBJECTS b = b MANAGESESSION DOCKEDMODAL;
