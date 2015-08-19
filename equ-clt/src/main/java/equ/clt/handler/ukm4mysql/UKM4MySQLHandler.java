@@ -651,7 +651,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 String query = "SELECT i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
                         " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login" +
                         " FROM receipt_item AS i LEFT JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
-                        " WHERE r.ext_processed = 0 AND r.result = 0";
+                        " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0" ;
                 ResultSet rs = statement.executeQuery(query);
 
                 while (rs.next()) {
