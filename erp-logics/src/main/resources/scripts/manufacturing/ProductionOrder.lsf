@@ -303,6 +303,10 @@ sumComponentDetailOrder 'Сумма заказанных компонент' (or
 quantityComponentDetailSkuOrder 'Кол-во (всего) (компонент)' (sku, order) = GROUP SUM quantityComponentDetail(idetail) BY skuComponentDetail(idetail), orderComponentDetail(idetail) IN documentSum PERSISTENT;
 
 //-- Партия для строки компонента
+
+hideBatchComponentDetail = ABSTRACT OVERRIDE BOOLEAN (ComponentDetail);
+showBatchComponentDetail(d) = d IS ComponentDetail AND NOT hideBatchComponentDetail(d);
+ 
 batchComponentDetail = DATA Batch (ComponentDetail);
 nameBatchComponentDetail 'Партия' (d) = nameBatch(batchComponentDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
@@ -1095,7 +1099,7 @@ FORM order 'Производственный заказ'
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
-    PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail ON EDIT editBruttoSkuComponentDetail(cd), nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd),
+    PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail ON EDIT editBruttoSkuComponentDetail(cd), nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd) SHOWIF showBatchComponentDetail(cd),
                    nameMaterialComponentDetail, 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
                    fullNameBOMComponentDetail, shortNameUOMComponentDetail READONLY, bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
@@ -1409,7 +1413,7 @@ FORM orders 'Производственные заказы'
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
-    PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameBatchComponentDetail, 
+    PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameBatchComponentDetail SHOWIF showBatchComponentDetail(cd), 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,
                    shortNameUOMComponentDetail, bruttoQuantityComponentDetail//, overCalcPriceComponentDetail 
     PROPERTIES(cd) READONLY BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail, substituteQuantityComponentDetail
@@ -1567,6 +1571,19 @@ nameOperationProductDetail 'Операция' (d)= nameOperation(operationProduc
 
 operationComponentDetail (d) = operationOrder(orderComponentDetail(d));
 nameOperationComponentDetail 'Операция' (d)= nameOperation(operationComponentDetail (d));
+
+//-- Партия для строки компонента
+hideBatchComponentOperation 'Не показывать партии' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) hideBatchComponentOperation
+;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(hideBatchComponentOperation(o));
+    }
+}
+
+hideBatchComponentDetail (d) += hideBatchComponentOperation(operationComponentDetail(d));
 
 DESIGN options {
     pane {        
