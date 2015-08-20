@@ -147,7 +147,43 @@ TABLE technology (Technology);
 nameTechnology 'Наименование' = DATA VARISTRING[50](Technology);
 
 TABLE technologyMaterialDate (Technology, Material, DATE);
-@defineHistorizable(wastage, '% потерь', NUMERIC[8,3], technology, nameTechnology, material, nameMaterial, base);
+@defineHistorizable(wastage, '% потерь', NUMERIC[8,3], technology, nameTechnology, material, nameMaterial, base){
+    dataWastageTechnologyMaterialDate '% потерь' = DATA NUMERIC[8,3] (Technology, Material, DATE) IN base;
+
+    wastageTechnologyMaterialDate '% потерь' (technology, material, date) = 
+        GROUP LAST  dataWastageTechnologyMaterialDate(technology, material, dateIn)
+              BY    technology, material, date
+              ORDER dateIn
+              WHERE dataWastageTechnologyMaterialDate(technology, material, dateIn) AND dateIn <= (date AS DATE) IN base;
+
+    overWastageTechnologyMaterialDate '% потерь' = OVERRIDE wastageTechnologyMaterialDate(technology, material, date), dataWastageTechnologyMaterialDate(technology, material, date);
+
+    wastageTechnologyMaterial '% потерь' (technology, material) = wastageTechnologyMaterialDate(technology, material, currentDate()) IN base;
+
+    FORM addWastageTechnologyMaterial '% потерь'
+        OBJECTS a=Technology FIXED PANEL, b=Material FIXED PANEL, d=DATE FIXED PANEL
+        PROPERTIES nameTechnology(a) READONLY, nameMaterial(b) READONLY, OBJVALUE(d), dataWastageTechnologyMaterialDate(a, b, d)
+    ;
+    DESIGN addWastageTechnologyMaterial {
+        PROPERTY(nameTechnology(a)) { focusable = FALSE; }
+        PROPERTY(nameMaterial(b)) { focusable = FALSE; }
+    }
+
+    addWastageTechnologyMaterial 'Добавить' (technology, material) = ACTION FORM addWastageTechnologyMaterial OBJECTS a = technology, b = material MODAL TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+
+    FORM dialogWastageTechnologyMaterial '% потерь'
+        OBJECTS a=Technology FIXED PANEL, b=Material FIXED PANEL, d=DATE
+        PROPERTIES nameTechnology(a) READONLY, nameMaterial(b) READONLY, addWastageTechnologyMaterial(a, b) TODRAW d FORCE PANEL, OBJVALUE(d) READONLY, dataWastageTechnologyMaterialDate(a, b, d)
+        FILTERS dataWastageTechnologyMaterialDate(a, b, d)
+    ;
+    DESIGN dialogWastageTechnologyMaterial {
+        PROPERTY(nameTechnology(a)) { focusable = FALSE; }
+        PROPERTY(nameMaterial(b)) { focusable = FALSE; }
+    }
+
+    dialogWastageTechnologyMaterial '% потерь' (technology, material) = ACTION FORM dialogWastageTechnologyMaterial OBJECTS a = technology, b = material MODAL SHORTCUT wastageTechnologyMaterial ASONCHANGE wastageTechnologyMaterial;
+    overDialogWastageTechnologyMaterialDate '% потерь' (technology, material) = ACTION FORM dialogWastageTechnologyMaterial OBJECTS a = technology, b = material MODAL SHORTCUT overWastageTechnologyMaterialDate;
+};
 
 FORM technology 'Технология'
 
@@ -280,18 +316,107 @@ DESIGN technologies {
 CLASS BOM 'Спецификация';
 TABLE BOM (BOM);
 
-@defineExternalizable(BOM, VARSTRING[100]);
+@defineExternalizable(BOM, VARSTRING[100]){
+    @defineExternalizable(BOM, VARSTRING[100], ){
+    idBOM 'Код' = DATA VARSTRING[100] (BOM) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    BOMId (id) = GROUP AGGR (BOM) BY idBOM (BOM);
+};
+};
 
-@defineDocumentHeaderTimePrefix(BOM, , ' документа');
-@deriveDocumentHeaderTimePrefix(BOM, );
+@defineDocumentHeaderTimePrefix(BOM, , ' документа'){
+    dateBOM 'Дата документа' = DATA DATE (BOM) IN documentHeader INDEXED;
+    timeBOM 'Время документа' = DATA TIME (BOM) IN documentHeader;
+    dateTimeBOM 'Дата/время документа' (o) = dateTimeToDateTime(dateBOM(o), timeBOM(o)) PERSISTENT INDEXED;
+};
+@deriveDocumentHeaderTimePrefix(BOM, ){
+    WHEN SESSION SET(o IS BOM) DO {
+        IF o IS BOM AND NOT dateBOM(o) THEN dateBOM(o) <- currentDate();
+        IF o IS BOM AND NOT timeBOM(o) THEN timeBOM(o) <- currentTime();
+    };
+    WHEN SESSION CHANGED(dateBOM(o)) AND NOT CHANGED(timeBOM(o)) DO {
+        timeBOM(o) <- IF dateBOM(o) > currentDate() THEN 00:00 ELSE currentTime();
+    } 
+};
 
 nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
 
-@defineDocumentHeaderCreated(BOM);
-@defineDocumentHeaderNote(BOM);
+@defineDocumentHeaderCreated(BOM){
+    @defineCreated(BOM){
+    createdTimeBOM 'Время создания'= DATA DATETIME (BOM) IN created;
+    createdTimeBOM (o) <- currentDateTime() WHEN SET(o IS BOM);
+    
+    createdUserBOM = DATA CustomUser (BOM);
+    createdNameUserBOM 'Создан пользователем' (o) = nameContact(createdUserBOM(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdUserBOM (o) <- currentUser() WHEN SET(o IS BOM);
+    
+    createdComputerBOM = DATA Computer (BOM);
+    createdHostnameComputerBOM 'Создан на компьютере' (o) = hostnameComputer(createdComputerBOM(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdComputerBOM (o) <- currentComputer() WHEN SET(o IS BOM);
+};
+};
+@defineDocumentHeaderNote(BOM){
+    noteBOM 'Примечание' = DATA VARSTRING[100] (BOM) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN documentPrm PERSISTENT;
+};
 
-@defineNumbered(BOM);
-@defineNumeratedDefault(BOM, 'Спецификации', 'СП');
+@defineNumbered(BOM){
+    numberBOM 'Номер' = DATA STRING[18] (BOM) IN numbered MINCHARWIDTH 7;
+    seriesBOM 'Серия' = DATA STRING[2] (BOM) IN numbered FIXEDCHARWIDTH 3;
+     
+    WHEN useUpperedSeries() AND CHANGED(seriesBOM(o))
+         DO seriesBOM(o) <- upper(seriesBOM(o));
+    
+    WHEN CHANGED(numberBOM(o)) AND NOT keepNumberSpaces()
+        DO numberBOM(o) <- replace(numberBOM(o), ' ', '');
+
+    seriesNumberBOM 'Серия/Номер' (o) = 
+        CONCAT '', seriesBOM(o), numberBOM(o) 
+        MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+        
+};
+@defineNumeratedDefault(BOM, 'Спецификации', 'СП'){
+    @defineNumerated(BOM){
+    numeratorBOM 'Нумератор (ИД)' = DATA Numerator (BOM);
+    nameNumeratorBOM 'Нумератор' (o) = nameNumerator(numeratorBOM(o)) IN numbered MINCHARWIDTH 7 PREFCHARWIDTH 15;
+
+    generateSeriesNumberBOM 'Сгенерировать номер' = ACTION (o) {
+        numberBOM(o) <- curStringValueNumerator(numeratorBOM(o));
+        seriesBOM(o) <- seriesNumerator(numeratorBOM(o));
+        incrementValueSessionNumerator(numeratorBOM(o));
+    }
+    
+    WHEN SETCHANGED(numeratorBOM(o)) AND
+         NOT CHANGED(numberBOM(o)) AND
+         NOT CHANGED(seriesBOM(o))
+         DO generateSeriesNumberBOM(o) ;
+};
+    @defineNumeratedDefault(BOM, 'Спецификации', 'СП', ){
+
+    defaultNumeratorBOM = DATA Numerator ();
+    nameDefaultNumeratorBOM 'Спецификации' = nameNumerator(defaultNumeratorBOM()) IN defaultNumerator;
+
+    numeratorBOM(o) <- defaultNumeratorBOM() WHEN SET(o IS BOM);
+
+//    initValueNumeratorObject(object) += prefix###defaultNumerator###class() IF object IS class;
+//    initWhenNumeratorObject(object) += SET(object IS class);
+
+    EXTEND FORM defaultNumerators
+        PROPERTIES() nameDefaultNumeratorBOM
+    ;
+    
+    loadDefaultNumerators() += ACTION () {
+        FOR ADDOBJ n = Numerator DO {
+            ASSIGN nameNumerator(n) <- 'Спецификации';
+            ASSIGN seriesNumerator(n) <- 'СП';
+            ASSIGN minValueNumerator(n) <- 1L;
+            ASSIGN maxValueNumerator(n) <- 99999L;
+            ASSIGN stringLengthNumerator(n) <- 5;
+
+            ASSIGN defaultNumeratorBOM() <- n;
+        }
+    }
+
+};
+};
   
 descriptionBOM 'Название спецификации' (BOM) = VARSTRING[200](CONCAT ' ', nameBOM(BOM), 
                                                                           '№'+seriesNumberBOM(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50; 
@@ -307,7 +432,10 @@ activeBOM 'Активная' = b IS BOM AND NOT inactiveBOM(b);
 CLASS Product 'Изделие' : Material;
 TABLE product (Product);
 
-@defineExternalizable(product, VARSTRING[100], ext);
+@defineExternalizable(product, VARSTRING[100], ext){
+    extIdProduct 'Код' = DATA VARSTRING[100] (Product) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    extProductId (id) = GROUP AGGR (product) BY extIdProduct (product);
+};
 
 EXTEND FORM materials
 
@@ -338,14 +466,42 @@ shortNameUOMProduct 'Ед.изм.' (product) = shortNameUOM(UOMProduct(product))
 UOMProduct(product) <- UOMSku(skuProduct(product)) WHEN CHANGED (skuProduct(product));
 
 
-@defineDocumentRelation (BOM, Product, ' (изделие)');
-@defineDocumentDetailTimePrefix(BOM, Product, , ' документа');
+@defineDocumentRelation (BOM, Product, ' (изделие)'){
+    @defineDocumentRelation(BOM, BOM, Product, ' (изделие)'){
+    BOMProduct = DATA BOM (Product) NOT NULL DELETE INDEXED;
+    inBOMProduct(o, d) = BOMProduct(d) == o;
+
+    @defineDocumentHeaderCount(BOM, Product){
+    @defineDocumentHeaderCount(BOM, Product, ){
+    countProductBOM 'Кол-во строк' (o) =
+        GROUP SUM 1 BY BOMProduct(d) PERSISTENT IN documentSum;
+};
+};
+};
+};
+@defineDocumentDetailTimePrefix(BOM, Product, , ' документа'){
+    dateTimeProduct 'Дата/время документа' (d) = dateTimeBOM(BOMProduct(d)) PERSISTENT;
+    dateProduct 'Дата документа' (d) = dateBOM(BOMProduct(d));
+    timeProduct 'Время документа' (d) = timeBOM(BOMProduct(d));
+};
 
 inactiveProduct 'Неактивный' (product) = inactiveBOM(BOMProduct(product));
 descriptionProduct 'Название документа' (product) = descriptionBOM(BOMProduct(product));
 
-@defineDocumentDetailIndexPersistent (BOM, Product);
-@defineDocumentDetailActionsCustom (BOM, Product);
+@defineDocumentDetailIndexPersistent (BOM, Product){
+    dataIndexProduct 'Номер строки (польз.)' = DATA INTEGER (Product); 
+    defaultIndexProduct 'Номер строки (авт.)' (d) =
+        PARTITION SUM 1 BY BOMProduct(d)
+        ORDER d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+    indexProduct 'Номер строки' (d) = OVERRIDE defaultIndexProduct(d), dataIndexProduct(d) IN recognize PERSISTENT;  
+};
+@defineDocumentDetailActionsCustom (BOM, Product){
+    deleteProductBOM 'Очистить' = ACTION (o) {
+        //FOR object##detailClass (d) == o DO {
+        DELETE d WHERE BOMProduct (d) == o;
+        //}
+    } IN documentPrm TOOLBAR CONFIRM;
+};
 
 productsBOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](CONCAT '', nameSkuProduct(p), ' ('+idSkuProduct(p)+')'), ', '
                                        BY BOMProduct(p)
@@ -359,9 +515,13 @@ fullNameBOM 'Полное название' (BOM) = VARISTRING[255] (CONCAT '/',
                                                               productsBOM(BOM),                                                                  
                                                               nameBOM(BOM));
                                        
-@defineDocumentDetailQuantityCustomPrefix (product, , );
+@defineDocumentDetailQuantityCustomPrefix (product, , ){
+    quantityProduct 'Кол-во' = DATA NUMERIC[16,5] (Product);
+};
 
-@defineDocumentHeaderQuantityCustomPrefix (BOM, product, , ' (изделие)');
+@defineDocumentHeaderQuantityCustomPrefix (BOM, product, , ' (изделие)'){
+    quantityProductBOM 'Кол-во (всего) (изделие)' (BOM) = GROUP SUM quantityProduct(idetail) BY BOMProduct(idetail) IN documentSum PERSISTENT;
+};
 
 pricePercentProduct 'Удельный вес цены,%' = DATA NUMERIC[10,5] (Product);
 pricePercentProduct(product) <- 100.000 WHEN SET (product IS Product);
@@ -409,16 +569,47 @@ TABLE component (Component);
 
 //nameComponent 'Наименование' = DATA VARISTRING[100](Component);
 
-@defineExternalizable(component, VARSTRING[100], ext);
+@defineExternalizable(component, VARSTRING[100], ext){
+    extIdComponent 'Код' = DATA VARSTRING[100] (Component) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    extComponentId (id) = GROUP AGGR (component) BY extIdComponent (component);
+};
 
-@defineDocumentRelation (BOM, Component, ' (компонент)');
-@defineDocumentDetailTimePrefix(BOM, Component, , ' документа');
+@defineDocumentRelation (BOM, Component, ' (компонент)'){
+    @defineDocumentRelation(BOM, BOM, Component, ' (компонент)'){
+    BOMComponent = DATA BOM (Component) NOT NULL DELETE INDEXED;
+    inBOMComponent(o, d) = BOMComponent(d) == o;
+
+    @defineDocumentHeaderCount(BOM, Component){
+    @defineDocumentHeaderCount(BOM, Component, ){
+    countComponentBOM 'Кол-во строк' (o) =
+        GROUP SUM 1 BY BOMComponent(d) PERSISTENT IN documentSum;
+};
+};
+};
+};
+@defineDocumentDetailTimePrefix(BOM, Component, , ' документа'){
+    dateTimeComponent 'Дата/время документа' (d) = dateTimeBOM(BOMComponent(d)) PERSISTENT;
+    dateComponent 'Дата документа' (d) = dateBOM(BOMComponent(d));
+    timeComponent 'Время документа' (d) = timeBOM(BOMComponent(d));
+};
 
 descriptionComponent 'Спецификация' (component)= descriptionBOM(BOMComponent(component));
 productsBOMComponent 'Название' = productsBOM(BOMComponent(component));
 
-@defineDocumentDetailIndexPersistent (BOM, Component);
-@defineDocumentDetailActionsCustom (BOM, Component);
+@defineDocumentDetailIndexPersistent (BOM, Component){
+    dataIndexComponent 'Номер строки (польз.)' = DATA INTEGER (Component); 
+    defaultIndexComponent 'Номер строки (авт.)' (d) =
+        PARTITION SUM 1 BY BOMComponent(d)
+        ORDER d MINCHARWIDTH 4 PREFCHARWIDTH 4;
+    indexComponent 'Номер строки' (d) = OVERRIDE defaultIndexComponent(d), dataIndexComponent(d) IN recognize PERSISTENT;  
+};
+@defineDocumentDetailActionsCustom (BOM, Component){
+    deleteComponentBOM 'Очистить' = ACTION (o) {
+        //FOR object##detailClass (d) == o DO {
+        DELETE d WHERE BOMComponent (d) == o;
+        //}
+    } IN documentPrm TOOLBAR CONFIRM;
+};
 
 materialComponent = DATA Material (Component);
 nameMaterialComponent 'Материал' (component) = nameMaterial(materialComponent(component));
@@ -443,8 +634,12 @@ shortNameUOMComponent 'Ед. изм.' (component) = shortNameUOM(UOMComponent(co
 UOMComponent(component) <- UOMMaterial(materialComponent(component)) WHEN CHANGED (materialComponent(component));
 
 // Кол-во нетто
-@defineDocumentDetailQuantityCustomPrefix (component, netto, ' (нетто)');
-@defineDocumentHeaderQuantityCustomPrefix (BOM, component, netto, ' (нетто компонент)');
+@defineDocumentDetailQuantityCustomPrefix (component, netto, ' (нетто)'){
+    nettoQuantityComponent 'Кол-во (нетто)' = DATA NUMERIC[16,5] (Component);
+};
+@defineDocumentHeaderQuantityCustomPrefix (BOM, component, netto, ' (нетто компонент)'){
+    nettoQuantityComponentBOM 'Кол-во (всего) (нетто компонент)' (BOM) = GROUP SUM nettoQuantityComponent(idetail) BY BOMComponent(idetail) IN documentSum PERSISTENT;
+};
 
 // Технология
 TABLE  technologyComponent (Technology, Component);
@@ -517,8 +712,12 @@ overCurWastageComponent '% потерь' (component) = wastageComponentDate(comp
 
 // Кол-во брутто
 
-@defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
-@defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
+@defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)'){
+    bruttoQuantityComponent 'Кол-во (брутто)' = DATA NUMERIC[16,5] (Component);
+};
+@defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'){
+    bruttoQuantityComponentBOM 'Кол-во (всего) (брутто компонент)' (BOM) = GROUP SUM bruttoQuantityComponent(idetail) BY BOMComponent(idetail) IN documentSum PERSISTENT;
+}; 
             
 selectTechnologiesComponent = ACTION (component) {
     FORM componentTechnologies OBJECTS c = component MODAL;
@@ -1161,8 +1360,9 @@ bruttoQuantityBOMSkuDate(BOM, sku, date) = bruttoQuantityBOMMaterialDate(BOM, sk
 
 bruttoQuantityBOMBOM (parent, child) = GROUP MAX bruttoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
+TABLE BOMBOM(BOM, BOM);
 recBruttoQuantityBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES YES;
-recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child;
+recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
 //recBruttoQuantityBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 recBruttoQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMSkuDate(childBOM, sku, date) BY BOM, sku, date; //](BOM, sku);
@@ -1175,7 +1375,7 @@ recBruttoNodeQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBO
 priceCoeffBOMBOM(parent, child) = GROUP SUM bruttoQuantityBOMMaterial(BOM, material) * priceCoeffProduct(material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
 recPriceCoeffBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES YES;
-recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child;
+recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
 //recPriceCoeffBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 //
@@ -1190,7 +1390,7 @@ nettoQuantityBOMSku(BOM, sku) = nettoQuantityBOMMaterial(BOM, sku) IF sku IS Sku
 nettoQuantityBOMBOM (parent, child) = GROUP MAX nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
 recNettoQuantityBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES YES;
-recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child;
+recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
 
 recNettoQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childBOM) * nettoQuantityBOMSku(childBOM, sku) BY BOM, sku; //](BOM, sku);
 
