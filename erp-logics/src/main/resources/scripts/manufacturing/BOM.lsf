@@ -1161,9 +1161,8 @@ bruttoQuantityBOMSkuDate(BOM, sku, date) = bruttoQuantityBOMMaterialDate(BOM, sk
 
 bruttoQuantityBOMBOM (parent, child) = GROUP MAX bruttoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
-TABLE BOMBOM(BOM, BOM);
 recBruttoQuantityBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES YES;
-recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
+recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child;
 //recBruttoQuantityBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 recBruttoQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMSkuDate(childBOM, sku, date) BY BOM, sku, date; //](BOM, sku);
@@ -1176,7 +1175,7 @@ recBruttoNodeQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBO
 priceCoeffBOMBOM(parent, child) = GROUP SUM bruttoQuantityBOMMaterial(BOM, material) * priceCoeffProduct(material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
 recPriceCoeffBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES YES;
-recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
+recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child;
 //recPriceCoeffBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 //
@@ -1191,7 +1190,7 @@ nettoQuantityBOMSku(BOM, sku) = nettoQuantityBOMMaterial(BOM, sku) IF sku IS Sku
 nettoQuantityBOMBOM (parent, child) = GROUP MAX nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material);
 
 recNettoQuantityBOMBOMResult (parent, child, q) = RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES YES;
-recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
+recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child;
 
 recNettoQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childBOM) * nettoQuantityBOMSku(childBOM, sku) BY BOM, sku; //](BOM, sku);
 
