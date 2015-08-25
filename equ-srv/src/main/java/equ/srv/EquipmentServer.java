@@ -210,6 +210,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException {
+        return softCheck == null ? null : softCheck.sendCashierTimeList(cashierTimeList);
+    }
+
+    @Override
     public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             List<TransactionInfo> transactionList = new ArrayList<>();
@@ -693,6 +698,39 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException {
+        List<CashierInfo> cashierInfoList = new ArrayList<>();
+        try (DataSession session = getDbManager().createSession()) {
+
+            KeyExpr contactExpr = new KeyExpr("contact");
+            ImRevMap<Object, KeyExpr> contactKeys = MapFact.singletonRev((Object) "contact", contactExpr);
+
+            QueryBuilder<Object, Object> contactQuery = new QueryBuilder<>(contactKeys);
+            String[] contactNames = new String[]{"sidMainRoleCustomUser", "loginCustomUser", "shortNameContact"};
+            LCP[] contactProperties = equLM.findProperties("sidMainRoleCustomUser", "loginCustomUser", "shortNameContact");
+            for (int i = 0; i < contactProperties.length; i++) {
+                contactQuery.addProperty(contactNames[i], contactProperties[i].getExpr(contactExpr));
+            }
+            contactQuery.and(equLM.findProperty("sidMainRoleCustomUser").getExpr(contactExpr).getWhere());
+            contactQuery.and(equLM.findProperty("loginCustomUser").getExpr(contactExpr).getWhere());
+            contactQuery.and(equLM.findProperty("shortNameContact").getExpr(contactExpr).getWhere());
+
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> contactResult = contactQuery.execute(session);
+
+            for (int i = 0, size = contactResult.size(); i < size; i++) {
+                ImMap<Object, Object> row = contactResult.getValue(i);
+
+                String numberCashier = getRowValue(row, "loginCustomUser");
+                String nameCashier = getRowValue(row, "shortNameContact");
+                cashierInfoList.add(new CashierInfo(numberCashier, nameCashier));
+            }
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+        return cashierInfoList;
+    }
+
+    @Override
     public boolean enabledStopListInfo() throws RemoteException, SQLException {
         return cashRegisterLM != null && stopListLM != null;
     }
@@ -1118,6 +1156,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         query.and(machineryPriceTransactionLM.findProperty("inStockRequestExchange").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
         query.and(machineryPriceTransactionLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
         query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(stockExpr, Compare.EQUALS));
+        query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for (ImMap<Object, Object> entry : result.values()) {
             idStockSet.add(trim((String) entry.get("idStock")));
@@ -2410,9 +2449,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
     
     private List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
+        List<List<Object>> data = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
+            data.add(new ArrayList<>());
         }
         return data;
     }

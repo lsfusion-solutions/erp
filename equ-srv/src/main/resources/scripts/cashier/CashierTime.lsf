@@ -1,0 +1,25 @@
+MODULE CashierTime;
+
+REQUIRE System, Integration, Employee, CashRegister;
+
+CLASS CashierTime 'Время работы кассиров';
+TABLE cashierTime (CashierTime);
+
+@defineExternalizable(cashierTime, VARSTRING[100]);
+employeeCashierTime 'Кассир' = DATA Employee (CashierTime);
+shortNameContactCashierTime 'Кассир' (cashierTime) = shortNameContact(employeeCashierTime(cashierTime));
+cashRegisterCashierTime 'Касса' = DATA CashRegister (CashierTime);
+numberCashRegisterCashierTime 'Касса' (cashierTime) = nppMachinery(cashRegisterCashierTime(cashierTime));
+logOnCashierTime 'Вход в систему' = DATA DATETIME(CashierTime);
+logOffCashierTime 'Выход из системы' = DATA DATETIME(CashierTime);
+
+FORM cashierTime 'Время работы кассиров'
+    OBJECTS c = CashierTime
+    PROPERTIES (c) shortNameContactCashierTime, numberCashRegisterCashierTime, logOnCashierTime, logOffCashierTime, ADDOBJ, DELETE
+;
+
+NAVIGATOR {
+    machineryMasterData {
+        ADD cashierTime;
+    }
+}

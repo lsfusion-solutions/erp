@@ -1,6 +1,7 @@
 package equ.api.cashregister;
 
 import equ.api.MachineryHandler;
+import equ.api.MachineryInfo;
 import equ.api.RequestExchange;
 import equ.api.SalesBatch;
 import java.io.IOException;
@@ -18,6 +19,10 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
     public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
 
     public abstract void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException;
+
+    public abstract void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException;
+
+    public abstract List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException;
 
     public abstract void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException;
     

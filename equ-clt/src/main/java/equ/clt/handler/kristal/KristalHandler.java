@@ -25,6 +25,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static org.apache.commons.lang.StringUtils.trim;
+
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
@@ -97,14 +99,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
 
-                    if (!new File(exchangeDirectory).exists())
-                        new File(exchangeDirectory).mkdirs();
+                    makeDirsIfNeeded(exchangeDirectory);
 
                     //plu.txt
                     File pluFile = new File(exchangeDirectory + "plu.txt");
                     File flagPluFile = new File(exchangeDirectory + "WAITPLU");
                     if (pluFile.exists() && flagPluFile.exists()) {
-                        throw new RuntimeException(String.format("files %s and %s already exists. Maybe there are some problems with server", pluFile.getAbsolutePath(), flagPluFile.getAbsolutePath()));
+                        throw new RuntimeException(existFilesMessage(pluFile, flagPluFile));
                     } else if (flagPluFile.createNewFile()) {
                         processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
                         PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
@@ -133,7 +134,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         processTransactionLogger.info(String.format("Kristal: waiting for deletion of PLU file (Transaction #%s)", transactionInfo.id));
                         waitForDeletion(pluFile, flagPluFile);
                     } else {
-                        throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
+                        throw new RuntimeException(cantCreateFileMessage(flagPluFile));
                     }
 
                     if(!noRestriction) {
@@ -141,7 +142,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         File restrictionFile = new File(exchangeDirectory + "restriction.txt");
                         File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICTION");
                         if (restrictionFile.exists() && flagRestrictionFile.exists()) {
-                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                            throw new RuntimeException(existFilesMessage(restrictionFile, flagRestrictionFile));
                         } else if (flagRestrictionFile.createNewFile()) {
                             processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
                             PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(restrictionFile), "windows-1251"));
@@ -161,7 +162,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             processTransactionLogger.info(String.format("Kristal: waiting for deletion of Restriction file (Transaction #%s)", transactionInfo.id));
                             waitForDeletion(restrictionFile, flagRestrictionFile);
                         } else {
-                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagRestrictionFile.getAbsolutePath()));
+                            throw new RuntimeException(cantCreateFileMessage(flagRestrictionFile));
                         }
                     }
 
@@ -178,7 +179,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             File messageFile = new File(exchangeDirectory + "message.txt");
                             File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
                             if (messageFile.exists() && flagMessageFile.exists()) {
-                                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
+                                throw new RuntimeException(existFilesMessage(messageFile, flagMessageFile));
                             } else if (flagMessageFile.createNewFile()) {
                                 processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
                                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
@@ -195,7 +196,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 processTransactionLogger.info(String.format("Kristal: waiting for deletion of MESSAGE file (Transaction #%s)", transactionInfo.id));
                                 waitForDeletion(messageFile, flagMessageFile);
                             } else {
-                                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
+                                throw new RuntimeException(cantCreateFileMessage(flagMessageFile));
                             }
                         }
 
@@ -211,7 +212,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             File scaleFile = new File(exchangeDirectory + "scales.txt");
                             File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
                             if (scaleFile.exists() && flagScaleFile.exists()) {
-                                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
+                                throw new RuntimeException(existFilesMessage(scaleFile, flagScaleFile));
                             } else if (flagScaleFile.createNewFile()) {
                                 processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
                                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
@@ -232,7 +233,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 waitForDeletion(scaleFile, flagScaleFile);
 
                             } else {
-                                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
+                                throw new RuntimeException(cantCreateFileMessage(flagScaleFile));
                             }
                         }
                     }
@@ -242,7 +243,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         File groupsFile = new File(exchangeDirectory + "groups.txt");
                         File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
                         if (groupsFile.exists() && flagGroupsFile.exists()) {
-                            throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+                            throw new RuntimeException(existFilesMessage(groupsFile, flagGroupsFile));
                         } else if (flagGroupsFile.createNewFile()) {
                             processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
                             PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
@@ -270,7 +271,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             waitForDeletion(groupsFile, flagGroupsFile);
 
                         } else {
-                            throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+                            throw new RuntimeException(cantCreateFileMessage(flagGroupsFile));
                         }
                     }
                 }
@@ -289,7 +290,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 try {
                     count++;
                     if(count>=180)
-                        throw Throwables.propagate(new RuntimeException(String.format("file %s has been created but not processed by server", file.getAbsolutePath())));                  
+                        throw Throwables.propagate(new RuntimeException(createdButNotProcessedMessage(file)));
                     else
                         Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -345,7 +346,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         try {
                             count++;
                             if(count>=60) {
-                                throw Throwables.propagate(new RuntimeException(String.format("Kristal: file %s has been created but not processed by server", softFile.getAbsolutePath())));
+                                throw Throwables.propagate(new RuntimeException(createdButNotProcessedMessage(softFile)));
                             }
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
@@ -384,7 +385,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     String exchangeDirectory = directory + (exportPrefixPath == null ?  "/export" : exportPrefixPath) + "/request/";
 
-                    if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                    if (makeDirsIfNeeded(exchangeDirectory)) {
                         Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
 
                         String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
@@ -415,8 +416,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             File f = new File(readFile);
             
             try {
-                File successDir = new File(f.getParent() + "/success/");
-                if (successDir.exists() || successDir.mkdirs())
+                if (makeDirsIfNeeded(f.getParent() + "/success/"))
                     FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
             } catch (IOException e) {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
@@ -448,7 +448,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Connection conn = null;
                 try {
 
-                    String sqlHost = sqlHostEntry.getValue();
+                    String sqlHost = trim(sqlHostEntry.getValue());
                     sendSalesLogger.info("Kristal: connection to " + sqlHost);
 
                     String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
@@ -465,6 +465,64 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     }
 
                     sendSalesLogger.info("Kristal: found " + count + " SoftCheckInfo");
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (conn != null)
+                        conn.close();
+                }
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
+
+        sendSalesLogger.info("Kristal: requesting CashierTime");
+
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+        for (MachineryInfo c : cashRegisterInfoList) {
+            if (c.number != null && c.numberGroup != null && c.directory != null) {
+                directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+            }
+        }
+
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
+
+        List<CashierTime> result = new ArrayList<>();
+
+        if(kristalSettings == null) {
+            sendSalesLogger.error("No kristalSettings found");
+        } else {
+            for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
+                Connection conn = null;
+                try {
+
+                    String dir = trim(sqlHostEntry.getKey());
+                    String sqlHost = trim(sqlHostEntry.getValue());
+                    sendSalesLogger.info("Kristal: connection to " + sqlHost);
+
+                    String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                            sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                    Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                    conn = DriverManager.getConnection(url);
+                    Statement statement = conn.createStatement();
+                    String queryString = "SELECT CashierTabNumber, CashNumber, LogOn, LogOff FROM CashierWorkTime";
+                    ResultSet rs = statement.executeQuery(queryString);
+                    while (rs.next()) {
+
+                        String numberCashier = rs.getString(1);
+                        Integer numberCashRegister = rs.getInt(2);
+                        Timestamp timeFrom = rs.getTimestamp(3);
+                        Timestamp timeTo = rs.getTimestamp(4);
+                        String idCashierTime = numberCashier + "/" + numberCashRegister + "/" +  timeFrom + "/" + timeTo;
+                        result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister,
+                                directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo));
+                    }
+
+                    sendSalesLogger.info("Kristal: found " + result.size() + " CashierTime");
 
                 } catch (SQLException e) {
                     e.printStackTrace();
@@ -647,15 +705,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         for (String directory : directorySet) {
 
             String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
-
-            if (!new File(exchangeDirectory).exists())
-                new File(exchangeDirectory).mkdirs();
+            makeDirsIfNeeded(exchangeDirectory);
 
             //stopList.txt
             File stopListFile = new File(exchangeDirectory + "stoplist.txt");
             File flagStopListFile = new File(exchangeDirectory + "WAITSTOPLIST");
             if (stopListFile.exists() && flagStopListFile.exists()) {
-                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagStopListFile.getAbsolutePath()));
+                throw new RuntimeException(existFilesMessage(stopListFile, flagStopListFile));
             } else if (flagStopListFile.createNewFile()) {
                 processStopListLogger.info("Kristal: creating STOPLIST file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
@@ -671,7 +727,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 processStopListLogger.info("Kristal: waiting for deletion of STOPLIST file");
                 waitForDeletion(stopListFile, flagStopListFile);
             } else {
-                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagStopListFile.getAbsolutePath()));
+                throw new RuntimeException(cantCreateFileMessage(flagStopListFile));
             }
         }     
     }
@@ -686,15 +742,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         for (String directory : directorySet) {
 
             String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
-
-            if (!new File(exchangeDirectory).exists())
-                new File(exchangeDirectory).mkdirs();
+            makeDirsIfNeeded(exchangeDirectory);
 
             //discountCard.txt
             File discCardFile = new File(exchangeDirectory + "disccard.txt");
             File flagDiscCardFile = new File(exchangeDirectory + "WAITDISCCARD");
             if (discCardFile.exists() && flagDiscCardFile.exists()) {
-                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));
+                throw new RuntimeException(existFilesMessage(discCardFile, flagDiscCardFile));
             } else if (flagDiscCardFile.createNewFile()) {
                 machineryExchangeLogger.info("Kristal: creating DISCCARD file " + discCardFile.getAbsolutePath());
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
@@ -712,7 +766,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 machineryExchangeLogger.info("Kristal: waiting for deletion of DISCCARD file " + discCardFile.getAbsolutePath());
                 waitForDeletion(discCardFile, flagDiscCardFile);
             } else {
-                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagDiscCardFile.getAbsolutePath()));
+                throw new RuntimeException(cantCreateFileMessage(flagDiscCardFile));
             }
         }
     }
@@ -722,6 +776,41 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             while (value.startsWith("0"))
                 value = value.substring(1);
         return value;
+    }
+
+    @Override
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet) throws IOException {
+        machineryExchangeLogger.info("Kristal: Send CashierInfoList");
+
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
+        String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
+
+        for (String directory : directorySet) {
+
+            String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+            makeDirsIfNeeded(exchangeDirectory);
+
+            //cashier.txt
+            File cashierFile = new File(exchangeDirectory + "cashier.txt");
+            File flagCashierFile = new File(exchangeDirectory + "WAITCASHIER");
+            if (cashierFile.exists() && flagCashierFile.exists()) {
+                throw new RuntimeException(existFilesMessage(cashierFile, flagCashierFile));
+            } else if (flagCashierFile.createNewFile()) {
+                machineryExchangeLogger.info("Kristal: creating CASHIER file " + cashierFile.getAbsolutePath());
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(cashierFile), "windows-1251"));
+
+                for (CashierInfo cashier : cashierInfoList) {
+                    String record = String.format("+|%s|%s|%s|0|:::::::", cashier.numberCashier, cashier.nameCashier, cashier.numberCashier);
+                    writer.println(record);
+                }
+                writer.close();
+
+                machineryExchangeLogger.info("Kristal: waiting for deletion of CASHIER file " + cashierFile.getAbsolutePath());
+                waitForDeletion(cashierFile, flagCashierFile);
+            } else {
+                throw new RuntimeException(cantCreateFileMessage(flagCashierFile));
+            }
+        }
     }
 
     @Override
@@ -797,7 +886,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 try {
                     if(file.length() == 0) {
                         //file is empty
-                        file.delete();
+                        if(!file.delete())
+                            file.deleteOnExit();
                         continue;
                     }
                     String fileName = file.getName();
@@ -901,7 +991,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 Element receiptElement = (Element) receiptNode;
 
                                                 Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
-                                                BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
+                                                //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
                                                 long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
                                                 Date dateReceipt = new Date(dateTimeReceipt);
                                                 Time timeReceipt = new Time(dateTimeReceipt);
@@ -986,6 +1076,22 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new KristalSalesBatch(salesInfoList, filePathList);
+    }
+
+    private boolean makeDirsIfNeeded(String directory) {
+        return new File(directory).exists() || new File(directory).mkdirs();
+    }
+
+    private String existFilesMessage(File file1, File file2) {
+        return String.format("Kristal: files %s and %s already exists. Maybe there are some problems with server", file1.getAbsolutePath(), file2.getAbsolutePath());
+    }
+
+    private String cantCreateFileMessage(File file) {
+        return String.format("Kristal: file %s can not be created. Maybe there are some problems with server", file.getAbsolutePath());
+    }
+
+    private String createdButNotProcessedMessage(File file) {
+        return String.format("Kristal: file %s has been created but not processed by server", file.getAbsolutePath());
     }
 
     private String transformUPCBarcode(String idBarcode, String transformUPCBarcode) {
@@ -1115,9 +1221,5 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
         }
         return isLocked;
-    }
-
-    private String trim(String input) {
-        return input == null ? null : input.trim();
     }
 }

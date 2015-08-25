@@ -239,6 +239,15 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    }
+
+    @Override
+    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
+        return null;
+    }
+
+    @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {

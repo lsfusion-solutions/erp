@@ -47,5 +47,9 @@ public class RequestExchange implements Serializable {
     public boolean isPromotion() {
         return typeRequestExchange != null && typeRequestExchange.contains("promotion");
     }
+
+    public boolean isCashier() {
+        return typeRequestExchange != null && typeRequestExchange.contains("cashierInfo");
+    }
     
 }

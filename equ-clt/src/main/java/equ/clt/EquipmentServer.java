@@ -378,6 +378,17 @@ public class EquipmentServer {
         }
     }
 
+    private void sendCashierTime(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<MachineryInfo> cashRegisterInfoList)
+            throws IOException, SQLException, ClassNotFoundException {
+        List<CashierTime> cashierTimeList = handler.requestCashierTime(cashRegisterInfoList);
+        if (cashierTimeList != null && !cashierTimeList.isEmpty()) {
+            sendSalesLogger.info("Sending cashier time (" + cashierTimeList.size() + ")");
+            String result = remote.sendCashierTimeList(cashierTimeList);
+            if (result != null)
+                reportEquipmentServerError(remote, sidEquipmentServer, result);
+        }
+    }
+
     private void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
             throws IOException, ParseException, SQLException {
         if (!requestExchangeList.isEmpty()) {
@@ -595,6 +606,7 @@ public class EquipmentServer {
                     try {
                         for (RequestExchange requestExchange : requestExchangeList) {
                             try {
+                                Set<String> usedDirectories = new HashSet<>();
                                 for (Pair<Integer, String> machineryEntry : machineryMap) {
                                     Integer nppGroupMachinery = machineryEntry.first;
                                     String directoryGroupMachinery = machineryEntry.second;
@@ -604,7 +616,10 @@ public class EquipmentServer {
                                     boolean isTerminalHandler = clsHandler instanceof TerminalHandler;
 
                                     if(isCashRegisterHandler) {
-                                        if (!requestExchange.directorySet.contains(directoryGroupMachinery)) continue;
+                                        if (!requestExchange.directorySet.contains(directoryGroupMachinery) || usedDirectories.contains(directoryGroupMachinery))
+                                            continue;
+                                        else
+                                            usedDirectories.add(directoryGroupMachinery);
 
                                         //DiscountCard
                                         if (requestExchange.isDiscountCard()) {
@@ -619,6 +634,15 @@ public class EquipmentServer {
                                             PromotionInfo promotionInfo = remote.readPromotionInfo();
                                             if (promotionInfo != null)
                                                 ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, requestExchange.directorySet);
+                                            remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                        }
+
+                                        //Cashier
+                                        else if(requestExchange.isCashier()) {
+                                            List<CashierInfo> cashierInfoList = remote.readCashierInfoList();
+                                            if (cashierInfoList != null && !cashierInfoList.isEmpty())
+                                                ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange.directorySet);
+                                            sendCashierTime(remote, sidEquipmentServer, (CashRegisterHandler) clsHandler, machineryInfoList);
                                             remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         }
                                     }

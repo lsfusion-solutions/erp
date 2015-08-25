@@ -23,6 +23,9 @@ public interface EquipmentServerInterface extends Remote {
     List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
     void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException;
     String sendSucceededSoftCheckInfo(Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException;
+
+    List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException;
+    String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException;
     
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 

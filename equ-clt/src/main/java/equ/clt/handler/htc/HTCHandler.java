@@ -428,7 +428,16 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             throw Throwables.propagate(e);
         }
     }
-    
+
+    @Override
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    }
+
+    @Override
+    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
+        return null;
+    }
+
     private File sendPromotionTimeFile(List<PromotionTime> promotionTimeList, String directory, File cachedTimeFile) throws IOException, xBaseJException {
         if(promotionTimeList != null && !promotionTimeList.isEmpty()) {
             File timeFile = new File(directory + "/Timenew.dbf");

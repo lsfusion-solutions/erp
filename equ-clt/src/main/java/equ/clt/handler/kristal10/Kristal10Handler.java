@@ -585,6 +585,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {        
     }
 
+    @Override
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    }
+
+    @Override
+    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
+        return null;
+    }
+
     private String formatDate(Date date) {
         return new SimpleDateFormat("yyyy-MM-dd").format(date);
     }
