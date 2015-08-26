@@ -2,6 +2,74 @@ MODULE PromotionDashboard;
 
 REQUIRE PriceListDashboard, PriceListOperation, Store, PriceListBefore, PriceListPromotion;
 
+CLASS Promotion 'Акция';
+TABLE promotion(Promotion);
+
+namePromotion 'Наименование акции' = DATA VARISTRING[50](Promotion) IN recognize;
+promotionName = GROUP AGGR promotion BY namePromotion(promotion);
+
+FORM dialogPromotions 'Акции' 
+    OBJECTS p = Promotion
+    PROPERTIES(p) READONLY namePromotion
+    
+    DIALOG Promotion OBJECT p
+;
+
+FORM promotion 'Акция'
+    OBJECTS p=Promotion FIXED PANEL
+    PROPERTIES(p) namePromotion
+    EDIT Promotion OBJECT p
+;
+
+FORM promotions 'Акции'
+    OBJECTS p = Promotion
+    PROPERTIES(p) READONLY namePromotion
+    PROPERTIES (p) ADDFORM, EDITFORM, DELETE 
+;
+
+NAVIGATOR {
+    priceListMasterData {
+        ADD promotions;
+    }
+}
+    
+promotionPriceList = ABSTRACT Promotion (PriceList);
+promotionUserPriceList = DATA Promotion (UserPriceList);
+
+promotionPriceList(priceList) += promotionUserPriceList(priceList);
+
+namePromotionPriceList 'Акция' = ABSTRACT VARISTRING[50](PriceList);
+namePromotionUserPriceList 'Акция' = namePromotion(promotionUserPriceList(priceList)); 
+namePromotionPriceList(priceList) += namePromotionUserPriceList(priceList);
+
+namePromotionPriceListDetail 'Акция' = namePromotionPriceList(priceListPriceListDetail(detail));
+
+showPromotionPriceOperation 'Акция' = DATA BOOLEAN (PriceList.Operation);
+showPromotionPriceUserPriceList(p) = showPromotionPriceOperation(operationUserPriceList(p));
+ 
+EXTEND FORM operation PROPERTIES(o) showPromotionPriceOperation;
+
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showPromotionPriceOperation(o));
+    }
+}
+
+EXTEND FORM priceLists 
+    PROPERTIES (p) READONLY namePromotionPriceList AFTER nameOperationPriceList(p)
+;
+
+EXTEND FORM userPriceList 
+    PROPERTIES (p) namePromotionUserPriceList SHOWIF showPromotionPriceUserPriceList(p)
+;
+
+DESIGN userPriceList{
+    first {
+        MOVE PROPERTY(namePromotionUserPriceList(p))
+        {minimumCharWidth = 30; preferredCharWidth = 40;} 
+    }
+}
+
 FORM promotionDashboard 'Управление акциями'
     OBJECTS dt = DATETIME FIXED PANEL
     PROPERTIES(dt) objValue = OBJVALUE
@@ -96,7 +164,7 @@ EXTEND FORM promotionDashboard
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(cskg) 'F5' DEFAULT
 
     OBJECTS csk = PriceListDetail
-    PROPERTIES(csk) READONLY nameSkuPriceListDetail, idBarcodeSkuPriceListDetail, fromDateTimePriceListDetail, toDateTimePriceListDetail
+    PROPERTIES(csk) READONLY nameSkuPriceListDetail, idBarcodeSkuPriceListDetail, fromDateTimePriceListDetail, toDateTimePriceListDetail, namePromotionPriceListDetail
     ORDER BY nameSkuPriceListDetail(csk), fromDateTimePriceListDetail(csk)
     FILTERS isParentSkuGroupSku(cskg, skuPriceListDetail(csk)),
             fromDatePriceListDetail(csk) <= toDate(dt) AND NOT (toDatePriceListDetail(csk) < toDate(dt)),
@@ -167,7 +235,7 @@ addUserPriceListLegalEntityPriceListTypeDateTimeOperation 'Добавить' = A
 
 EXTEND FORM promotionDashboard
     OBJECTS p = UserPriceList
-    PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p) isPostedUserPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
+    PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p) isPostedUserPriceList, namePromotionPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
                            fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
                            nameCurrencyUserPriceList, nameCompanyUserPriceList, priceListTypesPriceList, stocksPriceList,
                            noteUserPriceList
