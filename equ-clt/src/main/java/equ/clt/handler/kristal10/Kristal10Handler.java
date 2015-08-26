@@ -31,7 +31,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    
+
     String encoding = "utf-8";
 
     private FileSystemXmlApplicationContext springContext;
@@ -87,7 +87,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     //catalog-goods.xml
                     processTransactionLogger.info("Kristal10: creating catalog-goods file (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
-                    
+
                     Element rootElement = new Element("goods-catalog");
                     Document doc = new Document(rootElement);
                     doc.setRootElement(rootElement);
@@ -200,15 +200,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                         }
                     }
-                    processTransactionLogger.info("Kristal10: created catalog-goods file (Transaction " + transaction.id + ")");
-
+                    processTransactionLogger.info(String.format("Kristal10: created catalog-goods file (Transaction %s)", transaction.id));
                     File file = makeGoodsFilePath(exchangeDirectory);
                     XMLOutputter xmlOutput = new XMLOutputter();
                     xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
                     PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
                     xmlOutput.output(doc, fw);
                     fw.close();
-                    processTransactionLogger.info("Kristal10: output catalog-goods file (Transaction " + transaction.id + ")");
+                    processTransactionLogger.info(String.format("Kristal10: output catalog-goods file (Transaction %s)", transaction.id));
 
                     fileMap.put(file, transaction.id);
                 }
@@ -294,7 +293,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
         return file;
     }
-    
+
     private void addStringElement(Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id).setText(value));
@@ -327,7 +326,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             String requestResult = null;
             if(entry.isSalesInfoExchange()) {
                 for (String directory : entry.directorySet) {
-                    
+
                     if (!directorySet.contains(directory)) continue;
 
                     sendSalesLogger.info("Kristal10: creating request files for directory : " + directory);
@@ -367,7 +366,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             } catch (IOException e) {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
             }
-            
+
             if (f.delete()) {
                 sendSalesLogger.info("Kristal10: file " + readFile + " has been deleted");
             } else {
@@ -394,7 +393,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler")) {
                 directorySet.add(c.directory);
-                if (c.handlerModel != null && c.number != null && c.numberGroup != null) {   
+                if (c.handlerModel != null && c.number != null && c.numberGroup != null) {
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
                 }
             }
@@ -582,7 +581,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {        
+    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {
     }
 
     @Override
@@ -961,7 +960,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
         return value;
     }
-    
+
     private String readStringXMLAttribute(Object element, String field) {
         if (element == null || !(element instanceof Element))
             return null;
@@ -988,7 +987,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         }
     }
-    
+
     private BigDecimal readBigDecimalXMLAttribute(Object element, String field) {
         if (element == null || !(element instanceof Element))
             return null;
@@ -1020,7 +1019,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return null;
         }
     }
-    
+
     private Integer readIntegerXMLAttribute(Object element, String field) {
         if (element == null || !(element instanceof Element))
             return null;

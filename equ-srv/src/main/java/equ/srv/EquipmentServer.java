@@ -862,9 +862,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail"};
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail"};
         LCP[] sldProperties = stopListLM.findProperties("idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail");
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail");
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
@@ -879,7 +879,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             String nameSkuGroup = trim((String) sldEntry.get("nameSkuGroupStopListDetail"));
             String idUOM = trim((String) sldEntry.get("idUOMSkuStopListDetail"));
             String shortNameUOM = trim((String) sldEntry.get("shortNameUOMSkuStopListDetail"));
-            stopListItemList.put(idBarcode, new ItemInfo(idItem, idBarcode, nameItem, null, false, null, null, false,
+            boolean split = sldEntry.get("splitSkuStopListDetail") != null;
+            boolean passScales = sldEntry.get("passScalesSkuStopListDetail") != null;
+            stopListItemList.put(idBarcode, new ItemInfo(idItem, idBarcode, nameItem, null, split, null, null, passScales,
                     null, null, null, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
         }
         return stopListItemList;
