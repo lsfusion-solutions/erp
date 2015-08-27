@@ -567,6 +567,8 @@ createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceT
 createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
 createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
+inMachinery 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
+
 excludeGroupMachinery = DATA LOCAL BOOLEAN (GroupMachinery);
 
 createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
@@ -601,6 +603,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         IF countBarcode() THEN {
             createMachineryPriceTransactionGroupMachinery(groupMachinery);
             FOR t == addedObject() DO {
+                inMachineryPriceTransactionMachinery(t, m) <- inMachinery(m) WHERE groupMachinery == groupMachineryMachinery(m);
                 groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
                 priceTransactionDocumentMachineryPriceTransaction(t) <- createMachineryPriceTransactionDocument();
                 commentMachineryPriceTransaction(t) <- createMachineryPriceTransactionComment();
@@ -655,11 +658,17 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
     PROPERTIES(st) READONLY nameStock    
     
     OBJECTS gm = GroupMachinery 
-    PROPERTIES(gm) READONLY nppGroupMachinery, nameGroupMachinery, portsGroupMachinery, objectClassName
     PROPERTIES(gm) includeGroupMachinery 
+    PROPERTIES(gm) READONLY nppGroupMachinery, nameGroupMachinery, portsGroupMachinery, objectClassName
     FILTERS stockGroupMachinery(gm) == st,
             activeGroupMachinery(gm)
+            
+    OBJECTS m = Machinery
+    PROPERTIES inMachinery(m)
+    PROPERTIES (m)READONLY nppGroupMachineryMachinery, nameGroupMachineryMachinery,nppMachinery, shortDescriptionMachinery, descriptionMachinery, objectClassName
+    FILTERS includeGroupMachinery(groupMachineryMachinery(m))
 ;
+DESIGN selectGroupMachinery { main{ preferredSize = (600, 400); } }
 
 createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWSESSION {
     FORM selectGroupMachinery OBJECTS st = stock MODAL;
