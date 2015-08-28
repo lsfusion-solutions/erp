@@ -260,10 +260,6 @@ FORM groupMachineryInput 'Выбор оборудования для перез�
     FILTERS groupMachineryMachinery(m) == g
 ;
 
-WHEN SESSION FORMS groupMachineryInput CHANGED (selectedGroupMachinery(g)) DO {
-        selectedMachinery (m) <- selectedGroupMachinery(g) WHERE groupMachineryMachinery(m) == g;
-    } 
-
 DESIGN groupMachineryInput {
     main {
         preferredSize = (1024, 768);
@@ -567,7 +563,6 @@ createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceT
 createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
 createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
-inMachinery 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
 
 excludeGroupMachinery = DATA LOCAL BOOLEAN (GroupMachinery);
 
@@ -603,7 +598,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         IF countBarcode() THEN {
             createMachineryPriceTransactionGroupMachinery(groupMachinery);
             FOR t == addedObject() DO {
-                inMachineryPriceTransactionMachinery(t, m) <- inMachinery(m) WHERE groupMachinery == groupMachineryMachinery(m);
+                inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery) WHERE groupMachineryMachinery(machinery) == groupMachinery;
                 groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
                 priceTransactionDocumentMachineryPriceTransaction(t) <- createMachineryPriceTransactionDocument();
                 commentMachineryPriceTransaction(t) <- createMachineryPriceTransactionComment();
@@ -664,11 +659,12 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
             activeGroupMachinery(gm)
             
     OBJECTS m = Machinery
-    PROPERTIES inMachinery(m)
-    PROPERTIES (m)READONLY nppGroupMachineryMachinery, nameGroupMachineryMachinery,nppMachinery, shortDescriptionMachinery, descriptionMachinery, objectClassName
-    FILTERS includeGroupMachinery(groupMachineryMachinery(m))
+    PROPERTIES(m)          selectedMachinery
+    PROPERTIES(m) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery
+
+    FILTERS groupMachineryMachinery(m) == gm
 ;
-DESIGN selectGroupMachinery { main{ preferredSize = (600, 400); } }
+DESIGN selectGroupMachinery { main{ preferredSize = (1024, 768); } }
 
 createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWSESSION {
     FORM selectGroupMachinery OBJECTS st = stock MODAL;
