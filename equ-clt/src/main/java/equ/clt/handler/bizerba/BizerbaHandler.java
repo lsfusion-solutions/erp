@@ -305,7 +305,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         clear = clearAllMessages(errors, port, scales, charset, scales.port, encode);
         if (!clear.equals("0"))
             logError(errors, String.format("Bizerba: IP %s ClearAllMessages, Error %s", scales.port, clear));
-        Thread.sleep(10000);
+        Thread.sleep(20000);
     }
 
     private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
