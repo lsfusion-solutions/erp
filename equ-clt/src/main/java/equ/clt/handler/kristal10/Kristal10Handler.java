@@ -151,7 +151,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             addStringElement(priceEntry, "number", "1");
                             good.addContent(priceEntry);
 
-                            addStringElement(good, "vat", "20");
+                            addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                             //parent: priceEntry
                             Element department = new Element("department");
@@ -547,7 +547,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(measureType, "name", item.shortNameUOM);
                     good.addContent(measureType);
 
-                    addStringElement(good, "vat", "20");
+                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                     //parent: priceEntry
                     for (String shopIndex : stopListInfo.idStockSet) {
