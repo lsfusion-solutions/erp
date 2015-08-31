@@ -146,12 +146,12 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         "INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.idItemGroup);
+                    List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
                     if (itemGroupList != null) {
                         for (ItemGroup itemGroup : itemGroupList) {
-                            if (!usedGroups.contains(itemGroup.idItemGroup)) {
-                                usedGroups.add(itemGroup.idItemGroup);
-                                Long idItemGroup = parseGroup(itemGroup.idItemGroup);
+                            if (!usedGroups.contains(itemGroup.extIdItemGroup)) {
+                                usedGroups.add(itemGroup.extIdItemGroup);
+                                Long idItemGroup = parseGroup(itemGroup.extIdItemGroup);
                                 if (idItemGroup != 0) {
                                     ps.setLong(1, idItemGroup); //id
                                     ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
@@ -192,7 +192,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, trim(item.shortNameUOM, 40, "")); //measure
                     ps.setInt(5, item.passScalesItem ? 3 : item.splitItem ? 2 : 0); //measprec
-                    ps.setLong(6, parseGroup(item.idItemGroup)); //classif
+                    ps.setLong(6, parseGroup(item.extIdItemGroup)); //classif
                     ps.setInt(7, 1); //prop - признак товара ?
                     ps.setString(8, trim(item.description, 100, "")); //summary
                     ps.setDate(9, item.expiryDate); //exp_date

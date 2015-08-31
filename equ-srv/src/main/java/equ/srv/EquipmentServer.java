@@ -314,6 +314,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 if(cashRegisterItemLM != null) {
                     skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode", 
                             cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode",
+                            cashRegisterItemLM.findProperty("overIdSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if(scalesItemLM != null) {
@@ -420,13 +422,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
 
                         String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
+                        String overIdItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
                         BigDecimal minPrice = machineryPriceTransactionSupplierPriceLM == null ? null : (BigDecimal) row.get("supplierPriceMachineryPriceTransactionBarcode");
 
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
-                                nameSeason, idDepartmentStoreGroupCashRegister, section, minPrice));
+                                nameSeason, idDepartmentStoreGroupCashRegister, section, minPrice, overIdItemGroup));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
@@ -625,8 +628,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev((Object) "itemGroup", itemGroupExpr);
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
-        String[] itemGroupNames = new String[] {"idItemGroup", "nameItemGroup", "idParentItemGroup"};
-        LCP[] itemGroupProperties = itemLM.findProperties("idItemGroup", "nameItemGroup", "idParentItemGroup");
+        String[] itemGroupNames = new String[] {"idItemGroup", "overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
+        LCP[] itemGroupProperties = itemLM.findProperties("idItemGroup", "overIdItemGroup", "nameItemGroup", "idParentItemGroup");
         for (int i = 0; i < itemGroupProperties.length; i++) {
             itemGroupQuery.addProperty(itemGroupNames[i], itemGroupProperties[i].getExpr(itemGroupExpr));
         }
@@ -637,9 +640,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
         for (ImMap<Object, Object> row : itemGroupResult.valueIt()) {
             String idItemGroup = getRowValue(row, "idItemGroup");
+            String overIdItemGroup = getRowValue(row, "overIdItemGroup");
             String nameItemGroup = getRowValue(row, "nameItemGroup");
             String idParentItemGroup = getRowValue(row, "idParentItemGroup");
-            itemGroupMap.put(idItemGroup, new ItemGroup(idItemGroup, nameItemGroup, idParentItemGroup));
+            itemGroupMap.put(overIdItemGroup, new ItemGroup(idItemGroup, overIdItemGroup, nameItemGroup, idParentItemGroup));
         }
         
         for(Map.Entry<String, ItemGroup> entry : itemGroupMap.entrySet()) {
