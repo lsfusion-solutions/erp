@@ -8,6 +8,8 @@ CLASS ItemGroup 'Товарная группа' : SkuGroup;
 TABLE itemGroup (ItemGroup);
 
 @defineExternalizable(itemGroup, VARSTRING[100]);
+extIdItemGroup 'Код' = DATA VARSTRING[100] (ItemGroup);
+overIdItemGroup 'Код' (g) = OVERRIDE idItemGroup(g), extIdItemGroup(g);
 
 nameItemGroup 'Наименование' = DATA VARISTRING[250](ItemGroup) IN base;
 orderItemGroup 'Порядок' = DATA INTEGER (ItemGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
@@ -19,7 +21,7 @@ idSkuGroup(group) += idItemGroup(group) IF group IS ItemGroup;
 TABLE itemGroupItemGroup(ItemGroup, ItemGroup);
 @defineHierarchy(itemGroup);
 
-idParentItemGroup (itemGroup) = idItemGroup(parentItemGroup(itemGroup));
+idParentItemGroup (itemGroup) = overIdItemGroup(parentItemGroup(itemGroup));
 
 parentSkuGroup (itemGroup) += parentItemGroup(itemGroup);
 
