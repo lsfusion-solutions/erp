@@ -953,6 +953,8 @@ public class EquipmentServer {
                                     noErrors = false;
                                 if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                                if(batch.clearedMachineryList != null && !batch.clearedMachineryList.isEmpty())
+                                    remote.clearedMachineryTransaction(transactionInfo.id, batch.clearedMachineryList);
                             }
                         } catch (Exception e) {
                             noErrors = false;

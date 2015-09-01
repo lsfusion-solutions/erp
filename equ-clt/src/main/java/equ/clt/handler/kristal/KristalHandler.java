@@ -833,7 +833,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         Map<String, String> weightCodeDirectoryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("KristalHandler")) {
-                directoryNotDetailedMap.put(c.directory, c.notDetailed != null && c.notDetailed);
+                directoryNotDetailedMap.put(c.directory, c.notDetailed);
                 if (c.number != null && c.numberGroup != null)
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
                 if (c.number != null && c.startDate != null)

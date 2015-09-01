@@ -145,6 +145,7 @@ countProcessPriceTransactionDocument 'Кол-во ожидающих транз�
 succeededPriceTransactionDocument 'Загружен в оборудование' (document) = sentPriceTransactionDocument (document) IF NOT countProcessPriceTransactionDocument(document);
 
 //-- Частичная загрузка
+clearedMachineryMachineryPriceTransaction 'Выполнена очистка' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
 succeededMachineryMachineryPriceTransaction 'Загружено' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
 dateTimeSucceededMachineryMachineryPriceTransaction 'Время загрузки' = DATA DATETIME(Machinery, MachineryPriceTransaction);
 
@@ -921,7 +922,8 @@ EXTEND FORM machineryPriceTransaction
     PROPERTIES(m) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, objectClassName//, dataDirectoryCashRegister
     PROPERTIES(t, m) inMachineryPriceTransactionMachinery
     FILTERS groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t) 
-    PROPERTIES(m, t) succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction                     
+    PROPERTIES(m, t) clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t), 
+                     succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction                     
 ;
 
 DESIGN machineryPriceTransaction {
@@ -938,7 +940,8 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(m) READONLY  nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, objectClassName//dataDirectoryCashRegister
     PROPERTIES(t, m) READONLY inMachineryPriceTransactionMachinery
     FILTERS filterMachineryMachineryPriceTransaction(m, t) 
-    PROPERTIES(m, t) READONLY  succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
+    PROPERTIES(m, t) READONLY clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t),
+                              succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
 
 
     OBJECTS dt = DATE FIXED  PANEL
@@ -973,7 +976,8 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(mtt) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, objectClassName//, dataDirectoryCashRegister
     PROPERTIES(tt, mtt) inMachineryPriceTransactionMachinery
     FILTERS groupMachineryMachinery(mtt) == groupMachineryMachineryPriceTransaction(tt) 
-    PROPERTIES(mtt, tt) succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction          
+    PROPERTIES(mtt, tt) clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t),
+                        succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction          
 //--
     OBJECTS bb = Barcode
     PROPERTIES(bb)    READONLY idBarcode, nameSkuBarcode, idSkuBarcode

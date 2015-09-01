@@ -245,7 +245,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
                     String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
                     DataObject transactionObject = result.getKey(i).singleValue();
-                    Boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
+                    boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
                     String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
                     Timestamp lastErrorDate = (Timestamp) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
                     transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
@@ -263,7 +263,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 DataObject transactionObject = (DataObject) transaction[3];
                 String dateTimeCode = (String) transaction[4];
                 Date date = new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime());
-                Boolean snapshotTransaction = (Boolean) transaction[6];
+                boolean snapshotTransaction = (boolean) transaction[6];
                 String descriptionTransaction = (String) transaction[7];
                 Timestamp lastErrorDateTransaction = (Timestamp) transaction[8];
 
@@ -361,7 +361,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 if (isCashRegisterPriceTransaction) {
                     
                     java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDateGroupCashRegister").read(session, groupMachineryObject);
-                    Boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
+                    boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
                     Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberGroupCashRegister").read(session, groupMachineryObject);
                     String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idDepartmentStoreGroupCashRegister").read(session, groupMachineryObject);
                     String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCodeGroupCashRegister").read(session, groupMachineryObject);
@@ -378,6 +378,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     cashRegisterQuery.addProperty("disableSalesCashRegister", cashRegisterLM.findProperty("disableSalesCashRegister").getExpr(cashRegisterExpr));
                     cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction",
                             cashRegisterLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterExpr, transactionExpr));
+                    cashRegisterQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            cashRegisterLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(cashRegisterExpr, transactionExpr));
                     cashRegisterQuery.addProperty("inMachineryPriceTransactionMachinery",
                             equLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, cashRegisterExpr));
                     cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupMachineryObject, Compare.EQUALS));
@@ -389,10 +391,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer nppMachinery = (Integer) row.get("nppMachinery");
                         String portMachinery = (String) row.get("portMachinery");
                         String directoryCashRegister = (String) row.get("overDirectoryMachinery");
-                        Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
+                        boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
+                        boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
                         Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
-                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, succeeded, nppGroupMachinery, nppMachinery,
+                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
                                 startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, notDetailedGroupCashRegister,
                                 disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
@@ -454,6 +457,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             scalesLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, scalesExpr));
                     scalesQuery.addProperty("succeededMachineryMachineryPriceTransaction",
                                 scalesLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(scalesExpr, transactionExpr));
+                    scalesQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            scalesLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(scalesExpr, transactionExpr));
                     scalesQuery.and(scalesLM.findProperty("groupScalesScales").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
                     scalesQuery.and(scalesLM.findProperty("activeScales").getExpr(scalesExpr).getWhere());
 
@@ -463,8 +468,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String portMachinery = (String) values.get("portMachinery");
                         Integer nppMachinery = (Integer) values.get("nppMachinery");
                         boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
-                        Boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
-                        scalesInfoList.add(new ScalesInfo(enabled, succeeded, nppGroupMachinery, nppMachinery,
+                        boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
+                        boolean cleared = values.get("clearedMachineryMachineryPriceTransaction") != null;
+                        scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directory,
                                 pieceCodeGroupScales, weightCodeGroupScales));
                     }
@@ -516,6 +522,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             priceCheckerLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, priceCheckerExpr));
                     priceCheckerQuery.addProperty("succeededMachineryMachineryPriceTransaction",
                             priceCheckerLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(priceCheckerExpr, transactionExpr));
+                    priceCheckerQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            priceCheckerLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(priceCheckerExpr, transactionExpr));
                     priceCheckerQuery.and(priceCheckerLM.findProperty("groupPriceCheckerPriceChecker").getExpr(priceCheckerExpr).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> priceCheckerResult = priceCheckerQuery.execute(session);
@@ -523,8 +531,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (ImMap<Object, Object> row : priceCheckerResult.valueIt()) {
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
-                        priceCheckerInfoList.add(new PriceCheckerInfo(enabled, succeeded,nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                nameModelGroupMachinery, handlerModelGroupMachinery, (String) row.get("portMachinery"), null));
+                        Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
+                        priceCheckerInfoList.add(new PriceCheckerInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
+                                nameModelGroupMachinery, handlerModelGroupMachinery, (String) row.get("portMachinery")));
                     }
 
                     List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
@@ -571,6 +580,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             terminalLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, terminalExpr));
                     terminalQuery.addProperty("succeededMachineryMachineryPriceTransaction",
                             terminalLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(terminalExpr, transactionExpr));
+                    terminalQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            terminalLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(terminalExpr, transactionExpr));
                     terminalQuery.and(terminalLM.findProperty("groupTerminalTerminal").getExpr(terminalExpr).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
@@ -578,7 +589,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (ImMap<Object, Object> row : terminalResult.valueIt()) {
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
-                        terminalInfoList.add(new TerminalInfo(enabled, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
+                        Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
+                        terminalInfoList.add(new TerminalInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
                                 nameModelGroupMachinery, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
                                 directoryGroupTerminal, idPriceListType));
                     }
@@ -1284,10 +1296,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    cashRegisterInfoList.add(new CashRegisterInfo(true, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                    cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryMachinery"), null, (Integer) row.get("overDepartmentNumberGroupCashRegister"),
-                            null, row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
+                            (String) row.get("overDirectoryMachinery"), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
+                            row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -1338,9 +1350,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    terminalInfoList.add(new TerminalInfo(true, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"), (String) row.get("nameModelGroupMachinery"),
-                            (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"), (String) row.get("directoryGroupTerminal"),
-                            (String) row.get("idPriceListTypeGroupMachinery")));
+                    terminalInfoList.add(new TerminalInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                            (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
+                            (String) row.get("directoryGroupTerminal"), (String) row.get("idPriceListTypeGroupMachinery")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 throw new RuntimeException(e.toString());
@@ -1383,7 +1395,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    machineryInfoList.add(new MachineryInfo(true, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                    machineryInfoList.add(new MachineryInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             (String) row.get("overDirectoryMachinery")));
                 }
@@ -2274,10 +2286,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public void succeedTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
-            equLM.findProperty("succeededMachineryPriceTransaction").change(true, session,
-                    session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId));
-            equLM.findProperty("dateTimeSucceededMachineryPriceTransaction").change(dateTime, session,
-                    session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId));
+            DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+            equLM.findProperty("succeededMachineryPriceTransaction").change(true, session, transactionObject);
+            equLM.findProperty("dateTimeSucceededMachineryPriceTransaction").change(dateTime, session, transactionObject);
             session.apply(getBusinessLogics());
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -2288,20 +2299,41 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public void processingTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = getDbManager().createSession()) {
-                DataObject machineryPriceTransactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
-                machineryPriceTransactionLM.findProperty("dateTimeProcessingMachineryPriceTransaction").change(dateTime, session, machineryPriceTransactionObject);
+                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                machineryPriceTransactionLM.findProperty("dateTimeProcessingMachineryPriceTransaction").change(dateTime, session, transactionObject);
                 session.apply(getBusinessLogics());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }
     }
-    
+
+    @Override
+    public void clearedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException {
+        if(machineryPriceTransactionLM != null) {
+            try (DataSession session = getDbManager().createSession()) {
+                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                for (MachineryInfo machineryInfo : machineryInfoList) {
+                    ObjectValue machineryObject = null;
+                    if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
+                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                    else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
+                        machineryObject = scalesLM.findProperty("scalesNppGroupScalesNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                    if (machineryObject != null && !machineryInfo.cleared)
+                        machineryPriceTransactionLM.findProperty("clearedMachineryMachineryPriceTransaction").change(true, session, (DataObject) machineryObject, transactionObject);
+                }
+                session.apply(getBusinessLogics());
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
     @Override
     public void succeedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
         if(machineryPriceTransactionLM != null) {
             try (DataSession session = getDbManager().createSession()) {
-                DataObject machineryPriceTransactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
                 for (MachineryInfo machineryInfo : machineryInfoList) {
                     ObjectValue machineryObject = null;
                     if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
@@ -2309,12 +2341,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
                         machineryObject = scalesLM.findProperty("scalesNppGroupScalesNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
                     if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
-                        boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").read(session, machineryObject, machineryPriceTransactionObject) != null;
+                        boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").read(session, machineryObject, transactionObject) != null;
                         if(!alreadySucceeded) {
                             machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").change(true, session,
-                                    (DataObject) machineryObject, machineryPriceTransactionObject);
+                                    (DataObject) machineryObject, transactionObject);
                             machineryPriceTransactionLM.findProperty("dateTimeSucceededMachineryMachineryPriceTransaction").change(dateTime, session,
-                                    (DataObject) machineryObject, machineryPriceTransactionObject);
+                                    (DataObject) machineryObject, transactionObject);
                         }
                     }
                 }

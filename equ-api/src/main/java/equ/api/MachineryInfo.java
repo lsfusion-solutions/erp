@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 public class MachineryInfo implements Serializable {
     public boolean enabled;
+    public boolean cleared;
     public boolean succeeded;
     public Integer numberGroup;
     public Integer number;
@@ -12,8 +13,9 @@ public class MachineryInfo implements Serializable {
     public String port;
     public String directory;
 
-    public MachineryInfo(boolean enabled, boolean succeeded, Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory) {
+    public MachineryInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory) {
         this.enabled = enabled;
+        this.cleared = cleared;
         this.succeeded = succeeded;
         this.numberGroup = numberGroup;
         this.number = number;
