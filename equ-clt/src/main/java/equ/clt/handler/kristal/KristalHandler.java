@@ -104,7 +104,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     //plu.txt
                     File pluFile = new File(exchangeDirectory + "plu.txt");
                     File flagPluFile = new File(exchangeDirectory + "WAITPLU");
-                    if (pluFile.exists() && flagPluFile.exists()) {
+                    if (pluFile.exists() && flagPluFile.exists() && !flagPluFile.delete()) {
                         throw new RuntimeException(existFilesMessage(pluFile, flagPluFile));
                     } else if (flagPluFile.createNewFile()) {
                         processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
@@ -141,7 +141,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         //restriction.txt
                         File restrictionFile = new File(exchangeDirectory + "restriction.txt");
                         File flagRestrictionFile = new File(exchangeDirectory + "WAITRESTRICTION");
-                        if (restrictionFile.exists() && flagRestrictionFile.exists()) {
+                        if (restrictionFile.exists() && flagRestrictionFile.exists() && !flagRestrictionFile.delete()) {
                             throw new RuntimeException(existFilesMessage(restrictionFile, flagRestrictionFile));
                         } else if (flagRestrictionFile.createNewFile()) {
                             processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
@@ -178,7 +178,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         if (!messageEmpty) {
                             File messageFile = new File(exchangeDirectory + "message.txt");
                             File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
-                            if (messageFile.exists() && flagMessageFile.exists()) {
+                            if (messageFile.exists() && flagMessageFile.exists() && !flagMessageFile.delete()) {
                                 throw new RuntimeException(existFilesMessage(messageFile, flagMessageFile));
                             } else if (flagMessageFile.createNewFile()) {
                                 processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
@@ -211,7 +211,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         if (!scalesEmpty) {
                             File scaleFile = new File(exchangeDirectory + "scales.txt");
                             File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
-                            if (scaleFile.exists() && flagScaleFile.exists()) {
+                            if (scaleFile.exists() && flagScaleFile.exists() && !flagScaleFile.delete()) {
                                 throw new RuntimeException(existFilesMessage(scaleFile, flagScaleFile));
                             } else if (flagScaleFile.createNewFile()) {
                                 processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
@@ -242,7 +242,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     if (transactionInfo.snapshot && importGroupType != null && !importGroupType.equals(0)) {
                         File groupsFile = new File(exchangeDirectory + "groups.txt");
                         File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
-                        if (groupsFile.exists() && flagGroupsFile.exists()) {
+                        if (groupsFile.exists() && flagGroupsFile.exists() && !flagGroupsFile.delete()) {
                             throw new RuntimeException(existFilesMessage(groupsFile, flagGroupsFile));
                         } else if (flagGroupsFile.createNewFile()) {
                             processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
@@ -710,7 +710,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             //stopList.txt
             File stopListFile = new File(exchangeDirectory + "stoplist.txt");
             File flagStopListFile = new File(exchangeDirectory + "WAITSTOPLIST");
-            if (stopListFile.exists() && flagStopListFile.exists()) {
+            if (stopListFile.exists() && flagStopListFile.exists() && !flagStopListFile.delete()) {
                 throw new RuntimeException(existFilesMessage(stopListFile, flagStopListFile));
             } else if (flagStopListFile.createNewFile()) {
                 processStopListLogger.info("Kristal: creating STOPLIST file");
@@ -747,7 +747,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             //discountCard.txt
             File discCardFile = new File(exchangeDirectory + "disccard.txt");
             File flagDiscCardFile = new File(exchangeDirectory + "WAITDISCCARD");
-            if (discCardFile.exists() && flagDiscCardFile.exists()) {
+            if (discCardFile.exists() && flagDiscCardFile.exists() && !flagDiscCardFile.delete()) {
                 throw new RuntimeException(existFilesMessage(discCardFile, flagDiscCardFile));
             } else if (flagDiscCardFile.createNewFile()) {
                 machineryExchangeLogger.info("Kristal: creating DISCCARD file " + discCardFile.getAbsolutePath());
@@ -793,7 +793,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             //cashier.txt
             File cashierFile = new File(exchangeDirectory + "cashier.txt");
             File flagCashierFile = new File(exchangeDirectory + "WAITCASHIER");
-            if (cashierFile.exists() && flagCashierFile.exists()) {
+            if (cashierFile.exists() && flagCashierFile.exists() && !flagCashierFile.delete()) {
                 throw new RuntimeException(existFilesMessage(cashierFile, flagCashierFile));
             } else if (flagCashierFile.createNewFile()) {
                 machineryExchangeLogger.info("Kristal: creating CASHIER file " + cashierFile.getAbsolutePath());
