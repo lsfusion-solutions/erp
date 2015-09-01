@@ -431,13 +431,17 @@ CONSTRAINT supplierUserPricing(userPricing) AND NOT isSellerLegalEntity(supplier
 // Цена поставщика
 @defineDocumentInterfaceDetailPricePrefix(pricing, , ' поставщика');
 
+overPricePricingDetail(pricingDetail) = ABSTRACT NUMERIC[14,2] (PricingDetail) PERSISTENT;
+
 // Цена базовая (от которой будет считаться надбавка)
 overPricingPricePricingDetail = ABSTRACT NUMERIC[14,2] (PricingDetail) PERSISTENT;
 overPricingPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail) PERSISTENT;
 overPricingPricePricingDetail (detail) += overPricingPriceUserPricingDetail(detail);
 
+over1PricingPricePricingDetail = ABSTRACT NUMERIC[14,2] (PricingDetail) PERSISTENT;
+
 pricingPriceUserPricingDetail (detail) = OVERRIDE priceUserPricingDetail(detail), overPricingPriceUserPricingDetail(detail) PERSISTENT;
-pricingPricePricingDetail (detail) = OVERRIDE pricePricingDetail(detail), overPricingPricePricingDetail(detail) PERSISTENT;
+pricingPricePricingDetail (detail) = OVERRIDE pricePricingDetail(detail), overPricingPricePricingDetail(detail), over1PricingPricePricingDetail(detail) PERSISTENT;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (pricing, retail, );
