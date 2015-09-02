@@ -5,6 +5,14 @@ REQUIRE ContractLedger, IndividualLegalEntity, ContractPayment, POSInvoice;
 defaultRoundConditionPaymentInstallments  = DATA RoundCondition ();
 nameDefaultRoundConditionPaymentInstallments 'Условия округления рассрочки' = nameRoundCondition(defaultRoundConditionPaymentInstallments());
 
+countContractSkuCurrencySupplierCustomerDate = 
+    GROUP SUM 1 IF dateFromContract(c) <= dateIn AND NOT dateToContract(c) < dateIn
+    BY currencyContract(c), supplierContractSku(c), customerContractSku(c), dateIn;
+
+defaultContractSkCurrencyuSupplierCustomerDate = 
+    GROUP LAST c IF dateFromContract(c) <= dateIn AND NOT dateToContract(c) < dateIn
+    BY currencyContract(c), supplierContractSku(c), customerContractSku(c), dateIn;
+
 EXTEND FORM options
     PROPERTIES() nameDefaultRoundConditionPaymentInstallments
 ;
@@ -176,23 +184,33 @@ DESIGN legalEntityPayment {
     REMOVE PROPERTY(formRefresh());
 }
 
+localPaymentCondition = DATA LOCAL PaymentCondition ();
+localSupplier = DATA LOCAL LegalEntity ();
+
 addPrePaymentLegalEntity 'Внести предоплату' = ACTION (legalEntity) {
-    FORM legalEntityPayment MODAL;
+    localPaymentCondition() <- paymentConditionId('0');
+    localSupplier() <- legalEntityEmployee(currentUser());
+
+    FORM legalEntityPayment OBJECTS l = localSupplier(), pc = localPaymentCondition() MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR ADDOBJ p = Payment.Payment DO{
             datePayment(p) <- chosenDate('dt');
             payerPayment(p) <- legalEntity;
             beneficiaryPayment(p) <- chosenObject('l');
             sumPayment(p) <- chosenNumeric('n');
-            FOR ADDOBJ c = UserContractSku DO {
-                supplierContractSku(c) <- chosenObject('l');
-                customerContractSku(c) <- legalEntity;
-                dateFromContract(c) <- chosenDate('dt');
-                currencyContract(c) <- defaultCurrency();
-                typeContractSku(c) <- ContractSkuType.sale;
-                paymentConditionContract(c) <- chosenObject('pc');
-                contractPayment(p) <- c;            
-            }
+            IF countContractSkuCurrencySupplierCustomerDate(defaultCurrency(), chosenObject('l'), legalEntity, chosenDate('dt')) >= 1 THEN {
+                contractPayment(p) <- defaultContractSkCurrencyuSupplierCustomerDate(defaultCurrency(), chosenObject('l'), legalEntity, chosenDate('dt'));
+            } ELSE {
+                FOR ADDOBJ c = UserContractSku DO {
+                    supplierContractSku(c) <- chosenObject('l');
+                    customerContractSku(c) <- legalEntity;
+                    dateFromContract(c) <- chosenDate('dt');
+                    currencyContract(c) <- defaultCurrency();
+                    typeContractSku(c) <- ContractSkuType.sale;
+                    paymentConditionContract(c) <- chosenObject('pc');
+                    contractPayment(p) <- c;            
+                }
+            }    
             isPostedPayment(p) <- TRUE;
             apply();
         }
