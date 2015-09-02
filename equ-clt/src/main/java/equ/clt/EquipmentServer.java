@@ -949,7 +949,7 @@ public class EquipmentServer {
                         try {
                             if (batch != null) {
                                 List<MachineryInfo> succeededMachineryInfoList = batch.succeededMachineryList;
-                                if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != transactionInfo.machineryInfoList.size())
+                                if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size())
                                     noErrors = false;
                                 if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
@@ -974,6 +974,15 @@ public class EquipmentServer {
             taskPool.markProceeded(groupId, transactionInfoMap);
             processTransactionLogger.info(String.format("   Sending transaction group %s: finish", groupId));
 
+        }
+
+        public List<MachineryInfo> getEnabledMachineryInfoList (List<MachineryInfo> machineryInfoList) {
+            List<MachineryInfo> enabledMachineryInfoList = new ArrayList<>();
+            for(MachineryInfo machinery : machineryInfoList) {
+                if(machinery.enabled)
+                    enabledMachineryInfoList.add(machinery);
+            }
+            return enabledMachineryInfoList.isEmpty() ? machineryInfoList : enabledMachineryInfoList;
         }
 
         private void errorTransactionReport(Integer idTransactionInfo, Throwable e) {
