@@ -215,7 +215,7 @@ dataMachineryPriceTransactionError 'Сообщение об ошибке' = DATA
 dateMachineryPriceTransactionError 'Время возникновения' = DATA DATETIME (MachineryPriceTransactionError) IN base;
 toDateMachineryPriceTransactionError 'Дата возникновения' (d) = DATE(dateMachineryPriceTransactionError(d));
 errorTraceMachineryPriceTransactionError 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
-machineryPriceTransactionMachineryPriceTransactionError 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) IN base;
+machineryPriceTransactionMachineryPriceTransactionError 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NOT NULL DELETE IN base;
 quantityMachineryPriceTransactionErrorMachineryPriceTransaction 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransactionMachineryPriceTransactionError (machineryPriceTransactionError) IN base;
 lastDateMachineryPriceTransactionErrorMachineryPriceTransaction 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX dateMachineryPriceTransactionError(machineryPriceTransactionError) BY machineryPriceTransactionMachineryPriceTransactionError (machineryPriceTransactionError);
 
@@ -943,7 +943,8 @@ EXTEND FORM machineryPriceTransactions
     FILTERS filterMachineryMachineryPriceTransaction(m, t) 
     PROPERTIES(m, t) READONLY clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t),
                               succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
-
+    FILTERGROUP mActive
+        FILTER 'Активные' NOT inactiveMachinery(m) DEFAULT 
 
     OBJECTS dt = DATE FIXED  PANEL
     PROPERTIES(dt) val = OBJVALUE 
@@ -978,7 +979,9 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(tt, mtt) inMachineryPriceTransactionMachinery
     FILTERS groupMachineryMachinery(mtt) == groupMachineryMachineryPriceTransaction(tt) 
     PROPERTIES(mtt, tt) clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t),
-                        succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction          
+                        succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
+    FILTERGROUP mttActive
+        FILTER 'Активные' NOT inactiveMachinery(mtt) DEFAULT 
 //--
     OBJECTS bb = Barcode
     PROPERTIES(bb)    READONLY idBarcode, nameSkuBarcode, idSkuBarcode
