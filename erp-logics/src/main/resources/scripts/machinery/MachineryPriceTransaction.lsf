@@ -180,11 +180,12 @@ priceMachineryPriceTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (Machinery
 // Текущие загруженные штрихкоды
 TABLE barcodeGroupMachinery (Barcode, GroupMachinery);
 
+groupInMachineryPriceTransactionBarcode = groupMachineryMachineryPriceTransaction(transaction) IF inMachineryPriceTransactionBarcode(transaction, barcode) PERSISTENT;
 lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
     GROUP LAST transaction 
-          BY barcode, groupMachineryMachineryPriceTransaction(transaction)
+          BY barcode, groupInMachineryPriceTransactionBarcode(transaction, barcode)
           ORDER orderMachineryPriceTransaction(transaction)
-          WHERE inMachineryPriceTransactionBarcode(transaction, barcode) AND NOT canceledMachineryPriceTransaction(transaction) PERSISTENT;
+          WHERE NOT canceledMachineryPriceTransaction(transaction) PERSISTENT;
 prevLastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = PREV(lastTransactionBarcodeGroupMachinery (barcode, groupMachinery));
 
 transactionNameBarcodeGroupMachinery 'Текущее наименование в оборудовании' (barcode, groupMachinery)  =
