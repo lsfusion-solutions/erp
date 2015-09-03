@@ -949,7 +949,7 @@ public class EquipmentServer {
                         try {
                             if (batch != null) {
                                 List<MachineryInfo> succeededMachineryInfoList = batch.succeededMachineryList;
-                                if (succeededMachineryInfoList != null && succeededMachineryInfoList.size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size())
+                                if (succeededMachineryInfoList != null && getEnabledMachineryInfoList(succeededMachineryInfoList).size() != getEnabledMachineryInfoList(transactionInfo.machineryInfoList).size())
                                     noErrors = false;
                                 if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null)
                                     remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
