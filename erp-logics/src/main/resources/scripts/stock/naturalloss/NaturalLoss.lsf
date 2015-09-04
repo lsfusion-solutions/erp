@@ -321,8 +321,10 @@ toSaleFillNaturalLossDetail 'Заполнить на основе продаж' 
 } IN fillNaturalLoss CONFIRM;
 
 //--
+skipNatulassLossPurchaseLedger = ABSTRACT BOOLEAN (PurchaseLedger);
+
 quantityPurchaseSkuDepartmentNaturalLoss 'Поступило' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
-    GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger) AND datePurchaseLedger(ledger) >= dateFrom AND datePurchaseLedger(ledger) <= dateTo
+    GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger) AND datePurchaseLedger(ledger) >= dateFrom AND datePurchaseLedger(ledger) <= dateTo AND NOT skipNatulassLossPurchaseLedger(ledger)
               AND inIntervalNaturalLoss(datePurchaseLedger(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroupCountrySku(countryStock(stockPurchaseLedger(ledger)), skuPurchaseLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
               BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
