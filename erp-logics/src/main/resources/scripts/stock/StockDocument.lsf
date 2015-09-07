@@ -25,7 +25,7 @@ nameStockStockDocumentLedger 'Отдел' (ledger) = nameStock(stockStockDocumen
 
 numberStockDocumentLedger 'Номер документа' (ledger) = ABSTRACT STRING[18] (StockDocumentLedger) PERSISTENT;
 seriesStockDocumentLedger 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) PERSISTENT;
-seriesNumberStockDocumentLedger 'Серия/номер документа' (ledger) =CONCAT '', seriesStockDocumentLedger(ledger), numberStockDocumentLedger(ledger) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20; 
+seriesNumberStockDocumentLedger 'Серия/номер документа' (ledger) = CONCAT '', seriesStockDocumentLedger(ledger), numberStockDocumentLedger(ledger) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20; 
 
 legalEntityStockDocumentLedger 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) PERSISTENT;
 nameLegalEntityStockDocumentLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntityStockDocumentLedger(ledger));
@@ -412,6 +412,30 @@ END
 META implementStockDocumentLedgerOut (concrete, stockProp)
     EXTEND CLASS concrete : OutStockDocumentLedger;
     @implementStockDocumentLedger (concrete, stockProp);
+END
+
+META implementStockDocumentLedgerOver (concrete, stockProp, objClass)
+
+    numberStockDocumentLedger##objClass = ABSTRACT STRING[18] (objClass) PERSISTENT;
+    seriesStockDocumentLedger##objClass = ABSTRACT STRING[2] (objClass) PERSISTENT;
+
+    seriesStockDocumentLedger (ledger) += OVERRIDE series###concrete(ledger), seriesStockDocumentLedger##objClass(ledger);
+    numberStockDocumentLedger (ledger) += OVERRIDE number###concrete(ledger), numberStockDocumentLedger##objClass(ledger);
+    dateTimeStockDocumentLedger (ledger) += dateTime###concrete(ledger);
+    isPostedStockDocumentLedger (ledger) += isPosted###concrete(ledger);
+    isClosedStockDocumentLedger (ledger) += isClosed###concrete(ledger);
+    stockStockDocumentLedger (ledger) += stockProp###concrete(ledger);
+    descriptionStockDocumentLedger (ledger) += description###concrete(ledger);
+END
+
+META implementStockDocumentLedgerIncOver (concrete, stockProp)
+    EXTEND CLASS concrete : IncStockDocumentLedger;
+    @implementStockDocumentLedgerOver (concrete, stockProp, concrete);
+END
+
+META implementStockDocumentLedgerOutOver (concrete, stockProp)
+    EXTEND CLASS concrete : OutStockDocumentLedger;
+    @implementStockDocumentLedgerOver (concrete, stockProp, concrete);
 END
 
 META extendStockFormStockDocumentLedger(form, object)
