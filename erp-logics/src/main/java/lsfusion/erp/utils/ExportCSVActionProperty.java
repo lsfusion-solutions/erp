@@ -155,7 +155,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 }
             }
             rowString = rowString.isEmpty() ? rowString : rowString.substring(0, rowString.length() - separator.length());
-            bw.println(rowString);
+            bw.print(rowString + "\r\n");
         }
         bw.close();
     }
