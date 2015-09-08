@@ -123,6 +123,27 @@ saleVATSupplierBatchSupplierSnapshot 'НДС поставщика продажа
     GROUP SUM saleVATSupplierBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
 saleCostVATSupplierBatchSupplierSnapshot 'С/С с НДС продажа' = saleVATSupplierBatchSupplierSnapshot(supplier, snapshot) (+) 
                                                                      saleCostSumBatchSupplierSnapshot(supplier, snapshot); 
+
+//-- По складам поставщика
+saleQuantityBatchSupplierStockSnapshot 'Кол-во продажа' (supplier, snapshot) =
+    GROUP SUM saleQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+saleNetWeightBatchSupplierStockSnapshot 'Вес продажа' (supplier, snapshot) =
+    GROUP SUM saleNetWeightBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;    
+saleSumBatchSupplierStockSnapshot 'Сумма продажа' (supplier, snapshot) =
+    GROUP SUM saleSumBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;      
+saleCostSumBatchSupplierStockSnapshot 'Себестоимость продажа' (supplier, snapshot) =
+    GROUP SUM saleCostSumBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+saleVATSumBatchSupplierStockSnapshot 'НДС продажа' (supplier, snapshot) =
+    GROUP SUM saleVATSumBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;        
+saleMarkupSumBatchSupplierStockSnapshot 'Надбавка продажа' (supplier, snapshot) =
+    GROUP SUM saleMarkupSumBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;     
+saleMarkupPercBatchSupplierStockSnapshot 'Надбавка, % средн.' = saleMarkupSumBatchSupplierStockSnapshot(supplier, snapshot)*100.00 / saleCostSumBatchSupplierStockSnapshot(supplier, snapshot);
+saleMarkupPercRetBatchSupplierStockSnapshot 'Надбавка, % от цены' = saleMarkupSumBatchSupplierStockSnapshot(supplier, snapshot)*100.00 / saleSumBatchSupplierStockSnapshot(supplier, snapshot);
+
+saleVATSupplierBatchSupplierStockSnapshot 'НДС поставщика продажа' (supplier, snapshot) =
+    GROUP SUM saleVATSupplierBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+saleCostVATSupplierBatchSupplierStockSnapshot 'С/С с НДС продажа' = saleVATSupplierBatchSupplierStockSnapshot(supplier, snapshot) (+) 
+                                                                     saleCostSumBatchSupplierStockSnapshot(supplier, snapshot);           
           
 //-- Sku на дату
 saleQuantitySkuStockSnapshotDate 'Кол-во продажа' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
@@ -387,6 +408,19 @@ EXTEND FORM snapshot
                        saleMarkupPercBatchSupplierSnapshot SHOWIF isSumSaleBatchSnapshot(r),
                        saleMarkupPercRetBatchSupplierSnapshot SHOWIF isSumSaleBatchSnapshot(r),
                        saleNetWeightBatchSupplierSnapshot SHOWIF isNetWeightSaleBatchSnapshot(r)
+                       
+    PROPERTIES(lst,r)    READONLY BEFORE inQuantityBatchSupplierStockSnapshot(lst,r) BACKGROUND hintSaleBackground()   
+                       saleQuantityBatchSupplierStockSnapshot SHOWIF isQuantitySaleBatchSnapshot(r), 
+                       saleCostSumBatchSupplierStockSnapshot SHOWIF isSumSaleBatchSnapshot(r),
+                       saleVATSupplierBatchSupplierStockSnapshot SHOWIF isVATSupplierSaleBatchSnapshot(r),                       
+                       saleCostVATSupplierBatchSupplierStockSnapshot SHOWIF isCostVATSupplierSaleBatchSnapshot(r),                                                
+                       saleMarkupSumBatchSupplierStockSnapshot SHOWIF isSumSaleBatchSnapshot(r), 
+                       saleVATSumBatchSupplierStockSnapshot SHOWIF isSumSaleBatchSnapshot(r),                       
+                       saleSumBatchSupplierStockSnapshot SHOWIF isSumSaleBatchSnapshot(r),                           
+                       saleMarkupPercBatchSupplierStockSnapshot SHOWIF isSumSaleBatchSnapshot(r),
+                       saleMarkupPercRetBatchSupplierStockSnapshot SHOWIF isSumSaleBatchSnapshot(r),
+                       saleNetWeightBatchSupplierStockSnapshot SHOWIF isNetWeightSaleBatchSnapshot(r)                       
+                       
 ;
 //------------------------  Товароооборачиваемость ----------------------//
 

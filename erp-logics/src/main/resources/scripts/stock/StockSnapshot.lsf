@@ -569,6 +569,43 @@ VATSupplierABatchSupplierSnapshot 'НДС поставщика конец' (supp
     GROUP SUM VATSupplierABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
 sumVATSupplierABatchSupplierSnapshot 'С/С с НДС конец' = VATSupplierABatchSupplierSnapshot(supplier, snapshot) (+)
                                                                sumABatchSupplierSnapshot(supplier, snapshot);           
+       
+//-- По складу поставщика
+balanceBBatchSupplierStockSnapshot 'Кол-во начало' (supplier, snapshot) =
+    GROUP SUM balanceBBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+netWeightBBatchSupplierStockSnapshot 'Вес начало' (supplier, snapshot) =
+    GROUP SUM netWeightBBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;        
+sumBBatchSupplierStockSnapshot 'Себестоимость начало' (supplier, snapshot) =
+    GROUP SUM sumBBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot; 
+VATSupplierBBatchSupplierStockSnapshot 'НДС поставщика начало' (supplier, snapshot) =
+    GROUP SUM VATSupplierBBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;     
+sumVATSupplierBBatchSupplierStockSnapshot 'С/С с НДС начало' = VATSupplierBBatchSupplierStockSnapshot(supplier, snapshot) (+)
+                                                                sumBBatchSupplierStockSnapshot(supplier, snapshot);   
+                                                                 
+inQuantityBatchSupplierStockSnapshot 'Кол-во приход' (supplier, snapshot) =
+    GROUP SUM inQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+inNetWeightBatchSupplierStockSnapshot 'Вес приход' (supplier, snapshot) =
+    GROUP SUM inNetWeightBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;        
+inSumBatchSupplierStockSnapshot 'Себестоимость приход' (supplier, snapshot) =
+    GROUP SUM inSumBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;     
+ 
+outQuantityBatchSupplierStockSnapshot 'Кол-во расход' (supplier, snapshot) =
+    GROUP SUM outQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+outNetWeightBatchSupplierStockSnapshot 'Вес расход' (supplier, snapshot) =
+    GROUP SUM outNetWeightBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;      
+outSumBatchSupplierStockSnapshot 'Себестоимость расход' (supplier, snapshot) =
+    GROUP SUM outSumBatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;     
+    
+balanceABatchSupplierStockSnapshot 'Кол-во конец' (supplier, snapshot) =
+    GROUP SUM balanceABatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+netWeightABatchSupplierStockSnapshot 'Вес конец' (supplier, snapshot) =
+    GROUP SUM netWeightABatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;        
+sumABatchSupplierStockSnapshot 'Себестоимость конец' (supplier, snapshot) =
+    GROUP SUM sumABatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;   
+VATSupplierABatchSupplierStockSnapshot 'НДС поставщика конец' (supplier, snapshot) =
+    GROUP SUM VATSupplierABatchStockSnapshot (batch, stock, snapshot) BY supplierStockBatch(batch), snapshot;
+sumVATSupplierABatchSupplierStockSnapshot 'С/С с НДС конец' = VATSupplierABatchSupplierStockSnapshot(supplier, snapshot) (+)
+                                                               sumABatchSupplierStockSnapshot(supplier, snapshot);       
     
 //-- Выбор складов
 TABLE snapshotStockGroup (Snapshot, StockGroup); 
@@ -1245,7 +1282,7 @@ FORM snapshot 'Аналитический отчет'
 //--batch
     PROPERTIES()      nameB = nameFilterSnapshotSupplier
     OBJECTS           stb=(ss=Stock, bt=Batch) FIXED GRID
-    PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuBatch(bt), idBarcodeSkuBatch(bt), nameStock(ss), nameBatch(bt)
+    PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuBatch(bt), idBarcodeSkuBatch(bt), nameStock(ss), nameBatch(bt), nameSupplierBatch(bt), nameSupplierStockBatch(bt) 
     ORDER BY          nameSkuBatch(bt)
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       ss == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, ss) AND NOT ts OR ss IS Stock AND NOT sg AND NOT ts,
@@ -1372,8 +1409,42 @@ FORM snapshot 'Аналитический отчет'
                              sumBBatchSupplierSnapshot(l,r) OR sumABatchSupplierSnapshot(l,r) OR inSumBatchSupplierSnapshot(l,r) OR outSumBatchSupplierSnapshot(l,r)  'F11' DEFAULT
         FILTER 'С остатком' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) OR sumBBatchSupplierSnapshot(l,r) OR sumABatchSupplierSnapshot(l,r) 'F10'  
         FILTER 'С приходом' inQuantityBatchSupplierSnapshot(l,r) OR inSumBatchSupplierSnapshot(l,r)'F9'   
-        FILTER 'С продажей' outQuantityBatchSupplierSnapshot(l,r) OR outSumBatchSupplierSnapshot(l,r) 'F8'    
-        
+        FILTER 'С продажей' outQuantityBatchSupplierSnapshot(l,r) OR outSumBatchSupplierSnapshot(l,r) 'F8'
+            
+//-- По складам поставщика             
+    OBJECTS lst=Stock FIXED GRID
+    PROPERTIES READONLY SHOWIF isBatchSnapshot(r) nameLegalEntityStock(lst), nameStock(lst)
+    ORDER BY nameLegalEntityStock(lst), nameStock(lst)
+    FILTERGROUP inactiveLST FILTER 'Активный' activeStock(lst) 'shift F10' DEFAULT
+    FILTERS isSupplierStock(lst)                                              
+                                              
+    PROPERTIES(lst,r) READONLY BACKGROUND hintBalanceBBackground() balanceBBatchSupplierStockSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
+                    sumBBatchSupplierStockSnapshot  SHOWIF isSumBalanceBBatchSnapshot(r),
+                    VATSupplierBBatchSupplierStockSnapshot SHOWIF isBalanceBBatchVATSupplierSnapshot(r),
+                    sumVATSupplierBBatchSupplierStockSnapshot SHOWIF isCostVATSupplierBalanceBBatchSnapshot(r),
+                    netWeightBBatchSupplierStockSnapshot  SHOWIF isNetWeightBalanceBBatchSnapshot(r)
+    PROPERTIES(lst,r) READONLY BACKGROUND hintInBackground() inQuantityBatchSupplierStockSnapshot SHOWIF isQuantityInBatchSnapshot(r), 
+                    inSumBatchSupplierStockSnapshot  SHOWIF isSumInBatchSnapshot(r),
+                    inNetWeightBatchSupplierStockSnapshot  SHOWIF isNetWeightInBatchSnapshot(r)
+    PROPERTIES(lst,r) READONLY BACKGROUND hintOutBackground() outQuantityBatchSupplierStockSnapshot SHOWIF isQuantityOutBatchSnapshot(r), 
+                    outSumBatchSupplierStockSnapshot  SHOWIF isSumOutBatchSnapshot(r),
+                    outNetWeightBatchSupplierStockSnapshot  SHOWIF isNetWeightOutBatchSnapshot(r)
+    PROPERTIES(lst,r) READONLY BACKGROUND hintBalanceABackground() balanceABatchSupplierStockSnapshot SHOWIF isQuantityBalanceABatchSnapshot(r), 
+                    sumABatchSupplierStockSnapshot  SHOWIF isSumBalanceABatchSnapshot(r), 
+                    VATSupplierABatchSupplierStockSnapshot SHOWIF isBalanceABatchVATSupplierSnapshot(r),
+                    sumVATSupplierABatchSupplierStockSnapshot SHOWIF isCostVATSupplierBalanceABatchSnapshot(r),
+                    netWeightABatchSupplierStockSnapshot  SHOWIF isNetWeightBalanceABatchSnapshot(r)                                                                                                                                                          
+ 
+    FILTERGROUP filtersSoldSupplierStock
+        FILTER 'С движением' balanceBBatchSupplierStockSnapshot(lst,r) OR balanceABatchSupplierStockSnapshot(lst,r) OR inQuantityBatchSupplierStockSnapshot(lst,r) OR outQuantityBatchSupplierStockSnapshot(lst,r) OR
+                             sumBBatchSupplierStockSnapshot(lst,r) OR sumABatchSupplierStockSnapshot(lst,r) OR inSumBatchSupplierStockSnapshot(lst,r) OR outSumBatchSupplierStockSnapshot(lst,r)  'F11' DEFAULT
+        FILTER 'С остатком' balanceBBatchSupplierStockSnapshot(lst,r) OR balanceABatchSupplierStockSnapshot(lst,r) OR sumBBatchSupplierStockSnapshot(lst,r) OR sumABatchSupplierStockSnapshot(lst,r) 'F10'  
+        FILTER 'С приходом' inQuantityBatchSupplierStockSnapshot(lst,r) OR inSumBatchSupplierStockSnapshot(lst,r)'F9'   
+        FILTER 'С продажей' outQuantityBatchSupplierStockSnapshot(lst,r) OR outSumBatchSupplierStockSnapshot(lst,r) 'F8'            
+
+    FILTERGROUP filtersLStock
+        FILTER 'По поставщику' legalEntityStock(lst) == l 'F6'  DEFAULT  
+              
 //-- По SKU на дату         
            
     OBJECTS           sts3=(st3=Stock, s3=Sku, d3=DATE) FIXED GRID 
@@ -1568,8 +1639,14 @@ DESIGN snapshot {
                             MOVE d4.box {caption = 'В динамике';}   
                         }      
                     }
-                    MOVE skuTree1.tree.box { caption = 'По группам'; }                        
-                    MOVE l.box { caption = 'По поставщикам'; }   
+                    MOVE skuTree1.tree.box { caption = 'По группам'; }  
+                    NEW sup {
+                        fill = 1;
+                        caption = 'По поставщикам';
+                        type = SPLITV;
+                        MOVE l.box { caption = 'Поставщик'; }   
+                        MOVE lst.box { caption = 'Склад поставщика'; }   
+                    }                                         
                 }                 
             }
         } 
