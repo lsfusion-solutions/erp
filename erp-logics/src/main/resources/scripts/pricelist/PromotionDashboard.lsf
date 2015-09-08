@@ -45,7 +45,24 @@ namePromotionPriceList(priceList) += namePromotionUserPriceList(priceList);
 namePromotionPriceListDetail 'Акция' = namePromotionPriceList(priceListPriceListDetail(detail));
 
 showPromotionPriceOperation 'Акция' = DATA BOOLEAN (PriceList.Operation);
-showPromotionPriceUserPriceList(p) = showPromotionPriceOperation(operationUserPriceList(p));
+
+showPromotionPricePriceList 'Акция' = ABSTRACT BOOLEAN (PriceList);
+showPromotionPriceUserPriceList 'Акция' = DATA BOOLEAN (UserPriceList);
+showPromotionPricePriceList(p) += showPromotionPriceUserPriceList(p);
+
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) showPromotionPriceUserPriceList FORCE GRID 
+;
+
+DESIGN userPriceList {
+    param{
+        MOVE PROPERTY (showPromotionPriceUserPriceList(p));
+    }
+}
+
+@deriveDocumentOperationProperty(UserPriceList, showPromotionPrice);
+
  
 EXTEND FORM operation PROPERTIES(o) showPromotionPriceOperation;
 
