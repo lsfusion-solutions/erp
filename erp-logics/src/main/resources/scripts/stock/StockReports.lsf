@@ -205,6 +205,10 @@ FORM printBalanceBatchesStock 'Остатки по партиям'
 printBalanceBatchesStockDateTime 'По группам' (stock, dateTime) =
     ACTION FORM printBalanceBatchesStock OBJECTS st = stock, d = dateTime PRINT  IMAGE 'print.png' IN print;
 
+balanceRecBSkuGroupStockDateTime 'Остаток (всего)' (group, stock, dateTime) =
+    GROUP SUM balanceBSkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
+    BY group, stock, dateTime;
+
 FORM reportBalanceStock 'Отчет по остаткам'
     OBJECTS d=DATETIME FIXED PANEL
     PROPERTIES(d) OBJVALUE
@@ -221,7 +225,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES inSessionGroup(sk) BACKGROUND backgroundInSessionGroup(sk)
     PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
-    PROPERTIES(sk, st, d) READONLY sumRecBSkuGroupStockDateTime, accountSumRecBSkuGroupBatchStockDateTime
+    PROPERTIES(sk, st, d) READONLY balanceRecBSkuGroupStockDateTime, sumRecBSkuGroupStockDateTime, accountSumRecBSkuGroupBatchStockDateTime
     ORDER BY orderGroup(sk), skuTreeName
     FILTERS groupTypeGroup(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' activeGroup(sk) 'F5' DEFAULT
