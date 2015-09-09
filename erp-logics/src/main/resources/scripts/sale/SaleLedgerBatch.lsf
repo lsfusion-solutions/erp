@@ -232,7 +232,28 @@ DESIGN saleBatch {
     MOVE functions.box;
 }
 
+//регистр продаж по партиям
+
+costSumSaleLedgerBatch 'Себестоимость продажи' (s,b) = NUMERIC[16,2](costSumSaleLedger(s) * coeffSaleLedgerBatch(s,b));
+markupSumSaleLedgerBatch 'Надбавка' (s,b) = NUMERIC[16,2](markupSumSaleLedger(s) * coeffSaleLedgerBatch(s,b));
+sumVATSaleLedgerBatch 'Сумма НДС' (s,b) = NUMERIC[16,2](sumVATSaleLedger(s) * coeffSaleLedgerBatch(s,b));
+sumSaleLedgerBatch 'Сумма продажи' (s,b) = NUMERIC[16,2](sumSaleLedger(s) * coeffSaleLedgerBatch(s,b));
+averagePriceSaleLedgerBatch 'Цена продажи (средняя)'(s,b) = NUMERIC[16,2](averagePriceSaleLedger(s) * coeffSaleLedgerBatch(s,b));
+
+saleSupplier = DATA LOCAL LegalEntity ();
+nameSaleSupplier 'Поставщик' = nameLegalEntity(saleSupplier());
+filterSaleSupplierBatch = supplierBatch(batch)==saleSupplier() OR (batch IS Batch AND NOT saleSupplier());
+
+saleSupplierStock  = DATA LOCAL Stock ();
+nameSaleSupplierStock 'Склад поставщика' = nameStock(saleSupplierStock());
+filterSaleSupplierStockBatch = supplierStockBatch(batch)==saleSupplierStock() OR (batch IS SaleLedger AND NOT saleSupplierStock());
+
+CONSTRAINT saleSupplier() AND saleSupplierStock() AND NOT inLegalEntityStock(saleSupplier(), saleSupplierStock())
+    CHECKED BY saleSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для регистра продаж не имеют связи';
+
 FORM saleLedgerBatch 'Регистр продаж по партиям'
+    PROPERTIES() nameSaleStock, nameSaleOperation, nameSaleCustomer, nameSaleCustomerStock, sessionConcatSkuGroups ON CHANGE selectSkuGroups(),
+            nameSaleSupplier, nameSaleSupplierStock
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
@@ -242,14 +263,42 @@ FORM saleLedgerBatch 'Регистр продаж по партиям'
                            numberDocumentSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, 
                            nameSkuSaleLedger 
     PROPERTIES(b) READONLY shippedQuantityBatch, costBatch, nameBatch, nameSupplierBatch, nameSupplierStockBatch
-    PROPERTIES    READONLY costSaleLedgerBatch(s,b)
-    PROPERTIES(s) READONLY costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
-                           sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
+    PROPERTIES(s,b) READONLY costSaleLedgerBatch, costSumSaleLedgerBatch, markupSumSaleLedgerBatch, sumVATSaleLedgerBatch, sumSaleLedgerBatch, averagePriceSaleLedgerBatch
+    PROPERTIES(s) READONLY valueVATSaleLedger
     
-    FILTERS activeSaleLedger(s),
+    FILTERS activeSaleLedger(s), filterSaleStockSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s),
+            filterSaleSupplierBatch(b), filterSaleSupplierStockBatch(b),
             dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo    
-    FILTERS costSaleLedgerBatch(s,b)
+    FILTERS costSaleLedgerBatch(s,b)    
+    FILTERS inSessionSkuGroup(skuGroupSku(skuSaleLedger(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
 ;
+
+DESIGN saleLedgerBatch {
+    NEW top {
+        type = CONTAINERH;
+        MOVE dates.box {
+            type = CONTAINERH;
+        }
+        NEW supCont{
+            type = CONTAINERH;
+            caption = 'Поставщик';
+            MOVE PROPERTY(nameSaleSupplier());
+            MOVE PROPERTY(nameSaleSupplierStock()); 
+        }
+    }
+    NEW operationContainer{
+        type = CONTAINERH;
+        caption = 'Фильтры';
+        MOVE PROPERTY(nameSaleStock());
+        MOVE PROPERTY(nameSaleOperation());
+        MOVE PROPERTY(nameSaleCustomer());
+        MOVE PROPERTY(nameSaleCustomerStock()); 
+        MOVE PROPERTY(sessionConcatSkuGroups());
+    }
+
+    MOVE sb.box;
+    MOVE functions.box;
+}
 
 NAVIGATOR {                                              
     salesReports{

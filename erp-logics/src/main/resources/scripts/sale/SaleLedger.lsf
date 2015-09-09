@@ -281,6 +281,10 @@ filterSaleCustomerStockSaleLedger = customerStockSaleLedger(ledger)==saleCustome
 CONSTRAINT saleCustomer() AND saleCustomerStock() AND NOT inLegalEntityStock(saleCustomer(), saleCustomerStock())
     CHECKED BY saleCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для регистра продаж не имеют связи';     
 
+saleStock  = DATA LOCAL Stock ();
+nameSaleStock 'Склад' = nameStock(saleStock());
+filterSaleStockSaleLedger = stockSaleLedger(ledger)==saleStock() OR (ledger IS SaleLedger AND NOT saleStock());
+
 idBarcodeSkuSaleLedger 'Штрихкод' (l) = idBarcodeSku(skuSaleLedger(l));
 
 dataInSessionSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
@@ -318,7 +322,7 @@ selectSkuGroups 'Выбор групп' = ACTION () {
 } 
 
 FORM saleLedger 'Регистр продаж'
-    PROPERTIES() nameSaleOperation, nameSaleCustomer, nameSaleCustomerStock, sessionConcatSkuGroups ON CHANGE selectSkuGroups()
+    PROPERTIES() nameSaleStock, nameSaleOperation, nameSaleCustomer, nameSaleCustomerStock, sessionConcatSkuGroups ON CHANGE selectSkuGroups()
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -336,7 +340,7 @@ FORM saleLedger 'Регистр продаж'
     PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)    
     PROPERTIES(s) editSaleLedger SHOWIF allowedEditSaleLedger(s)
     
-    FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s)
+    FILTERS activeSaleLedger(s), filterSaleStockSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
     
     FILTERS inSessionSkuGroup(skuGroupSku(skuSaleLedger(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
@@ -359,6 +363,7 @@ DESIGN saleLedger {
     NEW operationContainer{
         type = CONTAINERH;
         caption = 'Фильтры';
+        MOVE PROPERTY(nameSaleStock());
         MOVE PROPERTY(nameSaleOperation());
         MOVE PROPERTY(nameSaleCustomer());
         MOVE PROPERTY(nameSaleCustomerStock()); 
