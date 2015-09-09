@@ -670,7 +670,9 @@ DESIGN operation {
 skipStockDocumentLedgerCollationSheet (cs) = skipStockDocumentLedgerInventory(inventoryCollationSheet(cs));
 skipStockDocumentLedger(l) += skipStockDocumentLedgerCollationSheet(l);
 
-showAccountSumsCollationSheet = typeOfAdditionCollationSheet(collationSheet)==TypeOfAddition.remains AND NOT skipStockDocumentLedgerCollationSheet(collationSheet) PERSISTENT;
+isShortageStockDocumentInventory 'Считать недостачу из товарного отчета' = DATA BOOLEAN (Inventory) IN documentPrm;
+
+showAccountSumsCollationSheet = typeOfAdditionCollationSheet(c)==TypeOfAddition.remains AND isShortageStockDocumentInventory(inventoryCollationSheet(c)) PERSISTENT;
 
 accountSumItemBalanceCollationSheet = IF showAccountSumsCollationSheet(collationSheet)
                                                             THEN sumItemAccountBCollationSheet(collationSheet)
@@ -1147,7 +1149,7 @@ overSumShortageCollationSheetSkuGroup 'Сумма недостачи' = IF isBat
 
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
-    PROPERTIES (in)  isBatchInventory, isPriceInventory, nameNumeratorInventory, numberInventory, seriesInventory,
+    PROPERTIES (in)  isBatchInventory, isPriceInventory, isShortageStockDocumentInventory, nameNumeratorInventory, numberInventory, seriesInventory,
                      nameInventory, nameTypeOfAdditionInventory, dateInventory, timeInventory,
                      noteInventory, nameStockInventory ON CHANGE dialogStockInventory(in),
                      recalculatePriceInventory, recalculateBalanceInventory,
@@ -1405,8 +1407,8 @@ showOpenInventory (i) = isClosedInventory(i) AND NOT overPreventOpenInventory(i)
 
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory
-    PROPERTIES(in) READONLY             isClosedInventory FORCE GRID, isPostedInventory FORCE GRID, isBatchInventory, numberInventory, seriesInventory, dateInventory, timeInventory,
-                                        nameStockInventory, nameInventory, noteInventory, skipStockDocumentLedgerInventory
+    PROPERTIES(in) READONLY             isClosedInventory FORCE GRID, isPostedInventory FORCE GRID, isBatchInventory,  numberInventory, seriesInventory, dateInventory, timeInventory,
+                                        nameStockInventory, nameInventory, noteInventory, skipStockDocumentLedgerInventory, isShortageStockDocumentInventory
     PROPERTIES(in) FORCE PANEL READONLY createdNameUserInventory, createdTimeInventory, createdHostnameComputerInventory, 
                                         postedNameUserInventory, postedTimeInventory, postedHostnameComputerInventory
     
