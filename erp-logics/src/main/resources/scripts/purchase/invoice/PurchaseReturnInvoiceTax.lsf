@@ -1,0 +1,14 @@
+MODULE PurchaseReturnInvoiceTax;
+
+REQUIRE PurchaseReturnInvoice, SkuLedgerTax;
+
+NAMESPACE PurchaseReturn;
+
+// не берем НДС 0, потому что это может быть льгота, а дальше нужно перемещать/продавать с полным НДС
+over1VATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail));
+overSetValueVATUserInvoiceDetail(detail) += valueVATBatch(batchUserInvoiceDetail(detail)) IF valueVATBatch(batchUserInvoiceDetail(detail)) != 0;
+
+// todo : временное решение, пока нету последовательности выполнения событий
+WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) AND valueVATBatch(batchUserInvoiceDetail(d)) != 0 DO {
+    valueVATUserInvoiceDetail(d) <- valueVATBatch(batchUserInvoiceDetail(d)); 
+}

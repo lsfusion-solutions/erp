@@ -24,8 +24,11 @@ retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y
 //@deriveDocumentDetailVAT(userInvoice, retail, date, sku, customerStock);
 
 // Проставляем НДС розничный, равный НДС входному
-retailVATUserInvoiceDetail (detail) <- VATUserInvoiceDetail(detail) WHEN CHANGED(VATUserInvoiceDetail(detail));
-
+WHEN SESSION CHANGED(VATUserInvoiceDetail(detail)) OR CHANGED(valueVATUserInvoiceDetail(detail)) DO {
+    retailVATUserInvoiceDetail(detail) <- IF valueVATUserInvoiceDetail(detail) == 0 THEN
+                                               VATSkuCountry (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)))
+                                          ELSE VATUserInvoiceDetail(detail);
+}
 
 extraRetailPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail); 
 WHEN SESSION (CHANGED(customerStockUserInvoiceDetail(detail)) OR
