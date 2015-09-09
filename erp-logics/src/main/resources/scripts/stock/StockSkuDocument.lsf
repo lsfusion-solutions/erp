@@ -288,11 +288,11 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
 
     EXTEND FORM form
 
-        OBJECTS b=Batch
-        PROPERTIES READONLY     nameSkuBatch(b), idBarcodeSkuBatch(b), shortNameUOMBatch(b), idBatch(b) SHOWIF showIDs(), nameBatch(b)
-        PROPERTIES(b, concrete) quantity###detail###batchProp###object ON CHANGE changeQuantityBatch###object(b, concrete) 
-                                    BACKGROUND backgroundQuantityBatch###object(b, concrete)
-                                    QUICKFILTER nameSkuBatch(b),
+        OBJECTS b=Batch FIXED GRID
+        PROPERTIES READONLY SHOWIF showBatch###object(concrete) nameSkuBatch(b), idBarcodeSkuBatch(b), shortNameUOMBatch(b), idBatch(b), nameBatch(b)
+        PROPERTIES(b, concrete) SHOWIF showBatch###object(concrete) quantity###detail###batchProp###object ON CHANGE changeQuantityBatch###object(b, concrete) 
+                                BACKGROUND backgroundQuantityBatch###object(b, concrete)
+                                QUICKFILTER nameSkuBatch(b),
                                 prevCurrentBalanceBatch###object READONLY,
                                 allQuantityBatch###object ON CHANGE changeAllQuantityBatch###object(b, concrete),
                                 priceBatch###object READONLY
@@ -628,9 +628,9 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
 
     EXTEND FORM form
 
-        OBJECTS           stb=(sto=Stock, b=Batch)
-        PROPERTIES(b) READONLY   prevNameSkuBatch BACKGROUND backgroundName###object###batch(b), idBarcodeSkuBatch, shortNameUOMBatch, idBatch SHOWIF showIDs(), nameBatch
-        PROPERTIES(sto) READONLY stockNameB = nameStock SHOWIF not###stockProp###stock###object(concrete)
+        OBJECTS           stb=(sto=Stock, b=Batch) FIXED GRID
+        PROPERTIES(b) READONLY SHOWIF showBatch###object(concrete)  prevNameSkuBatch BACKGROUND backgroundName###object###batch(b), idBarcodeSkuBatch, shortNameUOMBatch, idBatch, nameBatch
+        PROPERTIES(sto) READONLY SHOWIF showBatch###object(concrete) stockNameB = nameStock SHOWIF not###stockProp###stock###object(concrete)
 
         FILTERS           isParentSkuGroupBatch(sk, b),
                           (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
@@ -639,7 +639,7 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
                           activeStock(sto)
         ORDER BY          prevNameSkuBatch(b)
 
-        PROPERTIES        quantityBatch###object###stockProp###stock(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
+        PROPERTIES        SHOWIF showBatch###object(concrete) quantityBatch###object###stockProp###stock(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
                                     BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto)
                                     QUICKFILTER prevNameSkuBatch(b),
                           prevCurrentBalanceBatchStock(b, sto) READONLY,
