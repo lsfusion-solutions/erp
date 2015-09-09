@@ -232,8 +232,28 @@ DESIGN saleBatch {
     MOVE functions.box;
 }
 
+FORM saleLedgerBatch 'Регистр продаж по партиям'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+
+    OBJECTS sb = (s = SaleLedger, b = Batch)
+    PROPERTIES(s) READONLY nameMonthSaleLedger, nameDOWSaleLedger, dateSaleLedger, hourSaleLedger, dateTimeSaleLedger, 
+                           nameStockSaleLedger, nameCustomerSaleLedger, nameOperationSaleLedger, descriptionSaleLedger, 
+                           numberDocumentSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, 
+                           nameSkuSaleLedger 
+    PROPERTIES(b) READONLY shippedQuantityBatch, costBatch, nameBatch, nameSupplierBatch, nameSupplierStockBatch
+    PROPERTIES    READONLY costSaleLedgerBatch(s,b)
+    PROPERTIES(s) READONLY costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
+                           sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
+    
+    FILTERS activeSaleLedger(s),
+            dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo    
+    FILTERS costSaleLedgerBatch(s,b)
+;
+
 NAVIGATOR {                                              
     salesReports{
         ADD saleBatch;
+        ADD saleLedgerBatch;
     }
 }
