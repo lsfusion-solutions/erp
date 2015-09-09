@@ -1348,12 +1348,12 @@ WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
 //countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
 //defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
 
-countProductsSkuStock (sku, stock) = GROUP SUM 1 IF inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock;
-defaultProductSkuStock (sku,stock)= GROUP MIN p IF inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock;
+countProductsSkuStockDate (sku, stock, date) = GROUP SUM 1 IF isActiveBOMDate(BOMProduct(p), date) AND inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock, date;
+defaultProductSkuStockDate (sku, stock, date)= GROUP MIN p IF isActiveBOMDate(BOMProduct(p), date) AND inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock, date;
 
 WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
-    productProductDetail(d) <- defaultProductSkuStock(skuProductDetail(d), componentsStockProductDetail(d))
-        WHERE countProductsSkuStock(skuProductDetail(d),componentsStockProductDetail(d)) == 1;
+    productProductDetail(d) <- defaultProductSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d))
+        WHERE countProductsSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d)) == 1;
 }     
                                                                      
 //countComponentsSku (material) = GROUP SUM 1 BY materialComponent(c) AS Sku;
