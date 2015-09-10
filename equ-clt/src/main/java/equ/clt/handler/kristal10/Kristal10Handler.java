@@ -752,6 +752,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     String weightCode = directoryWeightCodeMap.containsKey(directory + "_" + numberCashRegister + "_" + departNumber) ?
                                             directoryWeightCodeMap.get(directory + "_" + numberCashRegister + "_" + departNumber) : "21";
 
+                                    String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                                     String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
 
                                     //обнаруживаем продажу сертификатов
@@ -767,6 +768,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                             barcode = barcode.substring(2);
                                         } else if (barcode.startsWith(weightCode) && barcode.length() <= 7)
                                             barcode = barcode.substring(2);
+
+                                        // временно для касс самообслуживания в виталюре
+                                        if (barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") && ignoreSalesWeightPrefix)
+                                            barcode = barcode.substring(2, 7);
                                     }
 
                                     BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
@@ -797,7 +802,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                sumGiftCard, barcode, null, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
+                                                sumGiftCard, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
                                                 discountSumReceipt, discountCard, numberReceiptDetail, fileName, null));
                                     }
                                     count++;
