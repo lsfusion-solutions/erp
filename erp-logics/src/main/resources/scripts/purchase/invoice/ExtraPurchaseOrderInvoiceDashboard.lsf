@@ -161,9 +161,90 @@ extraCreateMultiUserInvoiceOrder 'Создать накладную (без ст
     }
 }
 
+numberInvoiceOrderDetail 'Номер накладной' = DATA LOCAL NESTED INTEGER (OrderDetail);
+countNumberInvoiceOrder = GROUP SUM 1 IF numberInvoiceOrderDetail(d) BY orderOrderDetail(d); 
 
+FORM selectOrderOrderDetail 'Формирование нескольких накладных'
+
+    OBJECTS o = Order FIXED PANEL 
+    
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
+    ORDER BY orderSkuGroup(sg), skuGroupName
+    
+    OBJECTS d=OrderDetail
+    PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, idSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
+    PROPERTIES (d) READONLY quantityOrderDetail, namePriceListTypeOrderDetail, priceOrderDetail , sumOrderDetail,
+                   numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
+                   toInvoiceOrderDetail BACKGROUND backgroundQuantityParamOrderDetail(d)
+    PROPERTIES(d)  numberInvoiceOrderDetail              
+    ORDER BY indexOrderDetail(d)
+
+    FILTERS orderOrderDetail(d) == o
+    FILTERGROUP filterInvoiced 
+        FILTER 'Не оприходованы' toInvoiceOrderDetail(d) 'F9' DEFAULT
+        
+    FILTERGROUP filterGroup 
+        FILTER 'По группам' isParentSkuGroupSku(sg, skuOrderDetail(d)) 'F8' DEFAULT
+    
+;
+DESIGN selectOrderOrderDetail {
+    main {
+//        preferredSize = (1024, 768);  
+        MOVE o.box;
+        NEW top {
+            fill = 1;
+            type = SPLITH;
+            MOVE skuTree.tree.box;
+            MOVE d.box { 
+                fill = 2; 
+                PROPERTY (numberInvoiceOrderDetail(d)) {background = #FFEEEE;}                
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+extraCreateInvoicesOrder 'Создать несколько накладных'= ACTION (order)  {
+    numberInvoiceOrderDetail(od) <- NULL WHERE orderOrderDetail(od) == order;
+    FORM selectOrderOrderDetail OBJECTS o = order MODAL;
+    IF formResult() == FormResult.ok THEN {
+        IF countNumberInvoiceOrder(order) THEN {
+            FOR [ = GROUP SUM 1 BY numberInvoiceOrderDetail(d), orderOrderDetail(d)](num,order) DO {
+                NEWSESSION {
+                    FOR ADDOBJ i = UserInvoice DO {
+        
+                        fillHeaderUserInvoiceOrder(i, order);               
+                        includeOrderUserInvoice(order, i)<- TRUE;
+                        
+                        FOR orderOrderDetail(orderDetail) == order AND numberInvoiceOrderDetail(orderDetail) == num AND toInvoiceOrderDetail(orderDetail) >0
+                            AND inOrderDetailUserInvoice(orderDetail, i) AND NOT skipCreateUserInvoiceOrderDetail(orderDetail)
+                            ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
+                            ADDOBJ d = UserInvoiceDetail DO {
+                                userInvoiceUserInvoiceDetail(d) <- i;
+                                orderUserInvoiceDetail(d) <- order;
+                                skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                                batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+                                quantityUserInvoiceDetail (d) <- toInvoiceOrderDetail(orderDetail);
+            
+                                fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                                overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+                        }
+                                  
+                        FORM userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
+                    }
+                }
+            }
+            numberInvoiceOrderDetail(od) <- NULL WHERE orderOrderDetail(od) == order;
+        } ELSE {
+            MESSAGE 'Не задано количество накладных для формирования';
+        }
+        
+    }    
+}
 
 EXTEND FORM orderInvoiceDashboard
-PROPERTIES(o) extraCreateMultiUserInvoiceOrder AFTER createMultiUserInvoice(o) FORCE PANEL TOOLBAR 
+PROPERTIES(o) FORCE PANEL TOOLBAR   AFTER createMultiUserInvoice(o) extraCreateMultiUserInvoiceOrder, extraCreateInvoicesOrder
                        
 ;
