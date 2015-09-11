@@ -520,9 +520,13 @@ CLASS UserStockDocumentDetail 'Строка учетного документа 
 @defineDocumentDetailDescription(userStockDocument, UserStockDocumentDetail);
 
 @defineDocumentHeaderNote(UserStockDocument);
+noteUserStockDocumentDetail 'Примечание' = DATA VARSTRING[100] (UserStockDocumentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN documentPrm;
 
-@defineDocumentHeaderClosed(UserStockDocumentDetail);
+@defineNumeratedDefault(UserStockDocument, 'Учетный документ', 'УД');
 
+@defineDocumentHeaderCreated(UserStockDocument);
+@defineDocumentPosted(userStockDocument);
+@defineDocumentClosed(userStockDocument);
 idUserStockDocumentDetail = DATA VARSTRING[100] (UserStockDocumentDetail);
 userStockDocumentDetailIdUserStockDocument (id, UserStockDocument) = GROUP AGGR detail BY idUserStockDocumentDetail(detail), userStockDocumentUserStockDocumentDetail(detail) WHERE detail IS UserStockDocumentDetail;
 
@@ -540,7 +544,7 @@ sumUserStockDocument 'Суммы (всего)' =
  
 FORM userStockDocument 'Учетный документ'
     OBJECTS i = UserStockDocument FIXED PANEL
-    PROPERTIES (i) nameStockUserStockDocument ON CHANGE changeStockCompanyUserStockDocument(i),
+    PROPERTIES (i) isPostedUserStockDocument, nameNumeratorUserStockDocument, nameStockUserStockDocument ON CHANGE changeStockCompanyUserStockDocument(i),
                    numberUserStockDocument, seriesUserStockDocument, dateUserStockDocument, timeUserStockDocument,
                    sumContainerUserStockDocument, sumItemUserStockDocument,
                    sumUserStockDocument, noteUserStockDocument,
@@ -548,10 +552,13 @@ FORM userStockDocument 'Учетный документ'
 
     OBJECTS d = UserStockDocumentDetail
     PROPERTIES (d) indexUserStockDocumentDetail, sumContainerUserStockDocumentDetail, sumItemUserStockDocumentDetail,
-                   sumUserStockDocumentDetail, ADDOBJ, DELETE
+                   sumUserStockDocumentDetail, noteUserStockDocumentDetail, ADDOBJ, DELETE
     FILTERS userStockDocumentUserStockDocumentDetail(d) == i
 
     EDIT UserStockDocument OBJECT i
+    
+    EVENTS
+        ON OK prePostUserStockDocument(i)    
 ;
 
 DESIGN userStockDocument {
@@ -563,12 +570,20 @@ DESIGN userStockDocument {
                 fill = 1;
                 type = CONTAINERV;
                 MOVE i.documentHeader {
-                    type = CONTAINERH;
-                    MOVE PROPERTY(nameStockUserStockDocument(i));
-                    MOVE PROPERTY(numberUserStockDocument(i));
-                    MOVE PROPERTY(seriesUserStockDocument(i));
-                    MOVE PROPERTY(dateUserStockDocument(i));
-                    MOVE PROPERTY(timeUserStockDocument(i));
+                    type = CONTAINERV;
+                    NEW row1 {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(isPostedUserStockDocument(i));
+                        MOVE PROPERTY(nameStockUserStockDocument(i));                        
+                    }
+                    NEW row2 {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameNumeratorUserStockDocument(i));
+                        MOVE PROPERTY(numberUserStockDocument(i));
+                        MOVE PROPERTY(seriesUserStockDocument(i));
+                        MOVE PROPERTY(dateUserStockDocument(i));
+                        MOVE PROPERTY(timeUserStockDocument(i));                        
+                    }                    
                 }
                 MOVE i.documentPrm {
                     columns = 2;
@@ -586,19 +601,34 @@ DESIGN userStockDocument {
             }
         }
         MOVE functions.box;
+        PROPERTY (noteUserStockDocument(i)) { caption = 'Номер справки';}
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
     }
 }
 
+overPreventCloseUserStockDocument = ABSTRACT BOOLEAN (UserStockDocument);
+overPreventOpenUserStockDocument = ABSTRACT BOOLEAN (UserStockDocument);
+showCloseUserStockDocument (i) = isOpenedUserStockDocument(i) AND NOT overPreventCloseUserStockDocument(i);   
+showOpenUserStockDocument (i) = isClosedUserStockDocument(i) AND NOT overPreventOpenUserStockDocument(i);   
+
 FORM stockDocuments 'Учетный документ'
     OBJECTS i = UserStockDocument
-    PROPERTIES (i) READONLYIF isReadonly() numberUserStockDocument, seriesUserStockDocument, dateUserStockDocument, timeUserStockDocument,
+    PROPERTIES (i) READONLYIF isReadonly() isClosedUserStockDocument, isPostedUserStockDocument, numberUserStockDocument, seriesUserStockDocument, dateUserStockDocument, timeUserStockDocument,
                             nameStockUserStockDocument
     PROPERTIES (i) READONLY countUserStockDocumentDetailUserStockDocument, sumContainerUserStockDocument, sumItemUserStockDocument, sumUserStockDocument 
     PROPERTIES (i) READONLYIF isReadonly() noteUserStockDocument
     PROPERTIES (i) FORCE PANEL TOOLBAR ADDFORM, EDITFORM, DELETE 
+    
+    PROPERTIES (i) READONLY FORCE PANEL createdNameUserUserStockDocument, createdTimeUserStockDocument, createdHostnameComputerUserStockDocument, 
+                                        postedNameUserUserStockDocument, postedTimeUserStockDocument, postedHostnameComputerUserStockDocument 
+
+    PROPERTIES (i) closeUserStockDocument SHOWIF showCloseUserStockDocument(i), openUserStockDocument SHOWIF showOpenUserStockDocument(i)
 
     OBJECTS d = UserStockDocumentDetail
-    PROPERTIES (d) READONLY indexUserStockDocumentDetail, sumContainerUserStockDocumentDetail, sumItemUserStockDocumentDetail, sumUserStockDocumentDetail
+    PROPERTIES (d) READONLY indexUserStockDocumentDetail, sumContainerUserStockDocumentDetail, sumItemUserStockDocumentDetail, sumUserStockDocumentDetail,
+                    noteUserStockDocumentDetail
 
     FILTERS userStockDocumentUserStockDocumentDetail(d) == i
 
@@ -619,8 +649,17 @@ DESIGN stockDocuments {
                 MOVE d.box {
                     caption = 'Спецификация';
                 }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+                    fill = 1;
+
+                    MOVE i.created;
+                    MOVE i.posted;
+                }
             }
         }
+        PROPERTY (noteUserStockDocument(i)) { caption = 'Номер справки';}
     }
 }
 @extendFormEditable(stockDocuments);
@@ -639,17 +678,54 @@ WHEN SESSION FORMS userStockDocument
 }   
 
 //проводим по товарному отчету
-EXTEND CLASS UserStockDocumentDetail : IncStockDocumentLedger;
+
+CLASS OutUserStockDocumentDetail 'Учетный документ (польз.) расход' : OutStockDocumentLedger;
+CLASS InUserStockDocumentDetail 'Учетный документ (польз.) приход' : IncStockDocumentLedger;
+
+needToOutLedgerUserStockDocumentDetail = sumItemUserStockDocumentDetail(d) < 0 OR sumContainerUserStockDocumentDetail(d) <0;
+
+@defineAggregation(userStockDocumentDetail, OutUserStockDocumentDetail, needToOutLedger);
+isPostedStockDocumentLedger (ledger) += isPostedUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));  
+isClosedStockDocumentLedger (ledger) += isClosedUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+seriesStockDocumentLedger (ledger) += seriesUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));
+numberStockDocumentLedger (ledger) += numberUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));
+dateTimeStockDocumentLedger (ledger) += dateTimeUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));
+stockStockDocumentLedger (ledger) += stockUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));
+descriptionStockDocumentLedger (ledger) += descriptionUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
+sumContainerOutStockDocumentLedger(ledger) += -sumContainerUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));
+sumItemOutStockDocumentLedger(ledger) += -sumItemUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger));
+editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger)), d = userStockDocumentDetailOutUserStockDocumentDetail(ledger) MANAGESESSION DOCKEDMODAL;}
+closeStockDocumentLedger(ledger) += ACTION closeUserStockDocument(userStockDocumentUserStockDocumentDetail(userStockDocumentDetailOutUserStockDocumentDetail(ledger)));
+typeStockDocumentLedger(l) += 'Учетный документ (польз.) расход' IF l IS OutUserStockDocumentDetail;
+
+
+needToInLedgerUserStockDocumentDetail = sumItemUserStockDocumentDetail(d) > 0 OR sumContainerUserStockDocumentDetail(d) > 0;
+@defineAggregation(userStockDocumentDetail, InUserStockDocumentDetail, needToInLedger);
                                                                           
-isPostedStockDocumentLedger (ledger) += TRUE IF ledger IS UserStockDocumentDetail;  
-isClosedStockDocumentLedger (ledger) += TRUE IF ledger IS UserStockDocumentDetail;                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-seriesStockDocumentLedger (ledger) += seriesUserStockDocumentDetail(ledger);
-numberStockDocumentLedger (ledger) += numberUserStockDocumentDetail(ledger);
-dateTimeStockDocumentLedger (ledger) += dateTimeUserStockDocumentDetail(ledger);
-stockStockDocumentLedger (ledger) += stockUserStockDocumentDetail(ledger);
-descriptionStockDocumentLedger (ledger) += descriptionUserStockDocumentDetail(ledger);                                                                                                                                                                                                                                   
-sumContainerIncStockDocumentLedger(ledger) += sumContainerUserStockDocumentDetail(ledger);
-sumItemIncStockDocumentLedger(ledger) += sumItemUserStockDocumentDetail(ledger);
-editStockDocumentLedger(ledger) += ACTION (ledger) NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(ledger), d = ledger MANAGESESSION DOCKEDMODAL;}
-closeStockDocumentLedger(ledger) += ACTION closeUserStockDocumentDetail(ledger);
-typeStockDocumentLedger(l) += 'Учетный документ' IF l IS UserStockDocumentDetail;
+isPostedStockDocumentLedger (ledger) += isPostedUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));  
+isClosedStockDocumentLedger (ledger) += isClosedUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+seriesStockDocumentLedger (ledger) += seriesUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));
+numberStockDocumentLedger (ledger) += numberUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));
+dateTimeStockDocumentLedger (ledger) += dateTimeUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));
+stockStockDocumentLedger (ledger) += stockUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));
+descriptionStockDocumentLedger (ledger) += descriptionUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));                                                                                                                                                                                                                                   
+sumContainerIncStockDocumentLedger(ledger) += sumContainerUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));
+sumItemIncStockDocumentLedger(ledger) += sumItemUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger));
+editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger)), d = userStockDocumentDetailInUserStockDocumentDetail(ledger) MANAGESESSION DOCKEDMODAL;}
+closeStockDocumentLedger(ledger) += ACTION closeUserStockDocument(userStockDocumentUserStockDocumentDetail(userStockDocumentDetailInUserStockDocumentDetail(ledger)));
+typeStockDocumentLedger(l) += 'Учетный документ (польз.) приход' IF l IS InUserStockDocumentDetail;
+
+//EXTEND CLASS UserStockDocumentDetail : IncStockDocumentLedger;
+//                                                                          
+//isPostedStockDocumentLedger (ledger) += TRUE IF ledger IS UserStockDocumentDetail;  
+//isClosedStockDocumentLedger (ledger) += TRUE IF ledger IS UserStockDocumentDetail;                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+//seriesStockDocumentLedger (ledger) += seriesUserStockDocumentDetail(ledger);
+//numberStockDocumentLedger (ledger) += numberUserStockDocumentDetail(ledger);
+//dateTimeStockDocumentLedger (ledger) += dateTimeUserStockDocumentDetail(ledger);
+//stockStockDocumentLedger (ledger) += stockUserStockDocumentDetail(ledger);
+//descriptionStockDocumentLedger (ledger) += descriptionUserStockDocumentDetail(ledger);                                                                                                                                                                                                                                   
+//sumContainerIncStockDocumentLedger(ledger) += sumContainerUserStockDocumentDetail(ledger);
+//sumItemIncStockDocumentLedger(ledger) += sumItemUserStockDocumentDetail(ledger);
+//editStockDocumentLedger(ledger) += ACTION (ledger) NEWSESSION {FORM userStockDocument OBJECTS i = userStockDocumentUserStockDocumentDetail(ledger), d = ledger MANAGESESSION DOCKEDMODAL;}
+//closeStockDocumentLedger(ledger) += ACTION closeUserStockDocumentDetail(ledger);
+//typeStockDocumentLedger(l) += 'Учетный документ' IF l IS UserStockDocumentDetail;
