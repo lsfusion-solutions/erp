@@ -530,12 +530,12 @@ noteUserStockDocumentDetail 'Примечание' = DATA VARSTRING[100] (UserSt
 idUserStockDocumentDetail = DATA VARSTRING[100] (UserStockDocumentDetail);
 userStockDocumentDetailIdUserStockDocument (id, UserStockDocument) = GROUP AGGR detail BY idUserStockDocumentDetail(detail), userStockDocumentUserStockDocumentDetail(detail) WHERE detail IS UserStockDocumentDetail;
 
-sumContainerUserStockDocumentDetail 'Сумма прихода, тара' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
-sumContainerUserStockDocument 'Сумма прихода, тара' = 
+sumContainerUserStockDocumentDetail 'Сумма (+/-), тара' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
+sumContainerUserStockDocument 'Сумма, тара' = 
     GROUP SUM sumContainerUserStockDocumentDetail(detail) BY userStockDocumentUserStockDocumentDetail(detail) IN documentSum;
 
-sumItemUserStockDocumentDetail 'Сумма прихода, товар' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
-sumItemUserStockDocument 'Сумма прихода, товар' = 
+sumItemUserStockDocumentDetail 'Сумма (+/-), товар' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
+sumItemUserStockDocument 'Сумма, товар' = 
     GROUP SUM sumItemUserStockDocumentDetail(detail) BY userStockDocumentUserStockDocumentDetail(detail) IN documentSum;
 
 sumUserStockDocumentDetail 'Суммы (всего)' = DATA NUMERIC[16,2] (UserStockDocumentDetail); 
@@ -633,8 +633,11 @@ FORM stockDocuments 'Учетный документ'
     FILTERS userStockDocumentUserStockDocumentDetail(d) == i
 
     DIALOG UserStockDocument OBJECT i
+    
+    
 ;
 @extendFormFilterAccessStock(UserStockDocument, i, stockDocuments, stock, company);
+@defineFilterIsOpened (userStockDocument, stockDocuments, i);
 
 DESIGN stockDocuments {
     main {
@@ -682,6 +685,8 @@ WHEN SESSION FORMS userStockDocument
 CLASS OutUserStockDocumentDetail 'Учетный документ (польз.) расход' : OutStockDocumentLedger;
 CLASS InUserStockDocumentDetail 'Учетный документ (польз.) приход' : IncStockDocumentLedger;
 
+CONSTRAINT isPostedUserStockDocumentDetail(d) AND sumItemUserStockDocumentDetail(d) AND sumContainerUserStockDocumentDetail(d) AND ((sumItemUserStockDocumentDetail(d) * sumContainerUserStockDocumentDetail(d)) <0)
+    MESSAGE 'Суммы по строке учетного документа (польз.) должны быть одновременно либо положительные, либо отрицательные.';
 needToOutLedgerUserStockDocumentDetail = sumItemUserStockDocumentDetail(d) < 0 OR sumContainerUserStockDocumentDetail(d) <0;
 
 @defineAggregation(userStockDocumentDetail, OutUserStockDocumentDetail, needToOutLedger);
