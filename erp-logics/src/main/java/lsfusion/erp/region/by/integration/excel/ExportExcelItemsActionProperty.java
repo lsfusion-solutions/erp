@@ -52,7 +52,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
         ScriptingLogicsModule writeOffRateItemLM = context.getBL().getModule("WriteOffPurchaseItem");
         ScriptingLogicsModule salePackLM = context.getBL().getModule("SalePack");
         
-        List<List<String>> data = new ArrayList<List<String>>();
+        List<List<String>> data = new ArrayList<>();
 
         DataSession session = context.getSession();
 
@@ -63,7 +63,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
             KeyExpr itemExpr = new KeyExpr("Item");
             ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
 
-            QueryBuilder<Object, Object> itemQuery = new QueryBuilder<Object, Object>(itemKeys);
+            QueryBuilder<Object, Object> itemQuery = new QueryBuilder<>(itemKeys);
             String[] itemNames = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
                     "brandItem", "countryItem", "idBarcodeSku", "splitItem", "netWeightItem", "grossWeightItem",
                     "compositionItem", "Purchase.amountPackSku"};
@@ -112,11 +112,11 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 String nameBrand = trim((String) findProperty("nameBrand").read(session, brandItemObject), "");
 
                 ObjectValue wareItemObject = itemValue.get("wareItem");
+                ObjectValue countryItemObject = itemValue.get("countryItem");
                 BigDecimal priceWare = (BigDecimal) findProperty("priceWare").read(session, wareItemObject);
-                BigDecimal vatWare = (BigDecimal) findProperty("valueCurrentRateRangeWare").read(session, wareItemObject);
+                BigDecimal vatWare = (BigDecimal) findProperty("valueVATWareCountry").read(session, wareItemObject, countryItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
-                ObjectValue countryItemObject = itemValue.get("countryItem");
                 DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
                 BigDecimal vatItem = (BigDecimal) findProperty("valueVATItemCountryDate").read(session, itemObject, countryItemObject, dateObject);
                 String nameCountry = trim((String) findProperty("nameCountry").read(session, countryItemObject), "");
