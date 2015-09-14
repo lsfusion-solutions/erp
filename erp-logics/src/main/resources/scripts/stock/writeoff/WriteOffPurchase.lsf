@@ -92,13 +92,13 @@ nameWriteOffRateUserInvoiceDetail 'Норма отходов' (userInvoiceDetail
 percentWriteOffRateUserInvoiceDetail 'Норма отходов,%' (invoiceDetail)= DATA NUMERIC[10,3] (UserInvoiceDetail);
 
 writeOffRateUserInvoiceDetail(detail) <- writeOffRateCountrySku(countryCustomerStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail)) WHEN
-    CHANGED(countryCustomerStockUserInvoiceDetail(detail)) OR CHANGED(skuUserInvoiceDetail(detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
+    (CHANGED(countryCustomerStockUserInvoiceDetail(detail)) OR CHANGED(skuUserInvoiceDetail(detail))) AND createPurchaseWriteOffUserInvoiceDetail(detail);
 
 percentWriteOffRateUserInvoiceDetail (detail) <- percentWriteOffRate(writeOffRateUserInvoiceDetail(detail)) WHEN
     CHANGED(writeOffRateUserInvoiceDetail(detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
 
 writeOffQuantityUserInvoiceDetail (detail) <- round3(shipmentQuantityUserInvoiceDetail(detail)*percentWriteOffRateUserInvoiceDetail (detail)/100)   WHEN
-    CHANGED(shipmentQuantityUserInvoiceDetail(detail)) OR CHANGED(percentWriteOffRateUserInvoiceDetail (detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
+    (CHANGED(shipmentQuantityUserInvoiceDetail(detail)) OR CHANGED(percentWriteOffRateUserInvoiceDetail (detail))) AND createPurchaseWriteOffUserInvoiceDetail(detail);
 
 writeOffPriceUserInvoiceDetail (detail) <- shipmentPriceUserInvoiceDetail(detail) WHEN CHANGED(shipmentPriceUserInvoiceDetail(detail)) AND createPurchaseWriteOffUserInvoiceDetail(detail);
 
