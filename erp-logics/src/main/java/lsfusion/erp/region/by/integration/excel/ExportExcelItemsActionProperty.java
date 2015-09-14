@@ -113,8 +113,8 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
                 ObjectValue wareItemObject = itemValue.get("wareItem");
                 ObjectValue countryItemObject = itemValue.get("countryItem");
-                BigDecimal priceWare = (BigDecimal) findProperty("priceWare").read(session, wareItemObject);
-                BigDecimal vatWare = (BigDecimal) findProperty("valueVATWareCountry").read(session, wareItemObject, countryItemObject);
+                BigDecimal priceWare = wareItemObject == null ? null : (BigDecimal) findProperty("priceWare").read(session, wareItemObject);
+                BigDecimal vatWare = wareItemObject == null || countryItemObject == null ? null : (BigDecimal) findProperty("valueVATWareCountry").read(session, wareItemObject, countryItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
                 DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
@@ -129,7 +129,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 data.add(Arrays.asList(formatValue(itemID), formatValue(itemGroupID), name, nameUOM, shortNameUOM, 
                         formatValue(uomItemObject.getValue()), nameBrand, formatValue(brandItemObject.getValue()), 
                         nameCountry, idBarcodeSku, isWeightItem, formatValue(netWeightItem), formatValue(grossWeightItem),
-                        compositionItem, formatValue(vatItem), formatValue(wareItemObject.getValue()), formatValue(priceWare), 
+                        compositionItem, formatValue(vatItem), formatValue(wareItemObject == null ? null : wareItemObject.getValue()), formatValue(priceWare),
                         formatValue(vatWare), formatValue(writeOffRateID), formatValue(retailMarkup), formatValue(wholesaleMarkup),
                         formatValue(purchaseAmount), formatValue(saleAmount)));
             }
