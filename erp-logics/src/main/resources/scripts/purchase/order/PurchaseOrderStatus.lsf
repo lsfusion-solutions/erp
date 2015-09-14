@@ -41,7 +41,9 @@ notConfirmedOrderDetail 'Не подтвержден' (d) = d IS OrderDetail AND
 isConfirmedUserOrderDetail 'Подтвержден' (d) = isConfirmedUserOrder(userOrderUserOrderDetail(d)) PERSISTENT;
 notConfirmedUserOrderDetail 'Не подтвержден' (d) = d IS UserOrderDetail AND NOT isConfirmedUserOrderDetail(d);  
 
-statusOrder 'Статус заказа' = CASE 
+//statusOrder 'Статус заказа' = ABSTRACT OVERRIDE FIRST VARISTRING[20] (Order);
+statusOrder 'Статус заказа' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
+calcStatusOrder 'Статус заказа' = CASE
     WHEN isClosedOrder(o) THEN 'Закрыт'
     WHEN shippedOrderDetailOrder(o) THEN 'Принят'
     WHEN invoicedOrderDetailOrder (o) THEN 'В приемке'
@@ -50,6 +52,7 @@ statusOrder 'Статус заказа' = CASE
     WHEN isSentOrder(o) THEN 'Отправлен'
     WHEN o IS Order THEN 'Создан' 
 ;
+statusOrder(o) += WHEN o IS Order THEN calcStatusOrder(o);
 
 originalQuantityUserOrderDetail(d) <- quantityUserOrderDetail(d)
     WHEN CHANGED (quantityUserOrderDetail(d)) IF NOT (isConfirmedUserOrderDetail(d) OR isSentUserOrderDetail(d));
