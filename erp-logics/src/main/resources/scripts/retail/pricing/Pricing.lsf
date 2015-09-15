@@ -203,6 +203,21 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                                     value###prefix###VAT###idetail(detail)), roundCondition)
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
         }
+        
+    ON SESSION {
+        FOR (CHANGED(prefix###priceListType###idetail(detail)) OR
+                         CHANGED(prefixP###price###idetail(detail)) OR
+                         CHANGED(sku###idetail(detail)) OR
+                         CHANGED(stockProp###idetail(detail)) OR
+                         CHANGED(dateTime###idetail(detail)) OR
+                         CHANGED(value###prefix###VAT###idetail(detail))) AND remoteExLogEnabledUser(currentUser()) DO {
+             MESSAGE sku###idetail(detail);
+             MESSAGE prefix###priceListType###idetail(detail);
+             MESSAGE roundConditionCalcPriceListTypeSku(prefix###priceListType###idetail(detail), sku###idetail(detail));
+             MESSAGE CHANGED(prefix###price###idetail(detail));
+             MESSAGE pricingDocumentCalcPriceListType(prefix###priceListType###idetail(detail));
+        }
+    }
 
     WHEN SESSION
         (CHANGED(prefix###priceListType###idetail(detail)) OR
