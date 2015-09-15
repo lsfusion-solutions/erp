@@ -12,6 +12,7 @@ public class Kristal10Settings implements Serializable{
     private Integer maxFilesCount;
     private String tobaccoGroup;
     private Boolean ignoreSalesWeightPrefix;
+    private Integer cleanOldFilesDays;
 
     public Kristal10Settings() {
     }
@@ -78,5 +79,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setIgnoreSalesWeightPrefix(Boolean ignoreSalesWeightPrefix) {
         this.ignoreSalesWeightPrefix = ignoreSalesWeightPrefix;
+    }
+
+    public Integer getCleanOldFilesDays() {
+        return cleanOldFilesDays;
+    }
+
+    public void setCleanOldFilesDays(Integer cleanOldFilesDays) {
+        this.cleanOldFilesDays = cleanOldFilesDays;
     }
 }

@@ -356,13 +356,30 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
         sendSalesLogger.info("Kristal10: Finish Reading started");
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        Integer cleanOldFilesDays = kristalSettings == null ? null : kristalSettings.getCleanOldFilesDays();
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
             try {
-                File successDir = new File(f.getParent() + "/success/");
-                if (successDir.exists() || successDir.mkdirs())
-                    FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
+                Calendar calendar = Calendar.getInstance();
+                String directory = f.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) + "/";
+                if(cleanOldFilesDays != null) {
+                    calendar.add(Calendar.DATE, -cleanOldFilesDays);
+                    String oldDirectory = f.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) + "/";
+                    File oldDir = new File(oldDirectory);
+                    File[] files = oldDir.listFiles();
+                    if(files != null) {
+                        for (File file : files) {
+                            if (!file.delete())
+                                file.deleteOnExit();
+                        }
+                    }
+                    if(!oldDir.delete())
+                        oldDir.deleteOnExit();
+                }
+                if (new File(directory).exists() || new File(directory).mkdirs())
+                    FileCopyUtils.copy(f, new File(directory + f.getName()));
             } catch (IOException e) {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
             }
