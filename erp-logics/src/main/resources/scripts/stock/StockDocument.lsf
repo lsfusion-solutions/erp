@@ -10,6 +10,9 @@ CLASS ABSTRACT OutStockDocumentLedger 'Учетный документ (расх
 
 typeStockDocumentLedger 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentLedger) PERSISTENT;
 
+overOrderStockDocumentLedger  (ledger) = ABSTRACT INTEGER (StockDocumentLedger);
+orderStockDocumentLedger 'Порядок' = OVERRIDE 1000000 IF l IS StockDocumentLedger, overOrderStockDocumentLedger(l);
+
 editStockDocumentLedger 'Редактировать' = ABSTRACT ACTION LIST (StockDocumentLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 closeStockDocumentLedger 'Закрыть' = ABSTRACT ACTION LIST (StockDocumentLedger) TOOLBAR;
 
@@ -317,7 +320,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
                sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval
 
     OBJECTS il = IncStockDocumentLedger
-    PROPERTIES(il) READONLY isClosedStockDocumentLedger, isPostedStockDocumentLedger, iDateTime = dateTimeStockDocumentLedger, 
+    PROPERTIES(il) READONLY isClosedStockDocumentLedger, isPostedStockDocumentLedger, dateStockDocumentLedger,  
                    iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
                    nameOperationStockDocumentLedger, nameLegalEntityStockDocumentLedger, nameLegalEntityStockStockDocumentLedger, 
                    sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
@@ -327,10 +330,10 @@ FORM sumStockDocumentLedger 'Товарный отчет'
             dateStockDocumentLedger(il) >= dtFrom,
             dateStockDocumentLedger(il) <= dtTo,
             isCompanyStock(ds)
-    ORDER BY iDateTime
+    ORDER BY dateStockDocumentLedger(il)
 
     OBJECTS ol = OutStockDocumentLedger
-    PROPERTIES(ol) READONLY isClosedStockDocumentLedger, isPostedStockDocumentLedger, oDateTime = dateTimeStockDocumentLedger, 
+    PROPERTIES(ol) READONLY isClosedStockDocumentLedger, isPostedStockDocumentLedger, dateStockDocumentLedger, 
                    oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
                    nameOperationStockDocumentLedger, nameLegalEntityStockDocumentLedger, nameLegalEntityStockStockDocumentLedger, 
                    sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
@@ -339,7 +342,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
             stockStockDocumentLedger(ol) == ds,
             dateStockDocumentLedger(ol) >= dtFrom,
             dateStockDocumentLedger(ol) <= dtTo
-    ORDER BY oDateTime
+    ORDER BY dateStockDocumentLedger(ol)
 ;
 @extendFormFilterStockAccess(ds, sumStockDocumentLedger);
 
