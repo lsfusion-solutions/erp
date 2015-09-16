@@ -391,6 +391,35 @@ NAVIGATOR {
 
 // ---------------------------------------------- Макросы для документов ------------------------------------------------- //
 
+META defineGroupDefaultValue(property, caption, type, typeIdentity, groupClass)
+    data###property###groupClass caption = DATA type (###groupClass);
+    data###typeIdentity###property###groupClass caption (g) = typeIdentity(data###property###groupClass(g));
+    
+    levelParent###property###groupClass (g) = GROUP MIN level###groupClass###groupClass(g, parent) IF data###property###groupClass(parent)
+                                                                  BY g PERSISTENT;    
+    nearestParent###property##groupClass (g) = groupClass###groupClassLevel(g, levelParent###property###groupClass(g));
+    nearest###property###groupClass (g) = data###property###groupClass(nearestParent###property###groupClass (g));
+    property###groupClass (g) =
+        OVERRIDE nearest###property###groupClass (g), 
+                 data###property###groupClass(g) PERSISTENT;    
+    
+    typeIdentity##groupClass caption (g) = typeIdentity(property##groupClass(g));    
+END 
+
+META defineGroupDefaultValue(property, caption, type, groupClass)
+    data###property###groupClass caption = DATA type (###groupClass);
+    
+    levelParent###property###groupClass (g) = GROUP MIN level###groupClass###groupClass(child, parent) IF data###property###groupClass(parent)
+                                                                  BY child PERSISTENT;    
+    nearestParent###property###groupClass (g) = groupClass###groupClass###level(g, levelParent###property###groupClass(g));
+    nearest###property###groupClass (g) = data###property###groupClass(nearestParent###property###groupClass (g));
+    property###groupClass caption (g) =
+        OVERRIDE nearest###property###groupClass (g), 
+                 data###property###groupClass(g) PERSISTENT;        
+    
+END 
+
+
 // Sku
 META defineDocumentDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
     @defineDocumentDetailSkuCustomPrefixInner(detail, skuClass, ###skuClass, prefix, caption);

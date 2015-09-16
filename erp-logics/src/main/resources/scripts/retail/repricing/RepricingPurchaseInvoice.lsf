@@ -116,6 +116,28 @@ toRepricingTimeTo 'Время (по) для автоматической доо�
 toRepricingCountDaysTo 'Количество дней анализа для автоматической дооценки (по)' = DATA INTEGER ();
 toRepricingDateTimeTo 'Дата/время документа (по)' () = OVERRIDE 2030_01_01_00:00, dateTimeToDateTime(subtractDate(currentDate(), toRepricingCountDaysTo()), toRepricingTimeTo()); 
     
+    
+@defineGroupDefaultValue(skipRepricing, 'Не дооценивать на приходе', BOOLEAN, skuGroup); 
+          
+quantityChildWithDataSkipRepricingSkuGroup (skuGroup) = GROUP SUM 1 IF dataSkipRepricingSkuGroup(childSkuGroup) AND isParentSkuGroupSkuGroup(childSkuGroup, skuGroup) BY skuGroup PERSISTENT;
+quantityParentWithDataSkipRepricingSkuGroup (skuGroup) = GROUP SUM 1 IF dataSkipRepricingSkuGroup(parentSkuGroup) AND isParentSkuGroupSkuGroup(skuGroup, parentSkuGroup) BY skuGroup PERSISTENT;
+
+showDataSkipRepricingSkuGroup 'Не дооценивать на приходе' (skuGroup) = TRUE IF (quantityChildWithDataSkipRepricingSkuGroup (skuGroup) (+) quantityParentWithDataSkipRepricingSkuGroup (skuGroup)) > 0 PERSISTENT;
+showAnyDataSkipRepricingSkuGroup 'Не дооценивать на приходе' (skuGroup) = showDataSkipRepricingSkuGroup(skuGroup) OR NOT skuGroup IS SkuGroup;
+
+backgroundShowDataSkipRepricingSkuGroup (skuGroup) =
+    IF dataSkipRepricingSkuGroup(skuGroup) THEN
+        RGB(0,0,0) IF skuGroup IS SkuGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithDataSkipRepricingSkuGroup (skuGroup) != descendantNumberSkuGroup(skuGroup)
+                         AND NOT quantityParentWithDataSkipRepricingSkuGroup (skuGroup);
+
+setNullShowDataSkipRepricingSkuGroup 'Снять признак для всех потомков' = ACTION (skuGroup) {
+    FOR isParentSkuGroupSkuGroup (childGroup, skuGroup) DO {
+        ASSIGN skipRepricingSkuGroup(childGroup) <- NULL;
+    }
+} SHORTCUT skipRepricingSkuGroup CONFIRM;
+    
 createExtraValuationStockTimeOperationNotForm 'Создать дооценку' = ACTION (department, timeFrom, timeTo, operation) {
     LOCAL inInvoice = BOOLEAN (Invoice);
     inInvoice(invoice) <- filterToRepricingInvoiceStockDateTimeFromTo (invoice, department, timeFrom, timeTo);
@@ -123,6 +145,7 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
         
         positiveInvoiceDetail(detail) <- NULL;
         positiveInvoiceDetail(detail) <- inInvoice(invoiceInvoiceDetail(detail));
+        positiveInvoiceDetail(detail) <- NULL WHERE positiveInvoiceDetail(detail) AND skipRepricingSkuGroup(skuGroupSku(skuInvoiceDetail(detail)));        
         positiveInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) > 0 AND isStockSkuInvoiceDetail(detail) WHERE positiveInvoiceDetail(detail);
         positiveInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail)) == detail WHERE positiveInvoiceDetail(detail);
@@ -139,6 +162,7 @@ createExtraValuationStockTimeOperationNotForm 'Создать дооценку' 
         IF NOT skipNegativeRepricing() THEN {
             negativeInvoiceDetail(detail) <- NULL;
             negativeInvoiceDetail(detail) <- inInvoice(invoiceInvoiceDetail(detail));
+            negativeInvoiceDetail(detail) <- NULL WHERE negativeInvoiceDetail(detail) AND skipRepricingSkuGroup(skuGroupSku(skuInvoiceDetail(detail)));        
             negativeInvoiceDetail(detail) <- prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
             negativeInvoiceDetail(detail) <- toRepricingQuantityInvoiceDetailToDateTime(detail, timeTo) < 0 AND isStockSkuInvoiceDetail(detail) WHERE negativeInvoiceDetail(detail);
             negativeInvoiceDetail(detail) <- maxInvoiceDetailSkuInvoice(skuInvoiceDetail(detail), invoiceInvoiceDetail(detail))==detail WHERE negativeInvoiceDetail(detail);
@@ -241,6 +265,11 @@ createExtraValuationAllStocks 'Создать автоматическую до�
 
 EXTEND FORM options
     PROPERTIES() nameToRepricingOperation, toRepricingTime, toRepricingCountDays, minQuantityToRepricing, toRepricingTimeTo, toRepricingCountDaysTo, createExtraValuationAllStocks
+    
+    TREE skuTree g = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(g), skuGroupName = nameSkuGroup(g), skipRepricingSkuGroup(g) EDITABLE BACKGROUND backgroundShowDataSkipRepricingSkuGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+    ORDER BY orderSkuGroup(g), skuGroupName
 ;
 
 DESIGN options {
@@ -255,6 +284,7 @@ DESIGN options {
             MOVE PROPERTY(toRepricingCountDaysTo());                       
             MOVE PROPERTY(createExtraValuationAllStocks());
         }
+        MOVE skuTree.tree.box;
     }
 }
 
