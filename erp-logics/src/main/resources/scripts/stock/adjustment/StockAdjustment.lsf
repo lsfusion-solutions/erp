@@ -10,6 +10,7 @@ REQUIRE System,
         Currency,
         PriceListLedger,
         Employee,
+        StockDocument,
         Barcode;
 
 NAMESPACE Stock;
@@ -131,7 +132,7 @@ DESIGN userAdjustment {
                 }
 
                 MOVE i.documentPrm {
-                    columns = 2;
+                    columns = 3;
                 }
 
             }
@@ -430,3 +431,53 @@ DESIGN adjustments{
     }
 }
 
+activeAdjustment 'Провести по товарному отчету' = ABSTRACT BOOLEAN (Adjustment);
+activeUserAdjustment 'Провести по товарному отчету' = DATA BOOLEAN (UserAdjustment) IN documentPrm;
+activeAdjustment(i) += activeUserAdjustment(i);
+
+EXTEND FORM userAdjustment
+    PROPERTIES (i) activeUserAdjustment
+;
+
+// ------------ Проведение по товарному отчету ----------------- //
+
+@defineDocumentInterfaceHeaderItemSum (adjustment, , );
+
+CLASS OutAdjustment 'Изменение остатков расход' : OutStockDocumentLedger;
+CLASS InAdjustment 'Изменение остатков приход' : IncStockDocumentLedger;
+
+//-- Расход
+needToOutStockLedgerAdjustment = sumAdjustmentDetailAdjustment(l) < 0; //activeAdjustment(l) AND  
+@defineAggregation(adjustment, OutAdjustment, needToOutStockLedger);
+
+isPostedStockDocumentLedger (ledger) += isPostedAdjustment(adjustmentOutAdjustment(ledger));  
+isClosedStockDocumentLedger (ledger) += isClosedAdjustment(adjustmentOutAdjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+seriesStockDocumentLedger (ledger) += seriesAdjustment(adjustmentOutAdjustment(ledger));
+numberStockDocumentLedger (ledger) += numberAdjustment(adjustmentOutAdjustment(ledger));
+dateTimeStockDocumentLedger (ledger) += dateTimeAdjustment(adjustmentOutAdjustment(ledger));
+stockStockDocumentLedger (ledger) += stockAdjustment(adjustmentOutAdjustment(ledger));
+descriptionStockDocumentLedger (ledger) += descriptionAdjustment(adjustmentOutAdjustment(ledger));                                                                                                                                                                                                                                   
+sumContainerOutStockDocumentLedger(ledger) += -sumContainerAdjustmentDetailAdjustment(adjustmentOutAdjustment(ledger));
+sumItemOutStockDocumentLedger(ledger) += -sumItemAdjustmentDetailAdjustment(adjustmentOutAdjustment(ledger));
+editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustmentOutAdjustment(ledger) MANAGESESSION DOCKEDMODAL;}
+closeStockDocumentLedger(ledger) += ACTION closeAdjustment(adjustmentOutAdjustment(ledger));
+typeStockDocumentLedger(ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
+skipStockDocumentLedger(ledger) += ledger IS OutAdjustment AND NOT activeAdjustment(adjustmentOutAdjustment(ledger));
+
+//-- Приход
+needToInStockLedgerAdjustment = sumAdjustmentDetailAdjustment(l) > 0; //activeAdjustment(l) AND  
+@defineAggregation(adjustment, InAdjustment, needToInStockLedger);
+
+isPostedStockDocumentLedger (ledger) += isPostedAdjustment(adjustmentInAdjustment(ledger));  
+isClosedStockDocumentLedger (ledger) += isClosedAdjustment(adjustmentInAdjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+seriesStockDocumentLedger (ledger) += seriesAdjustment(adjustmentInAdjustment(ledger));
+numberStockDocumentLedger (ledger) += numberAdjustment(adjustmentInAdjustment(ledger));
+dateTimeStockDocumentLedger (ledger) += dateTimeAdjustment(adjustmentInAdjustment(ledger));
+stockStockDocumentLedger (ledger) += stockAdjustment(adjustmentInAdjustment(ledger));
+descriptionStockDocumentLedger (ledger) += descriptionAdjustment(adjustmentInAdjustment(ledger));                                                                                                                                                                                                                                   
+sumContainerIncStockDocumentLedger(ledger) += sumContainerAdjustmentDetailAdjustment(adjustmentInAdjustment(ledger));
+sumItemIncStockDocumentLedger(ledger) += sumItemAdjustmentDetailAdjustment(adjustmentInAdjustment(ledger));
+editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustmentInAdjustment(ledger) MANAGESESSION DOCKEDMODAL;}
+closeStockDocumentLedger(ledger) += ACTION closeAdjustment(adjustmentInAdjustment(ledger));
+typeStockDocumentLedger(ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
+skipStockDocumentLedger(ledger) += ledger IS InAdjustment AND NOT activeAdjustment(adjustmentInAdjustment(ledger));
