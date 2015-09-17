@@ -40,6 +40,11 @@ dataOperationBlanketOrderStock = DATA Operation (BlanketOrder, Stock);
 operationBlanketOrderStock (blanketOrder, stock) = OVERRIDE (operationBlanketOrder(blanketOrder) IF stock IS Stock), dataOperationBlanketOrderStock(blanketOrder, stock);
 nameOperationBlanketOrderStock 'Операция' (blanketOrder, stock)= nameOperation(operationBlanketOrderStock (blanketOrder, stock));
 
+WHEN SESSION FORMS blanketOrder
+    CHANGED(operationBlanketOrderStock(order, stock)) DO {
+        priceListTypeBlanketOrderStock(order, stock) <- defaultPriceListTypeOperation(operationBlanketOrderStock(order, stock));
+    }  
+
 overCopyBlanketOrder(o, order) += ACTION(o, order) {
     dataOperationBlanketOrderStock(o,stock) <- dataOperationBlanketOrderStock(order,stock) WHERE stock IS Stock;
 }
