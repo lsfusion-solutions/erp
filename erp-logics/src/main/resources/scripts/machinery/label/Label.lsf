@@ -323,7 +323,8 @@ createdHostnameComputerLabelTransactionDetail 'Создан на компьют�
 
 skuLabelTransactionDetail = DATA Sku (LabelTransactionDetail) INDEXED;
 nameSkuLabelTransactionDetail 'SKU' (d) = nameSku(skuLabelTransactionDetail(d));
-idBarcodeLabelTransactionDetail 'Штрихкод' (b) = idBarcodeSku(skuLabelTransactionDetail(b)); 
+dataBarcodeLabelTransactionDetail = DATA Barcode (LabelTransactionDetail);
+idBarcodeLabelTransactionDetail 'Штрихкод' (d) = OVERRIDE idBarcodeSku(skuLabelTransactionDetail(d)), idBarcode(dataBarcodeLabelTransactionDetail(d)) MINCHARWIDTH 15 PREFCHARWIDTH 30; 
 
 batchLabelTransactionDetail = DATA Batch (LabelTransactionDetail) INDEXED;
 nameBatchLabelTransactionDetail 'Партия' (d) = nameBatch(batchLabelTransactionDetail(d));
@@ -373,13 +374,24 @@ deleteNotSelectedLabelTransactionDetail 'Удалить кроме отмече�
     DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT selectedLabelTransactionDetail(d);
 } TOOLBAR;
 
+changeBarcodeLabelTransactionDetail(d)  = ACTION {
+    IF [= GROUP SUM 1 IF idBarcode(b) BY skuBarcode(b)](skuLabelTransactionDetail(d)) > 1 THEN {
+        REQUEST OBJECT b
+        FORM barcodeSku OBJECTS s = skuLabelTransactionDetail(d) MODAL;
+        IF formResult() == FormResult.ok THEN {
+            dataBarcodeLabelTransactionDetail(d) <- requestedObject();
+    
+        }
+    }
+}
+
 FORM customLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
     PROPERTIES(l) nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, dateLabelTransaction, timeLabelTransaction,
                   descriptionLabelTransaction READONLY 
                    
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail READONLY, nameSkuLabelTransactionDetail READONLY, nameBatchLabelTransactionDetail,
+    PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail ON CHANGE changeBarcodeLabelTransactionDetail(d), nameSkuLabelTransactionDetail READONLY, nameBatchLabelTransactionDetail,
                   nameOperationLabelTransactionDetail, quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail,
                   discountSumTransactionDetail, DELETESESSION
     FILTERS labelTransactionLabelTransactionDetail(d) == l
@@ -511,9 +523,9 @@ calcPriceLabelTransactionDetail (d) =
                                                 dateTimeLabelTransactionDetail(d));
 
 WHEN SESSION FORMS customLabelTransaction
-    CHANGED(labelTypeLabelTransactionDetail(d)) DO {
+    CHANGED(labelTypeLabelTransactionDetail(d)) OR SETCHANGED (dataBarcodeLabelTransactionDetail(d)) DO {
         priceLabelTransactionDetail(d) <- OVERRIDE 
-            calcPriceLabelTransactionDetail(d), 
+            roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amountBarcode(dataBarcodeLabelTransactionDetail(d))), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d))), 
             documentPriceLabelTransactionDetail(d);
         retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
 }
