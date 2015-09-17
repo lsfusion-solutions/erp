@@ -45,7 +45,9 @@ META defineOrderShipment(sign, stockProp)
                                                               ORDER orderDetail PERSISTENT;
                                                               
     Shipment.shippedOrderDetail(d) += shippedOrderDetail(d);
-    toShipOrderDetail 'Не поставлено' (orderDetail) = quantityOrderDetail (orderDetail) (-) shippedOrderDetail(orderDetail);
+    toShipOrderDetail 'Не поставлено' (orderDetail) = IF (quantityOrderDetail (orderDetail) (-) shippedOrderDetail(orderDetail)) > 0.0 
+                                                        THEN quantityOrderDetail (orderDetail) (-) shippedOrderDetail(orderDetail)
+                                                        ELSE 0.0; 
     prevToShipOrderDetail 'Не поставлено' (orderDetail) = PREV(toShipOrderDetail(orderDetail));
     toShipOrderDetailStockOrder 'Не поставлено по складу' (stock, order) = GROUP SUM toShipOrderDetail(orderDetail) IF toShipOrderDetail(orderDetail) > 0
                                                                                      BY stockProp###orderDetail(orderDetail), orderOrderDetail(orderDetail);
