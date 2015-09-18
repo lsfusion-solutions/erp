@@ -1345,7 +1345,7 @@ WHEN SESSION FORMS order CHANGED(costSkuOrder(skuComponentDetail(detail), orderC
 WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
     skuProductDetail(detail) <- skuProduct(productProductDetail(detail));                 
               
-//countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
+countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p) PERSISTENT ;
 //defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
 
 countProductsSkuStockDate (sku, stock, date) = GROUP SUM 1 IF isActiveBOMDate(BOMProduct(p), date) AND inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock, date;
@@ -1356,9 +1356,13 @@ WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
         WHERE countProductsSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d)) == 1;
 }     
                                                                      
-//countComponentsSku (material) = GROUP SUM 1 BY materialComponent(c) AS Sku;
-//defaultComponentsSku (material)= GROUP MIN component BY materialComponent(component) AS Sku;     
-                                                                
+countBOMsMaterialSku (material) = GROUP SUM 1 IF materialComponent(c) AS Sku BY materialComponent(c) PERSISTENT;
+
+EXTEND FORM BOMs
+    FILTERGROUP prod FILTER 'Есть спецификации' countProductsSku(p1) 'F8' DEFAULT   
+    FILTERGROUP comp FILTER 'Есть спецификации' countBOMsMaterialSku(c2) 'F7' DEFAULT                                                          
+                                                  
+;                                                               
 countComponentsSkuStockDate (material, stock, date) = GROUP SUM 1 IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock, date;
 defaultComponentsSkuStockDate (material, stock, date)= GROUP MIN c IF isActiveBOMDate(BOMComponent(c), date) AND inBOMStock(BOMComponent(c),stock) BY materialComponent(c) AS Sku, stock, date;                                                                  
                                                                      
