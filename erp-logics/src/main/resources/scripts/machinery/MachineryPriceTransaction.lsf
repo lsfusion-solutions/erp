@@ -180,8 +180,12 @@ priceMachineryPriceTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (Machinery
 // Текущие загруженные штрихкоды
 TABLE barcodeGroupMachinery (Barcode, GroupMachinery);
 
+skipLastTransactionGroupMachinery 'Не учитывать для определения текущих цен в оборудовании' = ABSTRACT BOOLEAN (GroupMachinery);
+
 // INDEX groupInMachineryPriceTransactionBarcode + barcode 
-groupInMachineryPriceTransactionBarcode = groupMachineryMachineryPriceTransaction(transaction) IF inMachineryPriceTransactionBarcode(transaction, barcode) PERSISTENT;
+groupInMachineryPriceTransactionBarcode = groupMachineryMachineryPriceTransaction(transaction) IF inMachineryPriceTransactionBarcode(transaction, barcode) 
+    AND NOT skipLastTransactionGroupMachinery(groupMachineryMachineryPriceTransaction(transaction)) PERSISTENT;
+    
 lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
     GROUP LAST transaction 
           BY barcode, groupInMachineryPriceTransactionBarcode(transaction, barcode)
