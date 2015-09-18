@@ -1,6 +1,6 @@
 MODULE RepricingManufacturingPrice;
 
-REQUIRE Repricing, PriceListLedger, PurchaseManufacturingPrice;
+REQUIRE Repricing, PriceListLedger, PurchaseManufacturingPrice, PricingManufacturingPrice;
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(repricingDetail, manufacturing, ' изготовителя после');
 
@@ -32,8 +32,8 @@ manufacturingPriceUserRepricingDetail(d) <- curManufacturingPriceUserRepricingDe
 @changeDocumentDetailPricePrefix(userRepricingDetail, curManufacturing, cur, cur, curManufacturing, cur, curRetail);
 @changeDocumentDetailPricePrefix(userRepricingDetail, manufacturing, newRetail, , manufacturing, , retail);
 
-overRepricingPriceUserRepricingDetail(detail) += manufacturingPriceUserRepricingDetail(detail);
-overCurRepricingPriceUserRepricingDetail(detail) += curManufacturingPriceUserRepricingDetail(detail);
+overRepricingPriceUserRepricingDetail(detail) += manufacturingPriceUserRepricingDetail(detail) IF NOT skipCalcPricingManufacturingPrice();
+overCurRepricingPriceUserRepricingDetail(detail) += curManufacturingPriceUserRepricingDetail(detail) IF NOT skipCalcPricingManufacturingPrice();
 
 EXTEND FORM userRepricing
     PROPERTIES(d) manufacturingPriceUserRepricingDetail ON CHANGE changeManufacturingPriceUserRepricingDetail(d) BEFORE priceUserRepricingDetail(d),
