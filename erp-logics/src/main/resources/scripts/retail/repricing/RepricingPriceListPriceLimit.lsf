@@ -4,6 +4,7 @@ REQUIRE RepricingPriceList, PriceLimit;
 
 NAMESPACE Repricing;
 
+skipRepricingPriceLimitSku = ABSTRACT BOOLEAN (Sku);
 overSetManagementRetailPriceDepartmentStoreDateTime(d, dt) += ACTION (d, dt) {
     LOCAL limitPriceSku = NUMERIC[14,2] (Sku);
     limitPriceSku(sku) <- roundPriceRoundCondition(
@@ -17,5 +18,5 @@ overSetManagementRetailPriceDepartmentStoreDateTime(d, dt) += ACTION (d, dt) {
                                     markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku),
                                     valueVATSkuStock(sku, d)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku)) WHERE managementRetailPriceSku(sku);
     
-    managementRetailPriceSku (sku) <- limitPriceSku(sku) WHERE limitPriceSku(sku) < managementRetailPriceSku (sku); 
+    managementRetailPriceSku (sku) <- limitPriceSku(sku) WHERE limitPriceSku(sku) < managementRetailPriceSku (sku) AND NOT skipRepricingPriceLimitSku(sku); 
 }
