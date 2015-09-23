@@ -20,10 +20,11 @@ operationGLDocument(document) += operationPricing(document);
 ////////////////////////////// Приход от поставщика //////////////////////////////////
 //-------------------------------- Торговая надбавка -------------------------------//
 //-- Тара
+retailPurchaseMarkupSumContainerPricingDetailPricing = retailMarkupSumContainerPricingDetailPricing(p) IF NOT isReturnPricing(p);
 @defineGeneralLedgerAggregationOperation (pricing,                                      // основание
                                           PrPurMarkC,                                   // идентификатор
                                           legalEntityStock,                             // компания
-                                          retailMarkupSumContainerPricingDetail, // сумма
+                                          retailPurchaseMarkupSumContainerPricingDetail, // сумма
                                           description,                                  // описание
                                           '41.3',                                       // дебет
                                           '42.1',                                       // кредит
@@ -34,10 +35,12 @@ debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(prici
 idOperationGeneralLedger(l) += '10' IF l IS PrPurMarkCGeneralLedger;    
 
 //-- Товар
+retailPurchaseMarkupSumItemPricingDetailPricing = retailMarkupSumItemPricingDetailPricing(p) IF NOT isReturnPricing(p);
+
 @defineGeneralLedgerAggregationOperation (pricing,
                                           PrPurMarkI,
                                           legalEntityStock,
-                                          retailMarkupSumItemPricingDetail,
+                                          retailPurchaseMarkupSumItemPricingDetail,
                                           description,
                                           '41.2',
                                           '42.1',
@@ -49,10 +52,12 @@ idOperationGeneralLedger(l) += '10' IF l IS PrPurMarkIGeneralLedger;
 
 //-------------------------------- НДС розничный -------------------------------//
 //-- Тара
+retailPurchaseVATSumContainerPricingDetailPricing = retailVATSumContainerPricingDetailPricing(p) IF NOT isReturnPricing(p);
+
 @defineGeneralLedgerAggregationOperation (pricing,
                                           PrPurVATC,
                                           legalEntityStock,
-                                          retailVATSumContainerPricingDetail,
+                                          retailPurchaseVATSumContainerPricingDetail,
                                           description,
                                           '41.3',
                                           '42.2',
@@ -63,10 +68,12 @@ debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(prici
 idOperationGeneralLedger(l) += '10' IF l IS PrPurVATCGeneralLedger;    
 
 //-- Товар
+retailPurchaseVATSumItemPricingDetailPricing = retailVATSumItemPricingDetailPricing(p) IF NOT isReturnPricing(p);
+
 @defineGeneralLedgerAggregationOperation (pricing,
                                           PrPurVATI,
                                           legalEntityStock,
-                                          retailVATSumItemPricingDetail,
+                                          retailPurchaseVATSumItemPricingDetail,
                                           description,
                                           '41.2',
                                           '42.2',
@@ -75,6 +82,72 @@ idOperationGeneralLedger(l) += '10' IF l IS PrPurVATCGeneralLedger;
                                           );
 debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(pricingPrPurVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStorePricing(pricingPrPurVATIGeneralLedger(generalLedger));
 idOperationGeneralLedger(l) += '10' IF l IS PrPurVATIGeneralLedger;    
+
+////////////////////////////// Возврат товара поставщику (сторно) //////////////////////////////////
+//-------------------------------- Торговая надбавка -------------------------------//
+//-- Тара
+negativeRetailMarkupSumContainerPricingDetailPricing (p) = -retailMarkupSumContainerPricingDetailPricing(p) IF isReturnPricing(p);
+@defineGeneralLedgerAggregationOperation (pricing,                                      // основание
+                                          PrPurMarkCR,                                   // идентификатор
+                                          legalEntityStock,                             // компания
+                                          negativeRetailMarkupSumContainerPricingDetail, // сумма
+                                          description,                                  // описание
+                                          '41.3',                                       // дебет
+                                          '42.1',                                       // кредит
+                                          'by_default',                                 // идентификатор плана счетов
+                                          'by_default_pricing_purchase'                         // идентификатор операции
+                                          );
+debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(pricingPrPurMarkCRGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStorePricing(pricingPrPurMarkCRGeneralLedger(generalLedger));
+idOperationGeneralLedger(l) += '10' IF l IS PrPurMarkCRGeneralLedger;    
+
+//-- Товар
+negativeRetailMarkupSumItemPricingDetailPricing (p) = -retailMarkupSumItemPricingDetailPricing(p) IF isReturnPricing(p);
+
+@defineGeneralLedgerAggregationOperation (pricing,
+                                          PrPurMarkIR,
+                                          legalEntityStock,
+                                          negativeRetailMarkupSumItemPricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.1',
+                                          'by_default',
+                                          'by_default_pricing_purchase'
+                                          );
+debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(pricingPrPurMarkIRGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStorePricing(pricingPrPurMarkIRGeneralLedger(generalLedger));
+idOperationGeneralLedger(l) += '10' IF l IS PrPurMarkIRGeneralLedger;    
+
+//-------------------------------- НДС розничный -------------------------------//
+//-- Тара
+negativeRetailVATSumContainerPricingDetailPricing (p) = -retailVATSumContainerPricingDetailPricing(p) IF isReturnPricing(p);
+
+@defineGeneralLedgerAggregationOperation (pricing,
+                                          PrPurVATCR,
+                                          legalEntityStock,
+                                          negativeRetailVATSumContainerPricingDetail,
+                                          description,
+                                          '41.3',
+                                          '42.2',
+                                          'by_default',
+                                          'by_default_pricing_purchase'
+                                          );
+debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(pricingPrPurVATCRGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStorePricing(pricingPrPurVATCRGeneralLedger(generalLedger));
+idOperationGeneralLedger(l) += '10' IF l IS PrPurVATCRGeneralLedger;    
+
+//-- Товар
+negativeRetailVATSumItemPricingDetailPricing (p) = -retailVATSumItemPricingDetailPricing(p) IF isReturnPricing(p);
+
+@defineGeneralLedgerAggregationOperation (pricing,
+                                          PrPurVATIR,
+                                          legalEntityStock,
+                                          negativeRetailVATSumItemPricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.2',
+                                          'by_default',
+                                          'by_default_pricing_purchase'
+                                          );
+debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(pricingPrPurVATIRGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStorePricing(pricingPrPurVATIRGeneralLedger(generalLedger));
+idOperationGeneralLedger(l) += '10' IF l IS PrPurVATIRGeneralLedger;  
 
 ////////////////////////////// Списание по нормам //////////////////////////////////
 //-------------------------------- Торговая надбавка -------------------------------//
