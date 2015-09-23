@@ -64,6 +64,8 @@ includeContainerMovementBatchStockDateFromTo 'Рассчитать' = ACTION (st
     lastPriceBatch(bt) <- NULL;
     lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, dateTo) WHERE inContainerMovementBatch (bt);
     
+    lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, 2030_01_01) WHERE inContainerMovementBatch (bt) AND NOT lastPriceBatch(bt);
+    
     sumOutBatch (bt) <- NULL;
     sumOutBatch (bt) <- balanceOutBatch(bt) * lastPriceBatch(bt) WHERE inContainerMovementBatch (bt);
     
@@ -71,13 +73,19 @@ includeContainerMovementBatchStockDateFromTo 'Рассчитать' = ACTION (st
     balanceMoveInBatch (bt) <- costInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
     
     sumMoveInBatch (bt) <- NULL;
-    sumMoveInBatch (bt) <- accountSumInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    sumMoveInBatch (bt) <- [= GROUP SUM costSkuLedgerBatch (ledger, batch) * (OVERRIDE lastPriceBatch(batch), accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger)))
+                               IF ledger IS InSkuLedger AND isPostedSkuLedger(ledger)
+                               AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
+                               BY batch, stockSkuLedger(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
     
     balanceMoveOutBatch (bt) <- NULL;
     balanceMoveOutBatch (bt) <- costOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
 
     sumMoveOutBatch (bt) <- NULL;
-    sumMoveOutBatch (bt) <- accountSumOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    sumMoveOutBatch (bt) <- [= GROUP SUM costSkuLedgerBatch (ledger, batch) * (OVERRIDE lastPriceBatch(batch), accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger)))
+                                IF ledger IS OutSkuLedger AND isPostedSkuLedger(ledger)
+                                AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
+                                BY batch, stockSkuLedger(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
  
     formRefresh();
 }
