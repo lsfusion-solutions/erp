@@ -710,24 +710,28 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             //stopList.txt
             File stopListFile = new File(exchangeDirectory + "stoplist.txt");
             File flagStopListFile = new File(exchangeDirectory + "WAITSTOPLIST");
-            if (stopListFile.exists() && flagStopListFile.exists() && !flagStopListFile.delete()) {
+            if (flagStopListFile.exists())
+                flagStopListFile.delete();
+            if (stopListFile.exists() && flagStopListFile.exists()) {
                 throw new RuntimeException(existFilesMessage(stopListFile, flagStopListFile));
-            } else if (flagStopListFile.createNewFile()) {
-                processStopListLogger.info("Kristal: creating STOPLIST file");
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
-
-                for (Map.Entry<String, ItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
-                    String idBarcode = item.getKey();
-                    String code = useIdItem ? item.getValue().idItem : idBarcode;
-                    String record = (stopListInfo.exclude ? "+" : "-") + "|" + code + "|" + idBarcode;
-                    writer.println(record);
-                }
-                writer.close();
-
-                processStopListLogger.info("Kristal: waiting for deletion of STOPLIST file");
-                waitForDeletion(stopListFile, flagStopListFile);
             } else {
-                throw new RuntimeException(cantCreateFileMessage(flagStopListFile));
+                if (flagStopListFile.createNewFile()) {
+                    processStopListLogger.info("Kristal: creating STOPLIST file");
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
+
+                    for (Map.Entry<String, ItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
+                        String idBarcode = item.getKey();
+                        String code = useIdItem ? item.getValue().idItem : idBarcode;
+                        String record = (stopListInfo.exclude ? "+" : "-") + "|" + code + "|" + idBarcode;
+                        writer.println(record);
+                    }
+                    writer.close();
+
+                    processStopListLogger.info("Kristal: waiting for deletion of STOPLIST file");
+                    waitForDeletion(stopListFile, flagStopListFile);
+                } else {
+                    throw new RuntimeException(cantCreateFileMessage(flagStopListFile));
+                }
             }
         }     
     }
