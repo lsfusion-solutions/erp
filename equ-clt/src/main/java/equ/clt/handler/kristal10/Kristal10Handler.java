@@ -567,9 +567,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                     //parent: priceEntry
-                    for (String shopIndex : stopListInfo.idStockSet) {
+                    for (Integer number : stopListInfo.nppGroupMachinerySet) {
                         Element department = new Element("department");
-                        setAttribute(department, "number", shopIndex);
+                        setAttribute(department, "number", number);
                         priceEntry.addContent(department);
                     }
 
