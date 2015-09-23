@@ -165,8 +165,7 @@ changeTruckConsignment = ACTION (consignment){
         } ELSE IF formResult() == FormResult.drop THEN {
             dataTruckConsignment(consignment) <- NULL;
         }
-    }
-        
+    }        
 }
 
 CLASS OwnerTrackType 'Владелец автомобиля' {
@@ -262,18 +261,50 @@ overShipmentBaseConsignment 'Основание отпуска' (consignment) = 
 shipmentBaseConsignment 'Основание отпуска' (consignment) = OVERRIDE  VARSTRING[100](descriptionContractConsignment(consignment)),
                                                                       dataShipmentBaseConsignment(consignment),
                                                                       overShipmentBaseConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
-
+notUseIssuanceAllowedConsignment 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
+dataIssuanceAllowedConsignment = DATA VARSTRING[100](Consignment);
 issuanceAllowedConsignment (consignment) = ABSTRACT Employee (Consignment);
-nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = positionShortNameEmployee(issuanceAllowedConsignment(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
-
+nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = OVERRIDE positionShortNameEmployee(issuanceAllowedConsignment(consignment)),
+                                                                                             dataIssuanceAllowedConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
+changeIssuanceAllowedConsignment = ACTION (consignment){    
+    IF notUseIssuanceAllowedConsignment(consignment) THEN {
+        REQUEST VARSTRING[100] INPUT;
+        dataIssuanceAllowedConsignment(consignment) <- requestedString();         
+    } ELSE {
+        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            issuanceAllowedConsignment(consignment) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            issuanceAllowedConsignment(consignment) <- NULL;
+        }
+    }        
+}
+notUseIssuanceExecutedConsignment 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
+dataIssuanceExecutedConsignment = DATA VARSTRING[100](Consignment);
 issuanceExecutedConsignment (consignment) = ABSTRACT Employee(Consignment);
-nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = positionShortNameEmployee(issuanceExecutedConsignment(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
+nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = OVERRIDE positionShortNameEmployee(issuanceExecutedConsignment(consignment)),
+                                                                                              dataIssuanceExecutedConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
+changeIssuanceExecutedConsignment = ACTION (consignment){    
+    IF notUseIssuanceExecutedConsignment(consignment) THEN {
+        REQUEST VARSTRING[100] INPUT;
+        dataIssuanceExecutedConsignment(consignment) <- requestedString();
+    } ELSE {
+        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            issuanceExecutedConsignment(consignment) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            issuanceExecutedConsignment(consignment) <- NULL;
+        }
+    }        
+}
 
 //forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
 dataForwarderConsignment  = ABSTRACT Employee (Consignment);
 
 dataNameForwarderConsignment = DATA VARSTRING[100](Consignment);
-forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = OVERRIDE  positionShortNameEmployee(dataForwarderConsignment(consignment)), dataNameForwarderConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 30;
+forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = OVERRIDE  
+    positionShortNameEmployee(dataForwarderConsignment(consignment)), 
+    dataNameForwarderConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 30;
 
 changeForwarderConsignment = ACTION (consignment){
     
@@ -294,8 +325,28 @@ changeForwarderConsignment = ACTION (consignment){
 warrantConsignment 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment;
 warrantHolderConsignment 'По доверенности выданной (наименование орг-ии)' (consignment) = ABSTRACT VARSTRING[200] (Consignment) IN issuanceConsignment;
 
-goodsAcceptedConsignment 'Принял грузополучатель' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
 
+useGoodsAcceptedConsignment 'Использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
+
+dataGoodsAcceptedConsignment = DATA Employee(Consignment);
+goodsAcceptedConsignment 'Принял грузополучатель' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
+overGoodsAcceptedConsignment 'Принял грузополучатель'  = OVERRIDE 
+    positionShortNameEmployee(dataGoodsAcceptedConsignment(consignment)), 
+    goodsAcceptedConsignment(consignment) IN issuanceConsignment;
+    
+changeGoodsAcceptedConsignment = ACTION (consignment){    
+    IF useGoodsAcceptedConsignment(consignment) THEN {
+        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            dataGoodsAcceptedConsignment(consignment) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            dataGoodsAcceptedConsignment(consignment) <- NULL;
+        }
+    } ELSE {
+        REQUEST VARSTRING[40] INPUT;
+        goodsAcceptedConsignment(consignment) <- requestedString();           
+    }        
+}
 // ------------------------------------- Погрузочно-разгрузочные работы --------------------------------- //
 
 GROUP loadingConsignment 'ПРР' : base;
@@ -553,7 +604,7 @@ META defineConsignmentFormSimple(form, caption)
         OBJECTS c=Consignment FIXED PANEL
 
         PROPERTIES (c) dateConsignment, shipmentBaseConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
-                       forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
+                       forwarderConsignment, warrantConsignment, warrantHolderConsignment, overGoodsAcceptedConsignment,
                        quantityConsignmentDetailConsignment, sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment,
                        sumInvoiceConsignmentDetailConsignment,
                        UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment,
@@ -610,7 +661,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##readdressingConsignment=readdressingConsignment, prefix##nameIssuanceAllowedConsignment=nameIssuanceAllowedConsignment, 
                        prefix##nameIssuanceExecutedConsignment=nameIssuanceExecutedConsignment,
                        prefix##forwarderConsignment=forwarderConsignment, prefix##warrantConsignment=warrantConsignment, 
-                       prefix##warrantHolderConsignment=warrantHolderConsignment, prefix##goodsAcceptedConsignment=goodsAcceptedConsignment,
+                       prefix##warrantHolderConsignment=warrantHolderConsignment, prefix##goodsAcceptedConsignment=overGoodsAcceptedConsignment,
                        prefix##overNameLoadingExecuterConsignment=overNameLoadingExecuterConsignment, prefix##nameWayOfLoadingConsignment=nameWayOfLoadingConsignment, 
                        prefix##overNameUnloadingExecuterConsignment=overNameUnloadingExecuterConsignment, prefix##nameWayOfUnloadingConsignment=nameWayOfUnloadingConsignment, 
                        prefix##codeLoadingConsignment=codeLoadingConsignment,
@@ -739,7 +790,8 @@ FORM consignment 'Атрибуты накладной'
                    addressSupplierConsignment READONLY, addressCustomerConsignment READONLY, fullNameSupplierConsignment READONLY, fullNameCustomerConsignment READONLY 
                    
     PROPERTIES(c)  shipmentBaseConsignment,
-                   nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment, forwarderConsignment ON CHANGE changeForwarderConsignment(c), goodsAcceptedConsignment
+                   nameIssuanceAllowedConsignment ON CHANGE changeIssuanceAllowedConsignment(c), nameIssuanceExecutedConsignment ON CHANGE changeIssuanceExecutedConsignment(c),
+                   forwarderConsignment ON CHANGE changeForwarderConsignment(c), overGoodsAcceptedConsignment ON CHANGE changeGoodsAcceptedConsignment(c)
 
     PROPERTIES(c) SHOWIF showTTN1Consignment(c)
                    nameTruckConsignment ON CHANGE changeTruckConsignment(c), ownerTruckConsignment, trailerConsignment, nameDriverConsignment ON CHANGE changeDriverConsignment(c), overWaybillConsignment,
