@@ -9,3 +9,20 @@ nameSectionReceiptDetail 'Секция' (d) = nameSection(sectionReceiptDetail(d
 
 EXTEND FORM zReports
     PROPERTIES  nameSectionReceiptDetail(d) READONLY ;
+    
+TABLE receiptSection (Receipt, Section);
+
+sumReceipDetailReceiptSection 'Сумма для секции' (r, s) = GROUP SUM signedSumReceiptDetail(d) 
+    IF isPostedReceiptDetail(d) 
+    BY receiptReceiptDetail(d), sectionReceiptDetail(d)  PERSISTENT;
+sumDepartmentStoreSectionDate = GROUP SUM sumReceipDetailReceiptSection(r, sek) 
+    BY departmentStoreReceipt(r), sek, dateReceipt(r);
+sumDepartmentStoreSectionDateFromTo 'Продано, руб.' (ds, sek, dateFrom, dateTo) = GROUP SUM sumDepartmentStoreSectionDate(ds, sek, date)
+    IF date >= dateFrom AND date <= dateTo 
+    BY ds, sek, dateFrom, dateTo;
+
+discountSumReceipDetailReceiptSection 'Сумма скидки для секции' (r, s) = GROUP SUM signedDiscountSumReceiptDetail(d) 
+    IF isPostedReceiptDetail(d)
+    BY receiptReceiptDetail(d), sectionReceiptDetail(d) PERSISTENT;
+discountSumDepartmentStoreSectionDate = GROUP SUM discountSumReceipDetailReceiptSection(r, sek) 
+    BY departmentStoreReceipt(r), sek, dateReceipt(r);
