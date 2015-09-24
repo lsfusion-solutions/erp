@@ -75,7 +75,26 @@ priceListTypeUserConsumptionDetail(detail) <- priceListTypeUserConsumption(userC
 @defineDocumentHeaderSkuQuantity(userConsumption, sku);
 @defineDocumentInterfaceHeaderSum(consumption);
 
-@defineDocumentHeaderItemSum(consumption, , );
+//@defineDocumentHeaderItemSum(userConsumption, , ) // так как PERSISTENT надо пока
+sumItemConsumptionDetailConsumption 'Сумма, товар' (consumption) =
+    GROUP SUM sumConsumptionDetail(idetail) IF isItemSku(skuConsumptionDetail(idetail))
+        BY consumptionConsumptionDetail(idetail) IN documentSum PERSISTENT;
+sumContainerConsumptionDetailConsumption 'Сумма, тара' (consumption) =
+    GROUP SUM sumConsumptionDetail(idetail) IF isContainerSku(skuConsumptionDetail(idetail))
+        BY consumptionConsumptionDetail(idetail) IN documentSum;
+sumChargeConsumptionDetailConsumption 'Сумма услуг' (consumption) =
+    GROUP SUM sumConsumptionDetail(idetail) IF isChargeSku(skuConsumptionDetail(idetail))
+        BY consumptionConsumptionDetail(idetail) IN documentSum;
+sumNotChargeConsumptionDetailConsumption 'Сумма кроме услуг' (consumption) =
+    GROUP SUM sumConsumptionDetail(idetail) IF isNotChargeSku(skuConsumptionDetail(idetail))
+        BY consumptionConsumptionDetail(idetail) IN documentSum;
+sumNotItemConsumptionDetailConsumption 'Сумма кроме товара' (consumption) =
+    GROUP SUM sumConsumptionDetail(idetail) IF isNotItemSku(skuConsumptionDetail(idetail))
+        BY consumptionConsumptionDetail(idetail) IN documentSum;
+sumNotContainerConsumptionDetailConsumption 'Сумма кроме тары' (consumption) =
+    GROUP SUM sumConsumptionDetail(idetail) IF isNotContainerSku(skuConsumptionDetail(idetail))
+        BY consumptionConsumptionDetail(idetail) IN documentSum;
+
 @defineDocumentHeaderItemSum(userConsumption, , );
 
 @defineAddDetailDialogSkuStock(userConsumption, sku, stock, dialogSku);
