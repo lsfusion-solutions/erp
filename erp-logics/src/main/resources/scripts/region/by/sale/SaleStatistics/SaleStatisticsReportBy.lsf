@@ -253,20 +253,20 @@ fillDataStatisticReport 'Заполнить данные' = ACTION (report) {
     FOR statisticGroupStatisticReportDetail(d) AND  statisticReportStatisticReportDetail(d) == report DO {
     
         soldStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER(valueByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d)));
+            THEN NUMERIC[16,2](INTEGER(valueByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), fromDateStatisticReport(report),toDateStatisticReport(report))))
+            ELSE NUMERIC[16,2](valueByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), fromDateStatisticReport(report),toDateStatisticReport(report)));
             
         soldResidentStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER (valueResidentByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueResidentByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d)));
+            THEN NUMERIC[16,2](INTEGER (valueResidentByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), fromDateStatisticReport(report),toDateStatisticReport(report))))
+            ELSE NUMERIC[16,2](valueResidentByStatisticGroupDateFromTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), fromDateStatisticReport(report),toDateStatisticReport(report)));
         
         balanceStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER (valueByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d)));
+            THEN NUMERIC[16,2](INTEGER (valueByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), toDateStatisticReport(report))))
+            ELSE NUMERIC[16,2](valueByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), toDateStatisticReport(report)));
         
         balanceResidentStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER(valueResidentByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueResidentByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReportDetail(d), toDateStatisticReportDetail(d)));
+            THEN NUMERIC[16,2](INTEGER(valueResidentByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), toDateStatisticReport(report))))
+            ELSE NUMERIC[16,2](valueResidentByStatisticGroupDateTo(statisticGroupStatisticReportDetail(d), stockStatisticReport(report), toDateStatisticReport(report)));
     }                                                                                                                                                  
 }
 
@@ -276,23 +276,25 @@ fillRegionDataStatisticReport 'Заполнить данные' = ACTION (report
     balanceStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;    
     balanceResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
     
-    FOR statisticGroupStatisticReportDetail(d) AND  statisticReportStatisticReportDetail(d) == report DO {
+    FOR s==statisticGroupStatisticReportDetail(d) AND  statisticReportStatisticReportDetail(d) == report AND i == isIntegerStatisticReportDetail(d) AND 
+        c == companyStatisticReport(report) AND r == regionStatisticReport(report) AND dFrom == fromDateStatisticReport(report) AND dTo == toDateStatisticReport(report)
+        NOINLINE DO {
     
-        soldStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER(valueByStatisticGroupLegalEntityRegionDateFromTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueByStatisticGroupLegalEntityRegionDateFromTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d)));
+        soldStatisticReportDetail(d) <- IF i
+            THEN NUMERIC[16,2](INTEGER(valueByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo)))
+            ELSE NUMERIC[16,2](valueByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo));
             
-        soldResidentStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER (valueResidentByStatisticGroupLegalEntityRegionDateFromTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueResidentByStatisticGroupLegalEntityRegionDateFromTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), fromDateStatisticReportDetail(d),toDateStatisticReportDetail(d)));
+        soldResidentStatisticReportDetail(d) <- IF i
+            THEN NUMERIC[16,2](INTEGER (valueResidentByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo)))
+            ELSE NUMERIC[16,2](valueResidentByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo));
         
-        balanceStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER (valueByStatisticGroupLegalEntityRegionDateTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueByStatisticGroupLegalEntityRegionDateTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), toDateStatisticReportDetail(d)));
+        balanceStatisticReportDetail(d) <- IF i
+            THEN NUMERIC[16,2](INTEGER (valueByStatisticGroupLegalEntityRegionDateTo(s, c, r, dTo)))
+            ELSE NUMERIC[16,2](valueByStatisticGroupLegalEntityRegionDateTo(s, c, r, dTo));
         
-        balanceResidentStatisticReportDetail(d) <- IF isIntegerStatisticReportDetail(d)
-            THEN NUMERIC[16,2](INTEGER(valueResidentByStatisticGroupLegalEntityRegionDateTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), toDateStatisticReportDetail(d))))
-            ELSE NUMERIC[16,2](valueResidentByStatisticGroupLegalEntityRegionDateTo(statisticGroupStatisticReportDetail(d), companyStatisticReportDetail(d), regionStatisticReport(statisticReportStatisticReportDetail(d)), toDateStatisticReportDetail(d)));
+        balanceResidentStatisticReportDetail(d) <- IF i
+            THEN NUMERIC[16,2](INTEGER(valueResidentByStatisticGroupLegalEntityRegionDateTo(s, c, r, dTo)))
+            ELSE NUMERIC[16,2](valueResidentByStatisticGroupLegalEntityRegionDateTo(s, c, r, dTo));
     }                                                                                                                                                  
 }
 
