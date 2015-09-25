@@ -30,7 +30,13 @@ retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y
          CHANGED (valueRetailVATUserInvoiceDetail(userInvoiceDetail)) OR
          CHANGED(supplierPriceUserInvoiceDetail(userInvoiceDetail));
 
-@deriveDocumentDetailVAT(userInvoice, retail, date, sku, supplierStock);
+overRetailVATUserInvoiceDetail = ABSTRACT OVERRIDE FIRST Range (UserInvoiceDetail);
+WHEN SESSION FORMS userInvoice
+    (CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
+     CHANGED(overRetailVATUserInvoiceDetail(detail))) AND NOT CHANGED(retailVATUserInvoiceDetail(detail)) DO {
+        retailVATUserInvoiceDetail(detail) <- OVERRIDE VATSkuCountry (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail))),
+                                                       overRetailVATUserInvoiceDetail(detail);
+    } // записываем шкалу
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 

@@ -6,9 +6,10 @@ NAMESPACE PurchaseReturn;
 
 // не берем НДС 0, потому что это может быть льгота, а дальше нужно перемещать/продавать с полным НДС
 over1VATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail));
+
 overSetValueVATUserInvoiceDetail(detail) += valueVATBatch(batchUserInvoiceDetail(detail));
 
 // todo : временное решение, пока нету последовательности выполнения событий
-WHEN SESSION FORMS userInvoice SETCHANGED(batchUserInvoiceDetail(d)) DO {
-    valueVATUserInvoiceDetail(d) <- valueVATBatch(batchUserInvoiceDetail(d)); 
+WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
+    valueVATUserInvoiceDetail(d) <- calcSetValueVATUserInvoiceDetail(d); 
 }

@@ -4,9 +4,12 @@ REQUIRE PricingSale, SkuLedgerTax;
 
 NAMESPACE Sale;
 
-overSetValueRetailVATUserInvoiceDetail(detail) += OVERRIDE valueVATBatch(batchUserInvoiceDetail(detail)), valueRetailVATBatch(batchUserInvoiceDetail(detail));
+overRetailVATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail)) IF valueVATBatch(batchUserInvoiceDetail(detail)) != 0;
+
+// не меняем ставку НДС, если льготный НДС
+overSetValueRetailVATUserInvoiceDetail(detail) += valueVATBatch(batchUserInvoiceDetail(detail)) IF valueVATBatch(batchUserInvoiceDetail(detail)) != 0;
 
 // todo : временное решение, пока нету последовательности выполнения событий
 WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
-    valueRetailVATUserInvoiceDetail(d) <- overSetValueRetailVATUserInvoiceDetail(d) WHERE overSetValueRetailVATUserInvoiceDetail(d); 
+    valueRetailVATUserInvoiceDetail(d) <- calcSetValueRetailVATUserInvoiceDetail(d); 
 }
