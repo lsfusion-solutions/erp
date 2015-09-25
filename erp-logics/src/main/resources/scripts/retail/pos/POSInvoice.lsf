@@ -43,6 +43,7 @@ DESIGN options {
 }
 
 setPassportLegalEntity = ABSTRACT ACTION (); 
+setNameEmployee = ABSTRACT ACTION (); 
 
 isReadonly() = DATA LOCAL BOOLEAN ();
 
@@ -51,8 +52,13 @@ passportNumberLegalEntity = DATA LOCAL STRING[10] ();
 phoneContact = DATA LOCAL STRING[100] ();
 postAddressContact = DATA LOCAL STRING[100] ();  
 noteInvoice = DATA LOCAL STRING[255] ();  
+idEmployee = DATA VARSTRING[100] ();
+nameEmployee = DATA VARISTRING[60] ();
 
 FORM paymentInstallments 'Рассрочка'
+    PROPERTIES idEmployee() ON CHANGE setNameEmployee()  
+    PROPERTIES READONLY nameEmployee()  
+    
     PROPERTIES READONLYIF isReadonly() nameLegalEntity()     
         
     PROPERTIES READONLYIF isReadonly() passportNumberLegalEntity() ON CHANGE setPassportLegalEntity()
@@ -76,35 +82,58 @@ FORM paymentInstallments 'Рассрочка'
 DESIGN paymentInstallments {
     NEW topContainer{
         type = CONTAINERH;
-        NEW customerContainer {
-            caption = 'Покупатель';
-            MOVE PROPERTY(passportNumberLegalEntity()) {
-                caption = 'Паспорт';
-                fontSize = 24;
-                panelCaptionAbove = TRUE;   
-                alignment = STRETCH;   
-                notNull = TRUE;
+        NEW leftContainer {
+            fill = 1;
+            NEW supplierContainer {
+                caption = 'Продавец';
+                type = CONTAINERH;
+                alignment = STRETCH; 
+                MOVE PROPERTY(idEmployee()) {
+                    caption = 'Код продавца';
+                    fontSize = 24;
+                    preferredCharWidth = 5;                    
+                    panelCaptionAbove = TRUE;   
+                    notNull = TRUE;                    
+                }  
+                MOVE PROPERTY(nameEmployee()) {
+                    caption = 'ФИО продавца';
+                    fontSize = 24;
+                    panelCaptionAbove = TRUE;   
+                    alignment = STRETCH;   
+                    preferredCharWidth = 48;                      
+                    notNull = TRUE;
+                }                              
             }
-            MOVE PROPERTY(nameLegalEntity()) {
-                caption = 'ФИО';
-                fontSize = 24;
-                panelCaptionAbove = TRUE;
-                notNull = TRUE;
-            }
-            MOVE PROPERTY(postAddressContact()) {
-                caption = 'Адрес';
-                fontSize = 24;
-                panelCaptionAbove = TRUE;      
-                alignment = STRETCH;
-                notNull = TRUE;
-            }   
-            MOVE PROPERTY(phoneContact()) {
-                caption = 'Телефон';
-                fontSize = 24;
-                panelCaptionAbove = TRUE;      
-                alignment = STRETCH;
-                notNull = TRUE;
-            }                                    
+            NEW customerContainer {
+                caption = 'Покупатель';        
+                MOVE PROPERTY(passportNumberLegalEntity()) {
+                    caption = 'Паспорт';
+                    fontSize = 24;
+                    panelCaptionAbove = TRUE;   
+                    alignment = STRETCH;   
+                    notNull = TRUE;
+                }
+                MOVE PROPERTY(nameLegalEntity()) {
+                    caption = 'ФИО';
+                    fontSize = 24;
+                    panelCaptionAbove = TRUE;
+                    notNull = TRUE;
+                }
+                MOVE PROPERTY(postAddressContact()) {
+                    caption = 'Адрес';
+                    fontSize = 24;
+                    panelCaptionAbove = TRUE;      
+                    alignment = STRETCH;
+                    notNull = TRUE;
+                }   
+                MOVE PROPERTY(phoneContact()) {
+                    caption = 'Телефон';
+                    fontSize = 24;
+                    panelCaptionAbove = TRUE;      
+                    alignment = STRETCH;
+                    notNull = TRUE;
+                }                                    
+            }            
         }
         NEW sumContainer {
             caption = 'Платеж';
@@ -153,10 +182,18 @@ setPassportLegalEntity () += ACTION () {
     }
 }
 
+setNameEmployee () += ACTION () {
+    REQUEST VARSTRING[100] INPUT;
+    FOR NOT requestCanceled() AND idEmployee(e) == requestedString() DO {
+        idEmployee() <- requestedString();    
+        nameEmployee() <- shortNameContact(e);
+    } 
+}
+
 printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
-createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCondition, note) {       
+createInvoiceReceipt  = ACTION (receipt, customer, employee, sum, paymentType, paymentCondition, note) {       
     FOR ADDOBJ i = UserInvoice DO {
         operationUserInvoice(i) <- defaultOperationPaymentInstallments();
         supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
@@ -170,6 +207,8 @@ createInvoiceReceipt  = ACTION (receipt, customer, sum, paymentType, paymentCond
         noteUserInvoice(i) <- note;
         createShipmentUserInvoice(i) <- TRUE;
         isPostedUserInvoice(i) <- TRUE;
+        createdUserUserInvoice(i) <- employee;
+        postedUserUserInvoice(i) <- employee;
         FOR ADDOBJ c = UserContractSku DO {
             supplierContractSku(c) <- legalEntityStock(departmentStoreReceipt(receipt));
             customerContractSku(c) <- customer;
@@ -237,13 +276,15 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
         phoneContact() <- NULL;
         postAddressContact() <- NULL;
         noteInvoice() <- NULL;
+        idEmployee() <- NULL;
+        nameEmployee() <- NULL;        
         FORM paymentInstallments MODAL;
         IF formResult() == FormResult.ok THEN {
-            FOR passportNumberLegalEntity(l) == passportNumberLegalEntity() DO { 
-                createInvoiceReceipt(receipt, l, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
+            FOR passportNumberLegalEntity(l) == passportNumberLegalEntity() AND idEmployee(e) == idEmployee() DO { 
+                createInvoiceReceipt(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
             } ELSE {
                 ADDOBJ LegalEntity;
-                FOR l == addedObject() DO {
+                FOR l == addedObject() AND idEmployee(e) == idEmployee() DO {
                     nameLegalEntity(l) <- nameLegalEntity();
                     passportNumberLegalEntity(l) <- passportNumberLegalEntity();
                     phoneContact(l) <- phoneContact();
@@ -255,7 +296,7 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
                     FOR nameLegalEntityGroup(group) == 'Покупатели' DO {
                         legalEntityGroupLegalEntity(l) <- group;
                     }
-                    createInvoiceReceipt(receipt, l, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
+                    createInvoiceReceipt(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
                 }
             }    
         } ELSE {

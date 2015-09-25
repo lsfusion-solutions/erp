@@ -3,9 +3,12 @@ MODULE Payment;
 REQUIRE Bank, Document, LegalEntity, Numerator, PaymentLedger, PaymentOperation;
 
 CLASS Payment 'Платеж' : PaymentLedger;
-TABLE payment(Payment);
+TABLE payment(Payment); 
+
+@defineCreated(Payment);
 
 @defineDocumentHeaderPosted(Payment);
+
 
 @defineNumbered(Payment);
 @defineNumeratedDefault(Payment, 'Платежи', 'ПЛ');
@@ -184,6 +187,8 @@ copyPayment 'Копировать' = ACTION (payment) NEWSESSION {
     }
 } TOOLBAR;
 
+editPayment 'Редактировать' = ACTION EDITFORM Payment IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
 filterPaymentDateFrom 'Дата с' = DATA DATE ();
 filterDateFromPayment (p) = datePayment(p) >= filterPaymentDateFrom() OR (p IS Payment AND NOT filterPaymentDateFrom());      
 
@@ -198,6 +203,9 @@ FORM payments 'Платежи'
     PROPERTIES(p) READONLYIF isReadonly() isPostedPayment, isReturnPayment, orderPayment, numberPayment, seriesPayment,
                   datePayment, timePayment, namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
                   nameCurrencyAccountToPayment, sumPayment, notePayment, nameOperationPayment 
+
+    PROPERTIES(p) READONLY TODRAW p FORCE PANEL createdNameUserPayment, createdTimePayment, createdHostnameComputerPayment, 
+                                                postedNameUserPayment, postedTimePayment, postedHostnameComputerPayment 
 
     PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR, copyPayment
 
@@ -220,6 +228,12 @@ DESIGN payments {
         MOVE PROPERTY(namePartyB());
     }
     MOVE p.box;
+    NEW documentHistory {
+        caption = 'История';
+        type = CONTAINERV;
+        MOVE p.created;
+        MOVE p.posted;
+    }
     MOVE functions.box;
 }
 
