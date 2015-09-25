@@ -628,24 +628,21 @@ retailSumResidentAByStatisticGroupRegionDate 'Сумма на конец, руб
     BY group, legalEntityStock(stock), regionStock(stock), date]
         (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-valueByUnitMeasureStatisticGroupLegalEntityRegionDateFromTo 'Продано всего' (um, group, legalEntity, region, dateFrom, dateTo) =
-    CASE
-        WHEN (um == GroupStatic.statisticThing OR
-              um == GroupStatic.statisticLinearMeters OR
-              um == GroupStatic.statisticPair OR
-              um == GroupStatic.statisticConditionalPiece OR
-              um == GroupStatic.statisticSquareMeters OR
-              um == GroupStatic.statisticCubicMeters)
-            THEN quantitySoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo)
-        WHEN um == GroupStatic.statisticPounds
-            THEN netWeightSoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo)
-        WHEN um == GroupStatic.statisticLiter
-            THEN volumeSoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo)
-        WHEN um == GroupStatic.statisticSum
-            THEN retailSumSoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo);
-
 valueByStatisticGroupLegalEntityRegionDateFromTo 'Продано всего' (group, legalEntity, region, dateFrom, dateTo) =
-    valueByUnitMeasureStatisticGroupLegalEntityRegionDateFromTo(unitMeasureStatisticGroup(group), group, legalEntity, region, dateFrom, dateTo);
+    CASE
+        WHEN (unitMeasureStatisticGroup(group) == GroupStatic.statisticThing OR
+              unitMeasureStatisticGroup(group) == GroupStatic.statisticLinearMeters OR
+              unitMeasureStatisticGroup(group) == GroupStatic.statisticPair OR
+              unitMeasureStatisticGroup(group) == GroupStatic.statisticConditionalPiece OR
+              unitMeasureStatisticGroup(group) == GroupStatic.statisticSquareMeters OR
+              unitMeasureStatisticGroup(group) == GroupStatic.statisticCubicMeters)
+            THEN quantitySoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasureStatisticGroup(group) == GroupStatic.statisticPounds
+            THEN netWeightSoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasureStatisticGroup(group) == GroupStatic.statisticLiter
+            THEN volumeSoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasureStatisticGroup(group) == GroupStatic.statisticSum
+            THEN retailSumSoldByStatisticGroupRegionDateFromTo(group, legalEntity, region, dateFrom, dateTo);
 
 valueByStatisticGroupLegalEntityRegionDateTo 'Остаток на конец всего' (group, legalEntity, region, date) =
     CASE
