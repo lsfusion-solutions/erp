@@ -22,7 +22,11 @@ VATUserOrder (userOrder) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(sup
 
 //@deriveDocumentDetailVATHeader(userOrder, VAT, supplierStock);
 
-over2VATUserOrderDetail (d) += VATUserOrder(userOrderUserOrderDetail(d));
+overVATUserOrderDetail (d) += VATUserOrder(userOrderUserOrderDetail(d));
+WHEN SESSION FORMS userOrder CHANGED(VATUserOrder(userOrderUserOrderDetail(d))) DO {
+    VATUserOrderDetail(d) <- overVATUserOrderDetail(d);
+}
+
 
 EXTEND FORM userOrder
     PROPERTIES(o) numberVATUserOrder SHOWIF useCountVATOperationUserOrder(o), valueVATUserOrder SHOWIF useCountVATOperationUserOrder(o);

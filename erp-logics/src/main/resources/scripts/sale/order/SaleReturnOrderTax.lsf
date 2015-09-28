@@ -4,5 +4,12 @@ REQUIRE SaleReturnOrder, SkuLedgerTax;
 
 NAMESPACE SaleReturn;
 
-over1VATUserOrderDetail(detail) += VATBatch(batchUserOrderDetail(detail));
+overVATUserOrderDetail(detail) += VATBatch(batchUserOrderDetail(detail));
+WHEN SESSION FORMS userOrder CHANGED(batchUserOrderDetail(d)) DO {
+    VATUserOrderDetail(d) <- overVATUserOrderDetail(d);
+}
+
 overSetValueVATUserOrderDetail(detail) += valueVATBatch(batchUserOrderDetail(detail));
+WHEN SESSION FORMS userOrder CHANGED(batchUserOrderDetail(d)) DO {
+    valueVATUserOrderDetail(d) <- calcSetValueVATUserOrderDetail(d); 
+}

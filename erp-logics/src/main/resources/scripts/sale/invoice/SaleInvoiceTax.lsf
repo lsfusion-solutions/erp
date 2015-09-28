@@ -4,7 +4,10 @@ REQUIRE SaleInvoice, SkuLedgerTax;
 
 NAMESPACE Sale;
 
-over1VATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail));
+overVATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail));
+WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
+    VATUserInvoiceDetail(d) <- overVATUserInvoiceDetail(d); 
+}
 
 overDeriveValueVATUserInvoiceDetail (d) += lastValueVATSkuStockDateTime(skuUserInvoiceDetail(d), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
 

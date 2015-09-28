@@ -4,7 +4,13 @@ REQUIRE SaleReturnInvoice, SkuLedgerTax;
 
 NAMESPACE SaleReturn;
   
-over1VATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail));
+overVATUserInvoiceDetail(detail) += VATBatch(batchUserInvoiceDetail(detail));
+WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
+    VATUserInvoiceDetail(d) <- overVATUserInvoiceDetail(d); 
+}
+
 overSetValueVATUserInvoiceDetail(detail) += valueVATBatch(batchUserInvoiceDetail(detail));  
 
-
+WHEN SESSION FORMS userInvoice CHANGED(batchUserInvoiceDetail(d)) DO {
+    valueVATUserInvoiceDetail(d) <- calcSetValueVATUserInvoiceDetail (d); 
+}
