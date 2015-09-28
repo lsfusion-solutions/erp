@@ -302,6 +302,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int i = 0; i < barcodeProperties.length; i++) {
                     skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
                 }
+
+                if (isCashRegisterPriceTransaction) {
+                    skuQuery.addProperty("amountBarcode", equLM.findProperty("amountBarcode").getExpr(barcodeExpr));
+                }
                 
                 if(itemLM != null) {
                     skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrandBarcode").getExpr(barcodeExpr));
@@ -346,6 +350,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 if(machineryPriceTransactionSectionLM != null) {
                     skuQuery.addProperty("sectionMachineryPriceTransactionBarcode",
                             machineryPriceTransactionSectionLM.findProperty("sectionMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("deleteSectionBarcode",
+                            machineryPriceTransactionSectionLM.findProperty("deleteSectionBarcode").getExpr(barcodeExpr));
                 }
 
                 if(machineryPriceTransactionSupplierPriceLM != null) {
@@ -407,6 +413,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     for (ImMap<Object, Object> row : skuResult.valueIt()) {
                         String barcode = getRowValue(row, "idBarcode");
+                        BigDecimal amountBarcode = (BigDecimal) row.get("amountBarcode");
                         String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
@@ -430,11 +437,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String overIdItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
+                        String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
                         BigDecimal minPrice = machineryPriceTransactionSupplierPriceLM == null ? null : (BigDecimal) row.get("supplierPriceMachineryPriceTransactionBarcode");
 
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
-                                nameSeason, idDepartmentStoreGroupCashRegister, section, minPrice, overIdItemGroup));
+                                nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 

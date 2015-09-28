@@ -13,14 +13,16 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String nameSeason;
     public String idDepartmentStore;
     public String section;
+    public String deleteSection;
     public BigDecimal minPrice;
     public String extIdItemGroup;
+    public BigDecimal amountBarcode;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                                 String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,
                                 Integer itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
-                                String idDepartmentStore, String section, BigDecimal minPrice, String extIdItemGroup) {
+                                String idDepartmentStore, String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM);
         this.itemGroupObject = itemGroupObject;
@@ -31,7 +33,9 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.nameSeason = nameSeason;
         this.idDepartmentStore = idDepartmentStore;
         this.section = section;
+        this.deleteSection = deleteSection;
         this.minPrice = minPrice;
         this.extIdItemGroup = extIdItemGroup;
+        this.amountBarcode = amountBarcode;
     }
 }

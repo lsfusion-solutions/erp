@@ -232,6 +232,16 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             ps.addBatch();
                         }
                     }
+                    if (item.deleteSection != null) {
+                        for (String stock : item.deleteSection.split(",")) {
+                            ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                            ps.setString(2, trim(item.idItem, 40, "")); //item
+                            ps.setInt(3, Integer.parseInt(stock)); //stock
+                            ps.setInt(4, version); //version
+                            ps.setInt(5, 1); //deleted
+                            ps.addBatch();
+                        }
+                    }
                 }
 
                 ps.executeBatch();
@@ -366,7 +376,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, trim(item.idItem, 40)); //item
-                        ps.setInt(3, 1); //quantity
+                        ps.setInt(3, item.amountBarcode != null ? item.amountBarcode.intValue() : 1); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
                         ps.setInt(6, 0); //deleted
