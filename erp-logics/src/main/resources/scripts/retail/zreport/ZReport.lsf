@@ -426,8 +426,10 @@ VATReceiptDetail(d) += VATReceiptReturnDetail(d);
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
 
 valueVATReceiptDetail 'НДС, %' (receiptDetail) = DATA NUMERIC[10,5] (ReceiptDetail) PERSISTENT;
-WHEN SESSION CHANGED(VATReceiptDetail(d)) OR CHANGED(dateReceiptDetail(d)) DO {
-    valueVATReceiptDetail(d) <- valueRateRangeDate(VATReceiptDetail(d), dateReceiptDetail(d));
+overValueVATReceiptDetail(d) = ABSTRACT OVERRIDE FIRST NUMERIC[10,5] (ReceiptDetail);
+overValueVATReceiptDetail(d)+= valueRateRangeDate(VATReceiptDetail(d), dateReceiptDetail(d));
+WHEN SESSION CHANGED(VATReceiptDetail(d)) OR CHANGED(dateReceiptDetail(d)) OR CHANGED (batchReceiptDetail(d)) DO {
+    valueVATReceiptDetail(d) <- overValueVATReceiptDetail(d);
 }
 // todo: после запуска у  всех клиентов удалить
 isDataValueVATReceiptDetail = DATA BOOLEAN ();

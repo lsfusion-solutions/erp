@@ -4,10 +4,6 @@ REQUIRE SkuLedger, TaxItem;
 
 NAMESPACE Stock;
 
-valueVATStockBatchDate 'НДС, %' (stock, batch, date)= valueRateRangeDate(VATSkuStock(skuBatch(batch), stock), date);
-currentValueVATStockBatch 'НДС, %' (stock, batch) = valueVATStockBatchDate(stock, batch, currentDate());
-currentValueVATBatch 'НДС, %' (batch) = currentValueVATStockBatch(stockBatch(batch), batch);
-
 VATBatch 'НДС партии, шкала' = ABSTRACT Range (Batch);
 numberVATBatch 'НДС партии, шкала' = numberRange(VATBatch(batch));
 valueVATBatch 'НДС партии, %' = ABSTRACT NUMERIC[10,5](Batch) PERSISTENT;
@@ -16,6 +12,12 @@ lastValueVATSkuStockDateTime(s, st, dt) = GROUP LAST valueVATBatch(b)
                                                                                    BY skuBatch(b), st, dt
                                                                                    ORDER orderBatch(b)
                                                                                    WHERE countLedgerBatchStock(b, st) AND valueVATBatch(b) AND dateTimeBatch(b) < dt COMPLEX; 
+                                                                                   
+valueVATStockBatchDate 'НДС, %' (stock, batch, date)= OVERRIDE valueRateRangeDate(VATSkuStock(skuBatch(batch), stock), date), valueVATBatch(batch) IF stock IS Stock AND date IS DATE;
+currentValueVATStockBatch 'НДС, %' (stock, batch) = valueVATStockBatchDate(stock, batch, currentDate());
+currentValueVATBatch 'НДС, %' (batch) = currentValueVATStockBatch(stockBatch(batch), batch);
+                                                                                   
+                                                                                   
 EXTEND FORM batches 
     PROPERTIES (bt) READONLY currentValueVATBatch AFTER nameStockBatch(bt), numberVATBatch, valueVATBatch 
 ;    
