@@ -1,9 +1,7 @@
 package equ.api.cashregister;
 
-import equ.api.MachineryHandler;
-import equ.api.MachineryInfo;
-import equ.api.RequestExchange;
-import equ.api.SalesBatch;
+import equ.api.*;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;

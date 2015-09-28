@@ -21,7 +21,7 @@ public class CashRegisterItemInfo extends ItemInfo {
                                 String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,
                                 Integer itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
                                 String idDepartmentStore, String section, BigDecimal minPrice, String extIdItemGroup) {
-        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
+        super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM);
         this.itemGroupObject = itemGroupObject;
         this.description = description;

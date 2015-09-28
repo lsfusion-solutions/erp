@@ -12,6 +12,10 @@ public class CashRegisterInfo extends MachineryInfo {
     public String pieceCodeGroupCashRegister;
     public String weightCodeGroupCashRegister;
 
+    public CashRegisterInfo(Integer number, String handlerModel, String port, String directory) {
+        this(null, number, null, handlerModel, port, directory, null, false, null, null);
+    }
+
     public CashRegisterInfo(Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory, Integer overDepartNumber,
                             boolean disableSales, String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister) {
         this(true, false, false, numberGroup, number, nameModel, handlerModel, port, directory, null, overDepartNumber,

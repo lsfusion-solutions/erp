@@ -68,6 +68,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule cashRegisterItemLM;
     private ScriptingLogicsModule collectionLM;
     private ScriptingLogicsModule discountCardLM;
+    private ScriptingLogicsModule equipmentLM;
     private ScriptingLogicsModule equipmentCashRegisterLM;
     private ScriptingLogicsModule giftCardLM;
     private ScriptingLogicsModule itemLM;
@@ -135,6 +136,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
         collectionLM = getBusinessLogics().getModule("Collection");
         discountCardLM = getBusinessLogics().getModule("DiscountCard");
+        equipmentLM = getBusinessLogics().getModule("Equipment");
         equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         giftCardLM = getBusinessLogics().getModule("GiftCard");
         itemLM = getBusinessLogics().getModule("Item");
@@ -748,7 +750,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     public boolean enabledStopListInfo() throws RemoteException, SQLException {
-        return cashRegisterLM != null && stopListLM != null;
+        return (cashRegisterLM != null || scalesLM != null)  && stopListLM != null;
     }
 
     @Override
@@ -756,10 +758,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
         List<StopListInfo> stopListInfoList = new ArrayList<>();
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
-        if(cashRegisterLM != null && stopListLM != null) {
+        if(machineryLM != null && stopListLM != null) {
             try (DataSession session = getDbManager().createSession()) {
 
-                Map<String, Map<String, Set<String>>> stockMap = getStockMap(session);
+                Map<String, Map<String, List<MachineryInfo>>> stockMap = getStockMap(session);
                          
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
@@ -786,41 +788,41 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Time timeTo = (Time) slEntry.get("toTimeStopList").getValue();                    
                                                                               
                     Set<String> idStockSet = new HashSet<>();
-                    Set<Integer> groupCashRegisterSet = new HashSet<>();
-                    Map<String, Set<String>> handlerDirectoryMap = new HashMap<>();
+                    Set<Integer> groupMachinerySet = new HashSet<>();
+                    Map<String, List<MachineryInfo>> handlerMachineryMap = new HashMap<>();
                     KeyExpr stockExpr = new KeyExpr("stock");
-                    KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
-                    ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupCashRegister", groupCashRegisterExpr);
+                    KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
+                    ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupMachinery", groupMachineryExpr);
                     QueryBuilder<Object, Object> stockQuery = new QueryBuilder<>(stockKeys);
                     stockQuery.addProperty("idStock", stopListLM.findProperty("idStock").getExpr(stockExpr));
-                    stockQuery.addProperty("nppGroupCashRegister", cashRegisterLM.findProperty("nppGroupMachinery").getExpr(groupCashRegisterExpr));
+                    stockQuery.addProperty("nppGroupMachinery", machineryLM.findProperty("nppGroupMachinery").getExpr(groupMachineryExpr));
                     stockQuery.and(stopListLM.findProperty("inStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
                     stockQuery.and(stopListLM.findProperty("notSucceededStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
-                    stockQuery.and(cashRegisterLM.findProperty("stockGroupMachinery").getExpr(groupCashRegisterExpr).compare(stockExpr, Compare.EQUALS));
-                    stockQuery.and(cashRegisterLM.findProperty("equipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-                    stockQuery.and(cashRegisterLM.findProperty("activeGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
+                    stockQuery.and(machineryLM.findProperty("stockGroupMachinery").getExpr(groupMachineryExpr).compare(stockExpr, Compare.EQUALS));
+                    stockQuery.and(equipmentLM.findProperty("equipmentServerGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+                    stockQuery.and(machineryLM.findProperty("activeGroupMachinery").getExpr(groupMachineryExpr).getWhere());
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> stockResult = stockQuery.execute(session);
                     for (ImMap<Object, Object> stockEntry : stockResult.values()) {
                         String idStock = trim((String) stockEntry.get("idStock"));
                         idStockSet.add(idStock);                       
                         if(stockMap.containsKey(idStock))
-                            for (Map.Entry<String, Set<String>> entry : stockMap.get(idStock).entrySet()) {
-                                if (handlerDirectoryMap.containsKey(entry.getKey()))
-                                    handlerDirectoryMap.get(entry.getKey()).addAll(entry.getValue());
-                                else
-                                    handlerDirectoryMap.put(entry.getKey(), entry.getValue());
-                            }
-                        Integer groupCashRegister = (Integer) stockEntry.get("nppGroupCashRegister");
-                        groupCashRegisterSet.add(groupCashRegister);
+                        for (Map.Entry<String, List<MachineryInfo>> entry : stockMap.get(idStock).entrySet()) {
+                            if (handlerMachineryMap.containsKey(entry.getKey()))
+                                handlerMachineryMap.get(entry.getKey()).addAll(entry.getValue());
+                            else
+                                handlerMachineryMap.put(entry.getKey(), entry.getValue());
+                        }
+                        Integer groupMachinery = (Integer) stockEntry.get("nppGroupMachinery");
+                        groupMachinerySet.add(groupMachinery);
                     }
                     
-                    if(!handlerDirectoryMap.isEmpty()) {
-                        Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject);
+                    if(!handlerMachineryMap.isEmpty()) {
+                        Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
                         Set<Integer> nppGroupMachinerySet = stopList == null ? new HashSet<Integer>() : stopList.nppGroupMachinerySet;
-                        nppGroupMachinerySet.addAll(groupCashRegisterSet);
+                        nppGroupMachinerySet.addAll(groupMachinerySet);
                         stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
-                                idStockSet, nppGroupMachinerySet, stopListItemMap, handlerDirectoryMap));
+                                idStockSet, nppGroupMachinerySet, stopListItemMap, handlerMachineryMap));
                     }
                 }
 
@@ -835,47 +837,61 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return stopListInfoList;
     }
 
-    private Map<String, Map<String, Set<String>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Map<String, Set<String>>> stockMap = new HashMap<>();
+    private Map<String, Map<String, List<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<String, List<MachineryInfo>>> stockMap = new HashMap<>();
 
-        KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
-        KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-        ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
-        QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
+        KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
+        KeyExpr machineryExpr = new KeyExpr("machinery");
+        ImRevMap<Object, KeyExpr> machineryKeys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
+        QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
-        String[] groupCashRegisterNames = new String[] {"handlerModelGroupMachinery", "idStockGroupMachinery"};
-        LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("handlerModelGroupMachinery", "idStockGroupMachinery");
-        for (int i = 0; i < groupCashRegisterProperties.length; i++) {
-            cashRegisterQuery.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
+        String[] groupMachineryNames = new String[] {"handlerModelGroupMachinery", "idStockGroupMachinery"};
+        LCP[] groupMachineryProperties = machineryLM.findProperties("handlerModelGroupMachinery", "idStockGroupMachinery");
+        for (int i = 0; i < groupMachineryProperties.length; i++) {
+            machineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
         }
-        cashRegisterQuery.addProperty("overDirectoryMachinery", cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr));
-        
-        cashRegisterQuery.and(cashRegisterLM.findProperty("handlerModelGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-        cashRegisterQuery.and(cashRegisterLM.findProperty("idStockGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-        //cashRegisterQuery.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
-        cashRegisterQuery.and(cashRegisterLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
-        cashRegisterQuery.and(cashRegisterLM.findProperty("activeGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
-        cashRegisterQuery.and(cashRegisterLM.findProperty("equipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
-        for (ImMap<Object, Object> entry : cashRegisterResult.valueIt()) {
-            String handlerModel = (String) entry.get("handlerModelGroupMachinery");
-            String directory = (String) entry.get("overDirectoryMachinery");
-            String idStockGroupMachinery = (String) entry.get("idStockGroupMachinery");
+        machineryQuery.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
+        machineryQuery.addProperty("portMachinery", machineryLM.findProperty("portMachinery").getExpr(machineryExpr));
+        machineryQuery.addProperty("nppMachinery", machineryLM.findProperty("nppMachinery").getExpr(machineryExpr));
 
-            Map<String, Set<String>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<String>>();
+        machineryQuery.and(machineryLM.findProperty("handlerModelGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(machineryLM.findProperty("idStockGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(machineryLM.findProperty("groupMachineryMachinery").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
+        machineryQuery.and(machineryLM.findProperty("activeGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(equipmentLM.findProperty("equipmentServerGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> machineryResult = machineryQuery.executeClasses(session);
+        ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
+        ValueClass scalesClass = scalesLM == null ? null : scalesLM.findClass("Scales");
+        for (int i = 0; i < machineryResult.size(); i++) {
+            ImMap<Object, ObjectValue> values = machineryResult.getValue(i);
+            String handlerModel = (String) values.get("handlerModelGroupMachinery").getValue();
+            String directory = (String) values.get("overDirectoryMachinery").getValue();
+            String port = (String) values.get("portMachinery").getValue();
+            Integer nppMachinery = (Integer) values.get("nppMachinery").getValue();
+            ConcreteClass machineryClass = machineryResult.getKey(i).get("machinery").objectClass;
+            boolean isCashRegister = machineryClass != null && machineryClass.equals(cashRegisterClass);
+            boolean isScales = machineryClass != null && machineryClass.equals(scalesClass);
+            String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
+
+            Map<String, List<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, List<MachineryInfo>>();
             if(!handlerMap.containsKey(handlerModel))
-                handlerMap.put(handlerModel, new HashSet<String>());
-            handlerMap.get(handlerModel).add(directory);
+                handlerMap.put(handlerModel, new ArrayList<MachineryInfo>());
+            if(isCashRegister) {
+                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppMachinery, handlerModel, port, directory));
+            } else if(isScales){
+                handlerMap.get(handlerModel).add(new ScalesInfo(nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
+            }
             stockMap.put(idStockGroupMachinery, handlerMap);
         }
         return stockMap;
     }
     
-    private Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, ItemInfo> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
-        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        KeyExpr skuExpr = new KeyExpr("sku");
+        ImRevMap<Object, KeyExpr> sldKeys = MapFact.toRevMap((Object) "stopListDetail", sldExpr, "sku", skuExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail"};
@@ -884,20 +900,31 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
+        if(scalesItemLM != null) {
+            sldQuery.and(stopListLM.findProperty("skuStopListDetail").getExpr(sldExpr).compare(skuExpr, Compare.EQUALS));
+        }
         sldQuery.and(stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> sldResult = sldQuery.execute(session);
-        for (ImMap<Object, Object> sldEntry : sldResult.values()) {
-            String idBarcode = trim((String) sldEntry.get("idBarcodeSkuStopListDetail"));
-            String idItem = trim((String) sldEntry.get("idSkuStopListDetail"));
-            String nameItem = trim((String) sldEntry.get("nameSkuStopListDetail"));
-            String idSkuGroup = trim((String) sldEntry.get("idSkuGroupStopListDetail"));
-            String nameSkuGroup = trim((String) sldEntry.get("nameSkuGroupStopListDetail"));
-            String idUOM = trim((String) sldEntry.get("idUOMSkuStopListDetail"));
-            String shortNameUOM = trim((String) sldEntry.get("shortNameUOMSkuStopListDetail"));
-            boolean split = sldEntry.get("splitSkuStopListDetail") != null;
-            boolean passScales = sldEntry.get("passScalesSkuStopListDetail") != null;
-            stopListItemList.put(idBarcode, new ItemInfo(idItem, idBarcode, nameItem, null, split, null, null, passScales,
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
+        for (int i = 0; i < sldResult.size(); i++) {
+            ImMap<Object, DataObject> keys = sldResult.getKey(i);
+            ImMap<Object, ObjectValue> values = sldResult.getValue(i);
+            DataObject skuObject = keys.get("sku");
+            String idBarcode = trim((String) values.get("idBarcodeSkuStopListDetail").getValue());
+            String idItem = trim((String) values.get("idSkuStopListDetail").getValue());
+            String nameItem = trim((String) values.get("nameSkuStopListDetail").getValue());
+            String idSkuGroup = trim((String) values.get("idSkuGroupStopListDetail").getValue());
+            String nameSkuGroup = trim((String) values.get("nameSkuGroupStopListDetail").getValue());
+            String idUOM = trim((String) values.get("idUOMSkuStopListDetail").getValue());
+            String shortNameUOM = trim((String) values.get("shortNameUOMSkuStopListDetail").getValue());
+            boolean split = values.get("splitSkuStopListDetail").getValue() != null;
+            boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
+            Map<String, Integer> stockPluNumberMap = new HashMap();
+            for(String idStock : idStockSet) {
+                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku").read(session, new DataObject(idStock), skuObject);
+                stockPluNumberMap.put(idStock, pluNumber);
+            }
+            stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
                     null, null, null, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
         }
         return stopListItemList;

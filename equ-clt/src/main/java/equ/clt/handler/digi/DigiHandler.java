@@ -199,4 +199,8 @@ public class DigiHandler extends ScalesHandler {
         if (!"0".equals(errorString.trim()))
             throw new RuntimeException("Scales Error: " + errorString);
     }
+
+    @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
+    }
 }

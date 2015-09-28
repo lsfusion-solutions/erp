@@ -1,10 +1,9 @@
-package equ.api.cashregister;
-
-import equ.api.ItemInfo;
+package equ.api;
 
 import java.io.Serializable;
 import java.sql.Date;
 import java.sql.Time;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,10 +17,10 @@ public class StopListInfo implements Serializable {
     public Set<String> idStockSet;
     public Set<Integer> nppGroupMachinerySet;
     public Map<String, ItemInfo> stopListItemMap;
-    public Map<String, Set<String>> handlerDirectoryMap;
+    public Map<String, List<MachineryInfo>> handlerMachineryMap;
 
     public StopListInfo(boolean exclude, String number, Date dateFrom, Time timeFrom, Date dateTo, Time timeTo, Set<String> idStockSet,
-                        Set<Integer> nppGroupMachinerySet, Map<String, ItemInfo> stopListItemMap, Map<String, Set<String>> handlerDirectoryMap) {
+                        Set<Integer> nppGroupMachinerySet, Map<String, ItemInfo> stopListItemMap, Map<String, List<MachineryInfo>> handlerMachineryMap) {
         this.exclude = exclude;
         this.number = number;
         this.dateFrom = dateFrom;
@@ -31,6 +30,6 @@ public class StopListInfo implements Serializable {
         this.idStockSet = idStockSet;
         this.nppGroupMachinerySet = nppGroupMachinerySet;
         this.stopListItemMap = stopListItemMap;
-        this.handlerDirectoryMap = handlerDirectoryMap;
+        this.handlerMachineryMap = handlerMachineryMap;
     }
 }

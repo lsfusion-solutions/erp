@@ -73,7 +73,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {          
+        public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         }
 
         @Override
@@ -240,7 +240,10 @@ public class EasyCSVHandler {
 
         @Override
         public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-            
+        }
+
+        @Override
+        public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
         }
     }
 }

@@ -12,7 +12,7 @@ public class TerminalItemInfo extends ItemInfo {
     public TerminalItemInfo(String idItem, String barcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                             Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                             String idItemGroup, String canonicalNameSkuGroup, BigDecimal quantity, String image) {
-        super(idItem, barcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags,
+        super(null, idItem, barcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags,
                 idItemGroup, canonicalNameSkuGroup, null, null);
         this.quantity = quantity;
         this.image = image;

@@ -4,9 +4,7 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 //import com.jacob.com.LibraryLoader;
 import com.jacob.com.Variant;
-import equ.api.MachineryInfo;
-import equ.api.SendTransactionBatch;
-import equ.api.SoftCheckInfo;
+import equ.api.*;
 import equ.api.scales.*;
 import equ.clt.handler.ScalesSettings;
 import org.apache.log4j.Logger;
@@ -844,5 +842,9 @@ public class ShtrihPrintHandler extends ScalesHandler {
     private void logError(List<String> errors, String errorText, Throwable t) {
         errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
         processTransactionLogger.error(errorText, t);
+    }
+
+    @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
     }
 }

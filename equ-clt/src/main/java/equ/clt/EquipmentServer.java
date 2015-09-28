@@ -297,12 +297,14 @@ public class EquipmentServer {
         for (StopListInfo stopListInfo : stopListInfoList) {
             
             boolean succeeded = true;
-            for(Map.Entry<String, Set<String>> entry : stopListInfo.handlerDirectoryMap.entrySet()) {
+            for(Map.Entry<String, List<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
 
                 try {
                     Object clsHandler = getHandler(entry.getKey(), remote);
                     if (clsHandler instanceof CashRegisterHandler)
-                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, entry.getValue());
+                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, getDirectorySet(entry.getValue()));
+                    else if(clsHandler instanceof ScalesHandler)
+                        ((ScalesHandler) clsHandler).sendStopListInfo(stopListInfo, entry.getValue());
                 } catch (Exception e) {
                     remote.errorStopListReport(stopListInfo.number, e);
                     succeeded = false;
@@ -312,6 +314,15 @@ public class EquipmentServer {
                 remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
         }
         processStopListLogger.info("Process StopListInfo finished");
+    }
+
+    private Set<String> getDirectorySet(List<MachineryInfo> machineryInfoList) {
+        Set<String> directorySet = new HashSet<>();
+        for(MachineryInfo machinery : machineryInfoList) {
+            if(machinery.directory != null)
+                directorySet.add(machinery.directory);
+        }
+        return directorySet;
     }
 
     private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {

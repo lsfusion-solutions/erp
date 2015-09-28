@@ -1,7 +1,8 @@
 package equ.clt.handler.bizerba;
 
+import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
-import equ.api.SoftCheckInfo;
+import equ.api.StopListInfo;
 import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -28,6 +29,7 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
     }
 
     @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
+        sendStopListInfo(stopListInfo, machineryInfoList, charset, encode);
     }
 }

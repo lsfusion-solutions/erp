@@ -18,7 +18,7 @@ public class ScalesItemInfo extends ItemInfo {
                           Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                           String idItemGroup, String canonicalNameSkuGroup, Integer hoursExpiry, Integer labelFormat,
                           String description, Integer descriptionNumber, String idUOM, String shortNameUOM) {
-        super(idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags,
+        super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags,
                 idItemGroup, canonicalNameSkuGroup, null, null);
         this.hoursExpiry = hoursExpiry;
         this.labelFormat = labelFormat;
