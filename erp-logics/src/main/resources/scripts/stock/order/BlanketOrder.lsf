@@ -95,15 +95,13 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
     @defineDocumentDetailVAT(blanketOrder, countrySupplierStock); // объявляем шкалу
     // записываем значение ставки
-    over1VATBlanketOrderDetail = ABSTRACT Range (BlanketOrderDetail); 
-    over2VATBlanketOrderDetail = ABSTRACT Range (BlanketOrderDetail);
-    overVATBlanketOrderDetail = OVERRIDE over2VATBlanketOrderDetail(detail), over1VATBlanketOrderDetail(detail);
+    overVATBlanketOrderDetail = ABSTRACT OVERRIDE FIRST Range (BlanketOrderDetail);
+    overVATBlanketOrderDetail(d) += VATSkuCountry (skuBlanketOrderDetail(d), countryStock(supplierStockBlanketOrderDetail(d)));
     
     WHEN SESSION
         (CHANGED(skuBlanketOrderDetail(detail)) OR CHANGED (supplierStockBlanketOrderDetail(detail)) OR 
          CHANGED(overVATBlanketOrderDetail(detail))) AND NOT CHANGED(VATBlanketOrderDetail(detail)) DO {
-            VATBlanketOrderDetail(detail) <- OVERRIDE VATSkuCountry (skuBlanketOrderDetail(detail), countryStock(supplierStockBlanketOrderDetail(detail))),
-                                                   overVATBlanketOrderDetail(detail);
+            VATBlanketOrderDetail(detail) <- overVATBlanketOrderDetail(detail);
         } 
     @deriveDocumentDetailValueVAT(blanketOrder);
     
