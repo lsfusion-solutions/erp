@@ -211,7 +211,7 @@ inPriceListStockGroup 'Отм' (priceList, stockGroup) = OVERRIDE
 inPriceListStock 'Отм' (priceList, stock) =
     (OVERRIDE inPriceListStockGroup(priceList, stockGroupStock(stock)),
               dataInPriceListStock(priceList, stock))
-    AND isCompanyStock(stock);
+    AND isCompanyStock(stock) PERSISTENT;
        
              
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    
@@ -1297,8 +1297,7 @@ DESIGN legalEntity{
 
 // ------------------------------------------------- Сравнение прайсов ---------------------------- //
 
-countSkuPriceList (sku, priceList) = GROUP SUM 1 IF skuPriceListDetail(detail) == sku AND priceListPriceListDetail(detail) == priceList
-    BY sku, priceList;
+countSkuPriceList (sku, priceList) = GROUP SUM 1 BY skuPriceListDetail(detail), priceListPriceListDetail(detail);
 
 countSkusPriceList (priceList) = GROUP SUM 1 IF countSkuPriceList(sku, priceList)
     BY priceList;
