@@ -310,9 +310,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     
     overVATUserOrderDetail = ABSTRACT OVERRIDE FIRST Range (UserOrderDetail);
     overVATUserOrderDetail(d) += VATSkuCountry (skuUserOrderDetail(d), countryStock(supplierStockUserOrderDetail(d)));
+    changedVATUserOrderDetail = ABSTRACT BOOLEAN (UserOrderDetail);
     
     WHEN SESSION
-        (CHANGED(skuUserOrderDetail(detail)) OR CHANGED (supplierStockUserOrderDetail(detail))) AND NOT CHANGED(VATUserOrderDetail(detail)) DO {
+        (CHANGED(skuUserOrderDetail(detail)) OR CHANGED (supplierStockUserOrderDetail(detail)) OR changedVATUserOrderDetail(detail)) AND NOT CHANGED(VATUserOrderDetail(detail)) DO {
             VATUserOrderDetail(detail) <- overVATUserOrderDetail(detail);
         } // записываем шкалу
 

@@ -5,13 +5,7 @@ REQUIRE PurchaseReturnOrder, SkuLedgerTax;
 NAMESPACE PurchaseReturn;
 
 overVATUserOrderDetail(detail) += VATBatch(batchUserOrderDetail(detail));
-WHEN SESSION FORMS userOrder CHANGED(batchUserOrderDetail(d)) DO {
-    VATUserOrderDetail(d) <- overVATUserOrderDetail(d);
-}
+changedVATUserOrderDetail(d) += CHANGED(batchUserOrderDetail(d)); 
 
 overSetValueVATUserOrderDetail(detail) += valueVATBatch(batchUserOrderDetail(detail));
-
-// todo : временное решение, пока нету последовательности выполнения событий
-WHEN SESSION FORMS userOrder CHANGED(batchUserOrderDetail(d)) DO {
-    valueVATUserOrderDetail(d) <- calcSetValueVATUserOrderDetail(d); 
-}
+changedValueVATUserOrderDetail(d) += CHANGED(batchUserOrderDetail(d));
