@@ -885,7 +885,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             if(!handlerMap.containsKey(handlerModel))
                 handlerMap.put(handlerModel, new ArrayList<MachineryInfo>());
             if(isCashRegister) {
-                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppMachinery, handlerModel, port, directory));
+                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             } else if(isScales){
                 handlerMap.get(handlerModel).add(new ScalesInfo(nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             }
