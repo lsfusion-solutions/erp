@@ -598,8 +598,13 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        String result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
-                                        if (!result.equals("0")) {
+                                        int attempts = 0;
+                                        String result = null;
+                                        while((result == null || !result.equals("0")) && attempts < 3) {
+                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
+                                            attempts++;
+                                        }
+                                        if (result != null && !result.equals("0")) {
                                             logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
                                             globalError++;
                                         }
