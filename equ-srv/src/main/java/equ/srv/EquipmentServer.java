@@ -682,7 +682,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public List<DiscountCard> readDiscountCardList() throws RemoteException, SQLException {
+    public List<DiscountCard> readDiscountCardList(String idDiscountCardFrom, String idDiscountCardTo) throws RemoteException, SQLException {
         List<DiscountCard> discountCardList = new ArrayList<>();
         if(discountCardLM != null) {
             try (DataSession session = getDbManager().createSession()) {
@@ -706,21 +706,35 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImMap<Object, Object> row = discountCardResult.getValue(i);
                     
                     String idDiscountCard = getRowValue(row, "idDiscountCard");
-                    if(idDiscountCard == null)
-                        idDiscountCard = String.valueOf(discountCardResult.getKey(i).get("discountCard"));
-                    String numberDiscountCard = getRowValue(row, "numberDiscountCard");
-                    String nameDiscountCard = getRowValue(row, "nameDiscountCard");
-                    BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
-                    Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
-                    Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
-                    
-                    discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
+                    if (discountCardCompare(idDiscountCard, idDiscountCardFrom) >= 0 && discountCardCompare(idDiscountCard, idDiscountCardTo) <= 0) {
+                        if (idDiscountCard == null)
+                            idDiscountCard = String.valueOf(discountCardResult.getKey(i).get("discountCard"));
+                        String numberDiscountCard = getRowValue(row, "numberDiscountCard");
+                        String nameDiscountCard = getRowValue(row, "nameDiscountCard");
+                        BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
+                        Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
+                        Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
+
+                        discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
+                    }
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
         return discountCardList;
+    }
+
+    private int discountCardCompare(String d1, String d2) {
+        int result = 0;
+        if (d1 != null && d2 != null) {
+            try {
+                result = Integer.parseInt(d1) - Integer.parseInt(d2);
+            } catch (Exception e) {
+                result = 0;
+            }
+        }
+        return result;
     }
 
     @Override
@@ -1140,10 +1154,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-                String[] names = new String[]{"dateFromRequestExchange", "dateToRequestExchange",
-                        "startDateRequestExchange", "nameRequestExchangeTypeRequestExchange"};
-                LCP[] properties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange",
-                        "startDateRequestExchange", "nameRequestExchangeTypeRequestExchange");
+                String[] names = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
+                LCP[] properties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange");
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
                 }
@@ -1165,6 +1179,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
                     Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
                     Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
+                    String idDiscountCardFrom = trim((String) result.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
+                    String idDiscountCardTo = trim((String) result.getValue(i).get("idDiscountCardToRequestExchange").getValue());
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
                     Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
@@ -1183,7 +1199,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         requestExchangeMap.put(requestExchangeKey, new RequestExchange((Integer) requestExchangeObject.getValue(),
                                 new HashSet<>(Collections.singletonList(nppMachinery)), directorySet, idStockMachinery,
                                 extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
-                                startDateRequestExchange, typeRequestExchange));
+                                startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                     } else {
                         requestExchange.cashRegisterSet.add(nppMachinery);
                     }

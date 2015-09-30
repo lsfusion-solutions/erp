@@ -26,6 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static org.apache.commons.lang.StringUtils.trim;
+import static org.apache.commons.lang.StringUtils.trimToEmpty;
 
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
@@ -760,9 +761,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
 
                 for (DiscountCard card : discountCardList) {
-                    boolean active = card.dateFromDiscountCard != null && startDate != null && card.dateFromDiscountCard.compareTo(startDate) >= 0;
+                    boolean active = startDate == null || (card.dateFromDiscountCard != null && card.dateFromDiscountCard.compareTo(startDate) >= 0);
                     if (active) {
-                        String record = String.format("+|%s|%s|1|%s|%s|3", card.numberDiscountCard, card.nameDiscountCard,
+                        String record = String.format("+|%s|%s|1|%s|%s|3", trimToEmpty(card.numberDiscountCard), trimToEmpty(card.nameDiscountCard),
                                 card.percentDiscountCard == null ? 0 : card.percentDiscountCard.intValue(), formatCardNumber(card.idDiscountCard));
                         writer.println(record);
                     }
@@ -778,9 +779,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     String formatCardNumber(String value) {
-        if (value != null && !value.isEmpty())
-            while (value.startsWith("0"))
-                value = value.substring(1);
+        value = trimToEmpty(value);
+        while (value.startsWith("0"))
+            value = value.substring(1);
         return value;
     }
 

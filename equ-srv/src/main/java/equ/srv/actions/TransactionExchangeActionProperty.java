@@ -124,7 +124,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         
         if(retailCRMLM != null) {
 
-            List<DiscountCard> discountCardList = remote.readDiscountCardList();
+            List<DiscountCard> discountCardList = remote.readDiscountCardList(null, null);
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();

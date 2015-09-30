@@ -13,10 +13,13 @@ public class RequestExchange implements Serializable {
     public Date dateFrom;
     public Date dateTo;
     public Date startDate;
+    public String idDiscountCardFrom;
+    public String idDiscountCardTo;
     private String typeRequestExchange;
 
     public RequestExchange(Integer requestExchange, Set<Integer> cashRegisterSet, Set<String> directorySet, String idStock,
-                           Set<String> extraStockSet, Date dateFrom, Date dateTo, Date startDate, String typeRequestExchange) {
+                           Set<String> extraStockSet, Date dateFrom, Date dateTo, Date startDate, String idDiscountCardFrom,
+                           String idDiscountCardTo, String typeRequestExchange) {
         this.requestExchange = requestExchange;
         this.cashRegisterSet = cashRegisterSet;
         this.directorySet = directorySet;
@@ -25,6 +28,8 @@ public class RequestExchange implements Serializable {
         this.dateFrom = dateFrom;
         this.dateTo = dateTo;
         this.startDate = startDate;
+        this.idDiscountCardFrom = idDiscountCardFrom;
+        this.idDiscountCardTo = idDiscountCardTo;
         this.typeRequestExchange = typeRequestExchange;
     }
 

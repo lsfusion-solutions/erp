@@ -49,7 +49,7 @@ public interface EquipmentServerInterface extends Remote {
     void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
     void errorRequestExchange(Map<Integer, String> succeededRequestsMap) throws RemoteException, SQLException;
 
-    List<DiscountCard> readDiscountCardList() throws RemoteException, SQLException;
+    List<DiscountCard> readDiscountCardList(String idDiscountCardFrom, String idDiscountCardTo) throws RemoteException, SQLException;
 
     List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException;
 
