@@ -138,10 +138,13 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                         findProperty("originalInvoice").change(
                                                 new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
 
-                                        if (importResult >= IMPORT_RESULT_OK)
-                                            currentSession.apply(context);
-
                                         if (importResult >= IMPORT_RESULT_OK) {
+                                            if(!currentSession.apply(context)) {
+                                                importResult = IMPORT_RESULT_ERROR;
+                                                logImportError(context, attachmentEmailObject, "Apply failed, see constraints in log", isOld);
+                                            }
+                                        }
+                                        if (importResult >= IMPORT_RESULT_EMPTY) {
                                             try (DataSession postImportSession = context.createSession()) {
                                                 findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
                                                 postImportSession.apply(context);
@@ -233,7 +236,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
     
     private List<byte[]> unpackZIPFile(byte[] fileBytes, String extensionFilter) {
 
-        List<byte[]> result = new ArrayList<byte[]>();
+        List<byte[]> result = new ArrayList<>();
         File inputFile = null;
         File outputFile = null;
         try {
@@ -243,7 +246,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             }
 
             byte[] buffer = new byte[1024];
-            Set<File> dirList = new HashSet<File>();
+            Set<File> dirList = new HashSet<>();
             File outputDirectory = new File(inputFile.getParent() + "/" + getFileName(inputFile));
             if(inputFile.exists() && (outputDirectory.exists() || outputDirectory.mkdir())) {
                 dirList.add(outputDirectory);
