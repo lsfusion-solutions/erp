@@ -1,0 +1,130 @@
+MODULE ZReportGeneralLedger;
+
+REQUIRE GeneralLedger, ZReport, DimensionStock;
+
+NAMESPACE ZReport;
+
+EXTEND CLASS ZReport : GeneralLedger.GLDocument;
+isPostedGLDocument(document) += isPostedZReport(document);
+nameGLDocument(document) += descriptionZReport(document);
+
+numberGLDocument(document) += STRING[18](numberZReport(document));
+
+dateTimeGLDocument(document) += dateTimeZReport(document);
+
+//////////////////////////////// 3. Продажа/выручка (ПКО)  //////////////////////////////////
+
+//-- Оплачено налично         sumCashPaymentZReport
+shortDescriptionZReport 'Название документа' (zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStoreZReport(zReport),
+                                            ' от ' + dateZReport(zReport));
+
+@defineGeneralLedgerAggregation (zReport, ZCash, legalEntityStock, sumCashPayment, date, time, shortDescription, '50.2', '90.1.1', 'by_default') ;
+creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(zReportZCashGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreZReport(zReportZCashGeneralLedger(generalLedger));
+idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('7') IF generalLedger IS ZCashGeneralLedger;
+
+
+//-- Оплачено карточкой         sumCardPaymentZReport
+@defineGeneralLedgerAggregation (           zReport, 
+                                 ZCard, 
+                                 legalEntityStock, 
+                                 sumCard, 
+                                 date, 
+                                 time, 
+                                 shortDescription, 
+                                 '57.4.1', 
+                                 '90.1.1', 
+                                 'by_default'
+                                 );
+creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(zReportZCardGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreZReport(zReportZCardGeneralLedger(generalLedger));
+idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('7') IF generalLedger IS ZCardGeneralLedger;
+
+//-- Сумма товара (сумма в чеке)
+@defineGeneralLedgerAggregation (zReport, 
+                                 costBatch, 
+                                 legalEntityStock, 
+                                 sumSkuReceiptDetail, 
+                                 shortDescription, 
+                                 '90.4', 
+                                 '41.2.2', 
+                                 'by_default'
+                                 ) ;
+creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(zReportCostBatchGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreZReport(zReportCostBatchGeneralLedger(generalLedger));
+idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('7') IF generalLedger IS CostBatchGeneralLedger;
+
+EXTEND FORM zReports
+    OBJECTS g=GeneralLedger
+    PROPERTIES(g) READONLY descriptionGeneralLedger, idDebitGeneralLedger, idDimensionsDebitGeneralLedger, dimensionsDebitGeneralLedger, 
+                            idCreditGeneralLedger, idDimensionsCreditGeneralLedger, dimensionsCreditGeneralLedger, sumGeneralLedger
+
+    FILTERS GLDocumentGeneralLedger(g) == z
+;
+
+DESIGN zReports {
+    firstCase {
+        NEW ledgerContainer AFTER ZFilters {
+            fill =1;
+            type = TABBED;
+            MOVE b.box;
+            MOVE g.box {
+                fill = 1;
+                caption = 'Проводки';
+            };
+        }
+    }            
+} 
+
+//EXTEND CLASS Receipt : GeneralLedger.GLDocument;
+//nameGLDocument(document) += descriptionReceipt(document);
+//numberGLDocument(document) += STRING[10](numberReceipt(document));
+//dateTimeGLDocument(document) += dateTimeReceipt(document);
+////editGLDocument (GLDocument)+= ACTION editInvoice(GLDocument);
+//
+////------------------- Розничная сумма --------------------//
+//companyReceipt (receipt) = legalEntityStore(storeDepartmentStore(departmentStoreReceipt(receipt)));
+//@defineGeneralLedgerAggregation (receipt,                     // основание
+//                                 POS,                         // идентификатор
+//                                 company,                     // компания
+//                                 sumReceiptDetail,     // сумма
+//                                 description,                 // описание
+//                                 '90.1',                      // дебет
+//                                 '41.2',                      // кредит
+//                                 'by_default'                 // идентификатор плана счетов
+//                                 ){
+//    @defineGeneralLedgerAggregation (receipt, POS, company, sumReceiptDetail, date, time, description, '90.1', '41.2', 'by_default'){
+//    @defineGeneralLedgerAggregation (receipt, POS, POS, company, sumReceiptDetail, date, time, description, '90.1', '41.2', 'by_default'){
+//    CLASS POSGeneralLedger : GeneralLedger;
+//
+//    TABLE POSGeneralLedger (POSGeneralLedger);
+//
+//    needToSumReceiptDetailReceipt (receipt)=  sumReceiptDetailReceipt(receipt) IF onlineGeneralLedger();
+//    @defineAggregation(receipt, POSGeneralLedger, needToSumReceiptDetail){
+//    @defineAggregationClass(receipt, Receipt, POSGeneralLedger, POSGeneralLedger, needToSumReceiptDetail){
+//    receiptPOSGeneralLedger = DATA Receipt (POSGeneralLedger) INDEXED;
+//
+//    @defineAggregationCustom1(receiptPOSGeneralLedger, receipt, Receipt, POSGeneralLedger, POSGeneralLedger, needToSumReceiptDetail){
+//    POSGeneralLedgerReceipt (receipt) =
+//        GROUP AGGR POSGeneralLedger BY receiptPOSGeneralLedger(POSGeneralLedger)
+//        WHERE POSGeneralLedger IS POSGeneralLedger PERSISTENT INDEXED;
+//
+//    needToSumReceiptDetailReceipt(receipt) => POSGeneralLedgerReceipt(receipt) RESOLVE LEFT;
+//
+//    isPOSGeneralLedger(POSGeneralLedger) = POSGeneralLedger IS POSGeneralLedger;
+//    isPOSGeneralLedger(POSGeneralLedger) => needToSumReceiptDetailReceipt(receiptPOSGeneralLedger(POSGeneralLedger)) RESOLVE RIGHT;
+//};
+//};
+//};
+//
+//    GLDocumentGeneralLedger(generalLedger) += receiptPOSGeneralLedger(generalLedger);
+//    legalEntityGeneralLedger(generalLedger) += companyReceipt(receiptPOSGeneralLedger(generalLedger));
+//    isPostedGeneralLedger(generalLedger) += isPostedReceipt(receiptPOSGeneralLedger(generalLedger));
+//    descriptionGeneralLedger(generalLedger) += descriptionReceipt(receiptPOSGeneralLedger(generalLedger));
+//    dateGeneralLedger(generalLedger) += dateReceipt(receiptPOSGeneralLedger(generalLedger));
+//    timeGeneralLedger(generalLedger) += timeReceipt(receiptPOSGeneralLedger(generalLedger));
+//    debitGeneralLedger(generalLedger) += GLAccountIdTypeIdGLAccount('by_default', '90.1') IF generalLedger IS POSGeneralLedger;
+//    creditGeneralLedger(generalLedger) += GLAccountIdTypeIdGLAccount('by_default', '41.2') IF generalLedger IS POSGeneralLedger;
+//    sumGeneralLedger(generalLedger) += sumReceiptDetailReceipt(receiptPOSGeneralLedger(generalLedger));
+//};
+//};
+//};
+//creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(receiptPOSGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreReceipt(receiptPOSGeneralLedger(generalLedger));
+//idOperationGeneralLedger(l) += '51' IF l IS POSGeneralLedger;
