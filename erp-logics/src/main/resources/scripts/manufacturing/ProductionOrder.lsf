@@ -1393,6 +1393,9 @@ WHEN SESSION FORMS order (CHANGED(manufactureDateProductDetail(d)) OR CHANGED(sk
     expiryDateProductDetail(d) <- calcExpiryDateProductDetail(d);            
 }  
 
+overShowEditOrder = ABSTRACT BOOLEAN (Order);
+overShowDeleteOrder = ABSTRACT BOOLEAN (Order);
+
 FORM orders 'Производственные заказы'
 
     OBJECTS o = Order
@@ -1402,9 +1405,9 @@ FORM orders 'Производственные заказы'
     PROPERTIES(o) READONLY quantityProductDetailOrder, sumProductDetailOrder, quantityComponentDetailOrder, sumComponentDetailOrder
     PROPERTIES(o) READONLYIF isReadonly() nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
 
-    PROPERTIES(o) addo=ADDFORM, EDITFORM SHOWIF isOpenedOrder(o)
+    PROPERTIES(o) addo=ADDFORM, EDITFORM SHOWIF overShowEditOrder(o)
     PROPERTIES(o) closeOrder SHOWIF isOpenedOrder(o), openOrder SHOWIF isClosedOrder(o)      
-    PROPERTIES(o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedOrder(o)
+    PROPERTIES(o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDeleteOrder(o)
     PROPERTIES (o) READONLY FORCE PANEL createdNameUserOrder, createdTimeOrder, createdHostnameComputerOrder, 
                                         postedNameUserOrder, postedTimeOrder, postedHostnameComputerOrder
 
@@ -1890,3 +1893,9 @@ showMovementPriceSubstituteSkuStocksComponentDetail 'Показать измен
 showBOMProductDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMProductDetail(d), p = productProductDetail(d)  MODAL SHORTCUT nameProductProductDetail;
 showBOMComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d), c = componentComponentDetail(d)  MODAL SHORTCUT nameComponentComponentDetail;
 showBOMNameComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d)  MODAL SHORTCUT fullNameBOMComponentDetail;
+
+
+@defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);
+
+overShowEditOrder (i) += showEditDeleteUserOrder(i) AND isOpenedOrder(i);
+overShowDeleteOrder (i) += showEditDeleteUserOrder(i) AND isOpenedOrder(i); 
