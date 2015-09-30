@@ -66,6 +66,7 @@ public class EquipmentServer {
 
     boolean needReconnect = false;
 
+    private Integer transactionThreadCount;
     private boolean mergeBatches = false;
 
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
@@ -79,6 +80,7 @@ public class EquipmentServer {
             @Override
             public void run() {
 
+                transactionThreadCount = transactionThreadCount == null ? 20 : transactionThreadCount;
                 int millis = 10000;
                 int sendSalesDelay = 0;
                 int sendSalesDelayCounter = -1;
@@ -141,7 +143,7 @@ public class EquipmentServer {
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
 
                             if(singleTransactionExecutor.isShutdown())
-                                singleTransactionExecutor = Executors.newFixedThreadPool(20);
+                                singleTransactionExecutor = Executors.newFixedThreadPool(transactionThreadCount);
                         }
 
                     } catch (Exception e) {
@@ -195,9 +197,9 @@ public class EquipmentServer {
         processTransactionThread = new Thread(processTransactionConsumer);
         processTransactionThread.setDaemon(true);
         processTransactionThread.start();
-        singleTransactionExecutor = Executors.newFixedThreadPool(20);
+        singleTransactionExecutor = Executors.newFixedThreadPool(transactionThreadCount);
         futures = new ArrayList<>();
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < transactionThreadCount; i++) {
             futures.add(singleTransactionExecutor.submit(new Runnable() {
                 @Override
                 public void run() {
@@ -748,6 +750,14 @@ public class EquipmentServer {
 
     public void setMergeBatches(boolean mergeBatches) {
         this.mergeBatches = mergeBatches;
+    }
+
+    public Integer getTransactionThreadCount() {
+        return transactionThreadCount;
+    }
+
+    public void setTransactionThreadCount(Integer transactionThreadCount) {
+        this.transactionThreadCount = transactionThreadCount;
     }
 
     abstract class Consumer implements Runnable {
