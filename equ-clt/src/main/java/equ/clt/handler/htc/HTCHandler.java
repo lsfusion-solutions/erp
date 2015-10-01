@@ -3,6 +3,7 @@ package equ.clt.handler.htc;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -872,7 +873,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     taskList.add(new RequestSalesInfoTask(directory, requestExchanges, useDataDirectory));
             }
             if(!taskList.isEmpty()) {
-                ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
+                ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "HTCRequestSales");
 
                 List<Future<Map<Integer, String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
 

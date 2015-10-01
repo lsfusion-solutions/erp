@@ -3,6 +3,7 @@ package equ.clt.handler.bizerba;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.scales.*;
+import equ.clt.EquipmentServer;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.OrderedMap;
 import org.apache.log4j.Logger;
@@ -102,7 +103,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     }
 
                     if(!taskList.isEmpty()) {
-                        ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
+                        ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendTransaction");
                         List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                         for (Future<SendTransactionResult> threadResult : threadResults) {
                             if(threadResult.get().localErrors.isEmpty())
@@ -141,7 +142,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 }
 
                 if (!taskList.isEmpty()) {
-                    ExecutorService singleTransactionExecutor = Executors.newFixedThreadPool(taskList.size());
+                    ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendStopList");
                     List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                     for (Future<List<String>> threadResult : threadResults) {
                         if (!threadResult.get().isEmpty())

@@ -6,6 +6,7 @@ import equ.api.scales.ScalesHandler;
 import equ.api.terminal.*;
 import lsfusion.base.OrderedMap;
 import lsfusion.base.Pair;
+import lsfusion.interop.DaemonThreadFactory;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -1027,5 +1028,9 @@ public class EquipmentServer {
             } catch (Exception ignored) {
             }
         }
+    }
+
+    public static ExecutorService getFixedThreadPool(int nThreads, String name) {
+        return Executors.newFixedThreadPool(nThreads, new DaemonThreadFactory(name));
     }
 }
