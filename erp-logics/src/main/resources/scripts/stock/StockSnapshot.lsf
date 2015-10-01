@@ -1108,6 +1108,8 @@ countDOWsInSnapshotType = GROUP SUM 1 IF inSnapshotTypeDOW(t,d) BY t;
 oneReportSnapshotType 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotType);
 idReportSnapshotType 'Идентификатор для планировщика' = DATA STRING[100] (SnapshotType);
 countDaysSnapshotType 'Количество дней' = DATA INTEGER (SnapshotType);
+countDaysDeleteSnapshotType 'Количество дней для хранения отчетов' = DATA INTEGER (SnapshotType);
+
 
 TABLE snapshotTypeDays(SnapshotType, INTEGER);
 inSnapshotTypeDays 'Вкл.' = DATA BOOLEAN (SnapshotType, INTEGER);
@@ -1128,7 +1130,7 @@ EXTEND FORM snapshotTypes
 EXTEND FORM snapshotType
     OBJECTS dow = DOW    
     PROPERTIES numberDOW(dow) READONLY, staticCaption(dow) READONLY, inSnapshotTypeDOW(t,dow)
-    PROPERTIES(t) oneReportSnapshotType, countDaysSnapshotType, idReportSnapshotType
+    PROPERTIES(t) oneReportSnapshotType, countDaysSnapshotType, countDaysDeleteSnapshotType, idReportSnapshotType
     ORDER BY numberDOW(dow)
     
     OBJECTS i = INTEGER    
@@ -1146,8 +1148,9 @@ DESIGN snapshotType {
             NEW createContainer1 {
                 type = CONTAINERH;
                 MOVE PROPERTY (oneReportSnapshotType(t));
-                MOVE PROPERTY (countDaysSnapshotType(t));
+                MOVE PROPERTY (countDaysSnapshotType(t));                
                 MOVE PROPERTY (idReportSnapshotType(t));
+                MOVE PROPERTY (countDaysDeleteSnapshotType(t));
             }
             NEW tabContainer {
                 fill = 1;
@@ -1192,6 +1195,11 @@ createSnapshotString 'Создать отчет' = ACTION (string, dateTo) NEWSE
         }
     }
 }
+
+deleteSnapshots = ACTION () {
+    DELETE r WHERE r IS Snapshot AND sumDate(dateSnapshot(r),countDaysDeleteSnapshotType(snapshotTypeSnapshot(r))) < currentDate();
+}
+
 
 filterSnapshotSupplier = DATA LOCAL LegalEntity ();
 nameFilterSnapshotSupplier 'Поставщик' = nameLegalEntity(filterSnapshotSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
