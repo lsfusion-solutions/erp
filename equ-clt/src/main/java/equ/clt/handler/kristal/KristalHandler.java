@@ -117,9 +117,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
                                 String idItemGroup = importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0" :
-                                        importGroupType.equals(1) ? makeIdItemGroup(hierarchyItemGroup, false)
+                                        importGroupType.equals(1) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup, false)
                                         : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
-                                        : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
+                                        : importGroupType.equals(3) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
                                 boolean isWeightItem = item.passScalesItem && item.splitItem;
                                 Object code = useIdItem ? item.idItem : item.idBarcode;
                                 String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
