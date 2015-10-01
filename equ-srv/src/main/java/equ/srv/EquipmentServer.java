@@ -77,7 +77,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
     private ScriptingLogicsModule machineryPriceTransactionSectionLM;
-    private ScriptingLogicsModule machineryPriceTransactionSupplierPriceLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
@@ -145,7 +144,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
         machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
-        machineryPriceTransactionSupplierPriceLM = getBusinessLogics().getModule("MachineryPriceTransactionSupplierPrice");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
@@ -286,12 +284,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
-                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode",
+                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
                         "canonicalNameSkuGroupMachineryPriceTransactionBarcode"};
                 LCP[] skuProperties = equLM.findProperties("nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
-                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode",
+                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
                         "canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                 for (int i = 0; i < skuProperties.length; i++) {
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
@@ -352,11 +350,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             machineryPriceTransactionSectionLM.findProperty("sectionMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                     skuQuery.addProperty("deleteSectionBarcode",
                             machineryPriceTransactionSectionLM.findProperty("deleteSectionBarcode").getExpr(barcodeExpr));
-                }
-
-                if(machineryPriceTransactionSupplierPriceLM != null) {
-                    skuQuery.addProperty("supplierPriceMachineryPriceTransactionBarcode",
-                            machineryPriceTransactionSupplierPriceLM.findProperty("supplierPriceMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
                 }
 
                 skuQuery.and(equLM.findProperty("inMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr).getWhere());
@@ -438,7 +431,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
                         String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
-                        BigDecimal minPrice = machineryPriceTransactionSupplierPriceLM == null ? null : (BigDecimal) row.get("supplierPriceMachineryPriceTransactionBarcode");
+                        BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
 
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT, 
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
