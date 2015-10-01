@@ -340,6 +340,12 @@ discountSumTransactionDetail 'Скидка' (d) = retailPriceLabelTransactionDet
 
 fullNameLegalEntityLabelTransactionDetail 'Компания (полное наименование)' (d) = fullNameLegalEntityLabelTransaction(labelTransactionLabelTransactionDetail(d));
 
+priceLabelTransactionDetailSkuDepartmentStore 'Текущая цена на ценниках' (sku, stock) =
+    GROUP LAST (priceLabelTransactionDetail(ledger) / OVERRIDE 1.0, amountBarcode(dataBarcodeLabelTransactionDetail(ledger)))
+          BY skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger)
+          ORDER dateTimeLabelTransactionDetail(ledger), ledger
+          WHERE ledger IS LabelTransactionDetail PERSISTENT TABLE extraSkuStock;
+
 firstSortLabelTransactionDetail = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 secondSortLabelTransactionDetail = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 
@@ -431,8 +437,6 @@ printToLabelTransaction 'Печать ценников' (labelTransaction) = ACT
         printLabelTransaction(labelTransaction);
 } IMAGE 'print.png' IN print;
 
-filterInLabelTransactionDetailSkuDepartmentStore (s,d)= GROUP SUM 1 IF s == skuLabelTransactionDetail(d) BY s, departmentStoreLabelTransactionDetail(d);
-
 FORM labelTransactions 'Печать ценников'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES nameDepartmentStore(d) SELECTOR
@@ -454,7 +458,8 @@ FORM labelTransactions 'Печать ценников'
  // по определенной позиции и складу  
     OBJECTS s = Sku
     PROPERTIES(s)    READONLY idBarcodeSku, nameSku, idSku
-    FILTERS filterInLabelTransactionDetailSkuDepartmentStore(s,d)
+    FILTERGROUP price
+        FILTER 'Ранее загруженные' priceLabelTransactionDetailSkuDepartmentStore(s, d) 'F8' DEFAULT
     OBJECTS dts = LabelTransactionDetail
     PROPERTIES(dts) READONLY nameLabelTypeLabelTransactionDetail, descriptionLabelTransactionDetail, dateLabelTransactionDetail, timeLabelTransactionDetail,
             createdNameUserLabelTransactionDetail, createdTimeLabelTransactionDetail, createdHostnameComputerLabelTransactionDetail,
@@ -1098,12 +1103,6 @@ printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатат�
 
 // Инкрементная загрузка
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
-
-priceLabelTransactionDetailSkuDepartmentStore 'Текущая цена на ценниках' (sku, stock) =
-    GROUP LAST (priceLabelTransactionDetail(ledger) / OVERRIDE 1.0, amountBarcode(dataBarcodeLabelTransactionDetail(ledger)))
-          BY skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger)
-          ORDER dateTimeLabelTransactionDetail(ledger), ledger
-          WHERE ledger IS LabelTransactionDetail PERSISTENT TABLE extraSkuStock;
 
 needLabelTransactionPriceListTypeSkuDepartmentStore (type, sku, stock) = 
     prevPriceAPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime()) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, currentDateTime()) == priceLabelTransactionDetailSkuDepartmentStore(sku, stock); 
