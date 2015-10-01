@@ -884,6 +884,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             ignoredRequests.put(entry.getKey(), entry.getValue());
                     }
                 }
+                singleTransactionExecutor.shutdown();
             }
 
         } catch (InterruptedException | ExecutionException e) {

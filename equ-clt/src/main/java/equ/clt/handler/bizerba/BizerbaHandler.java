@@ -114,6 +114,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                             if(threadResult.get().cleared)
                                 clearedScalesList.add(threadResult.get().scalesInfo);
                         }
+                        singleTransactionExecutor.shutdown();
                     }
                     if(!enabledScalesList.isEmpty())
                     errorMessages(errors, ips, brokenPortsMap);
@@ -146,6 +147,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                         if (!threadResult.get().isEmpty())
                             throw new RuntimeException(threadResult.get().get(0));
                     }
+                    singleTransactionExecutor.shutdown();
                 }
             }
         } catch (Exception e) {
