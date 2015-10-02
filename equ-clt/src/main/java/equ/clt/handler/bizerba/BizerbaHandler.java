@@ -12,7 +12,10 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,9 +42,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected static String endCommand = separator + "BLK " + separator;
 
     protected FileSystemXmlApplicationContext springContext;
-
-    private static ExecutorService transactionExecutor;
-    private static ExecutorService stopListExecutor;
 
     public BizerbaHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
@@ -103,10 +103,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     }
 
                     if(!taskList.isEmpty()) {
-                        if(transactionExecutor == null || transactionExecutor.isShutdown())
-                            transactionExecutor = EquipmentServer.getFixedThreadPool(20, "BizerbaSendTransaction");
-                        //ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendTransaction");
-                        List<Future<SendTransactionResult>> threadResults = transactionExecutor.invokeAll(taskList);
+                        ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendTransaction");
+                        List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                         for (Future<SendTransactionResult> threadResult : threadResults) {
                             if(threadResult.get().localErrors.isEmpty())
                                 succeededScalesList.add(threadResult.get().scalesInfo);
@@ -117,7 +115,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                             if(threadResult.get().cleared)
                                 clearedScalesList.add(threadResult.get().scalesInfo);
                         }
-                        //singleTransactionExecutor.shutdown();
+                        singleTransactionExecutor.shutdown();
                     }
                     if(!enabledScalesList.isEmpty())
                     errorMessages(errors, ips, brokenPortsMap);
@@ -144,15 +142,13 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 }
 
                 if (!taskList.isEmpty()) {
-                    if(stopListExecutor == null || stopListExecutor.isShutdown())
-                        stopListExecutor = EquipmentServer.getFixedThreadPool(20, "BizerbaSendStopList");
-                    //ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendStopList");
-                    List<Future<List<String>>> threadResults = stopListExecutor.invokeAll(taskList);
+                    ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendStopList");
+                    List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                     for (Future<List<String>> threadResult : threadResults) {
                         if (!threadResult.get().isEmpty())
                             throw new RuntimeException(threadResult.get().get(0));
                     }
-                    //singleTransactionExecutor.shutdown();
+                    singleTransactionExecutor.shutdown();
                 }
             }
         } catch (Exception e) {
