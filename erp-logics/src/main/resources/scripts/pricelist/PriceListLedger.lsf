@@ -700,6 +700,34 @@ META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceLis
     @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, , , skuProp, stockProp);
 END
 
+META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, prefixP, prefixB, skuProp, stockProp)
+    prevListSku###prefixP###price###concrete##Detail = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (###concrete##Detail);
+    prevListBatch###prefixP###price###concrete##Detail = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (###concrete##Detail);
+    
+    prevListBatch###prefixP###price###concrete##Detail(detail) += prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                           prefixB###batch###concrete##Detail(detail),
+                                                                                                           stockProp###concrete##Detail(detail),
+                                                                                                           dateTime###concrete##Detail(detail));
+    prevListSku###prefixP###price###concrete##Detail(detail) += prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                 prefixB###skuProp###concrete##Detail(detail),
+                                                                                                 stockProp###concrete##Detail(detail),
+                                                                                                 dateTime###concrete##Detail(detail));
+                                                                                                     
+    prefixP###price###concrete##Detail (detail)  <- IF prefixB###batch###concrete##Detail(detail)    
+                                                    THEN prevListBatch###prefixP###price###concrete##Detail(detail)
+                                                    ELSE prevListSku###prefixP###price###concrete##Detail(detail)
+        WHEN DO CHANGED(prefixB###skuProp###concrete##Detail(detail)) OR
+             CHANGED(stockProp###concrete##Detail(detail)) OR
+             CHANGED(dateTime###concrete##Detail(detail)) OR
+             CHANGED(prefixB###batch###concrete##Detail(detail));
+END
+META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, prefixP, skuProp, stockProp)
+    @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, prefixP, , skuProp, stockProp);
+END
+META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, skuProp, stockProp)
+    @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, , , skuProp, stockProp);
+END
+
 dialogPriceListTypeSkuStock = DATA LOCAL LedgerPriceListType (Sku, Stock);
 nameDialogPriceListTypeSkuStock 'Вид цены' = namePriceListType(dialogPriceListTypeSkuStock(sku, stock));
 
