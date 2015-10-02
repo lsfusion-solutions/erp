@@ -252,6 +252,15 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListKey)));
         fields.add(idUserPriceListField);
 
+        ImportField idOperationField = new ImportField(findProperty("PriceList.idOperation"));
+        ImportKey<?> operationKey = new ImportKey((CustomClass) findClass("PriceList.Operation"),
+                findProperty("PriceList.operationId").getMapping(idOperationField));
+        keys.add(operationKey);
+        props.add(new ImportProperty(idOperationField, findProperty("operationPriceList").getMapping(userPriceListKey),
+                object(findClass("PriceList.Operation")).getMapping(operationKey)));
+        props.add(new ImportProperty(idOperationField, findProperty("PriceList.idOperation").getMapping(operationKey)));
+        fields.add(idOperationField);
+
         ImportField idUserPriceListDetailField = new ImportField(findProperty("idUserPriceListDetail"));
         ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
                 findProperty("userPriceListDetailIdIdUserPriceList").getMapping(idUserPriceListDetailField, idUserPriceListField));
@@ -446,9 +455,9 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                             if (importUserPriceLists) {
                                 if (price.size() >= 1)
-                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
                                 if (price.size() >= 2)
-                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
                                 idPriceListDetail++;
                             }
                             //to avoid duplicates
