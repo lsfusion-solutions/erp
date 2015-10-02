@@ -146,7 +146,12 @@ META defineContractDefault (contract, contractClass, partyAClass, stockAClass, p
     count###contract###prefixA###stock###prefixB###date (pA, sA, pB, dateIn) = GROUP SUM 1 
         IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
         AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), sA, prefixB###contract(contract), dateIn;                                  
+            BY prefixA###contract(contract), sA, prefixB###contract(contract), dateIn;
+            
+    defaultContractSkuSupplierCustomerStockDate (pA, sB, dateIn) = GROUP MAX (contractSku) 
+        IF inCustomerStockContractSku(sB,contract)
+        AND dateFromContract(contractSku) <= dateIn AND NOT dateToContract(contractSku) < dateIn
+            BY supplierContractSku(contractSku), sB, dateIn;    
                   
 END
 

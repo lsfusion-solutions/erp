@@ -174,8 +174,12 @@ statusMachineryPriceTransactionDocument 'Статус загрузки в обо
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
 
 inMachineryPriceTransactionBarcode 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode);
+
 nameMachineryPriceTransactionBarcode 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
+nameMachineryPriceTransactionBarcode(t, barcode)  => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
+
 priceMachineryPriceTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode);
+priceMachineryPriceTransactionBarcode(t, barcode)  => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
 
 // Текущие загруженные штрихкоды
 TABLE barcodeGroupMachinery (Barcode, GroupMachinery);
@@ -210,6 +214,21 @@ transactionPriceBarcodeStock 'Текущая цена в оборудовани�
 transactionPriceSkuStock 'Текущая цена в оборудовании' (sku, stock) =
     transactionPriceBarcodeStock(barcodeSku(sku), stock) PERSISTENT TABLE extraSkuStock;
 transactionPriceIdBarcodeSkuIdStock 'Текущая цена в оборудовании' (sku, stock) = transactionPriceSkuStock(skuBarcodeId(sku), stockId(stock));
+
+countDaysClearMachineryPriceTransaction 'За сколько дней хранить загрузки прайсов в оборудование' = DATA INTEGER (); 
+
+EXTEND FORM options PROPERTIES countDaysClearMachineryPriceTransaction();
+DESIGN options { log { MOVE PROPERTY(countDaysClearMachineryPriceTransaction());} }    
+
+clearApplicationLog () += ACTION () NEWSESSION {
+    IF countDaysClearMachineryPriceTransaction() THEN {
+    inMachineryPriceTransactionBarcode(t, b) <- NULL WHERE NOT t == lastTransactionBarcodeGroupMachinery(b, groupMachineryMachineryPriceTransaction(t)) AND dateMachineryPriceTransaction(t) <= subtractDate(currentDate(), countDaysClearMachineryPriceTransaction());
+    apply();
+    
+    DELETE t WHERE  t IS MachineryPriceTransaction AND NOT [= GROUP SUM 1 IF inMachineryPriceTransactionBarcode(t, b) BY t](t);
+    apply();
+    }
+}   
 
 //--------------------Сообщения об ошибках транзакций--------------------//
 CLASS MachineryPriceTransactionError 'Ошибка';
@@ -746,11 +765,13 @@ END
 
 META defineMachineryPriceTransactionAttribute(object, caption, type)
     object###MachineryPriceTransactionBarcode caption = DATA type (MachineryPriceTransaction, Barcode);
+    object###MachineryPriceTransactionBarcode(t, barcode) => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
     @defineMachineryPriceTransactionAttributeAction(object, caption, type, );
 END
 
 META defineMachineryPriceTransactionAttribute(object, caption, type, nameProp)
     object###MachineryPriceTransactionBarcode = DATA type (MachineryPriceTransaction, Barcode);
+    object###MachineryPriceTransactionBarcode(t, barcode) => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
     nameProp###object###MachineryPriceTransactionBarcode caption (transaction, barcode) =
         nameProp###object(object###MachineryPriceTransactionBarcode(transaction, barcode));
     @defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp);
@@ -763,6 +784,7 @@ META defineMachineryPriceTransactionAttributeStockAction(object, caption, namePr
 END
 META defineMachineryPriceTransactionAttributeStock(object, caption, type)
     object###MachineryPriceTransactionBarcode caption = DATA type (MachineryPriceTransaction, Barcode);
+    object###MachineryPriceTransactionBarcode(t, barcode) => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
     @defineMachineryPriceTransactionAttributeStockAction(object, caption, );
 END
 
