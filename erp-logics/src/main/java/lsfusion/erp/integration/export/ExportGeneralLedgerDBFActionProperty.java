@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.export;
 
+import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
 import lsfusion.base.IOUtils;
@@ -23,15 +24,16 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import org.apache.commons.io.FileUtils;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.*;
 
 public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionProperty {
+    String charset = "cp1251";
 
     public ExportGeneralLedgerDBFActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -47,19 +49,14 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
                 context.delayUserInterfaction(new ExportFileClientAction("export.dbf", IOUtils.getFileBytes(file)));
-                file.delete();
+                if(!file.delete())
+                    file.deleteOnExit();
             }
             else
                 context.delayUserInterfaction(new MessageClientAction("По заданным параметрам не найдено ни одной проводки", "Ошибка"));
             
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (JDBFException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | SQLException | JDBFException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -86,7 +83,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         ImRevMap<Object, KeyExpr> generalLedgerKeys = MapFact.toRevMap((Object) "GeneralLedger", generalLedgerExpr, "DimensionType", dimensionTypeExpr);
 
-        QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<Object, Object>(generalLedgerKeys);
+        QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<>(generalLedgerKeys);
 
 
         String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
@@ -128,13 +125,13 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         if (generalLedgerResult.size() == 0)
             return null;
 
-        Map<DataObject, List<Object>> generalLedgerMap = new HashMap<DataObject, List<Object>>();
-        Map<DataObject, String> debit1Map = new HashMap<DataObject, String>(); //K_ANAD1
-        Map<DataObject, String> debit2Map = new HashMap<DataObject, String>();  //K_ANAD2
-        Map<DataObject, String> debit3Map = new HashMap<DataObject, String>();   //K_ANAD3
-        Map<DataObject, String> credit1Map = new HashMap<DataObject, String>(); //K_ANAK1
-        Map<DataObject, String> credit2Map = new HashMap<DataObject, String>();  //K_ANAK2
-        Map<DataObject, String> credit3Map = new HashMap<DataObject, String>();  //K_ANAK3
+        Map<DataObject, List<Object>> generalLedgerMap = new HashMap<>();
+        Map<DataObject, String> debit1Map = new HashMap<>(); //K_ANAD1
+        Map<DataObject, String> debit2Map = new HashMap<>();  //K_ANAD2
+        Map<DataObject, String> debit3Map = new HashMap<>();   //K_ANAD3
+        Map<DataObject, String> credit1Map = new HashMap<>(); //K_ANAK1
+        Map<DataObject, String> credit2Map = new HashMap<>();  //K_ANAK2
+        Map<DataObject, String> credit3Map = new HashMap<>();  //K_ANAK3
 
         for (int i = 0, size = generalLedgerResult.size(); i < size; i++) {
 
@@ -180,9 +177,9 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         }
 
         File dbfFile = File.createTempFile("export", "dbf");
-        DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, "CP1251");
+        DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, charset);
 
-        List<GeneralLedger> generalLedgerList = new ArrayList<GeneralLedger>();
+        List<GeneralLedger> generalLedgerList = new ArrayList<>();
         for (Map.Entry<DataObject, List<Object>> entry : generalLedgerMap.entrySet()) {
             DataObject key = entry.getKey();
             List<Object> values = entry.getValue();
@@ -201,7 +198,23 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         }
         dbfwriter.close();
 
+        byte[] bytes = IOUtils.getFileBytes(dbfFile);
+        if(bytes.length > 29)
+            bytes[29] = getCharsetByte(charset);
+        FileUtils.writeByteArrayToFile(dbfFile, bytes);
+
         return dbfFile;
+    }
+
+    private byte getCharsetByte(String charset) {
+        switch (charset) {
+            case "cp866":
+                return (byte) 0x65;
+            case "cp1251":
+                return (byte) 0xC9;
+            default:
+                return (byte) 0x00;
+        }
     }
 
     private static Comparator<GeneralLedger> COMPARATOR = new Comparator<GeneralLedger>() {
