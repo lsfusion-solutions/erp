@@ -1379,6 +1379,10 @@ nameTypeChangeDocumentLog 'Тип изменения' (l) = staticCaption(typeCh
 
 noteDocumentLog 'Примечание' = DATA VARSTRING[255] (DocumentLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
+fileDocumentLog 'Файл' = DATA CUSTOMFILE (DocumentLog);
+openFileDocumentLog 'Открыть Файл' (l) = ACTION OPENFILE (fileDocumentLog(l)) TOOLBAR;
+showFileDocumentLog = enableDocumentLog() AND fileDocumentLog(dLog);
+
 WHEN SET(o IS Document) IF NOT disableDocumentLog() DO {
     FOR ADDOBJ d = DocumentLog DO {        
         documentDocumentLog(d) <- o;
@@ -1631,7 +1635,8 @@ META defineDocumentLogForm(form, concrete)
         OBJECTS dLog=DocumentLog FIXED GRID
         PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocumentDocumentLog, seriesDocumentDocumentLog, dateDocumentDocumentLog, nameSupplierStockDocumentLog, nameCustomerStockDocumentLog, typeDocumentDocumentLog,
                       hostnameComputerDocumentLog, userLoginDocumentLog, nameContactDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
-                      noteDocumentLog   
+                      noteDocumentLog
+        PROPERTIES (dLog) openFileDocumentLog SHOWIF showFileDocumentLog(dLog)
         FILTERS documentDocumentLog(dLog) == concrete
 
         OBJECTS ddLog = DocumentDetailLog FIXED GRID

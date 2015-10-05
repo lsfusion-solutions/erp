@@ -118,26 +118,37 @@ calcEmailCustomerOrder 'Отправить заказ поставщику' (ord
            printOrderXLS OBJECTS o=order
 ;
 
-logSendDocumentOrder = ACTION (o) FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        noteDocumentLog(d) <- 'Отправлен';      
-        sessionDocumentLog(d) <- currentSession();  
-        hostnameComputerDocumentLog(d) <- hostnameCurrentComputer();
-        userLoginDocumentLog(d) <- loginCustomUser(currentUser()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContact(currentUser()));
-        dateTimeSessionDocumentLog(d) <- currentDateTime();  
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
-    }
 
 overEmailCustomerOrder = ABSTRACT ACTION LIST (Order.Order);
 skipCalcEmailCustomerOrder = ABSTRACT BOOLEAN (Order.Order);
+
+overEmailListOrder = ABSTRACT VARSTRING[400](Order.Order);
+
+EXTEND CLASS TypeChange{
+    email 'Отправлен поставщику'
+}
+
+logSendDocumentOrder = ACTION (o) FOR ADDOBJ d = DocumentLog DO {
+    documentDocumentLog(d) <- o;
+    typeDocumentDocumentLog(d) <- objectClassName(o);
+    numberDocumentDocumentLog(d) <- numberDocument(o);  
+    seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+    dateDocumentDocumentLog(d) <- dateDocument(o);
+    typeChangeDocumentLog(d) <- TypeChange.email;
+    noteDocumentLog(d) <- VARSTRING[255](OVERRIDE emailLegalEntity(supplierOrder(o)), emailStock(supplierStockOrder(o)), overEmailListOrder(o));      
+    sessionDocumentLog(d) <- currentSession();  
+    hostnameComputerDocumentLog(d) <- hostnameCurrentComputer();
+    userLoginDocumentLog(d) <- loginCustomUser(currentUser()); 
+    nameContactDocumentLog(d) <- VARSTRING[100](nameContact(currentUser()));
+    dateTimeSessionDocumentLog(d) <- currentDateTime();  
+    supplierStockDocumentLog(d) <- supplierStockDocument(o);
+    customerStockDocumentLog(d) <- customerStockDocument(o);
+    
+    FORM printOrderXLS OBJECTS o = o EXPORT XLSX;
+    fileDocumentLog(d) <- formExportFile();
+}
 emailCustomerOrder 'Отправить заказ поставщику' (order)= ACTION (order) {
-    IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order))) THEN {
+    IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order)), overEmailListOrder(order)) THEN {
         NEWSESSION {
             IF isPostedOrder(order) THEN MESSAGE NO WAIT 'Заказ в статусе "В работе" или выше, статус изменен не будет ';
             isSentOrder(order) <- TRUE;
