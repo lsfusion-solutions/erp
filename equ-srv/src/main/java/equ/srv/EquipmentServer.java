@@ -775,8 +775,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
         if(machineryLM != null && stopListLM != null) {
             try (DataSession session = getDbManager().createSession()) {
-
-                Map<String, Map<String, Set<MachineryInfo>>> stockMap = getStockMap(session);
                          
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
@@ -817,6 +815,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     stockQuery.and(equipmentLM.findProperty("equipmentServerGroupMachinery").getExpr(groupMachineryExpr).getWhere());
                     stockQuery.and(machineryLM.findProperty("activeGroupMachinery").getExpr(groupMachineryExpr).getWhere());
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> stockResult = stockQuery.execute(session);
+
+                    Map<String, Map<String, Set<MachineryInfo>>> stockMap = stockResult.isEmpty() ? new HashMap<String, Map<String, Set<MachineryInfo>>>() : getStockMap(session);
+
                     for (ImMap<Object, Object> stockEntry : stockResult.values()) {
                         String idStock = trim((String) stockEntry.get("idStock"));
                         idStockSet.add(idStock);                       
