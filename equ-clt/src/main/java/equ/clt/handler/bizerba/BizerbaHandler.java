@@ -675,7 +675,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 try {
 
                     processStopListLogger.info("Bizerba: Sending StopLists..." + scales.port);
-                    if (localErrors.isEmpty()) {
+                    if (localErrors.isEmpty() && !stopListInfo.exclude) {
                         int count = 0;
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             count++;
