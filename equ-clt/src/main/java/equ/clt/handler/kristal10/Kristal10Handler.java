@@ -577,9 +577,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     //parent: priceEntry
                     for (Integer number : stopListInfo.nppGroupMachinerySet) {
-                        Element department = new Element("department");
-                        setAttribute(department, "number", number);
-                        priceEntry.addContent(department);
+                        if (number != null && number >= 1000) { // временный фикс с загрузкой отделов
+                            Element department = new Element("department");
+                            setAttribute(department, "number", number);
+                            priceEntry.addContent(department);
+                        }
                     }
 
                     //parent: good
