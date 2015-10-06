@@ -381,9 +381,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
     }
 
     public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
+        Integer plu = getPluNumber(scales, item);
+        processStopListLogger.info(String.format("Bizerba: clearing plu %s", plu));
         String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator
-                + "PNUM" + getPluNumber(scales, item) + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
-                + "GPR10" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + getPluNumber(scales, item) + separator
+                + "PNUM" + plu + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
+                + "GPR10" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + plu + separator
                 + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX"
                 + endCommand;
         clearReceiveBuffer(port);
