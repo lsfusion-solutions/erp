@@ -131,7 +131,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet, String charset, boolean encode) throws IOException {
         try {
-            if (!stopListInfo.stopListItemMap.isEmpty()) {
+            if (!stopListInfo.stopListItemMap.isEmpty() && !stopListInfo.exclude) {
                 processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoSet.size() + " scale(s)...");
                 Collection<Callable<List<String>>> taskList = new LinkedList<>();
                 for (MachineryInfo machinery : machineryInfoSet) {
@@ -675,7 +675,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 try {
 
                     processStopListLogger.info("Bizerba: Sending StopLists..." + scales.port);
-                    if (localErrors.isEmpty() && !stopListInfo.exclude) {
+                    if (localErrors.isEmpty()) {
                         int count = 0;
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             count++;
