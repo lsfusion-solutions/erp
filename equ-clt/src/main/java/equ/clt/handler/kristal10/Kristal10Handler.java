@@ -794,7 +794,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     if(barcode != null) {
                                         if (barcode.length() == 7 && barcode.startsWith("2") && ignoreSalesWeightPrefix) {
                                             barcode = barcode.substring(2);
-                                        } else if (barcode.startsWith(weightCode) && barcode.length() <= 7)
+                                        } else if (barcode.startsWith(weightCode) && barcode.length() == 7)
                                             barcode = barcode.substring(2);
 
                                         // временно для касс самообслуживания в виталюре
