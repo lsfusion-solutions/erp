@@ -252,8 +252,10 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     pricingPricingDetail(detail) += concrete###pricing###concrete###pricingDetail(detail);
     indexPricingDetail(detail) += index###concrete###pricingDetail(detail);
     
-    datePricing(pricing) += date###concrete###pricing(pricing);
-    timePricing(pricing) += time###concrete###pricing(pricing);
+    @defineDocumentAggregationHeaderTimePrefix(invoice, invoicePricing, shipment);
+    
+    datePricing(pricing) += OVERRIDE date###concrete###pricing(pricing), shipmentDate###concrete###pricing(pricing);
+    timePricing(pricing) += OVERRIDE time###concrete###pricing(pricing), shipmentTime###concrete###pricing(pricing);
 
     @defineDocumentAggregationStockPrefix(invoice, concrete###pricing, stockProp, 'Склад', , );
     departmentStorePricing(pricing) += stockProp###stock###concrete###pricing(pricing) AS DepartmentStore;
@@ -290,7 +292,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
 
 //    @defineDocumentDescription(concrete###pricing, ###concrete###pricingDetail, captionPre###sign);
     description###concrete###pricing 'Название документа' (o) =
-        'Расценка № ' + seriesNumber###concrete###pricing(o) + ' от ' + date###concrete###pricing(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+        'Расценка № ' + seriesNumber###concrete###pricing(o) + ' от ' + (OVERRIDE date###concrete###pricing(o), shipmentDate###concrete###pricing(o)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
     descriptionPricing (pricing) += description###concrete###pricing(pricing);
 
     @defineDocumentAggregationDetailSku(invoice, concrete###pricing, sku);
