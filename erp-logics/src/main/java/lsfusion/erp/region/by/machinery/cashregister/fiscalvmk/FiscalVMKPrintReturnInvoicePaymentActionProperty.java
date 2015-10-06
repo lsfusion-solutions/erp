@@ -15,11 +15,11 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionProperty {
+public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
 
-    public FiscalVMKPrintInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    public FiscalVMKPrintReturnInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -44,13 +44,16 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
 
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
-                    context.requestUserInteraction(new MessageClientAction("Сумма платежа превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
+                    context.requestUserInteraction(new MessageClientAction("Сумма возврата превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true));
-            findProperty("printReceiptResult").change(result == null ? new DataObject(true) : null, context);
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, false));
+            if(result == null)
+                findProperty("printReceiptResult").change(new DataObject(true), context);
+            else
+                findProperty("printReceiptResult").change((Object) null, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
