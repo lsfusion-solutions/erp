@@ -628,6 +628,13 @@ includeSnapshotStockGroup 'Вкл' (snapshot, stockGroup) =
 includeSnapshotStock 'Вкл' (snapshot, stock) =
     (OVERRIDE includeSnapshotStockGroup(snapshot, stockGroupStock(stock)),
              dataIncludeSnapshotStock(snapshot, stock)) IF isCompanyStock(stock) PERSISTENT;
+countIncludeStocksSnapshot= GROUP SUM 1 IF includeSnapshotStock(r,st) BY r;
+
+deleteIncludeStocksSnapshot 'Сбросить отмеченные' = ACTION (r) {
+    allStockIncludeSnapshot (r) <- NULL;
+    dataIncludeSnapshotStockGroup(r,g) <- NULL;
+    dataIncludeSnapshotStock (r,st) <- NULL;
+};
              
 @defineBackgroundNearestBoolean(allStockInclude, include, snapshot, stock, nearestInclude, isCompany);
 
@@ -683,6 +690,10 @@ nameIncludeSkuGroupsSnapshot 'Группы товаров (все)' (document)=
     
 dataIncludeSnapshotSkuGroup (o,g) <- dataIncludeSnapshotTypeSkuGroup(snapshotTypeSnapshot(o),g) IF g IS SkuGroup
     WHEN CHANGED(snapshotTypeSnapshot(o));  
+
+deleteIncludeSkuGroupsSnapshot 'Сбросить отмеченные' = ACTION (r) {
+    dataIncludeSnapshotSkuGroup(r,g) <- NULL;
+};
     
 //------------------------------- ACTION -------------------------------//   
 overTakeSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
@@ -1222,6 +1233,8 @@ FORM snapshot 'Аналитический отчет'
                nameStockGroup(sg2) READONLY, includeSnapshotStockGroup(r,sg2) BACKGROUND backgroundIncludeSnapshotStockGroup(r,sg2),
                nameStock(ts2) READONLY, includeSnapshotStock(r,ts2) BACKGROUND backgroundIncludeSnapshotStock(r,ts2)
     ORDER BY nameStockGroup(sg2)
+    PROPERTIES deleteIncludeStocksSnapshot(r) FORCE PANEL TOOLBAR
+    
     FILTERS stringEqualsAll(a2),
             stockGroupStock(ts2) == sg2,
             isCompanyStock(ts2)
@@ -1232,7 +1245,8 @@ FORM snapshot 'Аналитический отчет'
     PROPERTIES READONLY orderSkuGroup(sk2), nameSkuGroup(sk2)
     PROPERTIES includeSnapshotSkuGroup(r,sk2)
     ORDER BY orderSkuGroup(sk2), nameSkuGroup(sk2)
-    FILTERGROUP inactive2 FILTER 'Активные' activeSkuGroup(sk2) 'F5' DEFAULT            
+    FILTERGROUP inactive2 FILTER 'Активные' activeSkuGroup(sk2) 'F5' DEFAULT   
+    PROPERTIES deleteIncludeSkuGroupsSnapshot(r) FORCE PANEL TOOLBAR
             
 //--stock    
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
@@ -1593,8 +1607,18 @@ DESIGN snapshot {
                 NEW select{
                     fill = 1;
                     type = SPLITH;
-                    MOVE stockTree2.tree.box { fill = 1; caption = 'Выбор складов'; }   
-                    MOVE skuTree2.tree.box { fill = 1; caption = 'Выбор групп'; }   
+                    MOVE stockTree2.tree.box { 
+                        fill = 1; caption = 'Выбор складов'; 
+                        stockTree2.tree.controls {
+                            MOVE PROPERTY (deleteIncludeStocksSnapshot(r));
+                        }
+                    }   
+                    MOVE skuTree2.tree.box { 
+                        fill = 1; caption = 'Выбор групп'; 
+                        skuTree2.tree.controls {
+                            MOVE PROPERTY (deleteIncludeSkuGroupsSnapshot(r));
+                        }
+                    }   
                 }   
             }
             
@@ -1679,7 +1703,7 @@ DESIGN snapshot {
 @extendFormFilterLegalEntityAccess(l, snapshot, supplier);
 
 accessCompanyEmployeeStocksSnapshot = 
-    [ = GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), stock) AND includeSnapshotStock(r, stock) BY r](r) == countIncludeStockSnapshot(r);
+    ([ = GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), stock) AND includeSnapshotStock(r, stock) BY r](r) == countIncludeStockSnapshot(r)) OR (r IS Snapshot AND NOT countIncludeStockSnapshot(r));
 
 FORM snapshots 'Аналитические отчеты'
 
