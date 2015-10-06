@@ -129,12 +129,12 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList, String charset, boolean encode) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet, String charset, boolean encode) throws IOException {
         try {
             if (!stopListInfo.stopListItemMap.isEmpty()) {
-                processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoList.size() + " scale(s)...");
+                processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoSet.size() + " scale(s)...");
                 Collection<Callable<List<String>>> taskList = new LinkedList<>();
-                for (MachineryInfo machinery : machineryInfoList) {
+                for (MachineryInfo machinery : machineryInfoSet) {
                     TCPPort port = new TCPPort(machinery.port, 1025);
                     if (machinery.port != null && machinery instanceof ScalesInfo) {
                         taskList.add(new SendStopListTask(stopListInfo, (ScalesInfo) machinery, port, charset, encode));

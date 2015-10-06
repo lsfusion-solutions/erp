@@ -776,7 +776,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         if(machineryLM != null && stopListLM != null) {
             try (DataSession session = getDbManager().createSession()) {
 
-                Map<String, Map<String, List<MachineryInfo>>> stockMap = getStockMap(session);
+                Map<String, Map<String, Set<MachineryInfo>>> stockMap = getStockMap(session);
                          
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
@@ -804,7 +804,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                                                               
                     Set<String> idStockSet = new HashSet<>();
                     Set<Integer> groupMachinerySet = new HashSet<>();
-                    Map<String, List<MachineryInfo>> handlerMachineryMap = new HashMap<>();
+                    Map<String, Set<MachineryInfo>> handlerMachineryMap = new HashMap<>();
                     KeyExpr stockExpr = new KeyExpr("stock");
                     KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
                     ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupMachinery", groupMachineryExpr);
@@ -821,7 +821,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idStock = trim((String) stockEntry.get("idStock"));
                         idStockSet.add(idStock);                       
                         if(stockMap.containsKey(idStock))
-                        for (Map.Entry<String, List<MachineryInfo>> entry : stockMap.get(idStock).entrySet()) {
+                        for (Map.Entry<String, Set<MachineryInfo>> entry : stockMap.get(idStock).entrySet()) {
                             if (handlerMachineryMap.containsKey(entry.getKey()))
                                 handlerMachineryMap.get(entry.getKey()).addAll(entry.getValue());
                             else
@@ -852,8 +852,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return stopListInfoList;
     }
 
-    private Map<String, Map<String, List<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Map<String, List<MachineryInfo>>> stockMap = new HashMap<>();
+    private Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<String, Set<MachineryInfo>>> stockMap = new HashMap<>();
 
         KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
         KeyExpr machineryExpr = new KeyExpr("machinery");
@@ -888,9 +888,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             boolean isScales = machineryClass != null && machineryClass.equals(scalesClass);
             String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
 
-            Map<String, List<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, List<MachineryInfo>>();
+            Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<MachineryInfo>>();
             if(!handlerMap.containsKey(handlerModel))
-                handlerMap.put(handlerModel, new ArrayList<MachineryInfo>());
+                handlerMap.put(handlerModel, new HashSet<MachineryInfo>());
             if(isCashRegister) {
                 handlerMap.get(handlerModel).add(new CashRegisterInfo(nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             } else if(isScales){
@@ -905,8 +905,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         Map<String, ItemInfo> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
-        KeyExpr skuExpr = new KeyExpr("sku");
-        ImRevMap<Object, KeyExpr> sldKeys = MapFact.toRevMap((Object) "stopListDetail", sldExpr, "sku", skuExpr);
+        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail"};
@@ -916,15 +915,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
         if(scalesItemLM != null) {
-            sldQuery.and(stopListLM.findProperty("skuStopListDetail").getExpr(sldExpr).compare(skuExpr, Compare.EQUALS));
+            sldQuery.addProperty("skuStopListDetail", stopListLM.findProperty("skuStopListDetail").getExpr(sldExpr));
+            sldQuery.and(stopListLM.findProperty("skuStopListDetail").getExpr(sldExpr).getWhere());
         }
         sldQuery.and(stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
         for (int i = 0; i < sldResult.size(); i++) {
-            ImMap<Object, DataObject> keys = sldResult.getKey(i);
             ImMap<Object, ObjectValue> values = sldResult.getValue(i);
-            DataObject skuObject = keys.get("sku");
+            ObjectValue skuObject = values.get("skuStopListDetail");
             String idBarcode = trim((String) values.get("idBarcodeSkuStopListDetail").getValue());
             String idItem = trim((String) values.get("idSkuStopListDetail").getValue());
             String nameItem = trim((String) values.get("nameSkuStopListDetail").getValue());

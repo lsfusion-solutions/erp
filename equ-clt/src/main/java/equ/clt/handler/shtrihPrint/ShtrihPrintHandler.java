@@ -845,6 +845,6 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
     }
 }

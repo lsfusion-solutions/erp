@@ -300,7 +300,7 @@ public class EquipmentServer {
         for (StopListInfo stopListInfo : stopListInfoList) {
             
             boolean succeeded = true;
-            for(Map.Entry<String, List<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
+            for(Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
 
                 try {
                     Object clsHandler = getHandler(entry.getKey(), remote);
@@ -319,9 +319,9 @@ public class EquipmentServer {
         processStopListLogger.info("Process StopListInfo finished");
     }
 
-    private Set<String> getDirectorySet(List<MachineryInfo> machineryInfoList) {
+    private Set<String> getDirectorySet(Set<MachineryInfo> machineryInfoSet) {
         Set<String> directorySet = new HashSet<>();
-        for(MachineryInfo machinery : machineryInfoList) {
+        for(MachineryInfo machinery : machineryInfoSet) {
             if(machinery.directory != null)
                 directorySet.add(machinery.directory);
         }

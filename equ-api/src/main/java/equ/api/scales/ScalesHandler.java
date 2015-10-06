@@ -6,10 +6,10 @@ import equ.api.SalesBatch;
 import equ.api.StopListInfo;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Set;
 
 public abstract class ScalesHandler extends MachineryHandler<TransactionScalesInfo, ScalesInfo, SalesBatch> {
 
-    public abstract void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException;
+    public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException;
 
 }

@@ -9,6 +9,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class BizerbaBCIIHandler extends BizerbaHandler {
 
@@ -29,7 +30,7 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
         sendStopListInfo(stopListInfo, machineryInfoList, charset, encode);
     }
 }

@@ -539,10 +539,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     if (useShopIndices) {
                         String shopIndices = "";
-                        List<MachineryInfo> machineryInfoList = stopListInfo.handlerMachineryMap.get(getClass().getName());
-                        if (machineryInfoList != null) {
+                        Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
+                        if (machineryInfoSet != null) {
                             Set<String> stockSet = new HashSet<>();
-                            for (MachineryInfo machineryInfo : machineryInfoList) {
+                            for (MachineryInfo machineryInfo : machineryInfoSet) {
                                 if (machineryInfo instanceof CashRegisterInfo)
                                     stockSet.add(((CashRegisterInfo) machineryInfo).idStock);
                             }

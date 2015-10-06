@@ -8,10 +8,7 @@ import equ.api.scales.ScalesItemInfo;
 
 import java.io.*;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class DigiHandler extends ScalesHandler {
 
@@ -201,6 +198,6 @@ public class DigiHandler extends ScalesHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, List<MachineryInfo> machineryInfoList) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
     }
 }
