@@ -1,0 +1,26 @@
+MODULE RepricingPriceLimitFixed;
+
+REQUIRE PurchasePriceLimitFixed, RepricingPriceListPriceLimit; 
+
+NAMESPACE Repricing;
+
+fixedLimitPriceDepartmentStoreSkuDateTime(d, s, dt) = priceALedgerPriceListTypeSkuStockDateTime(fixedLimitPriceListType(), 
+    s, d, dt) IF d IS DepartmentStore;
+
+minLimitPriceDepartmentStoreSkuDateTime(d, s, dt) = priceALedgerPriceListTypeSkuStockDateTime(minLimitPriceListType(), 
+    s, d, dt) IF d IS DepartmentStore;
+
+overSetManagementRetailPriceDepartmentStoreDateTime(d, dt) += ACTION (d, dt) {
+    LOCAL limitPriceSku = NUMERIC[14,2] (Sku);
+    FOR managementRetailPriceSku(sku) DO {
+        IF fixedLimitPriceDepartmentStoreSkuDateTime(d, sku, dt) 
+            THEN {
+                limitPriceSku(sku) <- fixedLimitPriceDepartmentStoreSkuDateTime(d, sku, dt);
+                managementRetailPriceSku (sku) <- limitPriceSku(sku) WHERE limitPriceSku(sku) < managementRetailPriceSku (sku) AND NOT skipRepricingPriceLimitSku(sku); 
+            } ELSE 
+                IF minLimitPriceDepartmentStoreSkuDateTime(d, sku, dt) THEN {
+                limitPriceSku(sku) <- minLimitPriceDepartmentStoreSkuDateTime(d, sku, dt);
+                managementRetailPriceSku (sku) <- limitPriceSku(sku) WHERE limitPriceSku(sku) > managementRetailPriceSku (sku) AND NOT skipRepricingPriceLimitSku(sku); 
+        }    
+    }
+}
