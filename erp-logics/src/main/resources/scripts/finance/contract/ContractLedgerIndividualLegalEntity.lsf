@@ -134,6 +134,40 @@ addPaymentInContractLedger 'Погасить задолженность' = ACTIO
     }    
 }
 
+addReturnPaymentInContractLedger 'Вернуть предоплату' = ACTION (ledger) {
+    FORM inContractledgerPayment MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR ADDOBJ p = Payment.Payment DO{
+            datePayment(p) <- chosenDate('dt');
+            contractPayment(p) <- contractInContractLedger(ledger);    
+            payerPayment(p) <- partyAContractInContractLedger(ledger);
+            beneficiaryPayment(p) <- partyBContractInContractLedger(ledger);
+            sumPayment(p) <- chosenNumeric('n');
+            isReturnPayment(p) <- TRUE;
+            isPostedPayment(p) <- TRUE;
+            costOutContractLedgerInContractLedger(p, ledger) <- -sumContractPayment(p);                
+            dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
+            IF fiscalSkip() OR NOT modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
+                apply();            
+            }
+            ELSE {
+                IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
+                    check();
+                    IF NOT canceled() THEN {
+                        printReturnReceiptInvoicePayment(ledger, p); 
+                        IF printReceiptResult() THEN {
+                            zReportPayment(p) <- currentZReport(); 
+                            typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;                       
+                            apply();
+                        }    
+                    }              
+                } 
+            }                                      
+        }
+    }    
+}
+
+
 FORM legalEntityPayment 'Внесение предоплаты'
     OBJECTS l = LegalEntity FIXED PANEL
     PROPERTIES(l) SELECTOR nameLegalEntity
@@ -238,7 +272,7 @@ FORM contractLedgerLegalEnbtity 'Управление задолженностя
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger
     PROPERTIES(ic, d) READONLY BACKGROUND backgroundInContractLedger(ic) debtInContractLedgerDate, debtDefaultCurrencyInContractLedgerDate
-    PROPERTIES(ic) TODRAW ic FORCE PANEL TOOLBAR addPaymentInContractLedger, editInContractLedger 
+    PROPERTIES(ic) TODRAW ic FORCE PANEL TOOLBAR addPaymentInContractLedger, addReturnPaymentInContractLedger, editInContractLedger 
     ORDER BY dateInContractLedger(ic)
     FILTERS activeInContractLedger(ic),
             partyBContractInContractLedger(ic) == l
