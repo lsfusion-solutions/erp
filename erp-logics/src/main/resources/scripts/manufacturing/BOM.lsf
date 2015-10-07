@@ -612,7 +612,6 @@ backgroundComponent 'Цвет' (component) = RGB(255,255,229) IF materialCompone
 TABLE stockBOM (Stock, BOM);
 TABLE stockGroupBOM (StockGroup, BOM);
 
-dataInBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (BOM);
 dataInStockBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, BOM);
 dataInStockGroupBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, BOM);
 
@@ -756,7 +755,6 @@ DESIGN BOM {
 WHEN SESSION FORMS BOM SET(BOM IS BOM) DO {
     dataInStockBOM(stock, BOM) <- TRUE WHERE dataAccessCompanyStockEmployee(stock, currentUser());
     dataInStockGroupBOM(group, BOM) <- TRUE WHERE dataAccessCompanyStockGroupEmployee(group, currentUser());
-    dataInBOM(BOM) <- dataAccessCompanyEmployee(currentUser());
 };
 
 overCopyBOM = ABSTRACT ACTION LIST (BOM, BOM);
@@ -782,8 +780,6 @@ copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
             ASSIGN bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
             ASSIGN wastageComponent(c) <- wastageComponent(component);
         }
-
-        dataInBOM(b) <- dataInBOM(BOM);
         dataInStockBOM(s, b) <- dataInStockBOM(s, BOM); 
         dataInStockGroupBOM(g, b) <- dataInStockGroupBOM(g, BOM);
 

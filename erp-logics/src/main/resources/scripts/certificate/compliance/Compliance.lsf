@@ -35,6 +35,8 @@ complianceNumber (number) = GROUP AGGR compliance BY numberCompliance (complianc
 // Описание
 descriptionCompliance 'Сертификат соответствия' (compliance) = CONCAT ' ', seriesNumberCompliance(compliance),
                                                  'от ' + fromDateCompliance(compliance), 'по ' + toDateCompliance(compliance);
+// История                                                 
+@defineDocumentHeaderCreated(Compliance);                                                 
 
 // Текст
 textCompliance 'Текст сертификата' = DATA TEXT (Compliance);
@@ -169,19 +171,40 @@ copyCompliance 'Копировать' = ACTION (compliance) NEWSESSION {
     }
 } TOOLBAR;
 
+skipShowEditCompliance = ABSTRACT BOOLEAN (Compliance);
+showEditCompliance = c IS Compliance AND NOT skipShowEditCompliance(c);
+
 FORM compliances 'Сертификаты соответствия'
     OBJECTS c = Compliance
     PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
                            nameLegalEntityCompliance
     PROPERTIES(c) copyCompliance
-    PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
+    PROPERTIES (c) READONLY FORCE PANEL createdNameUserCompliance, createdTimeCompliance, createdHostnameComputerCompliance
+    PROPERTIES(c) ADDFORM, EDITFORM SHOWIF showEditCompliance(c), DELETE FORCE PANEL TOOLBAR
+    
     DIALOG Compliance OBJECT c
 ;
 
 DESIGN compliances {
     main{
         preferredSize = (1024, 768);
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE c.box { fill = 2; }
+            NEW documentDetail {
+                fill = 1; 
+                NEW documentHistory {
+                    caption = 'История';
+                    fill = 1; 
+                    type = CONTAINERV;
+        
+                    MOVE c.created;
+                }
+            }
+        }
+        MOVE functions.box;
     }
 }
 
