@@ -13,8 +13,8 @@ public class CashRegisterInfo extends MachineryInfo {
     public String weightCodeGroupCashRegister;
     public String idStock;
 
-    public CashRegisterInfo(Integer number, String handlerModel, String port, String directory, String idStock) {
-        this(null, number, null, handlerModel, port, directory, null, false, null, null);
+    public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory, String idStock) {
+        this(numberGroup, number, null, handlerModel, port, directory, null, false, null, null);
         this.idStock = idStock;
     }
 

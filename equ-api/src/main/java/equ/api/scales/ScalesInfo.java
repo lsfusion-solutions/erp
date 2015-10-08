@@ -7,8 +7,8 @@ public class ScalesInfo extends MachineryInfo {
     public String pieceCodeGroupScales;
     public String weightCodeGroupScales;
 
-    public ScalesInfo(Integer number, String handlerModel, String port, String directory, String idStock) {
-        super(false, false, false, null, number, null, handlerModel, port, directory);
+    public ScalesInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory, String idStock) {
+        super(false, false, false, numberGroup, number, null, handlerModel, port, directory);
         this.idStock = idStock;
     }
 

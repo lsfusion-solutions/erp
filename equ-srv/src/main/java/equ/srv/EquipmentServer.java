@@ -769,7 +769,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+    public List<StopListInfo> readStopListInfo() throws RemoteException, SQLException {
 
         List<StopListInfo> stopListInfoList = new ArrayList<>();
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
@@ -801,8 +801,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Time timeTo = (Time) slEntry.get("toTimeStopList").getValue();                    
                                                                               
                     Set<String> idStockSet = new HashSet<>();
-                    Set<Integer> groupMachinerySet = new HashSet<>();
                     Map<String, Set<MachineryInfo>> handlerMachineryMap = new HashMap<>();
+                    Map<Integer, Set<String>> itemsInGroupMachineryMap = new HashMap();
                     KeyExpr stockExpr = new KeyExpr("stock");
                     KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
                     ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupMachinery", groupMachineryExpr);
@@ -814,9 +814,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     stockQuery.and(machineryLM.findProperty("stockGroupMachinery").getExpr(groupMachineryExpr).compare(stockExpr, Compare.EQUALS));
                     stockQuery.and(equipmentLM.findProperty("equipmentServerGroupMachinery").getExpr(groupMachineryExpr).getWhere());
                     stockQuery.and(machineryLM.findProperty("activeGroupMachinery").getExpr(groupMachineryExpr).getWhere());
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> stockResult = stockQuery.execute(session);
-                    for (ImMap<Object, Object> stockEntry : stockResult.values()) {
-                        String idStock = trim((String) stockEntry.get("idStock"));
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> stockResult = stockQuery.executeClasses(session);
+                    for (int j = 0; j < stockResult.size(); j++) {
+                        ImMap<Object, ObjectValue> stockEntry = stockResult.getValue(j);
+                        String idStock = trim((String) stockEntry.get("idStock").getValue());
                         idStockSet.add(idStock);
                         if(stockMap == null)
                             stockMap = getStockMap(session);
@@ -827,17 +828,22 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             else
                                 handlerMachineryMap.put(entry.getKey(), entry.getValue());
                         }
-                        Integer groupMachinery = (Integer) stockEntry.get("nppGroupMachinery");
-                        groupMachinerySet.add(groupMachinery);
+                        Integer groupMachinery = (Integer) stockEntry.get("nppGroupMachinery").getValue();
+                        Set<String> itemsInGroupMachinerySet = new HashSet<>();
+                        if(!itemsInGroupMachineryMap.containsKey(groupMachinery)) {
+                            for (String item : getInGroupMachineryItemSet(session, stopListObject, stockResult.getKey(j).get("groupMachinery")))
+                                itemsInGroupMachinerySet.add(item);
+                            itemsInGroupMachineryMap.put(groupMachinery, itemsInGroupMachinerySet);
+                        }
                     }
                     
                     if(!handlerMachineryMap.isEmpty()) {
                         Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
-                        Set<Integer> nppGroupMachinerySet = stopList == null ? new HashSet<Integer>() : stopList.nppGroupMachinerySet;
-                        nppGroupMachinerySet.addAll(groupMachinerySet);
+                        Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<Integer, Set<String>>() : stopList.inGroupMachineryItemMap;
+                        inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
                         stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
-                                idStockSet, nppGroupMachinerySet, stopListItemMap, handlerMachineryMap));
+                                idStockSet, inGroupMachineryItemMap, stopListItemMap, handlerMachineryMap));
                     }
                 }
 
@@ -860,8 +866,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> machineryKeys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
         QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
-        String[] groupMachineryNames = new String[] {"handlerModelGroupMachinery", "idStockGroupMachinery"};
-        LCP[] groupMachineryProperties = machineryLM.findProperties("handlerModelGroupMachinery", "idStockGroupMachinery");
+        String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery"};
+        LCP[] groupMachineryProperties = machineryLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery");
         for (int i = 0; i < groupMachineryProperties.length; i++) {
             machineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
         }
@@ -879,6 +885,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ValueClass scalesClass = scalesLM == null ? null : scalesLM.findClass("Scales");
         for (int i = 0; i < machineryResult.size(); i++) {
             ImMap<Object, ObjectValue> values = machineryResult.getValue(i);
+            Integer nppGroupMachinery = (Integer) values.get("nppGroupMachinery").getValue();
             String handlerModel = (String) values.get("handlerModelGroupMachinery").getValue();
             String directory = (String) values.get("overDirectoryMachinery").getValue();
             String port = (String) values.get("portMachinery").getValue();
@@ -892,9 +899,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             if(!handlerMap.containsKey(handlerModel))
                 handlerMap.put(handlerModel, new HashSet<MachineryInfo>());
             if(isCashRegister) {
-                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
+                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             } else if(isScales){
-                handlerMap.get(handlerModel).add(new ScalesInfo(nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
+                handlerMap.get(handlerModel).add(new ScalesInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             }
             stockMap.put(idStockGroupMachinery, handlerMap);
         }
@@ -942,6 +949,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     null, null, null, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
         }
         return stopListItemList;
+    }
+
+    private Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> inGroupMachineryItemSet = new HashSet<>();
+
+        KeyExpr sldExpr = new KeyExpr("stopListDetail");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSkuStopListDetail").getExpr(sldExpr));
+        query.and(stopListLM.findProperty("inGroupMachineryStopListDetail").getExpr(groupMachineryObject.getExpr(), sldExpr).getWhere());
+        query.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for (int i = 0; i < result.size(); i++) {
+            String idItem = trim((String) result.getValue(i).get("idSkuStopListDetail"));
+            inGroupMachineryItemSet.add(idItem);
+        }
+        return inGroupMachineryItemSet;
     }
 
     @Override

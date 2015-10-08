@@ -31,7 +31,7 @@ public interface EquipmentServerInterface extends Remote {
 
     //processStopList consumer
     boolean enabledStopListInfo() throws RemoteException, SQLException;
-    List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws RemoteException, SQLException;
+    List<StopListInfo> readStopListInfo() throws RemoteException, SQLException;
     void errorStopListReport(String numberStopList, Exception exception) throws RemoteException, SQLException;
     void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException;
 

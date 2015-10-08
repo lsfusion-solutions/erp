@@ -226,7 +226,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    processStopListInfo(remote, sidEquipmentServer);
+                    processStopListInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 }
@@ -294,29 +294,30 @@ public class EquipmentServer {
 
     }
 
-    private void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
+    private void processStopListInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
         processStopListLogger.info("Process StopListInfo");
-        List<StopListInfo> stopListInfoList = remote.readStopListInfo(sidEquipmentServer);
+        List<StopListInfo> stopListInfoList = remote.readStopListInfo();
         for (StopListInfo stopListInfo : stopListInfoList) {
-            
             boolean succeeded = true;
-            for(Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
-
+            for (Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
+                Set<MachineryInfo> machineryInfoSet = entry.getValue();
                 try {
                     Object clsHandler = getHandler(entry.getKey(), remote);
                     if (clsHandler instanceof CashRegisterHandler)
-                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, getDirectorySet(entry.getValue()));
-                    else if(clsHandler instanceof ScalesHandler)
-                        ((ScalesHandler) clsHandler).sendStopListInfo(stopListInfo, entry.getValue());
+                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, getDirectorySet(machineryInfoSet));
+                    else if (clsHandler instanceof ScalesHandler) {
+                        ((ScalesHandler) clsHandler).sendStopListInfo(stopListInfo, machineryInfoSet);
+                    }
                 } catch (Exception e) {
                     remote.errorStopListReport(stopListInfo.number, e);
                     succeeded = false;
                 }
             }
-            if(succeeded)
+            if (succeeded)
                 remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
         }
-        processStopListLogger.info("Process StopListInfo finished");
+        if(!stopListInfoList.isEmpty())
+            processStopListLogger.info(String.format("Processed %s StopListInfo", stopListInfoList.size()));
     }
 
     private Set<String> getDirectorySet(Set<MachineryInfo> machineryInfoSet) {

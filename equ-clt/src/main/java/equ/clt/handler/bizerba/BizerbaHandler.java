@@ -132,24 +132,24 @@ public abstract class BizerbaHandler extends ScalesHandler {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet, String charset, boolean encode) throws IOException {
         try {
             if (!stopListInfo.stopListItemMap.isEmpty() && !stopListInfo.exclude) {
-//                processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoSet.size() + " scale(s)...");
-//                Collection<Callable<List<String>>> taskList = new LinkedList<>();
-//                for (MachineryInfo machinery : machineryInfoSet) {
-//                    TCPPort port = new TCPPort(machinery.port, 1025);
-//                    if (machinery.port != null && machinery instanceof ScalesInfo) {
-//                        taskList.add(new SendStopListTask(stopListInfo, (ScalesInfo) machinery, port, charset, encode));
-//                    }
-//                }
-//
-//                if (!taskList.isEmpty()) {
-//                    ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendStopList");
-//                    List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-//                    for (Future<List<String>> threadResult : threadResults) {
-//                        if (!threadResult.get().isEmpty())
-//                            throw new RuntimeException(threadResult.get().get(0));
-//                    }
-//                    singleTransactionExecutor.shutdown();
-//                }
+                processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoSet.size() + " scale(s)...");
+                Collection<Callable<List<String>>> taskList = new LinkedList<>();
+                for (MachineryInfo machinery : machineryInfoSet) {
+                    TCPPort port = new TCPPort(machinery.port, 1025);
+                    if (machinery.port != null && machinery instanceof ScalesInfo) {
+                        taskList.add(new SendStopListTask(stopListInfo, (ScalesInfo) machinery, port, charset, encode));
+                    }
+                }
+
+                if (!taskList.isEmpty()) {
+                    ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "BizerbaSendStopList");
+                    List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                    for (Future<List<String>> threadResult : threadResults) {
+                        if (!threadResult.get().isEmpty())
+                            throw new RuntimeException(threadResult.get().get(0));
+                    }
+                    singleTransactionExecutor.shutdown();
+                }
             }
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -658,7 +658,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         String charset;
         boolean encode;
 
-        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales,TCPPort port, String charset, boolean encode) {
+        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales, TCPPort port, String charset, boolean encode) {
             this.stopListInfo = stopListInfo;
             this.scales = scales;
             this.port = port;
@@ -682,7 +682,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                if (item.idBarcode != null && item.idBarcode.length() <= 5 && !skip(item.idItem)) {
                                     processStopListLogger.info(String.format("Bizerba: IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
                                     String result = clearPLU(localErrors, port, scales, item, charset, encode);
                                     if (!result.equals("0")) {
@@ -710,6 +710,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
             processStopListLogger.info("Bizerba: Completed ip: " + scales.port);
             return localErrors;
+        }
+
+        private boolean skip(String idItem) {
+            Set<String> skuSet = stopListInfo.inGroupMachineryItemMap.get(scales.numberGroup);
+            return skuSet == null || !skuSet.contains(idItem);
         }
 
     }

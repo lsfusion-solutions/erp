@@ -475,7 +475,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
                     for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                         if (item.idBarcode != null) {
-                            for (Integer nppGroupMachinery : stopListInfo.nppGroupMachinerySet) {
+                            for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                                 ps.setInt(1, nppGroupMachinery); //pricelist
                                 ps.setString(2, item.idBarcode); //var
                                 ps.setBigDecimal(3, BigDecimal.ZERO); //price
@@ -496,7 +496,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                     if(item.idItem != null) {
-                        for(Integer nppGroupMachinery : stopListInfo.nppGroupMachinerySet) {
+                        for(Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                             ps.setInt(1, nppGroupMachinery); //pricelist
                             ps.setString(2, trim(item.idItem, 40, "")); //item
                             ps.setBigDecimal(3, BigDecimal.ZERO); //price

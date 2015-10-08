@@ -3,7 +3,6 @@ package equ.api;
 import java.io.Serializable;
 import java.sql.Date;
 import java.sql.Time;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -15,12 +14,13 @@ public class StopListInfo implements Serializable {
     public Date dateTo;
     public Time timeTo;
     public Set<String> idStockSet;
-    public Set<Integer> nppGroupMachinerySet;
+    public Map<Integer, Set<String>> inGroupMachineryItemMap;
     public Map<String, ItemInfo> stopListItemMap;
     public Map<String, Set<MachineryInfo>> handlerMachineryMap;
 
     public StopListInfo(boolean exclude, String number, Date dateFrom, Time timeFrom, Date dateTo, Time timeTo, Set<String> idStockSet,
-                        Set<Integer> nppGroupMachinerySet, Map<String, ItemInfo> stopListItemMap, Map<String, Set<MachineryInfo>> handlerMachineryMap) {
+                        Map<Integer, Set<String>> inGroupMachineryItemMap, Map<String, ItemInfo> stopListItemMap,
+                        Map<String, Set<MachineryInfo>> handlerMachineryMap) {
         this.exclude = exclude;
         this.number = number;
         this.dateFrom = dateFrom;
@@ -28,7 +28,7 @@ public class StopListInfo implements Serializable {
         this.dateTo = dateTo;
         this.timeTo = timeTo;
         this.idStockSet = idStockSet;
-        this.nppGroupMachinerySet = nppGroupMachinerySet;
+        this.inGroupMachineryItemMap = inGroupMachineryItemMap;
         this.stopListItemMap = stopListItemMap;
         this.handlerMachineryMap = handlerMachineryMap;
     }

@@ -576,8 +576,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                     //parent: priceEntry
-                    for (Integer number : stopListInfo.nppGroupMachinerySet) {
-                        if (number != null && number >= 1000) { // временный фикс с загрузкой отделов
+                    Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
+                    if (machineryInfoSet != null) {
+                        Set<Integer> nppGroupMachinerySet = new HashSet<>();
+                        for (MachineryInfo machineryInfo : machineryInfoSet) {
+                            if (machineryInfo instanceof CashRegisterInfo)
+                                nppGroupMachinerySet.add(((CashRegisterInfo) machineryInfo).numberGroup);
+                        }
+                        for (Integer number : nppGroupMachinerySet) {
                             Element department = new Element("department");
                             setAttribute(department, "number", number);
                             priceEntry.addContent(department);
