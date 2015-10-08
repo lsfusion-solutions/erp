@@ -292,13 +292,13 @@ TABLE adjustmentSkuDetail (AdjustmentSkuDetail);
 CLASS OutAdjustmentSkuDetail 'Изменение остатка (-)' : AdjustmentSkuDetail;
 CLASS InAdjustmentSkuDetail 'Изменение остатка (+)' : AdjustmentSkuDetail;
 
-needToOutLedgerAdjustmentDetail (adjustmentDetail) = quantityAdjustmentDetail(adjustmentDetail) < 0 OR batchAdjustmentDetail(adjustmentDetail)
+needToOutLedgerAdjustmentDetail (adjustmentDetail) = (quantityAdjustmentDetail(adjustmentDetail) < 0 OR sumAdjustmentDetail(adjustmentDetail) <0) OR batchAdjustmentDetail(adjustmentDetail)
     AND isPostedAdjustmentDetail(adjustmentDetail);
 needToOutLedgerAdjustment (adjustment) = GROUP SUM 1 IF needToOutLedgerAdjustmentDetail(adjustmentDetail)
     BY adjustmentAdjustmentDetail(adjustmentDetail);
 
 // Все партии проводим по OutLedger
-needToInLedgerAdjustmentDetail (adjustmentDetail) = quantityAdjustmentDetail(adjustmentDetail) > 0 AND NOT batchAdjustmentDetail(adjustmentDetail)
+needToInLedgerAdjustmentDetail (adjustmentDetail) = (quantityAdjustmentDetail(adjustmentDetail) > 0 OR sumAdjustmentDetail(adjustmentDetail) >0) AND NOT batchAdjustmentDetail(adjustmentDetail)
     AND isPostedAdjustmentDetail(adjustmentDetail);
 needToInLedgerAdjustment (adjustment) = GROUP SUM 1 IF needToInLedgerAdjustmentDetail(adjustmentDetail)
     BY adjustmentAdjustmentDetail(adjustmentDetail);
@@ -481,3 +481,23 @@ editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECT
 closeStockDocumentLedger(ledger) += ACTION closeAdjustment(adjustmentInAdjustment(ledger));
 typeStockDocumentLedger(ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
 skipStockDocumentLedger(ledger) += ledger IS InAdjustment AND NOT activeAdjustment(adjustmentInAdjustment(ledger));
+
+calcSumBSkuStockDateTime (sku,st,dateTime) = balanceBSkuStockDateTime(sku,st,dateTime)*priceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
+needCreateAdjustmentSkuStockDateTime = (calcSumBSkuStockDateTime (sku,st,dateTime) OR  sumBSkuStockDateTime (sku,st,dateTime)) AND NOT (calcSumBSkuStockDateTime (sku,st,dateTime) ==  sumBSkuStockDateTime (sku,st,dateTime));  
+
+createUserAdjustmentDateTime = ACTION (dateTime) {
+    FOR [ = GROUP SUM 1 IF needCreateAdjustmentSkuStockDateTime(sku,st,dateTime) BY st,dateTime](st,dateTime) AND isCompanyStock(st) DO {
+        NEWSESSION {
+            FOR ADDOBJ a = UserAdjustment DO {
+                stockUserAdjustment(a) <- st;
+                isPostedUserAdjustment(a) <- TRUE;
+                FOR needCreateAdjustmentSkuStockDateTime(sku,st,dateTime) ADDOBJ  d = UserAdjustmentDetail DO {
+                    userAdjustmentUserAdjustmentDetail(d) <- a;
+                    skuUserAdjustmentDetail(d) <- sku;
+                    sumUserAdjustmentDetail(d) <- NUMERIC[16,2](sumBSkuStockDateTime(sku,st,dateTime) (-) calcSumBSkuStockDateTime(sku,st,dateTime));    
+                }
+            }
+            apply();
+        }        
+    }
+} 
