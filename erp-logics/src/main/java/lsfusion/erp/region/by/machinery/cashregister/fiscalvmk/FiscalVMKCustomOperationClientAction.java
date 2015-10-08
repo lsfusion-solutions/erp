@@ -38,9 +38,9 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
                     break;
                 case 2:
                     FiscalVMK.opensmIfClose();
+                    Integer zReportNumber = FiscalVMK.getZReportNumber(true);
                     FiscalVMK.printFiscalText(textTop);
                     FiscalVMK.zReport();
-                    Integer zReportNumber = FiscalVMK.getZReportNumber(true);
                     FiscalVMK.closePort();
                     return zReportNumber;
                 case 3:
