@@ -39,7 +39,7 @@ calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION
         
         overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
         
-        inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+        inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt) AND NOT skipRepricingSku(sku, d);
         includeExtraDashboardRepricingStockDateTime(d, dt);
         
         assignAttributeSku(d, o, dt);
@@ -79,7 +79,7 @@ createDashboardRepricingNotForm 'Создать переоценку' = ACTION (
             timeUserRepricing(r) <- toTime(dt);  
             isPostedUserRepricing(r) <- TRUE;
     
-            FOR inDashboardRepricingSku(sku) AND NOT skipRepricingSku(sku, d) ADDOBJ rd = UserRepricingDetail DO {
+            FOR inDashboardRepricingSku(sku) ADDOBJ rd = UserRepricingDetail DO { //AND NOT skipRepricingSku(sku, d)
                 userRepricingUserRepricingDetail(rd) <- r;
                 skuUserRepricingDetail(rd) <- sku;
                 quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, d) IF currentBalanceSkuStock(sku, d) > 0;
@@ -116,13 +116,16 @@ skipManagementRepricingDepartmentStore = ABSTRACT BOOLEAN (DepartmentStore);
 toManagementRepricingOperation  = DATA Repricing.Operation ();
 nameToManagementRepricingOperation 'Операция для переоценки упр.' = nameOperation(toManagementRepricingOperation());
 
+createOverManagementRepricingStock = ABSTRACT ACTION LIST (Stock);
+
 createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.' = ACTION () NEWSESSION {
     IF isOverManagementRepricingAllStocks() THEN {
         createOverManagementRepricingAllStocks();
     } ELSE {   
         FOR department IS DepartmentStore AND isCompanyStock(department) AND NOT skipManagementRepricingDepartmentStore(department)  DO {
             calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
-            createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime());                                     
+            createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
+            createOverManagementRepricingStock(department);
         } 
     }
     apply();
