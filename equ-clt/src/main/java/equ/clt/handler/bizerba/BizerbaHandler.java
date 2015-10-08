@@ -682,12 +682,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                                if (item.idBarcode != null && item.idBarcode.length() <= 5 && !skip(item.idItem)) {
-                                    processStopListLogger.info(String.format("Bizerba: IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
-                                    String result = clearPLU(localErrors, port, scales, item, charset, encode);
-                                    if (!result.equals("0")) {
-                                        logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
-                                        globalError++;
+                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                    if(!skip(item.idItem)) {
+                                        processStopListLogger.info(String.format("Bizerba: IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
+                                        String result = clearPLU(localErrors, port, scales, item, charset, encode);
+                                        if (!result.equals("0")) {
+                                            logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                            globalError++;
+                                        }
                                     }
                                 } else {
                                     processStopListLogger.info(String.format("Bizerba: IP %s, item #%s: incorrect barcode %s", scales.port, count, item.idBarcode));
