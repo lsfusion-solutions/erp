@@ -413,15 +413,20 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
         sendSalesLogger.info("Kristal: Finish Reading started");
+        KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
+        boolean deleteSuccessfulFiles = kristalSettings != null && kristalSettings.getDeleteSuccessfulFiles() != null && kristalSettings.getDeleteSuccessfulFiles();
+
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
-            
-//            try {
-//                if (makeDirsIfNeeded(f.getParent() + "/success/"))
-//                    FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
-//            } catch (IOException e) {
-//                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
-//            }
+
+            if(!deleteSuccessfulFiles) {
+                try {
+                    if (makeDirsIfNeeded(f.getParent() + "/success/"))
+                        FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
+                } catch (IOException e) {
+                    throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
+                }
+            }
 
             if (f.delete()) {
                 sendSalesLogger.info("Kristal: file " + readFile + " has been deleted");
