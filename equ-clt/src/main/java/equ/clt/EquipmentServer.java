@@ -12,12 +12,14 @@ import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.UnmarshalException;
 import java.rmi.registry.Registry;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -229,6 +231,10 @@ public class EquipmentServer {
                     processStopListInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        processStopListLogger.error("API changed! InvalidClassException");
+                    throw e;
                 }
             }
         };
@@ -243,6 +249,10 @@ public class EquipmentServer {
                     sendSalesInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        sendSalesLogger.error("API changed! InvalidClassException");
+                    throw e;
                 }
             }
         };
@@ -257,6 +267,10 @@ public class EquipmentServer {
                     sendSoftCheckInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        sendSoftCheckLogger.error("API changed! InvalidClassException");
+                    throw e;
                 }
             }
         };
@@ -271,6 +285,10 @@ public class EquipmentServer {
                     sendTerminalDocumentInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        sendTerminalDocumentLogger.error("API changed! InvalidClassException");
+                    throw e;
                 }
             }
         };
@@ -285,6 +303,10 @@ public class EquipmentServer {
                     processMachineryExchange(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        machineryExchangeLogger.error("API changed! InvalidClassException");
+                    throw e;
                 }
             }
         };
