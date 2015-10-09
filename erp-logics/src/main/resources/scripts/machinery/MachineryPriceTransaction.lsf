@@ -405,8 +405,9 @@ nameStockRequestExchange 'Склад' (requestExchange) = nameStock(stockRequest
 
 TABLE stockRequestExchange(Stock, RequestExchange);
 inStockRequestExchange 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
-extraStocksRequestExchange 'Дополнительные склады' (requestExchange) = GROUP CONCAT VARSTRING[255](nameStock(stock)) IF inStockRequestExchange(stock, requestExchange), ', ' 
-    BY requestExchange MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;                                                                         
+extraStocksRequestExchange = GROUP CONCAT nameStock(stock) IF inStockRequestExchange(stock, requestExchange), ', ' 
+                                                BY requestExchange
+                                                ORDER nameStock(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;                                                                         
 dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
 dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
 startDateRequestExchange 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
@@ -476,18 +477,18 @@ DESIGN requestExchange {
     }
 }
 
+allStocksRequestExchange 'Склады' (requestExchange)= 
+    CONCAT ',', nameStockRequestExchange(requestExchange), extraStocksRequestExchange(requestExchange) 
+    MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT; 
+
 FORM requestExchanges 'Запросы обмена данными'
-    OBJECTS s = Stock FIXED PANEL
-    PROPERTIES nameStock(s) SELECTOR
-    FILTERS isCompanyStock(s)
     
-    OBJECTS r = RequestExchange
-    PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange SHOWIF showExtraStocks(r) FORCE PANEL, dateFromRequestExchange, dateToRequestExchange, 
+    OBJECTS r = RequestExchange LAST
+    PROPERTIES(r) READONLY allStocksRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
                            captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange,
                            startDateRequestExchange SHOWIF showStartDate(r) FORCE PANEL, idDiscountCardFromRequestExchange SHOWIF showStartDate(r) FORCE PANEL, 
                            idDiscountCardToRequestExchange SHOWIF showStartDate(r) FORCE PANEL
     PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    FILTERS stockRequestExchange(r) == s
     
     OBJECTS rl = RequestExchangeLog
     PROPERTIES(rl) READONLY nppMachineryRequestExchangeLog, messageRequestExchangeLog, dateRequestExchangeLog
@@ -500,7 +501,6 @@ FORM requestExchanges 'Запросы обмена данными'
 
 DESIGN requestExchanges {
     main {
-        MOVE PROPERTY(nameStock(s));
         NEW requestExchangeContainer {
             fill = 1;
             type = SPLITV;
@@ -508,16 +508,16 @@ DESIGN requestExchanges {
             NEW tabbedContainer {
                 type = TABBED;
                 fill = 1;
-                NEW errorTabbedContainer {
-                    fill = 1;
-                    caption = 'Ошибки';
-                    MOVE re.box;
-                }
                 NEW logTabbedContainer {
                     fill = 1;
                     caption = 'Лог';
                     MOVE rl.box;
                 }
+                NEW errorTabbedContainer {
+                    fill = 1;
+                    caption = 'Ошибки';
+                    MOVE re.box;
+                }                
             }
         }
         MOVE functions.box;
