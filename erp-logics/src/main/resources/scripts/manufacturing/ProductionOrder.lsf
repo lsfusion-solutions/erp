@@ -1358,13 +1358,16 @@ WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
 }     
                                                                      
 countBOMsMaterialSku (material) = GROUP SUM 1 IF materialComponent(c) AS Sku BY materialComponent(c) PERSISTENT;
-isActiveBOMMaterialSku (material) = GROUP SUM 1 IF isActiveBOM(BOMComponent(c)) BY materialComponent(c);
+isActiveBOMMaterialSku (material) = GROUP SUM 1 IF isActiveBOM(BOMComponent(c)) AND materialComponent(c) AS Sku BY materialComponent(c);
 
 EXTEND FORM BOMs
-    FILTERGROUP prod FILTER 'Есть спецификации' countProductsSku(p1) 'F8' DEFAULT   
-    FILTERGROUP prod1 FILTER 'Активные' isActiveBOMSku(p1) 'F7' DEFAULT 
-    FILTERGROUP comp FILTER 'Есть спецификации' countBOMsMaterialSku(c2) 'F8' DEFAULT                                                              
-    FILTERGROUP comp1 FILTER 'Активные' isActiveBOMMaterialSku(c2) 'F7' DEFAULT   
+    FILTERGROUP prod 
+        FILTER 'Активные' isActiveBOMSku(p1) 'F7' DEFAULT 
+        FILTER 'Есть спецификации' countProductsSku(p1) 'F8'     
+    
+    FILTERGROUP comp 
+        FILTER 'Активные' isActiveBOMMaterialSku(c2) 'F7' DEFAULT   
+        FILTER 'Есть спецификации' countBOMsMaterialSku(c2) 'F8'                                                              
                                                   
     FILTERGROUP bom1 FILTER 'Активные' isActiveBOM(b1) 'F7' DEFAULT                                                     
     FILTERGROUP bom2 FILTER 'Активные' isActiveBOM(b2) 'F7' DEFAULT                                                     
