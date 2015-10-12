@@ -14,7 +14,6 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public Integer idGroupMachinery;
     public Integer nppGroupMachinery;
     public String nameGroupMachinery;
-    public String idStock;
     public String description;
     public Map<String, List<ItemGroup>> itemGroupMap;
     public List<I> itemsList;

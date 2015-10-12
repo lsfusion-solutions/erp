@@ -263,7 +263,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     "INSERT INTO pricelist (id, name, version, deleted) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)");
 
             ps.setInt(1, transaction.nppGroupMachinery); //id
-            ps.setString(2, trim(String.valueOf(transaction.nppGroupMachinery), 100, "")); //name
+            ps.setString(2, "Прайс-лист " + trim(String.valueOf(transaction.nameStockGroupCashRegister), 89, "")); //name
             ps.setInt(3, version); //version
             ps.setInt(4, 0); //deleted
             ps.addBatch();
