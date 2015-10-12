@@ -146,7 +146,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                     for (Future<List<String>> threadResult : threadResults) {
                         if (!threadResult.get().isEmpty())
-                            throw new RuntimeException(threadResult.get().get(0));
+                            processStopListLogger.error(threadResult.get().get(0));
+                            //throw new RuntimeException(threadResult.get().get(0));
                     }
                     singleTransactionExecutor.shutdown();
                 }
