@@ -248,6 +248,10 @@ replaceSkuBatch(s, b) += ACTION (s, b){ skuUserPriceListDetail(detail) <- s WHER
 //@defineMovementBatch(priceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 //@defineMovementBatch(userPriceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 
+excludePriceListDetail 'Исключить' = ABSTRACT BOOLEAN (PriceListDetail);
+excludeUserPriceListDetail 'Исключить' = DATA BOOLEAN (UserPriceListDetail);
+excludePriceListDetail(d) += excludeUserPriceListDetail(d);
+
 // ------- Проведение по priceListLedger ----- //
 
 EXTEND CLASS PriceListDetail : PriceListLedger;
@@ -256,6 +260,7 @@ fromDateTimePriceListLedger (ledger) += fromDateTimePriceListDetail(ledger);
 toDateTimePriceListLedger (ledger) += toDateTimePriceListDetail(ledger);
 
 isPostedPriceListLedger(ledger) += isPostedPriceListDetail(ledger);
+skipPriceListLedger(ledger) += excludePriceListDetail(ledger);
 
 skuPriceListLedger (ledger) += skuPriceListDetail(ledger);
 inPriceListLedgerBatch (ledger, batch) += batchPriceListDetail(ledger) == batch; 
@@ -532,7 +537,7 @@ FORM userPriceList 'Прайс'
                   valueVATUserPriceListDetail, fromDateUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), 
                   fromTimeUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), toDateUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), 
                   toTimeUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), nameCompanyUserPriceListDetail SHOWIF showCompanyUserPriceList(p), 
-                  ADDOBJ, DELETESESSION
+                  excludeUserPriceListDetail, ADDOBJ, DELETESESSION
     PROPERTIES(d, tc) priceUserPriceListDetailDataPriceListType COLUMNS (tc) HEADER headerNameDataPriceListType(tc) BACKGROUND backgroundDataPriceListType(tc)
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocumentPriceList, addDetailInputBarcodeUserPriceListDetailUserPriceList
     ORDER BY indexUserPriceListDetail(d)
@@ -1120,6 +1125,7 @@ FORM priceLists 'Прайсы'
     OBJECTS t = DataPriceListType FIXED GRID
 
     OBJECTS d = PriceListDetail
+    PROPERTIES (d) READONLY excludePriceListDetail
     PROPERTIES(d) READONLY BACKGROUND backgroundPriceListDetail(d) indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
                            shortNameUOMSkuPriceListDetail, nameBatchPriceListDetail, nameCompanyPriceListDetail
     PROPERTIES(d) READONLY AFTER nameSkuPriceListDetail(d) originalIdBarcodeSkuPriceListDetail SHOWIF showOriginalIdBarcodeSkuPriceList(p), originalNameSkuPriceListDetail SHOWIF showOriginalNameSkuPriceList(p)
