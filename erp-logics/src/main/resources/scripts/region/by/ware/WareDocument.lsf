@@ -2,6 +2,16 @@ MODULE WareDocument;
 
 NAMESPACE Ware;
 
+strictWareDocument 'Обязательное наличие строки посуды для строки документа' = DATA BOOLEAN();
+EXTEND FORM options
+    PROPERTIES() strictWareDocument
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY(strictWareDocument());
+    }
+}
+
 META defineDocumentWare(document, NS)
     skipCreateWareUser###document##Detail = DATA BOOLEAN (NS.User###document##Detail);
 
@@ -33,4 +43,7 @@ META defineDocumentWare(document, NS)
     WHEN SESSION FORMS user###document
          DROPPED(itemWareUser###document##DetailUser###document##Detail(detail)) DO
          DELETE detail;
+    
+    CONSTRAINT strictWareDocument() AND wareItem(NS.skuUser###document##Detail(d)) AND NOT skipCreateWareUser###document##Detail(d) AND NOT wareUser###document##DetailUser###document##Detail(d)
+        MESSAGE 'Для строки документа должна присутствовать строка посуды';
 END
