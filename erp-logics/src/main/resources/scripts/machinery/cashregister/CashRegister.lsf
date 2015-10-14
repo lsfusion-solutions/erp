@@ -133,6 +133,14 @@ maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSu
 
 ignoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr) = ignoreCashRegisterServerCashRegisterModel(cashRegisterModelGroupCashRegister(gcr));
 notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr) = gcr IS GroupCashRegister AND NOT ignoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr);
+
+overChangeDirectoryGroupCashRegister = ABSTRACT ACTION LIST (GroupCashRegister);
+changeDirectoryGroupCashRegister = ACTION (group) {     
+    REQUEST VARSTRING[100] INPUT;
+    directoryGroupCashRegister(group) <- requestedString();
+    overChangeDirectoryGroupCashRegister(group);       
+}
+
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
     PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, 
@@ -146,7 +154,8 @@ FORM groupCashRegister 'Группа касс'
     PROPERTIES(grc) nppGroupMachinery, departmentNumberGroupCashRegister, nameStockGroupMachinery, nameGroupMachinery,
                     pieceCodeGroupCashRegister, weightCodeGroupCashRegister,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grc),
-                    namePriceListTypeGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
+                    namePriceListTypeGroupMachinery, nameModelGroupMachinery, 
+                    directoryGroupCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc) ON CHANGE changeDirectoryGroupCashRegister(grc),
                     startDateGroupCashRegister, notDetailedGroupCashRegister, inactiveGroupCashRegister
 
     OBJECTS c=CashRegister
