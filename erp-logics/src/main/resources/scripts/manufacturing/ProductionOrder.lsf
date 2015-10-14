@@ -502,17 +502,19 @@ bruttoSubstituteQuantitySkuOrder (sku, order) = GROUP SUM bruttoQuantityComponen
 dataBruttoPriceSkuOrder 'Цена' = DATA NUMERIC[14,2] (Sku, Order);
 costSkuOrder 'Себестоимость' = DATA NUMERIC[14,2] (Sku, Order);
 
-dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order),
-                                                                                sku,
-                                                                                componentsStockOrder(order),
-                                                                                dateTimeOrder(order)) IF quantityComponentDetailSkuOrder(sku, order)
-    WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) OR CHANGED(quantityComponentDetailSkuOrder(sku, order));
+WHEN SESSION (CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) OR SET(quantityComponentDetailSkuOrder(sku, order)))
+             AND quantityComponentDetailSkuOrder(sku, order) AND NOT CHANGED(dataBruttoPriceSkuOrder(sku, order)) AND pt == priceListTypeOrder(order) NOINLINE (pt) DO
+    dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(pt,
+                                                                                    sku,
+                                                                                    componentsStockOrder(order),
+                                                                                    dateTimeOrder(order));
 
 calcCostSkuStock 'Себестоимость' (sku, stock) = [= GROUP SUM costBatch(b) * currentBalanceBatchStock(b,stock) BY skuBatch(b), stock](sku, stock) /
     (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) != 0);   
 
-costSkuOrder (sku, order) <- calcCostSkuStock(sku, componentsStockOrder(order)) IF quantityComponentDetailSkuOrder(sku, order)
-    WHEN CHANGED (quantityComponentDetailSkuOrder(sku, order)) OR CHANGED (componentsStockOrder(order)); 
+WHEN SESSION (CHANGED(quantityComponentDetailSkuOrder(sku, order)) OR CHANGED(componentsStockOrder(order)))
+             AND quantityComponentDetailSkuOrder(sku, order) AND NOT CHANGED(costSkuOrder(sku, order)) DO
+    costSkuOrder (sku, order) <- calcCostSkuStock(sku, componentsStockOrder(order));
     
 // --- Замена --- //
 substituteSkuOrder = DATA Sku (Sku, Order);
