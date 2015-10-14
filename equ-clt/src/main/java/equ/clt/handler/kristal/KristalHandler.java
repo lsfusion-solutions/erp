@@ -340,22 +340,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 sendSoftCheckLogger.info(logRecord);
                 writer.close();
 
-                sendSoftCheckLogger.info("Kristal: waiting for deletion of WAITSOFT file");
-                if (flagSoftFile.delete()) {
-                    int count = 0;
-                    while (softFile.exists()) {
-                        try {
-                            count++;
-                            if(count>=60) {
-                                throw Throwables.propagate(new RuntimeException(createdButNotProcessedMessage(softFile)));
-                            }
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw Throwables.propagate(e);
-                        }
-                    }
-                } else 
+                sendSoftCheckLogger.info("Kristal: deletion of WAITSOFT file");
+                if (!flagSoftFile.delete())
                     throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
+//                sendSoftCheckLogger.info("Kristal: waiting for deletion of WAITSOFT file");
+//                if (flagSoftFile.delete()) {
+//                    int count = 0;
+//                    while (softFile.exists()) {
+//                        try {
+//                            count++;
+//                            if(count>=60) {
+//                                throw Throwables.propagate(new RuntimeException(createdButNotProcessedMessage(softFile)));
+//                            }
+//                            Thread.sleep(1000);
+//                        } catch (InterruptedException e) {
+//                            throw Throwables.propagate(e);
+//                        }
+//                    }
+//                } else
+//                    throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
             }
         }
     }
