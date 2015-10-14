@@ -9,6 +9,7 @@ GROUP invoices 'Приемка по накладным' : base;
 @defineDocumentAbstractDetailPricePrefix(invoice, shipment, ' учетная');
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, shipment, ' учетная');
 @defineDocumentHeaderSumPrefix(invoice, shipment, ' учетная');
+shipmentDateInvoice 'Дата поставки' = ABSTRACT DATE (Invoice) IN documentHeader;
 
 createShipmentInvoice 'Создать поставку' (invoice) = ABSTRACT BOOLEAN(Invoice);
 
@@ -319,6 +320,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     @defineDocumentInterfaceHeaderTimePrefix(Invoice, shipment, ' поставки');
     shipmentDateUserInvoice(i) <- dateUserInvoice(i) WHEN CHANGED(dateUserInvoice(i));
     shipmentTimeUserInvoice(i) <- timeUserInvoice(i) WHEN CHANGED(timeUserInvoice(i));
+    Shipment.shipmentDateInvoice(i) += shipmentDateInvoice(i);
+    
     @defineDocumentInterfaceDetailTimePrefix(invoice, InvoiceDetail, shipment,' поставки');
     @defineDocumentInterfaceDetailExpiryDate(invoice);
     @defineDocumentInterfaceDetailManufactureDate(invoice);
