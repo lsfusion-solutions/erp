@@ -136,9 +136,9 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     countBatchInvoiceDetail 'Кол-во партий' (invoiceDetail) = GROUP SUM 1 IF inInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail PERSISTENT;
     maxBatchInvoiceDetail (invoiceDetail) = GROUP MAX batch IF inInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail;
 
-    toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = quantityInvoiceDetail(invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail);
+    toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = (quantityInvoiceDetail(invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail)) IF NOT isChargeSku(skuInvoiceDetail(invoiceDetail));
     prevToShipInvoiceDetail 'Не поставлено' (invoiceDetail) = PREV(toShipInvoiceDetail(invoiceDetail));
-    toShipInvoice 'Не поставлено' (invoice) = quantityInvoiceDetailInvoice(invoice) (-) shippedInvoice(invoice);
+    toShipInvoice 'Не поставлено' (invoice) = quantityInvoiceDetailInvoice(invoice) (-) shippedInvoice(invoice) (-) quantityChargeInvoiceDetailInvoice(invoice);
 
     toShipInvoiceDetailStockInvoice 'Не поставлено по складу' (stock, invoice) =
         GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
@@ -369,7 +369,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     skipCreateShipmentInvoiceDetail = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
     createShipmentInvoiceDetail 'Создать поставку' (invoiceDetail) = createShipmentInvoice(invoiceInvoiceDetail(invoiceDetail)) AND
                                                                      isStockSkuInvoiceDetail(invoiceDetail) AND
-                                                                     NOT skipCreateShipmentInvoiceDetail(invoiceDetail) PERSISTENT;
+                                                                     NOT skipCreateShipmentInvoiceDetail(invoiceDetail) AND 
+                                                                     NOT isChargeSku(skuInvoiceDetail(invoiceDetail)) PERSISTENT;
 
     createShipmentUserInvoiceDetail 'Создать поставку' (invoiceDetail) = createShipmentUserInvoice(userInvoiceUserInvoiceDetail(invoiceDetail)) AND
                                                                          isStockSkuUserInvoiceDetail(invoiceDetail);
