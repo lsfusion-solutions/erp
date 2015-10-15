@@ -6,7 +6,9 @@ NAMESPACE Shipment;
 
 notCreateShipmentInvoice (invoice) = invoice IS Invoice AND NOT createShipmentInvoice(invoice);
 
-notUserShipment (shipment) = shipment IS Shipment AND NOT isUserShipment(shipment);
+showDeleteNotUserShipment (shipment) = shipment IS Shipment AND NOT isUserShipment(shipment) AND overShowDeleteShipment(shipment);
+
+showDeleteUserShipment(shipment) = isUserShipment(shipment) AND overShowDeleteShipment(shipment);
   
 FORM invoiceShipmentDashboard 'Приемка по накладным' AUTOREFRESH 60
 
@@ -41,9 +43,9 @@ FORM invoiceShipmentDashboard 'Приемка по накладным' AUTOREFRE
     PROPERTIES (s) READONLY countShipmentDetailShipment, quantityShipmentDetailShipment, sumShipmentDetailShipment, 
                    noteShipment, invoicesShipment 
     
-    PROPERTIES (s) deleteMultiShipment SHOWIF notUserShipment(s) FORCE PANEL TOOLBAR
-    PROPERTIES (s) editShipment 
-    PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF isUserShipment(s)   
+    PROPERTIES (s) deleteMultiShipment SHOWIF showDeleteNotUserShipment(s) FORCE PANEL TOOLBAR
+    PROPERTIES (s) editShipment SHOWIF overShowEditShipment(s)
+    PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF showDeleteUserShipment(s)   
     ORDER BY dateShipment(s)
     
     FILTERS inShipment(s)
