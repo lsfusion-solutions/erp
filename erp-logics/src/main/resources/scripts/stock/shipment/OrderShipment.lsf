@@ -183,18 +183,18 @@ END
 META defineOrderShipmentExecution (dumb)
 
     shippedShipmentDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM shippedOrderDetail(d)
-        IF isClosedOrderDetail(d) AND isPostedOrderDetail(d) BY orderOrderDetail(d);
+        IF isPostedOrderDetail(d) BY orderOrderDetail(d);
                                                                
     percentQuantityExecutionOrder '% исп. заявки (кол-во)' (order)= shippedShipmentDetailOrder(order)*100.00 /
         (quantityOrderDetailOrder(order) IF quantityOrderDetailOrder(order)!= 0);                                                              
     
     countShippedOrderDetailOrder (order) = GROUP SUM 1 IF shippedOrderDetail(d) >= quantityOrderDetail(d) 
-        AND isClosedOrderDetail(d) AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
+        AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
     percentCountExecutionOrder '% исп. заявки (позиции)' (order) = countShippedOrderDetailOrder (order)*100.00/
         (countOrderDetailOrder(order) IF countOrderDetailOrder(order)!=0);
     
     sumShippedOrderDetailOrder (order) = GROUP SUM shippedOrderDetail(d)*priceOrderDetail(d) 
-        IF isClosedOrderDetail(d) AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
+        IF isPostedOrderDetail(d) BY orderOrderDetail(d);   
     percentSumExecutionOrder '% исп. заявки (сумма)' (order) = sumShippedOrderDetailOrder(order)*100.00/(sumOrderDetailOrder(order) IF sumOrderDetailOrder(order)!=0);    
     
     EXTEND FORM orders
@@ -204,28 +204,28 @@ END
 META defineOrderInvoiceSupplierExecution (NS, sign)
                                                       
     shippedShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM shippedShipmentDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
             BY supplierOrder(order), dateFrom, dateTo;                                                   
     quantityShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM quantityOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
             BY supplierOrder(order), dateFrom, dateTo;                                                                         
     percentQuantityExecutionSupplierDateFromTo '% исп. заявки (кол-во)' (supplier, dateFrom, dateTo)= shippedShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)*100.00 /
         (quantityShipmentDetailSupplierDateFromTo(supplier, dateFrom, dateTo) IF quantityShipmentDetailSupplierDateFromTo(supplier, dateFrom, dateTo)!= 0);                                                              
 //--    
     countShippedSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM countShippedOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
             BY supplierOrder(order), dateFrom, dateTo;                                                   
     countSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM countOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
             BY supplierOrder(order), dateFrom, dateTo;      
     percentCountExecutionSupplierDateFromTo '% исп. заявки (позиции)' (supplier, dateFrom, dateTo) = countShippedSupplierDateFromTo (supplier, dateFrom, dateTo)*100.00 /
         (countSupplierDateFromTo(supplier, dateFrom, dateTo) IF countSupplierDateFromTo(supplier, dateFrom, dateTo)!=0);
 //--    
     sumShippedSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
             BY supplierOrder(order), dateFrom, dateTo;                                                   
     sumSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
             BY supplierOrder(order), dateFrom, dateTo;      
     percentSumExecutionSupplierDateFromTo '% исп. заявки (сумма)' (supplier, dateFrom, dateTo) = sumShippedSupplierDateFromTo(supplier, dateFrom, dateTo)*100.00 /
         (sumSupplierDateFromTo(supplier, dateFrom, dateTo) IF sumSupplierDateFromTo(supplier, dateFrom, dateTo)!=0);    
@@ -246,7 +246,6 @@ META defineOrderInvoiceSupplierExecution (NS, sign)
                                 countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder,
                                 percentQuantityExecutionOrder, percentCountExecutionOrder, percentSumExecutionOrder 
         FILTERS isPostedOrder(o),
-                isClosedOrder(o),
                 supplierOrder(o) == s,
                 dateOrder(o) >= dFrom,
                 dateOrder(o) <= dTo
