@@ -49,6 +49,8 @@ sessionConcatGroups 'Группы' (groupType) =
     
 // --------------------------------- Оптимизация с хранимыми свойствами ------------------------------------- //
  
+// ---- Оборотная ведомость
+
 balanceBSkuStock 'Остаток на начало' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sumBSkuStock 'Сумма на начало' = DATA LOCAL NUMERIC[16,2] (Sku, Stock);
 
@@ -61,19 +63,19 @@ sumOutSkuStock 'Сумма ушедшего' = DATA LOCAL NUMERIC[16,2] (Sku, St
 balanceASkuStock 'Остаток на конец' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sumASkuStock 'Сумма на конец' = DATA LOCAL NUMERIC[16,2] (Sku, Stock);
 
-balanceBSkuGroupStock = DATA LOCAL NUMERIC[16,5] (SkuGroup, Stock);
-sumBSkuGroupStock = DATA LOCAL NUMERIC[16,2] (SkuGroup, Stock);
+balanceBSkuGroupStock = DATA LOCAL NUMERIC[16,5] (Group, Stock);
+sumBSkuGroupStock = DATA LOCAL NUMERIC[16,2] (Group, Stock);
 
-quantityInSkuGroupStock = DATA LOCAL NUMERIC[16,5] (SkuGroup, Stock);
-sumInSkuGroupStock = DATA LOCAL NUMERIC[16,2] (SkuGroup, Stock);
+quantityInSkuGroupStock = DATA LOCAL NUMERIC[16,5] (Group, Stock);
+sumInSkuGroupStock = DATA LOCAL NUMERIC[16,2] (Group, Stock);
 
-quantityOutSkuGroupStock = DATA LOCAL NUMERIC[16,5] (SkuGroup, Stock);
-sumOutSkuGroupStock = DATA LOCAL NUMERIC[16,2] (SkuGroup, Stock);
+quantityOutSkuGroupStock = DATA LOCAL NUMERIC[16,5] (Group, Stock);
+sumOutSkuGroupStock = DATA LOCAL NUMERIC[16,2] (Group, Stock);
 
-balanceASkuGroupStock = DATA LOCAL NUMERIC[16,5] (SkuGroup, Stock);
-sumASkuGroupStock = DATA LOCAL NUMERIC[16,2] (SkuGroup, Stock);
+balanceASkuGroupStock = DATA LOCAL NUMERIC[16,5] (Group, Stock);
+sumASkuGroupStock = DATA LOCAL NUMERIC[16,2] (Group, Stock);
 
-fillReportBackSheetData 'Рассчитать' = ACTION (st, df, dt) {
+fillReportBackSheetData 'Рассчитать' = ACTION (st, gt, df, dt) {
 
     balanceASkuStock(sk, st) <- balanceASkuStockDate(sk, st, dt);
     sumASkuStock(sk, st) <- sumASkuStockDate(sk, st, dt);
@@ -87,29 +89,45 @@ fillReportBackSheetData 'Рассчитать' = ACTION (st, df, dt) {
     balanceBSkuStock(sk, st) <- balanceASkuStock(sk, st) (+) quantityOutSkuStock(sk, st) (-) quantityInSkuStock(sk, st);
     sumBSkuStock(sk, st) <- sumASkuStock(sk, st) (+) sumOutSkuStock(sk, st) (-) sumInSkuStock(sk, st);
 
-    balanceASkuGroupStock(g, st) <- [= GROUP SUM balanceASkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
-    sumASkuGroupStock(g, st) <- [= GROUP SUM sumASkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
+    balanceASkuGroupStock(g, st) <- [= GROUP SUM balanceASkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
+    sumASkuGroupStock(g, st) <- [= GROUP SUM sumASkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
 
-    quantityInSkuGroupStock(g, st) <- [= GROUP SUM quantityInSkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
-    sumInSkuGroupStock(g, st) <- [= GROUP SUM sumInSkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
+    quantityInSkuGroupStock(g, st) <- [= GROUP SUM quantityInSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
+    sumInSkuGroupStock(g, st) <- [= GROUP SUM sumInSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
 
-    quantityOutSkuGroupStock(g, st) <- [= GROUP SUM quantityOutSkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
-    sumOutSkuGroupStock(g, st) <- [= GROUP SUM sumOutSkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
+    quantityOutSkuGroupStock(g, st) <- [= GROUP SUM quantityOutSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
+    sumOutSkuGroupStock(g, st) <- [= GROUP SUM sumOutSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
     
-    balanceBSkuGroupStock(g, st) <- [= GROUP SUM balanceBSkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
-    sumBSkuGroupStock(g, st) <- [= GROUP SUM sumBSkuStock(sk, st) BY skuGroupSku(sk), st](g, st);
+    balanceBSkuGroupStock(g, st) <- [= GROUP SUM balanceBSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
+    sumBSkuGroupStock(g, st) <- [= GROUP SUM sumBSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) IF groupTypeGroup(g) == gt;
 }
+
+balanceRecBSkuGroupStock 'Остаток на начало дня (всего)' (group, stock) =
+    GROUP SUM balanceBSkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
+    BY parent, stock;
 
 sumRecBSkuGroupStock 'Сумма на начало дня (всего)' (group, stock) =
     GROUP SUM sumBSkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
+    BY parent, stock;
+
+quantityRecInSkuGroupStock 'Кол-во пришедшего (всего)' (group, stock) =
+    GROUP SUM quantityInSkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
     BY parent, stock;
 
 sumRecInSkuGroupStock 'Сумма пришедшего (всего)' (group, stock) =
     GROUP SUM sumInSkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
     BY parent, stock;
 
+quantityRecOutSkuGroupStock 'Кол-во ушедшего (всего)' (group, stock) =
+    GROUP SUM quantityOutSkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
+    BY parent, stock;
+    
 sumRecOutSkuGroupStock 'Сумма ушедшего (всего)' (group, stock) =
     GROUP SUM sumOutSkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
+    BY parent, stock;
+
+balanceRecASkuGroupStock 'Остаток на конец дня (всего)' (group, stock) =
+    GROUP SUM balanceASkuGroupStock (child, stock) IF isParentGroupGroup(child, parent)
     BY parent, stock;
 
 sumRecASkuGroupStock 'Сумма на конец дня (всего)' (group, stock) =
@@ -146,6 +164,16 @@ sumASessionSkuGroupStock 'Сумма на конец дня (по группе)'
     GROUP SUM sumASkuStock (sku, stock) IF includeGroupTypeSku(groupType,sku)
         BY groupGroupTypeSku(groupType, sku), stock;
 
+// ---- Отчет по остаткам
+
+fillReportBalanceStockData 'Рассчитать' = ACTION (st, gt, dt) {
+
+    balanceBSkuStock(sk, st) <- balanceBSkuStockDateTime(sk, st, dt);
+    sumBSkuStock(sk, st) <- sumBSkuStockDateTime(sk, st, dt);
+    
+    balanceBSkuGroupStock(g, st) <- [= GROUP SUM balanceBSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) WHERE groupTypeGroup(g) == gt;
+    sumBSkuGroupStock(g, st) <- [= GROUP SUM sumBSkuStock(sk, st) BY groupGroupTypeSku(gt, sk), st](g, st) WHERE groupTypeGroup(g) == gt;
+}
 // --------------------------------- Конец оптимизации с хранимыми свойствами ------------------------------------- //
 
 //-- По выборке
@@ -207,15 +235,16 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumBGroupTypeStockDateTime(gt, st ,d)
+    PROPERTIES sumBGroupTypeStock(gt, st)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
     ORDER BY nameSku(s)
 
-    PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime
-    FILTERS balanceBSkuStockDateTime(s, st, d)
+    PROPERTIES(s, st) READONLY balanceBSkuStock, sumBSkuStock
+    FILTERS balanceBSkuStock(s, st)
+    FILTERS s IS Sku AND st IS Stock AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
 ;
 
 printListBalanceSkusStockDateTime 'Списком' (stock, dateTime) =
@@ -233,7 +262,7 @@ FORM printBalanceSkusStock 'Остатки по товарам'
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumBGroupTypeStockDateTime(gt, st ,d)
+    PROPERTIES sumBGroupTypeStock(gt, st)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
@@ -242,15 +271,16 @@ FORM printBalanceSkusStock 'Остатки по товарам'
 
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
     FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, d) READONLY sumRecBSkuGroupStockDateTime
+    PROPERTIES(sk, st) READONLY sumRecBSkuGroupStock
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     ORDER BY nameSku(s)
     FILTERS groupGroupTypeSku(gt, s) == sk
 
-    PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime, accountPriceBSkuStockDateTime
-    FILTERS balanceBSkuStockDateTime(s, st, d)
+    PROPERTIES(s, st) READONLY balanceBSkuStock, sumBSkuStock
+    PROPERTIES(s, st, d) READONLY accountPriceBSkuStockDateTime
+    FILTERS balanceBSkuStock(s, st)
 ;
 
 printBalanceSkusStockDateTime 'По группам' (stock, dateTime) =
@@ -317,6 +347,17 @@ balanceRecBSkuGroupStockDateTime 'Остаток (всего)' (group, stock, da
     GROUP SUM balanceBSkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
     BY group, stock, dateTime;
 
+showAccountSumBatch 'Показывать учетные суммы по партиям в отчете по остаткам' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() showAccountSumBatch
+;
+DESIGN options {
+    stock {
+        MOVE PROPERTY(showAccountSumBatch());
+    }
+}
+
+
 FORM reportBalanceStock 'Отчет по остаткам'
     OBJECTS d=DATETIME FIXED PANEL
     PROPERTIES(d) OBJVALUE
@@ -333,7 +374,8 @@ FORM reportBalanceStock 'Отчет по остаткам'
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES inSessionGroup(sk) BACKGROUND backgroundInSessionGroup(sk)
     PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
-    PROPERTIES(sk, st, d) READONLY balanceRecBSkuGroupStockDateTime, sumRecBSkuGroupStockDateTime, accountSumRecBSkuGroupBatchStockDateTime
+    PROPERTIES(sk, st) READONLY balanceRecBSkuGroupStock, sumRecBSkuGroupStock
+    PROPERTIES(sk, st, d) READONLY accountSumRecBSkuGroupBatchStockDateTime SHOWIF showAccountSumBatch()
     ORDER BY orderGroup(sk), skuTreeName
     FILTERS groupTypeGroup(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' activeGroup(sk) 'F5' DEFAULT
@@ -343,12 +385,13 @@ FORM reportBalanceStock 'Отчет по остаткам'
     ORDER BY nameSku(s)
     FILTERS isParentGroupSku(sk, s)
 
-    PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime, accountSumBatchBSkuStockDateTime
+    PROPERTIES(s, st) READONLY balanceBSkuStock, sumBSkuStock
+    PROPERTIES(s, st, d) READONLY accountSumBatchBSkuStockDateTime SHOWIF showAccountSumBatch()
     PROPERTIES(st, d) printListBalanceSkusStockDateTime, printBalanceSkusStockDateTime
     FILTERGROUP balance 
-        FILTER 'С остатком (кол-во)' balanceBSkuStockDateTime(s, st, d) 'F7' DEFAULT
-        FILTER 'С остатком (кол-во/сумма)' balanceBSkuStockDateTime(s, st, d) OR sumBSkuStockDateTime(s, st, d) 'F8'   
-    FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' NOT sumBSkuStockDateTime(s, st, d) == accountSumBatchBSkuStockDateTime(s, st, d) 'F9'   
+        FILTER 'С остатком (кол-во)' balanceBSkuStock(s, st) 'F7' DEFAULT
+        FILTER 'С остатком (кол-во/сумма)' balanceBSkuStock(s, st) OR sumBSkuStock(s, st) 'F8'   
+    FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' NOT sumBSkuStock(s, st) == accountSumBatchBSkuStockDateTime(s, st, d) 'F9'   
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch ON SHORTCUT showMovementBatchBatchStock(bt,st), idBarcodeSkuBatch, 
@@ -359,6 +402,11 @@ FORM reportBalanceStock 'Отчет по остаткам'
     PROPERTIES(bt, st, d) READONLY balanceBBatchStockDateTime, accountSumBBatchStockDateTime
     PROPERTIES(st, d) printListBalanceBatchesStockDateTime, printBalanceBatchesStockDateTime
     FILTERS balanceBBatchStockDateTime(bt, st, d)
+
+    EVENTS 
+        ON CHANGE gt fillReportBalanceStockData(st, gt, d),
+        ON CHANGE d fillReportBalanceStockData(st, gt, d),
+        ON CHANGE st fillReportBalanceStockData(st, gt, d)
 ;
 @extendFormFilterStockAccess(st, reportBalanceStock);
 
@@ -469,7 +517,7 @@ FORM printBackSheet 'Оборотная ведомость'
     PROPERTIES(sk, st) READONLY sumInSessionGroupSkuStock, sumOutSessionGroupSkuStock
     PROPERTIES(sk, st) READONLY sumASessionSkuGroupStock
     FILTERGROUP inactive FILTER 'Активные' activeGroup(sk) 'F5' DEFAULT
-    FILTERS sk IS SkuGroup AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
+    FILTERS sk IS Group AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
@@ -550,9 +598,10 @@ FORM reportBackSheet 'Оборотная ведомость'
     PROPERTIES() TODRAW s fillDocumentReport, deleteInDataSessionReport
     
     EVENTS 
-        ON CHANGE df fillReportBackSheetData(st, df, dt), 
-        ON CHANGE dt fillReportBackSheetData(st, df, dt),
-        ON CHANGE st fillReportBackSheetData(st, df, dt)
+        ON CHANGE gt fillReportBackSheetData(st, gt, df, dt), 
+        ON CHANGE df fillReportBackSheetData(st, gt, df, dt), 
+        ON CHANGE dt fillReportBackSheetData(st, gt, df, dt),
+        ON CHANGE st fillReportBackSheetData(st, gt, df, dt)
 ;
 
 @extendFormFilterStockAccess(st, reportBackSheet);
