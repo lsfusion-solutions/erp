@@ -18,7 +18,7 @@ WHEN SESSION CHANGED (dateUserOrder(o)) AND NOT CHANGED(dateToSoldPeriodUserOrde
 
 quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantitySoldSkuStockDateFromTo(sku, stock, dateFromSoldPeriodUserOrder(userOrder), dateToSoldPeriodUserOrder(userOrder));
 
-purchaseReserveStockSkuDate 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[14,3](Stock, Sku, DATE);
+purchaseReserveStockSkuDate 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE);
 
 recQuantitySkuStockUserOrder  (sku, stock, userOrder) =    purchaseReserveStockSkuDate(stock, sku, dateUserOrder(userOrder)) (+) 
                                                                             quantitySoldSkuStockUserOrder(sku, stock, userOrder) (-)
@@ -28,16 +28,20 @@ recQuantitySkuStockUserOrder  (sku, stock, userOrder) =    purchaseReserveStockS
 recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = (recQuantitySkuStockUserOrder(sku, stock, userOrder)) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
 purchaseReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = purchaseReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
 
-diffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) = (averageSoldSkuStock(sku, stock) * (int AS INTEGER) (+) purchaseReserveStockSkuDate(stock, sku, date) (-) currentReservePurchaseSkuStock(sku, stock) (-) (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) > 0.0) ) 
-                                              IF (averageSoldSkuStock(sku, stock) * (int AS INTEGER) (+) purchaseReserveStockSkuDate(stock, sku, date) (-) currentReservePurchaseSkuStock(sku, stock) (-) (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) > 0.0)) > 0;
+calcDiffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) =
+    averageSoldSkuStock(sku, stock) * (int AS INTEGER) (+) purchaseReserveStockSkuDate(stock, sku, date) (-) currentReservePurchaseSkuStock(sku, stock) (-) (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) > 0.0);
+calcDiffPurchaseReserveStockSkuIntegerDateTime 'Потребность' (stock, sku, int, dateTime) = calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, toDate(dateTime));
+
+//diffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) = calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) IF calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) > 0; 
+diffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) = 
+    calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) IF calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) > 0; 
 diffPurchaseReserveStockSkuIntegerDateTime 'Потребность' (stock, sku, int, dateTime) = diffPurchaseReserveStockSkuIntegerDate(stock, sku, int, toDate(dateTime));
 
 overPurchaseReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = purchaseReserveStockSkuDate(stock, sku, toDate(dateTime));
 
 numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime 'Кол-во товаров' (supplier, stock, priceListType, int, dateTime) =
-    GROUP SUM 1 IF (diffPurchaseReserveStockSkuIntegerDateTime(stock, sku, int, dateTime) > 0 AND
-                    companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime) == supplier)
-          BY supplier, stock, priceListType, int, dateTime;
+    GROUP SUM 1 IF calcDiffPurchaseReserveStockSkuIntegerDateTime(stock, sku, int, dateTime) > 0
+          BY companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime), stock, priceListType, int, dateTime;
 
 limitRecommendedQuantitySkuUserOrder = ABSTRACT BOOLEAN (Sku, UserOrder);
 

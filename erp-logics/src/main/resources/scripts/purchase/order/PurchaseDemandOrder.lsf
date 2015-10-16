@@ -52,6 +52,11 @@ recQuantityDemandOrderSkuStockDateTimeDateDate  (sku, stock, dateTime, dFrom, dT
 
 recommendedQuantityDemandOrderSkuStockDateTimeDateDate 'Рекомендуемое к закупке кол-во' (sku, stock, dateTime, dFrom, dTo) = (recQuantityDemandOrderSkuStockDateTimeDateDate(sku, stock, dateTime, dFrom, dTo)) IF recQuantityDemandOrderSkuStockDateTimeDateDate(sku, stock, dateTime, dFrom, dTo) > 0;
 
+numberSkuPurchaseSupplier 'Кол-во товаров' = DATA LOCAL INTEGER (LegalEntity);
+recalculateNumberSkuPurchaseSupplier 'Рассчитать потребность' = ACTION (stock, priceListType, int, dateTime) {
+    numberSkuPurchaseSupplier(supplier) <- numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime(supplier, stock, priceListType, int, dateTime);
+} TOOLBAR;
+
 FORM demandOrder 'Заказы по потребностям'
     OBJECTS dt = DATETIME FIXED PANEL
     PROPERTIES valDt = OBJVALUE(dt)
@@ -75,9 +80,10 @@ FORM demandOrder 'Заказы по потребностям'
     ORDER BY nameLegalEntity(l)
     FILTERS isSupplierLegalEntity(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    PROPERTIES numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime(l, st, p, i, dt)
+    PROPERTIES numberSkuPurchaseSupplier(l)
+    PROPERTIES recalculateNumberSkuPurchaseSupplier(st, p, i, dt) TODRAW l
     FILTERGROUP filtersLegalEntity
-        FILTER 'Необходим заказ' numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime(l, st, p,i, dt)>0 'F10'
+        FILTER 'Необходим заказ' numberSkuPurchaseSupplier(l) > 0 'F10'
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES orderSkuGroup(sk) READONLY, skuTreeName = nameSkuGroup(sk) READONLY
@@ -100,7 +106,7 @@ FORM demandOrder 'Заказы по потребностям'
        FILTER 'В ассортименте' countRangeSkuDepartmentStoreDate(s, st, DATE(dt))
 
     FILTERGROUP filterdiff
-        FILTER 'С потребностью' diffPurchaseReserveStockSkuIntegerDateTime(st, s, i, dt) 
+        FILTER 'С потребностью' calcDiffPurchaseReserveStockSkuIntegerDateTime(st, s, i, dt) > 0 
         FILTER 'С рекомендацией' recommendedQuantityDemandOrderSkuStockDateTimeDateDate(s, st, dt, dFrom, dTo)
         FILTER 'С остатком' currentBalanceSkuStock(s, st)
         FILTER 'С продажами' quantitySoldSkuStockDateFromTo(s, st, dFrom, dTo)
@@ -123,7 +129,7 @@ FORM demandOrder 'Заказы по потребностям'
 //             supplierOrder(o) == l
              
     FILTERGROUP dateFilter
-        FILTER 'Заказы на дату' dateOrder(o) == toDate(dt) 'F9' DEFAULT                 
+        FILTER 'Заказы на дату' dateOrder(o) == toDate(dt) 'F9' DEFAULT
 ;
 
 // Проставляем вид цены по умолчанию
