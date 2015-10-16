@@ -41,7 +41,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
             LCP<PropertyInterface> isImportUserPriceListType = (LCP<PropertyInterface>) is(findClass("ImportUserPriceListType"));
             ImRevMap<PropertyInterface, KeyExpr> importUserPriceListTypeKeys = isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
-            QueryBuilder<PropertyInterface, Object> importUserPriceListTypeQuery = new QueryBuilder<PropertyInterface, Object>(importUserPriceListTypeKeys);
+            QueryBuilder<PropertyInterface, Object> importUserPriceListTypeQuery = new QueryBuilder<>(importUserPriceListTypeKeys);
             importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", findProperty("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
 
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
@@ -82,7 +82,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                                             renameImportedFile(context, f.getAbsolutePath(), "." + settings.getFileExtension());
 
                                     } catch (Exception e) {
-                                        ServerLoggers.systemLogger.error(e);
+                                        ServerLoggers.systemLogger.error("ImportUserPriceLists Error: ", e);
                                     }
                                 }
                             }

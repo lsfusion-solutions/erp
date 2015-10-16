@@ -650,7 +650,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if(count <= 0)
-                    ServerLoggers.systemLogger.error(e);
+                    ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
@@ -670,7 +670,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if(count <= 0)
-                    ServerLoggers.systemLogger.error(e);
+                    ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
@@ -693,7 +693,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             }
             output.close();
         } catch (IOException e) {
-            ServerLoggers.systemLogger.error(e);
+            ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
             file = null;
         }
         return file;
@@ -720,7 +720,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 file = null;
                 count--;
                 if(count <= 0)
-                    ServerLoggers.systemLogger.error(e);
+                    ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }

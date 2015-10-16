@@ -41,7 +41,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
             LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
-            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
+            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("startRowImportType", findProperty("startRowImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("isPostedImportType", findProperty("isPostedImportType").getExpr(session.getModifier(), importTypeKey));
@@ -83,7 +83,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                                             renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
                                     } catch (Exception e) {
-                                        ServerLoggers.systemLogger.error(e);
+                                        ServerLoggers.systemLogger.error("ImportProductionOrders Error: ", e);
                                     }
                                 }
                             }

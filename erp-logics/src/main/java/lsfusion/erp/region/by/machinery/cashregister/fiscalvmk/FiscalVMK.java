@@ -371,14 +371,14 @@ public class FiscalVMK {
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
         } catch (IOException e) {
-            logger.error(e);
+            logger.error("FiscalVMK Error: ", e);
         } finally {
             if (sw != null) {
                 try {
                     sw.flush();
                     sw.close();
                 } catch (IOException e) {
-                    logger.error(e);
+                    logger.error("FiscalVMK Error: ", e);
                 }
             }
         }

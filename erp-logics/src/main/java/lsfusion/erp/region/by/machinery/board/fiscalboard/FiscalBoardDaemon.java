@@ -69,9 +69,7 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
 
         try {
             setupDaemon(dbManager);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error starting Board Daemon: ", e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException("Error starting Board Daemon: ", e);
         }
     }
@@ -98,11 +96,8 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
             ExecutorService executorService = Executors.newFixedThreadPool(10);
             try {
                 serverSocket = new ServerSocket(2004, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
-            } catch (UnknownHostException e) {
-                logger.error(e);
-                executorService.shutdownNow();
             } catch (IOException e) {
-                logger.error(e);
+                logger.error("FiscalBoardDaemon Error: ", e);
                 executorService.shutdownNow();
             }
             if (serverSocket != null)
@@ -111,7 +106,7 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                         Socket socket = serverSocket.accept();
                         executorService.submit(new SocketCallable(businessLogics, socket));
                     } catch (IOException e) {
-                        logger.error(e);
+                        logger.error("FiscalBoardDaemon Error: ", e);
                     }
                 }
         }
@@ -152,7 +147,7 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 
                 return null;
             } catch (Exception e) {
-                logger.error(e);
+                logger.error("FiscalBoard Error: ", e);
             }
             ThreadLocalContext.set(null);
             return null;

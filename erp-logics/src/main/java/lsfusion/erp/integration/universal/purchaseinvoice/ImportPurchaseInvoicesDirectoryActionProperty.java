@@ -80,7 +80,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                                 renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
                                         } catch (Exception e) {
-                                            ServerLoggers.systemLogger.error(e);
+                                            ServerLoggers.systemLogger.error("ImportPurchaseInvoices Error: ", e);
                                         }
 
                                         currentSession.apply(context);
