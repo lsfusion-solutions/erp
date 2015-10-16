@@ -687,6 +687,40 @@ META defineDocumentInterfaceHeaderItemQuantity (object)
     @defineDocumentInterfaceHeaderItemQuantityPrefix (object, , );    
 END 
 
+// -------------------------------------- Количество строк в документе по товару, таре, услугам ----------------------------- //
+
+META defineDocumentHeaderItemCountCustomPrefix (object, detail, prefixA, prefixB)
+    prefixB###countItem###detail###object 'Кол-во строк (всего), товар' (object) =
+        GROUP SUM 1 IF isItemSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSum;
+    prefixB###countContainer###detail###object 'Кол-во строк (всего), тара' (object) =
+        GROUP SUM 1 IF isContainerSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSum;
+    prefixB###countCharge###detail###object 'Кол-во строк (всего), услуги' (object) =
+        GROUP SUM 1 IF isChargeSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSum;
+    prefixB###countNotCharge###detail###object 'Кол-во строк (всего), кроме услуг' (object) =
+        GROUP SUM 1 IF isNotChargeSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSum;
+    prefixB###countNotItem###detail###object 'Кол-во строк (всего), кроме товара' (object) =
+        GROUP SUM 1 IF isNotItemSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSum;
+    prefixB###countNotContainer###detail###object 'Кол-во строк (всего), кроме тары' (object) =
+        GROUP SUM 1 IF isNotContainerSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSum;
+
+END 
+META defineDocumentHeaderItemCountPrefix (object, prefixA, prefixB)
+    @defineDocumentHeaderItemCountCustomPrefix(object, object##Detail, prefixA, prefixB);
+END
+META defineDocumentInterfaceHeaderItemCountPrefix (object, prefixA, prefixB)
+    @defineDocumentHeaderItemCountPrefix (object, prefixA, prefixB);
+    @defineDocumentHeaderItemCountPrefix (user###object, prefixA, prefixB);
+END 
+META defineDocumentInterfaceHeaderItemCount (object)
+    @defineDocumentInterfaceHeaderItemCountPrefix (object, , );    
+END
+
 // -------------------------------------- Суммы по документам по товару, таре, услугам ----------------------------- //
 
 META defineDocumentHeaderItemSumCustom (object, detail, prefixA, prefixB)

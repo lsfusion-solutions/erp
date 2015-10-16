@@ -186,16 +186,17 @@ META defineOrderShipmentExecution (dumb)
         IF isPostedOrderDetail(d) BY orderOrderDetail(d);
                                                                
     percentQuantityExecutionOrder '% исп. заявки (кол-во)' (order)= shippedShipmentDetailOrder(order)*100.00 /
-        (quantityOrderDetailOrder(order) IF quantityOrderDetailOrder(order)!= 0);                                                              
+        (quantityNotChargeOrderDetailOrder(order) IF quantityNotChargeOrderDetailOrder(order)!= 0);                                                              
     
     countShippedOrderDetailOrder (order) = GROUP SUM 1 IF shippedOrderDetail(d) >= quantityOrderDetail(d) 
         AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
     percentCountExecutionOrder '% исп. заявки (позиции)' (order) = countShippedOrderDetailOrder (order)*100.00/
-        (countOrderDetailOrder(order) IF countOrderDetailOrder(order)!=0);
+        (countNotChargeOrderDetailOrder(order) IF countNotChargeOrderDetailOrder(order)!=0);
     
-    sumShippedOrderDetailOrder (order) = GROUP SUM shippedOrderDetail(d)*priceOrderDetail(d) 
+    sumShippedOrderDetailOrder (order) = GROUP SUM roundPriceCurrency(shippedOrderDetail(d)*priceOrderDetail(d), currencyOrderDetail(d)) 
         IF isPostedOrderDetail(d) BY orderOrderDetail(d);   
-    percentSumExecutionOrder '% исп. заявки (сумма)' (order) = sumShippedOrderDetailOrder(order)*100.00/(sumOrderDetailOrder(order) IF sumOrderDetailOrder(order)!=0);    
+    percentSumExecutionOrder '% исп. заявки (сумма)' (order) = sumShippedOrderDetailOrder(order)*100.00/
+    (sumNotChargeOrderDetailOrder(order) IF sumNotChargeOrderDetailOrder(order)!=0);    
     
     EXTEND FORM orders
         PROPERTIES(o) READONLY percentQuantityExecutionOrder, percentCountExecutionOrder, percentSumExecutionOrder     
