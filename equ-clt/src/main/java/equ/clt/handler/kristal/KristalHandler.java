@@ -309,40 +309,41 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         for (String directory : softCheckInfo.directorySet) {
 
-            String timestamp = new SimpleDateFormat("ddMMyyyyHHmmss").format(Calendar.getInstance().getTime());
-
-            String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
-
-            File flagSoftFile = new File(exchangeDirectory + "WAITSOFT");
-
-            Boolean flagExists = true;
             try {
-                flagExists = flagSoftFile.exists() || flagSoftFile.createNewFile();
-                if (!flagExists) {
-                    sendSoftCheckLogger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath());
-                }
-            } catch (Exception e) {
-                sendSoftCheckLogger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath(), e);
-            }
-            if (flagExists) {
-                File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
-                sendSoftCheckLogger.info("Kristal: creating " + softFile.getName() + " file");
-                PrintWriter writer = new PrintWriter(
-                        new OutputStreamWriter(
-                                new FileOutputStream(softFile), "windows-1251"));
-                
-                String logRecord = "softcheque data: ";
-                for (Map.Entry<String, SoftCheckInvoice> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
-                    logRecord += userInvoice.getKey() + ";";
-                    String record = String.format("%s|1|1|1|1|1|1|1|99996666|1|1|0", trimLeadingZeroes(userInvoice.getKey()));
-                    writer.println(record);
-                }
-                sendSoftCheckLogger.info(logRecord);
-                writer.close();
+                String timestamp = new SimpleDateFormat("ddMMyyyyHHmmss").format(Calendar.getInstance().getTime());
 
-                sendSoftCheckLogger.info("Kristal: deletion of WAITSOFT file");
-                if (!flagSoftFile.delete())
-                    throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
+                String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+
+                File flagSoftFile = new File(exchangeDirectory + "WAITSOFT");
+
+                Boolean flagExists = true;
+                try {
+                    flagExists = flagSoftFile.exists() || flagSoftFile.createNewFile();
+                    if (!flagExists) {
+                        sendSoftCheckLogger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath());
+                    }
+                } catch (Exception e) {
+                    sendSoftCheckLogger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath(), e);
+                }
+                if (flagExists) {
+                    File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
+                    sendSoftCheckLogger.info("Kristal: creating " + softFile.getName() + " file");
+                    PrintWriter writer = new PrintWriter(
+                            new OutputStreamWriter(
+                                    new FileOutputStream(softFile), "windows-1251"));
+
+                    String logRecord = "softcheque data: ";
+                    for (Map.Entry<String, SoftCheckInvoice> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
+                        logRecord += userInvoice.getKey() + ";";
+                        String record = String.format("%s|1|1|1|1|1|1|1|99996666|1|1|0", trimLeadingZeroes(userInvoice.getKey()));
+                        writer.println(record);
+                    }
+                    sendSoftCheckLogger.info(logRecord);
+                    writer.close();
+
+                    sendSoftCheckLogger.info("Kristal: deletion of WAITSOFT file");
+                    if (!flagSoftFile.delete())
+                        throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
 //                sendSoftCheckLogger.info("Kristal: waiting for deletion of WAITSOFT file");
 //                if (flagSoftFile.delete()) {
 //                    int count = 0;
@@ -359,6 +360,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 //                    }
 //                } else
 //                    throw new RuntimeException("The file " + flagSoftFile.getAbsolutePath() + " can not be deleted");
+                }
+            } catch (IOException e) {
+                sendSoftCheckLogger.error("Kristal SoftCheck Error: ", e);
             }
         }
     }
@@ -680,13 +684,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                     nppMachinery, sum));
                     }
                 } catch (SQLException e) {
-                    sendSalesLogger.error(e);
+                    sendSalesLogger.error("Kristal Error: ", e);
                 } finally {
                     try {
                         if (conn != null)
                             conn.close();
                     } catch (SQLException e) {
-                        sendSalesLogger.error(e);
+                        sendSalesLogger.error("Kristal Error: ", e);
                     }
                 }
             }
@@ -1185,7 +1189,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            sendSalesLogger.error(e);
+            sendSalesLogger.error("Kristal Error: ", e);
             return null;
         }
     }
@@ -1201,7 +1205,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            sendSalesLogger.error(e);
+            sendSalesLogger.error("Kristal Error: ", e);
             return null;
         }
     }
