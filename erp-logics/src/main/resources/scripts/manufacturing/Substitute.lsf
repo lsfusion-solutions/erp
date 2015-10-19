@@ -8,9 +8,11 @@ CLASS Substitute 'Замена';
 TABLE substitute(Substitute);
 
 fromSkuSubstitute = DATA Sku(Substitute);
+idFromSkuSubstitute 'Код товара с' (substitute)= idSku(fromSkuSubstitute(substitute)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 nameFromSkuSubstitute 'Товар с' (substitute)= nameSku(fromSkuSubstitute(substitute)) IN recognize;
 
 toSkuSubstitute = DATA Sku(Substitute);
+idToSkuSubstitute 'Код товара на' (substitute)= idSku(toSkuSubstitute(substitute)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 nameToSkuSubstitute 'Товар на' (substitute)= nameSku(toSkuSubstitute(substitute)) IN recognize;
 
 uniqueSubstituteFromToSku = GROUP AGGR substitute BY fromSkuSubstitute(substitute), toSkuSubstitute(substitute) WHERE substitute IS Substitute;
@@ -59,12 +61,12 @@ relationMaterialBOM (material, BOM)  = GROUP SUM 1 BY materialComponent(c), BOMC
 FORM substitute 'Замена'
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku, idBarcodeSku, shortNameUOMSku
+    PROPERTIES(sk) READONLY nameSku, idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
     FILTERGROUP filters
         FILTER 'Есть в спецификациях' countComponentMaterial(sk) 'F11' DEFAULT
 
     OBJECTS s=Substitute
-    PROPERTIES(s) nameFromSkuSubstitute, nameToSkuSubstitute, multiplierSubstitute, allBOMsSubstitute
+    PROPERTIES(s) idFromSkuSubstitute SHOWIF showIDs(), nameFromSkuSubstitute, idToSkuSubstitute SHOWIF showIDs(), nameToSkuSubstitute, multiplierSubstitute, allBOMsSubstitute
     PROPERTIES(s) ADDOBJ, DELETESESSION
 
     FILTERS fromSkuSubstitute(s) == sk

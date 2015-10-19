@@ -1622,6 +1622,7 @@ DESIGN options {
 CONSTRAINT companyOrder(order) AND NOT isCompanyLegalEntity(companyOrder(order))
     CHECKED BY companyOrder MESSAGE 'Для производственного заказа выбрана организация, не являющаяся компанией';
 
+overCopyOrder = ABSTRACT ACTION LIST (Order, Order);
 copyOrder 'Копировать' = ACTION (order) NEWSESSION {
     FOR ADDOBJ o = Order DO {
         companyOrder(o) <- companyOrder(order);
@@ -1659,8 +1660,8 @@ copyOrder 'Копировать' = ACTION (order) NEWSESSION {
             substituteSkuOrder(sku,o) <- substituteSkuOrder(sku,order);
             multiplierSkuOrder(sku,o) <- multiplierSkuOrder(sku,order);
         }
-    
-    FORM order OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+        overCopyOrder(o,order);
+        FORM order OBJECTS o = o MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
 
@@ -1907,6 +1908,7 @@ showMovementPriceSubstituteSkuStocksComponentDetail 'Показать измен
 showBOMProductDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMProductDetail(d), p = productProductDetail(d) NEWSESSION MODAL SHORTCUT nameProductProductDetail;
 showBOMComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d), c = componentComponentDetail(d) NEWSESSION MODAL SHORTCUT nameComponentComponentDetail;
 showBOMNameComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d) NEWSESSION MODAL SHORTCUT fullNameBOMComponentDetail;
+
 
 
 @defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);

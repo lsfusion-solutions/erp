@@ -225,3 +225,21 @@ DESIGN orders {
     }
 }
 overShipmentBaseOrder(order) <- (CONCAT '', 'Заказ № ', seriesNumberOrder(order)+' ', 'от '+toDateDDMMYYYY(dateOrder(order))) WHEN CHANGED(dateOrder(order)) OR CHANGED(seriesNumberOrder(order));
+
+DESIGN operation {
+    tabContainer {
+        NEW consignment {
+            caption = 'Оформление накладных';
+        }
+    }    
+}
+
+@defineOperationProperty(notUseDriverTruck, 'Не использовать справочники для выбора водителей и машин', consignment);
+@defineOperationProperty(notUseIssuanceAllowed, 'Не использовать справочник сотрудников "Отпуск разрешил"', consignment);
+@defineOperationProperty(notUseIssuanceExecuted, 'Не использовать справочник сотрудников "Отпуск произвел"', consignment);
+@defineOperationProperty(useGoodsAccepted, 'Использовать справочник сотрудников "Принял грузополучатель"', consignment);
+
+notUseDriverTruckConsignment(c) += notUseDriverTruckOperation(operationOrder(c));
+notUseIssuanceAllowedConsignment(c) += notUseIssuanceAllowedOperation(operationOrder(c));
+notUseIssuanceExecutedConsignment(c) += notUseIssuanceExecutedOperation(operationOrder(c));
+useGoodsAcceptedConsignment(c) += useGoodsAcceptedOperation(operationOrder(c));
