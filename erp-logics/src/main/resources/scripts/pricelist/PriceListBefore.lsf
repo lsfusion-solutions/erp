@@ -4,14 +4,29 @@ REQUIRE PriceList, PriceListOperation;
 
 NAMESPACE PriceList;
 
+
+inPriceListBeforeDataPriceListType 'Изменять цены (до)' = ABSTRACT BOOLEAN (PriceList, DataPriceListType) PERSISTENT;
+inUserPriceListBeforeDataPriceListType 'Изменять цены (до)' = DATA BOOLEAN (UserPriceList, DataPriceListType);
+inPriceListBeforeDataPriceListType (priceList, dataPriceListType) += inUserPriceListBeforeDataPriceListType(priceList, dataPriceListType);
+
+countBeforeDataPriceListTypesPriceList = GROUP SUM 1 IF inPriceListBeforeDataPriceListType(p,t) BY p;
+countBeforeDataPriceListTypesUserPriceList = GROUP SUM 1 IF inUserPriceListBeforeDataPriceListType(p,t) BY p;
+
+changeBeforeDataPriceListTypeOperation 'Изменять цены (до)' = DATA BOOLEAN (DataPriceListType, Operation);
+
+inUserPriceListBeforeDataPriceListType(priceList, dataPriceListType) <- changeBeforeDataPriceListTypeOperation(dataPriceListType, operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
+    
+EXTEND FORM operation
+    PROPERTIES(pt, o) changeBeforeDataPriceListTypeOperation TODRAW pt FORCE GRID AFTER showPriceListTypeOperation(pt, o)
+    
+;
+
 priceBeforePriceListDetail 'Цена до' = ABSTRACT NUMERIC[14,2] (PriceListDetail);
 priceBeforeUserPriceListDetail 'Цена до' = DATA NUMERIC[14,2] (UserPriceListDetail);
 priceBeforePriceListDetail(d) += priceBeforeUserPriceListDetail(d);
 
-priceListTypeBeforePriceList 'Вид цены для цены до' = ABSTRACT DataPriceListType (PriceList);
 priceListTypeBeforeUserPriceList 'Вид цены для цены до' = DATA DataPriceListType (UserPriceList);
-namePriceListTypeBeforeUserPriceList 'Вид цены для цены до' (p) = namePriceListType(priceListTypeBeforeUserPriceList(p));
-priceListTypeBeforePriceList(p) += priceListTypeBeforeUserPriceList(p);
 
 showPriceBeforePriceList 'Цена до' =  ABSTRACT BOOLEAN (PriceList);   
 showPriceBeforeUserPriceList 'Цена до' =  DATA BOOLEAN (UserPriceList);  
@@ -19,37 +34,29 @@ showPriceBeforeUserPriceListDetail (d) = showPriceBeforeUserPriceList(userPriceL
 showPriceBeforePriceList(p) += showPriceBeforeUserPriceList(p);
 
 EXTEND FORM userPriceList 
-    PROPERTIES(p) showPriceBeforeUserPriceList, namePriceListTypeBeforeUserPriceList SHOWIF showPriceBeforeUserPriceList(p)
+    PROPERTIES(p) showPriceBeforeUserPriceList
+    PROPERTIES(p,t) FORCE GRID inUserPriceListBeforeDataPriceListType SHOWIF showPriceBeforeUserPriceList(p)        
     PROPERTIES(d) priceBeforeUserPriceListDetail SHOWIF showPriceBeforeUserPriceList(p) BEFORE viewPriceUserPriceListDetailPriceListType(d,to)
     ;
     
 DESIGN userPriceList {
-    p.documentPrm{
-        MOVE PROPERTY (namePriceListTypeBeforeUserPriceList(p));
-    }
     param{
         MOVE PROPERTY (showPriceBeforeUserPriceList(p));
     }
 }
 
 priceListTypeBeforeOperation 'Вид цены для цены до' = DATA DataPriceListType (PriceList.Operation);
-namePriceListTypeBeforeOperation 'Вид цены для цены до' (o) = namePriceListType(priceListTypeBeforeOperation(o));
-
-priceListTypeBeforeUserPriceList(priceList) <- priceListTypeBeforeOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));    
-    
+   
 showPriceBeforeOperation 'Цена до' = DATA BOOLEAN (PriceList.Operation);
 showPriceBeforeUserPriceList(priceList) <- showPriceBeforeOperation(operationUserPriceList(priceList))
     WHEN CHANGED(operationUserPriceList(priceList));
 skipConstraintPriceBeforeOperation 'Может быть не задана Цена до' = DATA BOOLEAN (PriceList.Operation);
     
-EXTEND FORM operation PROPERTIES(o) showPriceBeforeOperation, skipConstraintPriceBeforeOperation, namePriceListTypeBeforeOperation;
-
+EXTEND FORM operation PROPERTIES(o) showPriceBeforeOperation, skipConstraintPriceBeforeOperation;
 DESIGN operation {
     showContainer {
         MOVE PROPERTY(showPriceBeforeOperation(o));
         MOVE PROPERTY(skipConstraintPriceBeforeOperation(o));
-        MOVE PROPERTY(namePriceListTypeBeforeOperation(o));
     }
 }
 
@@ -59,16 +66,16 @@ DESIGN operation {
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, toPriceBefore, ' по (Цена до)');
 @deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceBefore);
 
-CONSTRAINT priceListTypeBeforeUserPriceList(p) AND isPostedUserPriceList(p) AND
+CONSTRAINT countBeforeDataPriceListTypesUserPriceList(p) AND isPostedUserPriceList(p) AND
             ((fromPriceBeforeDateTimeUserPriceList(p) >= fromDateTimeUserPriceList(p) AND fromPriceBeforeDateTimeUserPriceList(p) <= toDateTimeUserPriceList(p)) OR
             (toPriceBeforeDateTimeUserPriceList(p) >= fromDateTimeUserPriceList(p) AND toPriceBeforeDateTimeUserPriceList(p) <= toDateTimeUserPriceList(p))) 
     MESSAGE 'Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса.';
     
-CONSTRAINT priceListTypeBeforeUserPriceList(p) AND isPostedUserPriceList(p) AND NOT skipConstraintPriceBeforeOperation(operationUserPriceList(p)) AND 
+CONSTRAINT countBeforeDataPriceListTypesUserPriceList(p) AND isPostedUserPriceList(p) AND NOT skipConstraintPriceBeforeOperation(operationUserPriceList(p)) AND 
             (NOT fromPriceBeforeDateTimeUserPriceList(p) OR NOT toPriceBeforeDateTimeUserPriceList(p))
     MESSAGE 'Дата с (Цена до) и Дата по (Цена до) должны быть заданы для прайса';
     
-CONSTRAINT priceListTypeBeforeUserPriceList(userPriceListUserPriceListDetail(d)) AND isPostedUserPriceList(userPriceListUserPriceListDetail(d))
+CONSTRAINT countBeforeDataPriceListTypesUserPriceList(userPriceListUserPriceListDetail(d)) AND isPostedUserPriceList(userPriceListUserPriceListDetail(d))
             AND NOT skipConstraintPriceBeforeOperation(operationUserPriceListDetail(d)) AND NOT priceBeforeUserPriceListDetail(d)
     MESSAGE 'Цена до должна быть задана для строки прайса.';
     
@@ -93,16 +100,16 @@ DESIGN userPriceList{
 CLASS PriceListBeforeLedger : PriceListLedger;
 TABLE priceListBeforeLedger(PriceListBeforeLedger);
 
-needPriceBeforePriceListDetail(d) = priceBeforePriceListDetail(d) AND priceListTypeBeforePriceList(priceListPriceListDetail(d))
+needPriceBeforePriceListDetail(d) = priceBeforePriceListDetail(d) AND countBeforeDataPriceListTypesPriceList(priceListPriceListDetail(d))
     AND fromPriceBeforeDateTimePriceList(priceListPriceListDetail(d)) AND toPriceBeforeDateTimePriceList(priceListPriceListDetail(d));
 
 @defineAggregation(priceListDetail, priceListBeforeLedger, needPriceBefore);
 
-inPriceListLedgerLedgerPriceListType(l, t) += t == priceListTypeBeforePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+inPriceListLedgerLedgerPriceListType(l, t) += inPriceListBeforeDataPriceListType(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)), t);
 
 descriptionPriceListLedger(l) += descriptionUserPriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l))) + ' (цена до)' ;
 
-pricePriceListLedgerLedgerPriceListType(l, t) += priceBeforePriceListDetail(priceListDetailPriceListBeforeLedger(l)) IF t == priceListTypeBeforePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
+pricePriceListLedgerLedgerPriceListType(l, t) += priceBeforePriceListDetail(priceListDetailPriceListBeforeLedger(l)) IF inPriceListBeforeDataPriceListType(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)), t);
 
 fromDateTimePriceListLedger(l) += fromPriceBeforeDateTimePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
 toDateTimePriceListLedger(l) += toPriceBeforeDateTimePriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
@@ -114,3 +121,14 @@ skuPriceListLedger(l) += skuPriceListDetail(priceListDetailPriceListBeforeLedger
 companyPriceListLedger(l) += companyPriceList(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)));
 
 inPriceListLedgerStock(l,st) += inPriceListStock(priceListPriceListDetail(priceListDetailPriceListBeforeLedger(l)),st);
+
+// todo: после запуска у  всех клиентов удалить
+isDataBeforeDataPriceListType = DATA BOOLEAN ();
+onStarted() += ACTION () {
+    IF NOT isDataBeforeDataPriceListType() THEN {
+        inUserPriceListBeforeDataPriceListType(p,t) <- TRUE WHERE priceListTypeBeforeUserPriceList(p) == t;    
+        changeBeforeDataPriceListTypeOperation(t,o) <- TRUE WHERE priceListTypeBeforeOperation(o) == t;
+        isDataBeforeDataPriceListType() <- TRUE;
+        apply();
+    }    
+}
