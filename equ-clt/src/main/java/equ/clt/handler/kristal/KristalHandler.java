@@ -666,7 +666,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     if(lastDaysCashDocument != null) {
                         Calendar c = Calendar.getInstance();
                         c.add(Calendar.DATE, -lastDaysCashDocument);
-                        queryString += " AND Ck_Date >=" + new SimpleDateFormat("yyyyMMdd").format(c.getTime());
+                        queryString += " AND Ck_Date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
                     while (rs.next()) {
