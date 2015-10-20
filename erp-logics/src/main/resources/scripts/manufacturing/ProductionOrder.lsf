@@ -1354,9 +1354,8 @@ isActiveBOMSku (sku) = GROUP SUM 1 IF isActiveBOM(BOMProduct(p)) BY skuProduct(p
 countProductsSkuStockDate (sku, stock, date) = GROUP SUM 1 IF isActiveBOMDate(BOMProduct(p), date) AND inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock, date;
 defaultProductSkuStockDate (sku, stock, date)= GROUP MIN p IF isActiveBOMDate(BOMProduct(p), date) AND inBOMStock(BOMProduct(p), stock) BY skuProduct(p), stock, date;
 
-WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
-    productProductDetail(d) <- defaultProductSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d))
-        WHERE countProductsSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d)) == 1;
+WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) AND NOT CHANGED(productProductDetail(d)) AND countProductsSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d)) == 1 NOINLINE DO {
+    productProductDetail(d) <- defaultProductSkuStockDate(skuProductDetail(d), componentsStockProductDetail(d), dateProductDetail(d));
 }     
                                                                      
 countBOMsMaterialSku (material) = GROUP SUM 1 IF materialComponent(c) AS Sku BY materialComponent(c) PERSISTENT;
