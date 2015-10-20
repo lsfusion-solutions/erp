@@ -21,6 +21,14 @@ componentSkuGroup 'Сырье' (skuGroup) =
     OVERRIDE nearestComponentSkuGroup (skuGroup), 
              dataComponentSkuGroup(skuGroup) PERSISTENT;    
 filterComponentSkuGroup = GROUP SUM 1 IF componentSkuGroup(group) AND isParentSkuGroupSkuGroup(group, parent) BY parent;
+               
+quantityChildWithComponentSkuGroup (group) = GROUP SUM 1 IF dataComponentSkuGroup(childGroup) AND isParentSkuGroupSkuGroup(childGroup, group) BY group PERSISTENT;
+quantityParentWithComponentSkuGroup (group) = GROUP SUM 1 IF dataComponentSkuGroup(parentGroup) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group PERSISTENT;          
+      
+backgroundComponentSkuGroup 'Цвет' (group) = CASE
+    WHEN dataComponentSkuGroup(group) THEN RGB(0,0,0)
+    WHEN nearestComponentSkuGroup(group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithComponentSkuGroup(group) != descendantNumberSkuGroup(group) AND NOT quantityParentWithComponentSkuGroup(group) THEN RGB(203,203,203);                                          
              
 //--
 
@@ -37,10 +45,18 @@ productSkuGroup 'Готовые изделия' (skuGroup) =
 
 filterProductSkuGroup = GROUP SUM 1 IF productSkuGroup(group) AND isParentSkuGroupSkuGroup(group, parent) BY parent;
 
+quantityChildWithProductSkuGroup (group) = GROUP SUM 1 IF dataProductSkuGroup(childGroup) AND isParentSkuGroupSkuGroup(childGroup, group) BY group PERSISTENT;
+quantityParentWithProductSkuGroup (group) = GROUP SUM 1 IF dataProductSkuGroup(parentGroup) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group PERSISTENT;          
+      
+backgroundProductSkuGroup 'Цвет' (group) = CASE
+    WHEN dataProductSkuGroup(group) THEN RGB(0,0,0)
+    WHEN nearestProductSkuGroup(group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithProductSkuGroup(group) != descendantNumberSkuGroup(group) AND NOT quantityParentWithProductSkuGroup(group) THEN RGB(203,203,203);    
+
 EXTEND FORM options 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES(sk) READONLY orderSkuGroup, nameSkuGroup
-    PROPERTIES(sk) componentSkuGroup, productSkuGroup
+    PROPERTIES(sk) componentSkuGroup BACKGROUND backgroundComponentSkuGroup(sk), productSkuGroup BACKGROUND backgroundProductSkuGroup(sk)
     ORDER BY orderSkuGroup(sk), nameSkuGroup(sk)
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT    
 ;
@@ -158,6 +174,7 @@ FORM technology 'Технология'
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
+    FILTERGROUP component FILTER 'Сырье' filterComponentSkuGroup(sg) 'F6' DEFAULT
     ORDER BY orderSkuGroup(sg), skuGroupName
     
     OBJECTS m = Material
