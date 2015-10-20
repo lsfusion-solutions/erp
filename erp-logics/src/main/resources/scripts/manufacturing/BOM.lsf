@@ -478,8 +478,6 @@ inTechnologyMaterial 'Связь' (technology, material) = GROUP SUM 1 IF dataWa
 CONSTRAINT inTechnologyComponent(technology, component) AND NOT inTechnologyMaterial(technology, materialComponent(component))
     MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';
 
-CONSTRAINT countTechnologiesComponent(component) > 2 MESSAGE 'Для компонента выбраны более двух технологий';
-
 wastageTechnologyComponent '% потерь' (t,c) = wastageTechnologyMaterial(t,materialComponent(c));     
                                          
 FORM componentTechnologies 'Технологии'
@@ -504,32 +502,20 @@ DESIGN componentTechnologies {
 wastageComponent '% потерь'= DATA NUMERIC[8,3] (Component);
 backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 
+coeffWastageTechnologiesComponentDate 'Коэффициент потерь (технология)' (component, date) =
+    OVERRIDE NUMERIC[20,9](1.0) IF component IS Component AND date IS DATE,
+    round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastageTechnologyMaterialDate(t, materialComponent(c), d)) / 100.0) IF inTechnologyComponent(t, c)) BY c, d](component, date)), 9);
 
-// todo: пока считаем, что более двух технологий для компонента не будет включено
-minTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) BY c PERSISTENT;
-maxTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) BY c;
-equalsMaxMinTechnologyComponent (c) = minTechnologyComponent (c) == maxTechnologyComponent (c) PERSISTENT;
+wastageTechnologiesComponentDate '% потерь (технология)' = (1.0 - coeffWastageTechnologiesComponentDate(component, date)) * 100.0;  
 
-calcMinMaxWastageTechnologyMaterialDate (c,date)= [= (1-((100-X)*(100-Y)/10000))*100](
-    (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)),
-     (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(maxTechnologyComponent(c),materialComponent(c), date)));
-    
-minMaxWastageTechnologyMaterialDate (c, date)= IF equalsMaxMinTechnologyComponent (c) THEN wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)
-    ELSE calcMinMaxWastageTechnologyMaterialDate(c,date);
-
-//wastageComponentDate '% потерь' (component, date) = IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
-//                                                    ELSE (OVERRIDE 0 IF component IS Component AND date IS DATE, wastageComponent(component) IF date IS DATE);
-                                                    
-wastageTechnologiesComponentDate '% потерь (технология)' (component, date) = IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
-                                                    ELSE (0 IF component IS Component AND date IS DATE);   
+//IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
+//                                                    ELSE (0 IF component IS Component AND date IS DATE);   
 wastageTechnologiesComponent '% потерь (технология)' (component) = wastageTechnologiesComponentDate(component, currentDate());                                                                                                     
                                                                                                      
-wastageComponentDate '% потерь' (component, date) = [= (1-((100-X)*(100-Y)/10000))*100](
-    wastageTechnologiesComponentDate(component, date),
+wastageComponentDate '% потерь' (component, date) = [= (1.0-(X*(100.0-Y)/100.0))*100.0](
+    coeffWastageTechnologiesComponentDate(component, date),
     (OVERRIDE 0 IF component IS Component,  wastageComponent(component)));
 //wastageTechnologiesComponentDate(component, date) (+) wastageComponent(component);                                                 
-
-overCurWastageComponent '% потерь' (component) = wastageComponentDate(component, currentDate());
 
 // Кол-во брутто
 
@@ -560,17 +546,7 @@ changeWastageComponent = ACTION (component) {
         bruttoQuantityComponent(component) <- NUMERIC[16,5](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
-    
-//calcWastageComponentDate (component, date) = NUMERIC[9,3]([= 100-(100*(100-X)/(100-Y))](
-//    ((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100),
-//    wastageTechnologiesComponentDate(component, date)));       
-                                                                                                                                                                                                                                                                                                                                                      
-calcWastageComponentDate (component, date) = NUMERIC[9,3]([= 100-(X/Y/(100-Z))*10000](
-    nettoQuantityComponent(component),
-    (bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0),
-    wastageTechnologiesComponentDate(component, date)));                                                                                                                                                                                                                                                                                                                                                          
-                                                                                                                                                                                                                                                                                                                                                      
-                                                                                                                                                                                                                                                                                                                                                         
+                                                                                                                                                                                                                                                                                                                                                            
 changeBruttoQuantityComponent = ACTION (component) {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {    
@@ -585,7 +561,7 @@ changeBruttoQuantityComponent = ACTION (component) {
 backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 backgroundBruttoQuantityBOM 'Цвет' (b) = RGB(229,229,229) IF b IS BOM;
 
-bruttoQuantityComponentDate 'Кол-во (брутто) с учетом технологий' (component, date) = NUMERIC[16,5](bruttoQuantityComponent(component)/(1.0 - (wastageTechnologiesComponentDate(component, date)/100.0))) COMPLEX;
+bruttoQuantityComponentDate 'Кол-во (брутто) с учетом технологий' (component, date) = NUMERIC[16,5](bruttoQuantityComponent(component)/coeffWastageTechnologiesComponentDate(component, date)) COMPLEX;
                                                                                 
 overCurBruttoQuantityComponent 'Кол-во (брутто) с уч. тех-ий' (component) = bruttoQuantityComponentDate(component, currentDate());
 
