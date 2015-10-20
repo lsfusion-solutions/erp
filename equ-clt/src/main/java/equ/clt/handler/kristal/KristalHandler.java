@@ -651,7 +651,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         //dir.equals(host) - old host format (without dir) will not work!
                         if (c.number != null && c.numberGroup != null && c.directory != null && c.directory.contains(dir) || dir.equals(host)) {
                             //cashRegisterGroupCashRegisterMap.put(c.number, c.numberGroup);
-                            directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+                            directoryGroupCashRegisterMap.put(dir + "_" + c.number, c.numberGroup);
                         }
                     }
 
