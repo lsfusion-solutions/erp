@@ -65,6 +65,9 @@ currentLegalEntity 'Организация' = DATA LOCAL LegalEntity ();
 nameCurrentLegalEntity 'Организация' = nameLegalEntity(currentLegalEntity());
 
 EXTEND FORM priceListDashboard
+    OBJECTS o = PriceList.Operation FIXED PANEL
+    PROPERTIES(o) SELECTOR PriceList.nameOperation
+        
     PROPERTIES() nameCurrentLegalEntity
     
     OBJECTS c = LegalEntity FIXED PANEL
@@ -108,6 +111,9 @@ EXTEND FORM priceListDashboard
 ;
 
 DESIGN priceListDashboard {
+    params {
+        MOVE o.box;    
+    }
     detail {
         NEW c {
             caption = 'По организациям';
@@ -168,13 +174,14 @@ fillCompanyPriceList = ACTION (userPriceList, dateTime, dataPriceListType, compa
 }
 
 // Добавление в ассортимент
-includeDateTimeDataPriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, company) {
+includeDateTimeDataPriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, company, operation) {
     NEWSESSION NESTED inSku {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompanyPriceList(u, dateTime, dataPriceListType, company);
             priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
                 activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
                 WHERE userPriceListUserPriceListDetail(d) == u;
+            operationUserPriceList(u) <- operation;     
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
             inSku(s) <- NULL;
         }
@@ -182,7 +189,7 @@ includeDateTimeDataPriceListTypeCompany 'Включить' = ACTION (dateTime, d
 }
 
 // Изменение цен
-modifyDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, company) {
+modifyDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, company, operation) {
     NEWSESSION NESTED inSku {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompanyPriceList(u, dateTime, dataPriceListType, company);
@@ -192,6 +199,7 @@ modifyDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, da
             FOR [= GROUP SUM 1 IF inSku(sku) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
                 dataInUserPriceListStock(u, stock) <- TRUE;
             }
+            operationUserPriceList(u) <- operation;  
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
             inSku(s) <- NULL;
         }
@@ -199,13 +207,14 @@ modifyDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, da
 }
 
 // Исключение из ассортимента
-excludeDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, company) {
+excludeDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, company, operation) {
     NEWSESSION NESTED inSku {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompanyPriceList(u, dateTime, dataPriceListType, company);
             FOR [= GROUP SUM 1 IF inSku(sku) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
                 dataInUserPriceListStock(u, stock) <- TRUE;
             }
+            operationUserPriceList(u) <- operation;  
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
             inSku(s) <- NULL;
         }
@@ -213,9 +222,9 @@ excludeDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime,
 }
 
 EXTEND FORM priceListDashboard
-    PROPERTIES TODRAW csk FORCE PANEL includeDateTimeDataPriceListTypeCompany(dt, pt, c),
-                                      modifyDateTimeDataPriceListTypeCompany(dt, pt, c),
-                                      excludeDateTimeDataPriceListTypeCompany(dt, pt, c)
+    PROPERTIES TODRAW csk FORCE PANEL includeDateTimeDataPriceListTypeCompany(dt, pt, c, o),
+                                      modifyDateTimeDataPriceListTypeCompany(dt, pt, c, o),
+                                      excludeDateTimeDataPriceListTypeCompany(dt, pt, c, o)
 ;
 
 DESIGN priceListDashboard {
@@ -223,9 +232,9 @@ DESIGN priceListDashboard {
         NEW primaryCompanyActions {
             type = CONTAINERH;
             caption = 'Согласованные цены';
-            MOVE PROPERTY(includeDateTimeDataPriceListTypeCompany(dt,pt,c));
-            MOVE PROPERTY(modifyDateTimeDataPriceListTypeCompany(dt,pt,c));
-            MOVE PROPERTY(excludeDateTimeDataPriceListTypeCompany(dt,pt,c));
+            MOVE PROPERTY(includeDateTimeDataPriceListTypeCompany(dt,pt,c,o));
+            MOVE PROPERTY(modifyDateTimeDataPriceListTypeCompany(dt,pt,c,o));
+            MOVE PROPERTY(excludeDateTimeDataPriceListTypeCompany(dt,pt,c,o));
         }
     }
 }
