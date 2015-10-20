@@ -59,12 +59,23 @@ EXTEND FORM skuLedger
 
 // --------- Суммы по документу ------------//
 
+showSkuLedgerStockDocument 'Показывать суммы по регистру в товарном отчете' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() showSkuLedgerStockDocument
+;
+
+DESIGN options {
+    stock {
+        MOVE PROPERTY(showSkuLedgerStockDocument());
+    }
+}
+
 sumSkuLedgerStockDocumentLedger 'Сумма по регистру' = GROUP SUM signedSumSkuLedger(l) BY stockDocumentLedgerSkuLedger(l) MINCHARWIDTH 12 PREFCHARWIDTH 12;
 
 EXTEND FORM sumStockDocumentLedger
-    PROPERTIES(il) sumSkuLedgerStockDocumentLedger
+    PROPERTIES(il) sumSkuLedgerStockDocumentLedger SHOWIF showSkuLedgerStockDocument()
     FILTERGROUP incorrectIncSum FILTER 'Неправильная сумма по регистру' NOT sumIncStockDocumentLedger(il) == sumSkuLedgerStockDocumentLedger(il) 'F7'
 
-    PROPERTIES(ol) sumSkuLedgerStockDocumentLedger
+    PROPERTIES(ol) sumSkuLedgerStockDocumentLedger SHOWIF showSkuLedgerStockDocument()
     FILTERGROUP incorrectOutSum FILTER 'Неправильная сумма по регистру' NOT sumOutStockDocumentLedger(ol) == -sumSkuLedgerStockDocumentLedger(ol) 'F7'
 ;
