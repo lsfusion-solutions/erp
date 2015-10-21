@@ -1,6 +1,6 @@
 MODULE SaleLedger;
 
-REQUIRE System, Stock, Tax, EmployeeStock, Sale, PriceRound, StockSkuDocument, SaleOperation;
+REQUIRE System, Stock, SkuLedgerTax, EmployeeStock, Sale, PriceRound, StockSkuDocument, SaleOperation;
 
 CLASS ABSTRACT SaleLedger 'Продажа товара';
 TABLE saleLedger(SaleLedger) FULL;
@@ -180,13 +180,13 @@ coeffSaleLedgerBatch 'Удельный вес' (ledger, batch) =
 quantitySoldBatchStockDate (batch, stock, date) = GROUP SUM costSaleLedgerBatch(ledger, batch) IF activeSaleLedger(ledger)
     BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-costSumSoldBatchStockDate (batch, stock, date) = GROUP SUM costSumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) 
+costSumSoldBatchStockDate (batch, stock, date) = GROUP SUM costSumSkuLedgerBatch(ledger, batch) 
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-markupSumSoldBatchStockDate (batch, stock, date) = GROUP SUM markupSumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) 
+markupSumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) * 100.0 / (100.0 + valueVATBatch(batch)) - costSumSkuLedgerBatch(ledger, batch) 
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-sumVATSoldBatchStockDate (batch, stock, date) = GROUP SUM sumVATSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch)  
+sumVATSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) * valueVATBatch(batch) / (100.0 + valueVATBatch(batch))  
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
 sumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch)  
