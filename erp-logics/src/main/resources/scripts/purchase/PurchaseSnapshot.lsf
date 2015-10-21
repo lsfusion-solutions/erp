@@ -94,6 +94,16 @@ isPurchaseSnapshot 'Закупка' = DATA BOOLEAN (Snapshot) IN evidence;
 
 isPurchaseSnapshotType 'Закупка' = DATA BOOLEAN (SnapshotType);
 
+//-- Batch
+purchaseQuantityBatchStockSnapshot 'Кол-во закупка' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
+purchaseNetWeightBatchStockSnapshot 'Вес закупка' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
+purchaseSumBatchStockSnapshot 'Сумма закупка' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+
+purchaseCostBatchStockSnapshot 'Себестоимость закупка' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+purchaseVATSupplierBatchStockSnapshot 'НДС поставщика закупка' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+purchaseCostVATSupplierBatchStockSnapshot 'С/С с НДС закупка' = purchaseVATSupplierBatchStockSnapshot(batch, stock, snapshot) (+)
+                                                                    purchaseCostBatchStockSnapshot(batch, stock, snapshot);
+
 EXTEND FORM snapshotType
     PROPERTIES (t) isPurchaseSnapshotType
 ;
@@ -155,7 +165,29 @@ overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, d
         
         purchaseVATSupplierSkuStockSnapshot(sku, stock, snapshot) <- NULL;                  
         purchaseVATSupplierSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumVATPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isVATSupplierSnapshot(snapshot) AND sumVATPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);                
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isVATSupplierSnapshot(snapshot) AND sumVATPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo);   
+                         
+        //batch
+        purchaseQuantityBatchStockSnapshot(batch, stock, snapshot) <- NULL;
+        purchaseQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isQuantitySnapshot(snapshot) AND quantityPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
+        
+        purchaseNetWeightBatchStockSnapshot(batch, stock, snapshot) <- NULL;    
+        purchaseNetWeightBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo)*overNetWeightSku(skuBatch(batch))) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isNetWeightSnapshot(snapshot) AND quantityPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
+        
+        purchaseSumBatchStockSnapshot(batch, stock, snapshot) <- NULL;                
+        purchaseSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](sumPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isSumSnapshot(snapshot) AND sumPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo);   
+        
+        purchaseCostBatchStockSnapshot(batch, stock, snapshot) <- NULL;    
+        purchaseCostBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isCostSnapshot(snapshot) AND costSumPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo);  
+        
+        purchaseVATSupplierBatchStockSnapshot(batch, stock, snapshot) <- NULL;                  
+        purchaseVATSupplierBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](sumVATPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isVATSupplierSnapshot(snapshot) AND sumVATPurchaseBatchStockDateFromTo(batch, stock, dateFrom, dateTo);                                                                             
+                         
     }    
 }; 
 //-- SHOWIF
@@ -218,6 +250,16 @@ EXTEND FORM snapshot
                        purchaseVATSupplierStockSnapshot SHOWIF isVATSupplierPurchaseSnapshot(r),
                        purchaseCostVATSupplierStockSnapshot SHOWIF isCostVATSupplierPurchaseSnapshot(r),
                        purchaseNetWeightStockSnapshot SHOWIF isNetWeightPurchaseSnapshot(r)
+                       
+                       
+//--batch  
+    PROPERTIES(bt,ss,r) AFTER netWeightBBatchStockSnapshot(bt,ss,r) BACKGROUND hintPurchaseBackground()
+                       purchaseQuantityBatchStockSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
+                       purchaseSumBatchStockSnapshot SHOWIF isSumPurchaseSnapshot(r),
+                       purchaseCostBatchStockSnapshot SHOWIF isCostPurchaseSnapshot(r),
+                       purchaseVATSupplierBatchStockSnapshot SHOWIF isVATSupplierPurchaseSnapshot(r),
+                       purchaseCostVATSupplierBatchStockSnapshot SHOWIF isCostVATSupplierPurchaseSnapshot(r),
+                       purchaseNetWeightBatchStockSnapshot SHOWIF isNetWeightPurchaseSnapshot(r)                       
 ;
 DESIGN snapshot {
     row6 {

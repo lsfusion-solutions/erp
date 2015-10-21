@@ -109,6 +109,9 @@ TABLE purchaseLedgerBatch(PurchaseLedger, Batch);
 
 costPurchaseLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLedger, Batch) PERSISTENT;
 
+coeffPurchaseLedgerBatch 'Удельный вес' (ledger, batch) =
+    NUMERIC[22,8](costPurchaseLedgerBatch(ledger, batch)/quantityPurchaseLedger(ledger));
+
 costSumPurchaseLedger 'Себестоимость' = GROUP SUM costPurchaseLedgerBatch(ledger, batch) * costBatch(batch) BY ledger;
 
 //CONSTRAINT quantityPurchaseLedger(purchaseLedger) == 0 MESSAGE 'ошибка: Количество покупки не должно быть равно нулю';
@@ -120,6 +123,34 @@ valueVATPurchaseLedger 'НДС, %' (ledger) = valueRateRangeDate(VATPurchaseLedg
 
 sumVATPurchaseLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
         sumPurchaseLedger(ledger), valueVATPurchaseLedger(ledger)));
+
+
+//по складу и batch
+quantityPurchaseBatchStockDate (batch, stock, date) = GROUP SUM costPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
+    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);
+sumVATPurchaseBatchStockDate (batch, stock, date) = GROUP SUM sumVATPurchaseLedger(ledger)*coeffPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
+    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);
+sumPurchaseBatchStockDate (batch, stock, date) = GROUP SUM sumPurchaseLedger(ledger)*coeffPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
+    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);    
+costSumPurchaseBatchStockDate (batch, stock, date) = GROUP SUM costSumPurchaseLedger(ledger)*coeffPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
+    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);
+    
+//по складу и Batch
+quantityPurchaseBatchStockDateFromTo 'Закуплено за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        quantityPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY batch, stock, dateFrom, dateTo;
+
+sumVATPurchaseBatchStockDateFromTo 'Сумма НДС закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        sumVATPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY batch, stock, dateFrom, dateTo;
+
+sumPurchaseBatchStockDateFromTo 'Закуплено за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        sumPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY batch, stock, dateFrom, dateTo;
+        
+costSumPurchaseBatchStockDateFromTo 'Себестоимость закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        costSumPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY batch, stock, dateFrom, dateTo;     
 
 TABLE purchaseSkuStockDate(Sku, Stock, DATE);
 
