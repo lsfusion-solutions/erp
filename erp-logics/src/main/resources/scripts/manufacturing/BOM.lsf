@@ -406,11 +406,18 @@ changePriceCoeffProduct = ACTION (product) {
 
     }
 }
+seriesProduct 'Серия' = seriesBOM(BOMProduct(p)) FIXEDCHARWIDTH 3;
+numberProduct 'Номер' = numberBOM(BOMProduct(p)) MINCHARWIDTH 7;
+
+fromDateProduct 'Дата с' = fromDateBOM(BOMProduct(p));
+toDateProduct 'Дата по' = toDateBOM(BOMProduct(p));
 
 FORM products 'Изделия'
     OBJECTS p=Product
+    PROPERTIES (p) READONLY numberProduct, seriesProduct, dateProduct
     PROPERTIES(p) idProduct SHOWIF showIDs()
     PROPERTIES(p) READONLY inactiveProduct, descriptionProduct, indexProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct
+    PROPERTIES(p) READONLY fromDateProduct, toDateProduct
 //    PROPERTIES (p) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
     FILTERGROUP active
         FILTER 'Активные' NOT inactiveProduct(p) DEFAULT
@@ -638,7 +645,36 @@ stocksBOM 'Склады' (BOM) = GROUP CONCAT nameStock(stock) IF inBOMStock(BOM
                                                  ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 stocksIDBOM 'Склады' (BOM) = GROUP CONCAT idStock(stock) IF inBOMStock(BOM, stock) , ', '
                                                  BY BOM
-                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;                                                 
+                                                 ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;          
+                                                                                        
+                                                                                        
+EXTEND FORM products
+    OBJECTS c = Component
+    PROPERTIES(c) READONLY BACKGROUND backgroundComponent(c) indexComponent 
+    PROPERTIES(c) READONLY BACKGROUND backgroundComponent(c) idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent 
+    PROPERTIES(c) READONLY BACKGROUND backgroundComponent(c) 
+                  nettoQuantityComponent, overNettoNetWeightComponent,
+                  wastageComponent,
+                  bruttoQuantityComponent, overBruttoNetWeightComponent,
+                  technologiesInvoice BACKGROUND backgroundBruttoQuantityComponent(c),
+                  wastageTechnologiesComponent BACKGROUND backgroundBruttoQuantityComponent(c),                   
+                  overCurBruttoQuantityComponent BACKGROUND backgroundBruttoQuantityComponent(c),
+                  overCurBruttoNetWeightComponent BACKGROUND backgroundBruttoQuantityComponent(c)
+    ORDER BY indexComponent(c)
+    FILTERS       BOMComponent(c) == BOMProduct(p)                                                                                      
+; 
+DESIGN products {
+    main {
+        NEW top {
+            fill = 1;
+            type = SPLITV;
+            MOVE p.box;
+            MOVE c.box;
+        }
+        MOVE functions.box;
+    }
+}                                                                                    
+                                                                                        
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
