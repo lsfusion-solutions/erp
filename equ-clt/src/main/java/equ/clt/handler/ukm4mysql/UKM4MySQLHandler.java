@@ -53,6 +53,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 if (connectionString == null) {
                     processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
                 } else {
+                    Map<Integer, Integer> versionTransactionMap = new HashMap<>();
+                    Integer version = null;
                     for (TransactionCashRegisterInfo transaction : transactionList) {
 
                         String weightCode = transaction.weightCodeGroupCashRegister;
@@ -62,11 +64,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         Exception exception = null;
                         try {
 
-                            int version = getVersion(conn);
+                            if(version == null)
+                                version = getVersion(conn);
 
-                            if (skipItems) {
-                                version = version - 1;
-                            } else {
+                            if (!skipItems) {
+                                version++;
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
                                 exportClassif(conn, transaction, version);
 
@@ -86,19 +88,22 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                                 exportVar(conn, transaction, weightCode, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                                exportSignals(conn, transaction, version, true, timeout);
+                                exportSignals(conn, transaction, version, true, timeout, false);
+                                versionTransactionMap.put(version, transaction.id);
                             }
 
+                            version++;
                             if(!skipBarcodes) {
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
-                                exportPriceListVar(conn, transaction, weightCode, version + 1);
+                                exportPriceListVar(conn, transaction, weightCode, version);
                             }
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
-                            exportPriceListItems(conn, transaction, version + 1);
+                            exportPriceListItems(conn, transaction, version);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
-                            exportSignals(conn, transaction, version + 1, false, timeout);
+                            exportSignals(conn, transaction, version, false, timeout, false);
+                            versionTransactionMap.put(version, transaction.id);
 
                         } catch (Exception e) {
                             exception = e;
@@ -108,6 +113,16 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         }
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
+
+                    Connection conn = DriverManager.getConnection(connectionString, user, password);
+                    try {
+                        processTransactionLogger.info(String.format("ukm4 mysql: export to table signal %s records", versionTransactionMap.size()));
+                        sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, timeout));
+                    } finally {
+                        if (conn != null)
+                            conn.close();
+                    }
+
                 }
             } catch (ClassNotFoundException | SQLException e) {
                 throw Throwables.propagate(e);
@@ -123,9 +138,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             statement = conn.createStatement();
             String query = "select max(version) from `signal`";
             ResultSet rs = statement.executeQuery(query);
-            version = (rs.next() ? rs.getInt(1) : 0) + 1;
+            version = rs.next() ? rs.getInt(1) : 0;
         } catch (SQLException e) {
-            version = 1;
+            version = 0;
         } finally {
             if (statement != null)
                 statement.close();
@@ -394,7 +409,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         }
     }
 
-    private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout) throws SQLException {
+    private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout, boolean wait) throws SQLException {
         conn.setAutoCommit(true);
         Statement statement = null;
         try {
@@ -404,16 +419,18 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     (transaction != null && transaction.snapshot && !ignoreSnapshot) ? "cumm" : "incr", version);
             statement.executeUpdate(sql);
 
-            int count = 0;
-            while(!waitForSignalExecution(conn, version)) {
-                if(count > (timeout / 5)) {
-                    String message = String.format("data was sent to db but signal record %s was not deleted", version);
-                    processTransactionLogger.error(message);
-                    throw new RuntimeException(message);
-                } else {
-                    count++;
-                    processTransactionLogger.info(String.format("Waiting for deletion of signal record %s in base", version));
-                    Thread.sleep(5000);
+            if(wait) {
+                int count = 0;
+                while (!waitForSignalExecution(conn, version)) {
+                    if (count > (timeout / 5)) {
+                        String message = String.format("data was sent to db but signal record %s was not deleted", version);
+                        processTransactionLogger.error(message);
+                        throw new RuntimeException(message);
+                    } else {
+                        count++;
+                        processTransactionLogger.info(String.format("Waiting for deletion of signal record %s in base", version));
+                        Thread.sleep(5000);
+                    }
                 }
             }
 
@@ -432,6 +449,56 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             String sql = "SELECT COUNT(*) FROM `signal` WHERE version = " + version;
             ResultSet resultSet = statement.executeQuery(sql);
             return !resultSet.next() || resultSet.getInt(1) == 0;
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (statement != null)
+                statement.close();
+        }
+    }
+
+    private Map<Integer, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Integer> versionMap, int timeout) {
+        Map<Integer, SendTransactionBatch> batchResult = new HashMap<>();
+        try {
+            int count = 0;
+            while (!versionMap.isEmpty()) {
+                versionMap = waitForSignalsExecution(conn, versionMap);
+                if (count > (timeout / 5)) {
+                    String message = String.format("data was sent to db but signal record(s) %s was not deleted", versionMap.keySet());
+                    processTransactionLogger.error(message);
+                    for (Integer transaction : versionMap.values()) {
+                        batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
+                    }
+                } else {
+                    count++;
+                    processTransactionLogger.info(String.format("Waiting for deletion of signal record(s) %s in base", versionMap.keySet()));
+                    Thread.sleep(5000);
+                }
+            }
+        } catch (Exception e) {
+            for (Integer transaction : versionMap.values()) {
+                batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(e.getMessage())));
+            }
+        }
+        return batchResult;
+    }
+
+    private Map<Integer, Integer> waitForSignalsExecution(Connection conn, Map<Integer, Integer> versionMap) throws SQLException {
+        Statement statement = null;
+        try {
+            String inVersions = "";
+            for(Integer version : versionMap.keySet())
+                inVersions += (inVersions.isEmpty() ? "" : ",") + version;
+
+            statement = conn.createStatement();
+            String sql = "SELECT version FROM `signal` WHERE version IN (" + inVersions + ")";
+            ResultSet resultSet = statement.executeQuery(sql);
+            Map<Integer, Integer> result = new HashMap<>();
+            while(resultSet.next()) {
+                Integer version = resultSet.getInt(1);
+                 result.put(version, versionMap.get(version));
+            }
+            return result;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         } finally {
@@ -466,7 +533,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 conn = DriverManager.getConnection(connectionString, user, password);
 
                 int version = getVersion(conn);
-
+                version++;
                 if(!skipBarcodes) {
                     processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
                     conn.setAutoCommit(false);
@@ -511,7 +578,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 conn.commit();
 
                 processTransactionLogger.info("ukm4 mysql: executing stopLists, table signal");
-                exportSignals(conn, null, version, true, timeout);
+                exportSignals(conn, null, version, true, timeout, true);
 
             } catch (SQLException e) {
                 e.printStackTrace();
