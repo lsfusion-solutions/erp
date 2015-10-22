@@ -22,6 +22,7 @@ public class KristalSettings implements Serializable{
     private Integer importGroupType; // 0 - no, 1 - classic, 2 - objValue, 3 - newType
     private Boolean noRestriction;
     private Boolean deleteSuccessfulFiles;
+    private String idPositionCashier;
 
     public KristalSettings(String sqlUsername, String sqlPassword, String sqlHost, String sqlPort, String sqlDBName) {
         this.sqlUsername = sqlUsername;
@@ -124,5 +125,13 @@ public class KristalSettings implements Serializable{
 
     public void setDeleteSuccessfulFiles(Boolean deleteSuccessfulFiles) {
         this.deleteSuccessfulFiles = deleteSuccessfulFiles;
+    }
+
+    public String getIdPositionCashier() {
+        return idPositionCashier;
+    }
+
+    public void setIdPositionCashier(String idPositionCashier) {
+        this.idPositionCashier = idPositionCashier;
     }
 }

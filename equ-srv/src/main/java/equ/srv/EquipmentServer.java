@@ -741,12 +741,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImRevMap<Object, KeyExpr> contactKeys = MapFact.singletonRev((Object) "contact", contactExpr);
 
             QueryBuilder<Object, Object> contactQuery = new QueryBuilder<>(contactKeys);
-            String[] contactNames = new String[]{"sidMainRoleCustomUser", "loginCustomUser", "shortNameContact"};
-            LCP[] contactProperties = equLM.findProperties("sidMainRoleCustomUser", "loginCustomUser", "shortNameContact");
+            String[] contactNames = new String[]{"loginCustomUser", "shortNameContact", "idPositionEmployee"};
+            LCP[] contactProperties = equLM.findProperties("loginCustomUser", "shortNameContact", "idPositionEmployee");
             for (int i = 0; i < contactProperties.length; i++) {
                 contactQuery.addProperty(contactNames[i], contactProperties[i].getExpr(contactExpr));
             }
-            contactQuery.and(equLM.findProperty("sidMainRoleCustomUser").getExpr(contactExpr).getWhere());
             contactQuery.and(equLM.findProperty("loginCustomUser").getExpr(contactExpr).getWhere());
             contactQuery.and(equLM.findProperty("shortNameContact").getExpr(contactExpr).getWhere());
 
@@ -757,7 +756,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 String numberCashier = getRowValue(row, "loginCustomUser");
                 String nameCashier = getRowValue(row, "shortNameContact");
-                cashierInfoList.add(new CashierInfo(numberCashier, nameCashier));
+                String idPosition = getRowValue(row, "idPositionEmployee");
+                cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition));
             }
         } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);

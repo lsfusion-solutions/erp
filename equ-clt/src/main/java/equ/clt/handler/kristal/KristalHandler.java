@@ -724,8 +724,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 //stopList.txt
                 File stopListFile = new File(exchangeDirectory + "stoplist.txt");
                 File flagStopListFile = new File(exchangeDirectory + "WAITSTOPLIST");
-                if (flagStopListFile.exists())
-                    flagStopListFile.delete();
+                if (flagStopListFile.exists() && !flagStopListFile.delete())
+                    flagStopListFile.deleteOnExit();
                 if (stopListFile.exists() && flagStopListFile.exists()) {
                     throw new RuntimeException(existFilesMessage(stopListFile, flagStopListFile));
                 } else {
@@ -803,6 +803,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
+        String idPositionCashier = kristalSettings != null ? kristalSettings.getIdPositionCashier() : null;
 
         for (String directory : directorySet) {
 
@@ -819,8 +820,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(cashierFile), "windows-1251"));
 
                 for (CashierInfo cashier : cashierInfoList) {
-                    String record = String.format("+|%s|%s|%s|0|:::::::", cashier.numberCashier, cashier.nameCashier, cashier.numberCashier);
-                    writer.println(record);
+                    if(idPositionCashier == null || idPositionCashier.equals(cashier.idPosition)) {
+                        String record = String.format("+|%s|%s|%s|0|:::::::", cashier.numberCashier, cashier.nameCashier, cashier.numberCashier);
+                        writer.println(record);
+                    }
                 }
                 writer.close();
 
