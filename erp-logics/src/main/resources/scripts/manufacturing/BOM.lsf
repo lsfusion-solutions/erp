@@ -292,7 +292,7 @@ DESIGN technologies {
 
 // ---------------------- BOM'ы ----------------------
 
-CLASS BOM 'Спецификация';
+CLASS BOM 'Спецификация' : Document;
 TABLE BOM (BOM);
 TABLE employeeBOM(Employee, BOM); 
 
@@ -320,7 +320,7 @@ inactiveBOM 'Неактивная' = DATA BOOLEAN (BOM) IN documentPrm;
 activeBOM 'Активная' = b IS BOM AND NOT inactiveBOM(b);
 
 // ------------- Изделия ----------- //
-CLASS Product 'Изделие' : Material;
+CLASS Product 'Изделие' : Material, DocumentDetail;
 TABLE product (Product);
 
 @defineExternalizable(product, VARSTRING[100], ext);
@@ -427,7 +427,7 @@ FORM products 'Изделия'
 
 
 // ------------- Компоненты ----------- //
-CLASS Component 'Компонент';
+CLASS Component 'Компонент' : DocumentDetail;
 TABLE component (Component);
 
 //nameComponent 'Наименование' = DATA VARISTRING[100](Component);
@@ -1328,3 +1328,25 @@ NAVIGATOR {
 showBOMComponent'Показать спецификацию' (c) = ACTION FORM BOM OBJECTS b = BOMProduct(materialComponent(c)), p = materialComponent(c) NEWSESSION MODAL SHORTCUT nameMaterialComponent;
 //showBOMComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d), c = componentComponentDetail(d) NEWSESSION MODAL SHORTCUT nameComponentComponentDetail;
 ////showBOMNameComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d) NEWSESSION MODAL SHORTCUT fullNameBOMComponentDetail;
+
+numberDocument(BOM) += numberBOM(BOM);
+seriesDocument(BOM) += seriesBOM(BOM);
+dateDocument(BOM) += dateBOM(BOM);
+
+indexDocumentDetail(detail) += indexProduct(detail);
+skuDocumentDetail(detail) += skuProduct(detail);
+quantityDocumentDetail(detail) += quantityProduct(detail);
+documentDocumentDetail(detail) += BOMProduct(detail);
+
+indexDocumentDetail(detail) += indexComponent(detail);
+skuDocumentDetail(detail) += skuComponent(detail);
+quantityDocumentDetail(detail) += bruttoQuantityComponent(detail);
+documentDocumentDetail(detail) += BOMComponent(detail);
+
+supplierDocument(BOM) += companyBOM(BOM);
+//supplierStockDocument(BOM) +=supplierStockBOM(BOM);
+customerDocument(BOM) += companyBOM(BOM);
+//customerStockDocument(BOM) += customerStockBOM(BOM);
+
+
+@defineDocumentLogForm(BOMs, b); 
