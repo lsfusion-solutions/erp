@@ -463,16 +463,18 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             int count = 0;
             while (!versionMap.isEmpty()) {
                 versionMap = waitForSignalsExecution(conn, versionMap);
-                if (count > (timeout / 5)) {
-                    String message = String.format("data was sent to db but signal record(s) %s was not deleted", versionMap.keySet());
-                    processTransactionLogger.error(message);
-                    for (Integer transaction : versionMap.values()) {
-                        batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
+                if(!versionMap.isEmpty()) {
+                    if (count > (timeout / 5)) {
+                        String message = String.format("data was sent to db but signal record(s) %s was not deleted", versionMap.keySet());
+                        processTransactionLogger.error(message);
+                        for (Integer transaction : versionMap.values()) {
+                            batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
+                        }
+                    } else {
+                        count++;
+                        processTransactionLogger.info(String.format("Waiting for deletion of signal record(s) %s in base", versionMap.keySet()));
+                        Thread.sleep(5000);
                     }
-                } else {
-                    count++;
-                    processTransactionLogger.info(String.format("Waiting for deletion of signal record(s) %s in base", versionMap.keySet()));
-                    Thread.sleep(5000);
                 }
             }
         } catch (Exception e) {
