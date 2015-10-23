@@ -1207,8 +1207,20 @@ createSnapshotString 'Создать отчет' = ACTION (string, dateTo) NEWSE
     }
 }
 
-deleteSnapshots = ACTION () {
-    DELETE r WHERE r IS Snapshot AND sumDate(dateSnapshot(r),countDaysDeleteSnapshotType(snapshotTypeSnapshot(r))) < currentDate();
+countDaysDeleteSnapshots 'Дней хранить аналитические отчеты без типов' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES countDaysDeleteSnapshots();
+    
+DESIGN options{
+    stock {
+        MOVE PROPERTY (countDaysDeleteSnapshots());
+    }
+}
+
+deleteSnapshots 'Удальть старые аналитические отчеты'= ACTION () {
+    DELETE r WHERE sumDate(dateSnapshot(r),countDaysDeleteSnapshotType(snapshotTypeSnapshot(r))) < currentDate()
+        OR (NOT snapshotTypeSnapshot(r) AND sumDate(dateSnapshot(r), countDaysDeleteSnapshots()) < currentDate());
 }
 
 
