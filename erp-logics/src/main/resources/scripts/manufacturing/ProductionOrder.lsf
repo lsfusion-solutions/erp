@@ -673,7 +673,7 @@ changeSubstituteSkuOrder = ACTION (substitute, sku, order) {
 calcQuantityComponentsProductDetailProduct 'Кол-во компонентов' = GROUP SUM quantityPriceProductDetail(d) BY BOMProductDetail(d), orderProductDetail(d);
 calcQuantityComponentsProductDetail 'Кол-во компонентов' = calcQuantityComponentsProductDetailProduct(BOMProductDetail(detail), orderProductDetail(detail));
             
-calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = calcQuantityComponentsProductDetail(productDetail) * pricePercentProductDetail(productDetail) 
+calcPriceCoeffProductDetail 'Коэффициент цены' (productDetail) = NUMERIC[20,9](calcQuantityComponentsProductDetail(productDetail)) * pricePercentProductDetail(productDetail) 
     / (quantityPriceProductDetail(productDetail) * 100.0);  
      
 calcPricePercentProductDetailNumeric '%' (productDetail, num) = (num AS NUMERIC[8,5]) * quantityPriceProductDetail(productDetail) * 100.0 
@@ -804,7 +804,8 @@ changeValueProductsPriceProductDetail (detail) = ACTION (detail) {
         IF notRecalculateMarkupOrderProductDetail(detail) THEN {
             pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
         }
-    } ELSE {
+    }
+    IF NOT addVATProductDetail(detail) THEN {
         markupProductDetail(detail) <- calcMarkupProductDetail(detail);
         IF notRecalculateMarkupOrderProductDetail(detail) THEN {
             pricePercentProductDetail(detail) <- calcPricePercentProductDetail(detail);
@@ -895,19 +896,22 @@ fillPriceProductDetail 'Заполнить цены для изделий' = ACT
                                                                                         dateTimeProductDetail(detail));  
         changeValueProductsPriceProductDetail(detail);                                                                                
                                                                                          
-    } ELSE {
-        IF calcPriceListTypeProductDetail(detail) AND markupCalcPriceListTypeSku(calcPriceListTypeProductDetail(detail), skuProductDetail(detail)) THEN {
-            markupProductDetail(detail) <- markupCalcPriceListTypeSku(calcPriceListTypeProductDetail(detail), skuProductDetail(detail));
-            changeValueMarkupProductDetail(detail);
-        }
-    }                                                   
+    }
+    IF calcPriceListTypeProductDetail(detail) AND markupCalcPriceListTypeSku(calcPriceListTypeProductDetail(detail), skuProductDetail(detail)) AND NOT 
+        (productsPriceListTypeProductDetail(detail) AND prevPriceBPriceListTypeSkuStockDateTime(productsPriceListTypeProductDetail(detail),
+                                                                                                      skuProductDetail(detail),
+                                                                                                      productsStockProductDetail(detail),
+                                                                                                      dateTimeProductDetail(detail))) THEN {
+        markupProductDetail(detail) <- markupCalcPriceListTypeSku(calcPriceListTypeProductDetail(detail), skuProductDetail(detail));
+        changeValueMarkupProductDetail(detail);
+    }
 
 } TOOLBAR;
 
 
 
 fillPriceProductsOrder 'Заполнить цены для изделий' = ACTION (order)  {
-    FOR orderProductDetail(detail) == order DO {
+    FOR orderProductDetail(detail) == order INLINE DO {
         fillPriceProductDetail(detail);                                                    
     }
 } TOOLBAR;
