@@ -5,6 +5,7 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.LogicsInstance;
+import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -40,8 +41,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSkuBarcode").read(session, terminalHandlerLM.findProperty("barcodeId").readClasses(session, new DataObject(barcode)));
                 if(nameSkuBarcode == null)
                     return null;
-                BigDecimal price = BigDecimal.valueOf(10000);
-                return Arrays.asList(nameSkuBarcode, String.valueOf(price.longValue()));
+                ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcodeId").readClasses(session, new DataObject(barcode));
+                ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stockEmployee").readClasses(session, user);
+                BigDecimal price = null;
+                if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
+                    price = (BigDecimal) terminalHandlerLM.findProperty("currentRetailPricingPriceSkuStock").read(session, skuObject, stockObject);
+                }
+                return Arrays.asList(barcode, nameSkuBarcode, price == null ? "0" : String.valueOf(price.longValue()));
             } else return null;
 
         } catch (Exception e) {
