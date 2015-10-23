@@ -737,27 +737,29 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         List<CashierInfo> cashierInfoList = new ArrayList<>();
         try (DataSession session = getDbManager().createSession()) {
 
-            KeyExpr contactExpr = new KeyExpr("contact");
-            ImRevMap<Object, KeyExpr> contactKeys = MapFact.singletonRev((Object) "contact", contactExpr);
+            KeyExpr employeeExpr = new KeyExpr("employee");
+            ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev((Object) "employee", employeeExpr);
 
-            QueryBuilder<Object, Object> contactQuery = new QueryBuilder<>(contactKeys);
-            String[] contactNames = new String[]{"loginCustomUser", "shortNameContact", "idPositionEmployee"};
-            LCP[] contactProperties = equLM.findProperties("loginCustomUser", "shortNameContact", "idPositionEmployee");
-            for (int i = 0; i < contactProperties.length; i++) {
-                contactQuery.addProperty(contactNames[i], contactProperties[i].getExpr(contactExpr));
+            QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
+            String[] employeeNames = new String[]{"loginCustomUser", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
+            LCP[] employeeProperties = equLM.findProperties("loginCustomUser", "shortNameContact", "idPositionEmployee", "idStockEmployee");
+            for (int i = 0; i < employeeProperties.length; i++) {
+                employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
             }
-            contactQuery.and(equLM.findProperty("loginCustomUser").getExpr(contactExpr).getWhere());
-            contactQuery.and(equLM.findProperty("shortNameContact").getExpr(contactExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("idStockEmployee").getExpr(employeeExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("loginCustomUser").getExpr(employeeExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("shortNameContact").getExpr(employeeExpr).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> contactResult = contactQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> employeeResult = employeeQuery.execute(session);
 
-            for (int i = 0, size = contactResult.size(); i < size; i++) {
-                ImMap<Object, Object> row = contactResult.getValue(i);
+            for (int i = 0, size = employeeResult.size(); i < size; i++) {
+                ImMap<Object, Object> row = employeeResult.getValue(i);
 
                 String numberCashier = getRowValue(row, "loginCustomUser");
                 String nameCashier = getRowValue(row, "shortNameContact");
                 String idPosition = getRowValue(row, "idPositionEmployee");
-                cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition));
+                String idStock = getRowValue(row, "idStockEmployee");
+                cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition, idStock));
             }
         } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);

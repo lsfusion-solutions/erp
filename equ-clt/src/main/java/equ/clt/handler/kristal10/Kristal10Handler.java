@@ -619,7 +619,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
     }
 
     @Override
@@ -631,9 +631,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         return new SimpleDateFormat("yyyy-MM-dd").format(date);
     }
 
-    private String formatTime(Time time) {
-        return new SimpleDateFormat("HH:mm:ss.SSS").format(time);
-    }
+//    private String formatTime(Time time) {
+//        return new SimpleDateFormat("HH:mm:ss.SSS").format(time);
+//    }
 
     private String currentDate() {
         return new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "T00:00:00";
@@ -1022,7 +1022,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            sendSalesLogger.error(e);
+            sendSalesLogger.error("Kristal10 Error: ", e);
             return null;
         }
     }
@@ -1038,7 +1038,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            sendSalesLogger.error(e);
+            sendSalesLogger.error("Kristal10 Error: ", e);
             return null;
         }
     }
@@ -1054,7 +1054,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            sendSalesLogger.error(e);
+            sendSalesLogger.error("Kristal10 Error: ", e);
             return null;
         }
     }
@@ -1070,7 +1070,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            sendSalesLogger.error(e);
+            sendSalesLogger.error("Kristal10 Error: ", e);
             return null;
         }
     }

@@ -85,7 +85,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+        public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
         }
 
         @Override

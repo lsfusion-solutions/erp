@@ -239,7 +239,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
     }
 
     @Override

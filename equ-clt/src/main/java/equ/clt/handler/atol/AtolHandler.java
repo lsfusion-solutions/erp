@@ -436,7 +436,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
     }
 
     @Override

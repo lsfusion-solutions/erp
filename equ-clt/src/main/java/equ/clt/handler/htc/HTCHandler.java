@@ -431,7 +431,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directory) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
     }
 
     @Override
