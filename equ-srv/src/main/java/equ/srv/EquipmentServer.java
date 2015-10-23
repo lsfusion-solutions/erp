@@ -741,13 +741,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev((Object) "employee", employeeExpr);
 
             QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
-            String[] employeeNames = new String[]{"loginCustomUser", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
-            LCP[] employeeProperties = equLM.findProperties("loginCustomUser", "shortNameContact", "idPositionEmployee", "idStockEmployee");
+            String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
+            LCP[] employeeProperties = equLM.findProperties("idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee");
             for (int i = 0; i < employeeProperties.length; i++) {
                 employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
             }
             employeeQuery.and(equLM.findProperty("idStockEmployee").getExpr(employeeExpr).getWhere());
-            employeeQuery.and(equLM.findProperty("loginCustomUser").getExpr(employeeExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("idEmployee").getExpr(employeeExpr).getWhere());
             employeeQuery.and(equLM.findProperty("shortNameContact").getExpr(employeeExpr).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> employeeResult = employeeQuery.execute(session);
@@ -755,7 +755,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             for (int i = 0, size = employeeResult.size(); i < size; i++) {
                 ImMap<Object, Object> row = employeeResult.getValue(i);
 
-                String numberCashier = getRowValue(row, "loginCustomUser");
+                String numberCashier = getRowValue(row, "idEmployee");
                 String nameCashier = getRowValue(row, "shortNameContact");
                 String idPosition = getRowValue(row, "idPositionEmployee");
                 String idStock = getRowValue(row, "idStockEmployee");
