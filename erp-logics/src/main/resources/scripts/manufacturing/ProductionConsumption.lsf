@@ -141,7 +141,7 @@ toConsumeComponentDetailOrder 'Не списано по заказу' (order) =
 @defineDocumentDetailQuantityCustomPrefix (componentDetail, consumed, ' (списано)');
 @defineDocumentDetailDataSumCustomPrefix (componentDetail, consumed, ' (списано)');
 
-consumedQuantityComponentDetail(detail) <- quantityComponentDetail(detail) WHEN CHANGED(quantityComponentDetail(detail));
+//consumedQuantityComponentDetail(detail) <- quantityComponentDetail(detail) WHEN CHANGED(quantityComponentDetail(detail));
 
 consumedSumComponentDetail (detail) <- NUMERIC[16,2](roundPriceCurrency((priceComponentDetail(detail)* consumedQuantityComponentDetail(detail)), currencyComponentDetail(detail)))
         WHEN CHANGED(priceComponentDetail(detail)) OR
@@ -160,12 +160,20 @@ quantityOutputBOMOrder 'Кол-во спецификаций (произведе
 recBruttoQuantityOutputBOMOrderSku 'Кол-во для произ-го' (BOM, order, sku) = GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY BOM, order, sku;
 recBruttoQuantityOutputBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
 
-calcComponentConsumedQuantityComponentDetail (d) = recBruttoQuantityOutputBOMOrderComponent(BOMComponentDetail(d), orderComponentDetail(d), componentComponentDetail(d)) * quantityCoeffComponentDetail(d);
-calcSkuConsumedQuantityComponentDetail (d) = recBruttoQuantityOutputBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), bruttoSkuComponentDetail(d)) * quantityCoeffComponentDetail(d);
+calcComponentConsumedQuantityComponentDetail (d) = recBruttoQuantityOutputBOMOrderComponent(BOMComponentDetail(d), orderComponentDetail(d), componentComponentDetail(d)) * quantityCoeffComponentDetail(d) * OVERRIDE 1.0, multiplierSubstituteFromToSku(bruttoSkuComponentDetail(d), substituteSkuComponentDetail(d));
+calcSkuConsumedQuantityComponentDetail (d) = recBruttoQuantityOutputBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), bruttoSkuComponentDetail(d)) * quantityCoeffComponentDetail(d) * OVERRIDE 1.0, multiplierSubstituteFromToSku(bruttoSkuComponentDetail(d), substituteSkuComponentDetail(d));
 createOutputComponentOrder 'Заполнить списание' = ACTION (order)  {
     consumedQuantityComponentDetail(d) <- calcComponentConsumedQuantityComponentDetail(d) WHERE orderComponentDetail(d) == order AND componentComponentDetail(d);
     consumedQuantityComponentDetail(d) <- calcSkuConsumedQuantityComponentDetail(d) WHERE orderComponentDetail(d) == order AND NOT componentComponentDetail(d);
 } TOOLBAR;
+
+WHEN SESSION FORMS order (CHANGED(substituteSkuComponentDetail(d)) OR CHANGED(quantityOutputBOMOrder(BOMComponentDetail(d), orderComponentDetail(d)))) AND NOT CHANGED(consumedQuantityComponentDetail(d)) AND componentComponentDetail(d)  DO {
+    consumedQuantityComponentDetail(d) <- calcComponentConsumedQuantityComponentDetail (d);
+}
+
+WHEN SESSION FORMS order (CHANGED(substituteSkuComponentDetail(d)) OR CHANGED(quantityOutputBOMOrder(BOMComponentDetail(d), orderComponentDetail(d)))) AND NOT CHANGED(consumedQuantityComponentDetail(d)) AND NOT componentComponentDetail(d) DO {
+    consumedQuantityComponentDetail(d) <- calcSkuConsumedQuantityComponentDetail (d);
+}
 
 backgroundConsumptionOrder 'Цвет' (order) = RGB(212, 255, 212) IF order IS Order;
 
