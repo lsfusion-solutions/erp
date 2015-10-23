@@ -375,7 +375,33 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
               BY skuBatch(batch), stock
               ORDER orderBatch(batch)
               WHERE countLedger##postfix##BatchStock(batch, stock) PERSISTENT TABLE extraSkuStock;
-
+              
+              
+    lastOrderBatchA##postfix##SkuStockDate(sku, stock, date)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock, dateIn
+              ORDER orderBatch(batch)
+              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateBatch(batch) <= dateIn;   
+                         
+    lastOrderBatchA##postfix##SkuStockDateTime(sku, stock, dateTimeIn)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock, dateTimeIn
+              ORDER orderBatch(batch)
+              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateTimeBatch(batch) <= dateTimeIn;   
+               
+    lastOrderBatchB##postfix##SkuStockDate(sku, stock, date)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock, dateIn
+              ORDER orderBatch(batch)
+              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateBatch(batch) < dateIn;   
+                         
+    lastOrderBatchB##postfix##SkuStockDateTime(sku, stock, dateTimeIn)  =
+        GROUP LAST batch
+              BY skuBatch(batch), stock, dateTimeIn
+              ORDER orderBatch(batch)
+              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateTimeBatch(batch) < dateTimeIn;                 
+               
+              
 //    orderBatch##postfix##SkuStock (sku, stock) = GROUP MAX orderBatch(batch) IF countLedger##postfix##BatchStock(batch, stock)
 //                                                       BY skuBatch(batch), stock PERSISTENT;
 //    lastOrderBatch##postfix##SkuStock(sku, stock) = orderBatch##postfix##SkuStock(sku, stock)[2] PERSISTENT;
