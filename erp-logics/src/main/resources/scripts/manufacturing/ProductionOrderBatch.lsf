@@ -79,8 +79,23 @@ EXTEND FORM BOM
     PROPERTIES(c) productionNormComponent
 ;
 
+countProductionNormComponentSku(s) = GROUP SUM 1 IF productionNormComponent(c) BY skuComponent(c) PERSISTENT;
+
 productionCoeffBatch 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) PERSISTENT;
 productionCoeffComponentDetail (d) += productionNormComponent(componentComponentDetail(d)) / productionCoeffBatch(batchComponentDetail(d));
+
+notNullProductionCoeff 'Проверять на наличие параметров партии' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES notNullProductionCoeff()
+;
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(notNullProductionCoeff());
+    }
+}
+
+CONSTRAINT notNullProductionCoeff() AND countProductionNormComponentSku(skuBatch(b)) AND NOT productionCoeffBatch(b)
+    MESSAGE 'Не заданы параметры партии для товара, по которому есть нормы в спецификации';
 
 productionNormComponentDetail 'Норма' = productionNormComponent(componentComponentDetail(d));
 productionCoeffBatchComponentDetail 'Параметры партии' = productionCoeffBatch(batchComponentDetail(d));
