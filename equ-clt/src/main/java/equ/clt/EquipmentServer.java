@@ -677,8 +677,10 @@ public class EquipmentServer {
                                         //Cashier
                                         else if(requestExchange.isCashier()) {
                                             List<CashierInfo> cashierInfoList = remote.readCashierInfoList();
-                                            if (cashierInfoList != null && !cashierInfoList.isEmpty())
-                                                ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange.directorySet);
+                                            if (cashierInfoList != null && !cashierInfoList.isEmpty()) {
+                                                requestExchange.extraStockSet.add(requestExchange.idStock);
+                                                ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange.directorySet, requestExchange.extraStockSet);
+                                            }
                                             sendCashierTime(remote, sidEquipmentServer, (CashRegisterHandler) clsHandler, machineryInfoList);
                                             remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         }
@@ -859,7 +861,7 @@ public class EquipmentServer {
                         }
                     }
                 } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
-                    logger.error(e);
+                    logger.error("EquipmentServer Error: ", e);
                 }
             }
             //находим все transactionInfo с таким же groupId
@@ -921,7 +923,7 @@ public class EquipmentServer {
                 return clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
 
             } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
-                logger.error(e);
+                logger.error("EquipmentServer Error: ", e);
                 return "No handler";
             }
         }
