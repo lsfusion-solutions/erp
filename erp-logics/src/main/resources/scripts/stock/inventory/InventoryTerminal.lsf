@@ -4,6 +4,24 @@ REQUIRE Inventory, Terminal;
 
 NAMESPACE Terminal;
 
+detailCountInventory 'Количество строк на страницу'  = DATA INTEGER (Inventory) IN documentPrm;
+
+EXTEND FORM inventory
+    PROPERTIES detailCountInventory(in);
+
+detailCountOperation 'Количество строк на страницу' = DATA INTEGER (Inventory.Operation);
+
+EXTEND FORM Inventory.operation
+     PROPERTIES(o) detailCountOperation
+ ;
+DESIGN Inventory.operation {
+    showContainer {
+        MOVE PROPERTY(detailCountOperation(o));
+    }
+}
+
+@deriveDocumentOperationProperty(Inventory, detailCount);
+
 addInventoryDetailsTerminalDocumentListInventory = ACTION (td,li){
 
     LOCAL page = PageInventory ();
@@ -25,7 +43,7 @@ addInventoryDetailsTerminalDocumentListInventory = ACTION (td,li){
 
             detailCount() <- detailCount() + 1;
 
-            IF detailCount() >= 20 THEN {
+            IF detailCount() >= (OVERRIDE 20, detailCountInventory(inventoryListInventory(li))) THEN {
                 ASSIGN detailCount() <- 0;
             }
         }

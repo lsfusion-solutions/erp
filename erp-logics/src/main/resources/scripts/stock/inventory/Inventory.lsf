@@ -672,6 +672,17 @@ skipStockDocumentLedger(l) += skipStockDocumentLedgerCollationSheet(l);
 
 isShortageStockDocumentInventory 'Считать недостачу из товарного отчета' = DATA BOOLEAN (Inventory) IN documentPrm;
 
+isShortageStockDocumentOperation 'Считать недостачу из товарного отчета' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+     PROPERTIES(o) isShortageStockDocumentOperation
+ ;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(isShortageStockDocumentOperation(o));
+    }
+}
+
 showAccountSumsCollationSheet = typeOfAdditionCollationSheet(c)==TypeOfAddition.remains AND isShortageStockDocumentInventory(inventoryCollationSheet(c)) PERSISTENT;
 
 accountSumItemBalanceCollationSheet = IF showAccountSumsCollationSheet(collationSheet)
@@ -1555,6 +1566,8 @@ nameOperationCollationSheet 'Операция' (cs) = nameOperation(operationCol
 idOperationCollationSheet 'ID операции' (cs) = idOperation(operationCollationSheet(cs)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 @deriveDocumentOperationProperty(Inventory, skipStockDocumentLedger);
+
+@deriveDocumentOperationProperty(Inventory, isShortageStockDocument);
 
 @defineDocumentOperationConstraint(inventory, 'инвентаризация', Inventory);
 @extendFormFilterRoleAccess(inventory, in, inventories);
