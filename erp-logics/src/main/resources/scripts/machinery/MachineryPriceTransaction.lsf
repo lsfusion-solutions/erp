@@ -559,7 +559,9 @@ snapshotGroupMachineryStock 'Ранее загруженные' = ACTION (stock)
                 inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если активный штрихкод
 
                 inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
-
+                
+                inBarcode(barcode) <- NOT skuTypeSku(skuBarcode(barcode)) != SkuType.skuTypeItem WHERE inBarcode(barcode); // если это не товар
+                
                 inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipGroupMachineryBarcode(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
                 inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND (skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()) OR inactiveSku(skuBarcode(barcode))); // если есть запрет на загрузку
 
@@ -614,7 +616,9 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
 
         inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipGroupMachineryBarcode(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
-        
+
+        inBarcode(barcode) <- NOT skuTypeSku(skuBarcode(barcode)) != SkuType.skuTypeItem WHERE inBarcode(barcode); // если это не товар
+
         inBarcode(barcode) <- TRUE IF priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inBarcode(barcode); // если есть цена
 
         IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() THEN
