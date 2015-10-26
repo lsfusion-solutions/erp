@@ -201,7 +201,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         }
                     }
                     processTransactionLogger.info(String.format("Kristal10: created catalog-goods file (Transaction %s)", transaction.id));
-                    File file = makeGoodsFilePath(exchangeDirectory);
+                    File file = makeExportFile(exchangeDirectory, "catalog-goods");
                     XMLOutputter xmlOutput = new XMLOutputter();
                     xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
                     PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
@@ -280,9 +280,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         return result;
     }
 
-    private synchronized File makeGoodsFilePath(String exchangeDirectory) {
+    private synchronized File makeExportFile(String exchangeDirectory, String prefix) {
         DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm-ss");
-        File file = new File(exchangeDirectory + "//" + "catalog-goods_" + dateFormat.format(Calendar.getInstance().getTime()) + ".xml");
+        File file = new File(exchangeDirectory + "//" + prefix + "_" + dateFormat.format(Calendar.getInstance().getTime()) + ".xml");
         //чит для избежания ситуации, совпадения имён у двух файлов (в основе имени - текущее время с точностью до секунд)
         while(file.exists()) {
             try {
@@ -602,7 +602,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     XMLOutputter xmlOutput = new XMLOutputter();
                     xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
 
-                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(makeGoodsFilePath(exchangeDirectory)), encoding));
+                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(makeExportFile(exchangeDirectory, "catalog-goods")), encoding));
                     xmlOutput.output(doc, fw);
                     fw.close();
                 }
@@ -611,7 +611,56 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directorySet) throws IOException {
+
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        Map<Double, String> discountCardPercentTypeMap = kristalSettings != null ? kristalSettings.getDiscountCardPercentTypeMap() : new HashMap<Double, String>();
+
+        if (!discountCardList.isEmpty()) {
+            for (String directory : directorySet) {
+                String exchangeDirectory = directory.trim() + "/products/source/";
+                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                    processStopListLogger.info(String.format("Kristal10: Send DiscountCards to %s", exchangeDirectory));
+
+                    Element rootElement = new Element("cards-catalog");
+                    Document doc = new Document(rootElement);
+                    doc.setRootElement(rootElement);
+
+                    Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+
+                    for (Map.Entry<Double, String> discountCardType : discountCardPercentTypeMap.entrySet()) {
+                        //parent: rootElement
+                        Element internalCard = new Element("internal-card-type");
+                        setAttribute(internalCard, "guid", discountCardType.getValue());
+                        setAttribute(internalCard, "name", discountCardType.getKey() + "%");
+                        setAttribute(internalCard, "personalized", "false");
+                        setAttribute(internalCard, "percentage-discount", discountCardType.getKey());
+                        setAttribute(internalCard, "deleted", "false");
+
+                        rootElement.addContent(internalCard);
+                    }
+
+                    for (DiscountCard discountCard : discountCardList) {
+                        //parent: rootElement
+                        Element internalCard = new Element("internal-card");
+                        Double percent = discountCard.percentDiscountCard == null ? 0 : discountCard.percentDiscountCard.doubleValue();
+                        String guid = discountCardPercentTypeMap.get(percent);
+                        if(discountCard.numberDiscountCard != null) {
+                            setAttribute(internalCard, "number", discountCard.numberDiscountCard);
+                            setAttribute(internalCard, "amount", discountCard.totalSumDiscountCard == null ? "0.00" : discountCard.totalSumDiscountCard);
+                            setAttribute(internalCard, "expiration-date", discountCard.dateToDiscountCard == null ? "2050-12-03" : discountCard.dateToDiscountCard);
+                            setAttribute(internalCard, "status",
+                                    discountCard.dateFromDiscountCard == null || currentDate.compareTo(discountCard.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
+                            setAttribute(internalCard, "deleted", "false");
+                            setAttribute(internalCard, "card-type-guid", guid == null ? "0" : guid);
+
+                            rootElement.addContent(internalCard);
+                        }
+                    }
+                    exportXML(doc, exchangeDirectory, "catalog-cards");
+                }
+            }
+        }
     }
 
     @Override
@@ -958,6 +1007,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 idZReportList.add(idZReport);
         }
         return idZReportList.isEmpty() && message.isEmpty() ? null : new ExtraCheckZReportBatch(idZReportList, message);
+    }
+
+    private File exportXML(Document doc, String exchangeDirectory, String prefix) throws IOException {
+        File file = makeExportFile(exchangeDirectory, prefix);
+        XMLOutputter xmlOutput = new XMLOutputter();
+        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+        PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
+        xmlOutput.output(doc, fw);
+        fw.close();
+        return file;
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {

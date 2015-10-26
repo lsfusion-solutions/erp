@@ -693,31 +693,48 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
+                if (zReportDiscountCardLM != null) {
+                    discountCardQuery.addProperty("totalSumDiscountCard", zReportDiscountCardLM.findProperty("totalSumDiscountCard").getExpr(discountCardExpr));
+                }
                 discountCardQuery.and(discountCardLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
+                Integer idFrom = parseInt(idDiscountCardFrom);
+                if (idFrom != null)
+                    discountCardQuery.and(discountCardLM.findProperty("intIdDiscountCard").getExpr(discountCardExpr).compare(new DataObject(idFrom).getExpr(), Compare.GREATER_EQUALS));
+                Integer idTo = parseInt(idDiscountCardTo);
+                if (idTo != null)
+                    discountCardQuery.and(discountCardLM.findProperty("intIdDiscountCard").getExpr(discountCardExpr).compare(new DataObject(idTo).getExpr(), Compare.LESS_EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
 
                 for (int i = 0, size = discountCardResult.size(); i < size; i++) {
                     ImMap<Object, Object> row = discountCardResult.getValue(i);
-                    
-                    String idDiscountCard = getRowValue(row, "idDiscountCard");
-                    if (discountCardCompare(idDiscountCard, idDiscountCardFrom) >= 0 && discountCardCompare(idDiscountCard, idDiscountCardTo) <= 0) {
-                        if (idDiscountCard == null)
-                            idDiscountCard = String.valueOf(discountCardResult.getKey(i).get("discountCard"));
-                        String numberDiscountCard = getRowValue(row, "numberDiscountCard");
-                        String nameDiscountCard = getRowValue(row, "nameDiscountCard");
-                        BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
-                        Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
-                        Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
 
-                        discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard, percentDiscountCard, dateFromDiscountCard, dateToDiscountCard));
-                    }
+                    String idDiscountCard = getRowValue(row, "idDiscountCard");
+                    if (idDiscountCard == null)
+                        idDiscountCard = String.valueOf(discountCardResult.getKey(i).get("discountCard"));
+                    String numberDiscountCard = getRowValue(row, "numberDiscountCard");
+                    String nameDiscountCard = getRowValue(row, "nameDiscountCard");
+                    BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
+                    BigDecimal totalSumDiscountCard = zReportDiscountCardLM == null ? null : (BigDecimal) row.get("totalSumDiscountCard");
+                    Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
+                    Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
+
+                    discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
+                            percentDiscountCard, totalSumDiscountCard, dateFromDiscountCard, dateToDiscountCard));
                 }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }
         return discountCardList;
+    }
+
+    private Integer parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch(Exception e) {
+            return null;
+        }
     }
 
     private int discountCardCompare(String d1, String d2) {

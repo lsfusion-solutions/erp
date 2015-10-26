@@ -1,6 +1,8 @@
 package equ.clt.handler.kristal10;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Kristal10Settings implements Serializable{
 
@@ -13,6 +15,8 @@ public class Kristal10Settings implements Serializable{
     private String tobaccoGroup;
     private Boolean ignoreSalesWeightPrefix;
     private Integer cleanOldFilesDays;
+    private String discountCardPercentType;
+    private Map<Double, String> discountCardPercentTypeMap;
 
     public Kristal10Settings() {
     }
@@ -71,6 +75,34 @@ public class Kristal10Settings implements Serializable{
 
     public void setTobaccoGroup(String tobaccoGroup) {
         this.tobaccoGroup = tobaccoGroup;
+    }
+
+    public String getDiscountCardPercentType() {
+        return discountCardPercentType;
+    }
+
+    public void setDiscountCardPercentType(String discountCardPercentType) {
+        this.discountCardPercentType = discountCardPercentType;
+        this.discountCardPercentTypeMap = new HashMap<>();
+        if(!discountCardPercentType.isEmpty()) {
+            String[] entries = discountCardPercentType.split(",\\s?");
+            for (String entry : entries) {
+                String[] percentType = entry.split("->");
+                if(percentType.length == 2) {
+                    try {
+                        this.discountCardPercentTypeMap.put(Double.parseDouble(percentType[0]), percentType[1]);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }
+    }
+
+    public Map<Double, String> getDiscountCardPercentTypeMap() {
+        return discountCardPercentTypeMap;
+    }
+
+    public void setDiscountCardPercentTypeMap(String discountCardPercentType) {
     }
 
     public Boolean getIgnoreSalesWeightPrefix() {
