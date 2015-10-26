@@ -9,17 +9,17 @@ public class DiscountCard implements Serializable {
     public String numberDiscountCard;
     public String nameDiscountCard;
     public BigDecimal percentDiscountCard;
-    public BigDecimal totalSumDiscountCard;
+    public BigDecimal initialSumDiscountCard;
     public Date dateFromDiscountCard;
     public Date dateToDiscountCard;
     
     public DiscountCard(String idDiscountCard, String numberDiscountCard, String nameDiscountCard, BigDecimal percentDiscountCard,
-                        BigDecimal totalSumDiscountCard, Date dateFromDiscountCard, Date dateToDiscountCard) {
+                        BigDecimal initialSumDiscountCard, Date dateFromDiscountCard, Date dateToDiscountCard) {
         this.idDiscountCard = idDiscountCard;
         this.numberDiscountCard = numberDiscountCard;
         this.nameDiscountCard = nameDiscountCard;
         this.percentDiscountCard = percentDiscountCard;
-        this.totalSumDiscountCard = totalSumDiscountCard;
+        this.initialSumDiscountCard = initialSumDiscountCard;
         this.dateFromDiscountCard = dateFromDiscountCard;
         this.dateToDiscountCard = dateToDiscountCard;
     }

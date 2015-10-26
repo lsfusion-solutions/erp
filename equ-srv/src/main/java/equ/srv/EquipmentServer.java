@@ -687,14 +687,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
-                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard"};
+                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard"};
                 LCP[] discountCardProperties = discountCardLM.findProperties("idDiscountCard", "numberDiscountCard", "nameDiscountCard",
-                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard");
+                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
-                }
-                if (zReportDiscountCardLM != null) {
-                    discountCardQuery.addProperty("totalSumDiscountCard", zReportDiscountCardLM.findProperty("totalSumDiscountCard").getExpr(discountCardExpr));
                 }
                 discountCardQuery.and(discountCardLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
                 Integer idFrom = parseInt(idDiscountCardFrom);
@@ -704,7 +701,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 if (idTo != null)
                     discountCardQuery.and(discountCardLM.findProperty("intIdDiscountCard").getExpr(discountCardExpr).compare(new DataObject(idTo).getExpr(), Compare.LESS_EQUALS));
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
 
                 for (int i = 0, size = discountCardResult.size(); i < size; i++) {
                     ImMap<Object, Object> row = discountCardResult.getValue(i);
@@ -715,12 +712,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String numberDiscountCard = getRowValue(row, "numberDiscountCard");
                     String nameDiscountCard = getRowValue(row, "nameDiscountCard");
                     BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
-                    BigDecimal totalSumDiscountCard = zReportDiscountCardLM == null ? null : (BigDecimal) row.get("totalSumDiscountCard");
+                    BigDecimal initialSumDiscountCard = (BigDecimal) row.get("initialSumDiscountCard");
                     Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
                     Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
 
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
-                            percentDiscountCard, totalSumDiscountCard, dateFromDiscountCard, dateToDiscountCard));
+                            percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);

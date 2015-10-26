@@ -647,7 +647,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         String guid = discountCardPercentTypeMap.get(percent);
                         if(discountCard.numberDiscountCard != null) {
                             setAttribute(internalCard, "number", discountCard.numberDiscountCard);
-                            setAttribute(internalCard, "amount", discountCard.totalSumDiscountCard == null ? "0.00" : discountCard.totalSumDiscountCard);
+                            setAttribute(internalCard, "amount", discountCard.initialSumDiscountCard == null ? "0.00" : discountCard.initialSumDiscountCard);
                             setAttribute(internalCard, "expiration-date", discountCard.dateToDiscountCard == null ? "2050-12-03" : discountCard.dateToDiscountCard);
                             setAttribute(internalCard, "status",
                                     discountCard.dateFromDiscountCard == null || currentDate.compareTo(discountCard.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
