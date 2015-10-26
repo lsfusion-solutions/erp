@@ -28,25 +28,20 @@ addInventoryDetailsTerminalDocumentListInventory = ACTION (td,li){
     LOCAL detailCount = INTEGER();
     detailCount() <- 0;
 
-    FOR terminalDocumentTerminalDocumentDetail(tdd) == td DO {
-        IF detailCount() == 0 THEN {
-            FOR ADDOBJ pi = PageInventory DO {
-                listInventoryPageInventory(pi) <- li;
-                page() <- pi;
-            }
-        }
-
-        FOR ADDOBJ pid = PageInventoryDetail DO {
-            pageInventoryPageInventoryDetail(pid) <- page();
-            skuPageInventoryDetail(pid) <- OVERRIDE skuId(barcodeTerminalDocumentDetail(tdd)), skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(li));
-            quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
-
-            detailCount() <- detailCount() + 1;
-
-            IF detailCount() >= (OVERRIDE 20, detailCountInventory(inventoryListInventory(li))) THEN {
-                ASSIGN detailCount() <- 0;
-            }
-        }
+    LOCAL countDetail = INTEGER();
+    countDetail() <- (OVERRIDE 20, detailCountInventory(inventoryListInventory(li)));
+    
+    LOCAL countPages = INTEGER();
+    countPages() <- (countTerminalDocumentDetailTerminalDocument(td) + countDetail() - 1) / countDetail();
+    
+    FOR iterate(i, 1, countPages()) ADDOBJ p = PageInventory DO {
+        listInventoryPageInventory(p) <- li;
+    }
+    
+    FOR terminalDocumentTerminalDocumentDetail(tdd) == td INLINE ADDOBJ pid = PageInventoryDetail DO {
+        pageInventoryPageInventoryDetail(pid) <- pageInventoryListInventoryIndex(li, ((indexTerminalDocumentDetail(tdd) - 1)/countDetail()) + 1);
+        skuPageInventoryDetail(pid) <- OVERRIDE skuId(barcodeTerminalDocumentDetail(tdd)), skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(li));
+        quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
     }
 
 }
