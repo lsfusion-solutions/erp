@@ -174,22 +174,27 @@ TABLE saleLedgerBatch (SaleLedger, Batch);
 costSaleLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (SaleLedger, Batch) PERSISTENT;
 
 coeffSaleLedgerBatch 'Удельный вес' (ledger, batch) =
-    NUMERIC[22,8](costSaleLedgerBatch(ledger, batch)/quantitySaleLedger(ledger));
-    
+    NUMERIC[22,8](costSaleLedgerBatch(ledger, batch) / quantitySaleLedger(ledger));
+
+sumSaleLedgerBatch 'Сумма продажи' (ledger, batch) = NUMERIC[16,2](sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch));
+costSumSaleLedgerBatch 'Себестоимость' (ledger, batch) = NUMERIC[16,2](costSaleLedgerBatch(ledger, batch) * costBatch(batch));
+sumVATSaleLedgerBatch 'Сумма НДС' (s,b) = NUMERIC[16,2](sumSaleLedgerBatch(s,b) * valueVATBatch(b) / (100 + valueVATBatch(b)));
+markupSumSaleLedgerBatch 'Надбавка' (ledger, batch) = NUMERIC[16,2](sumSaleLedgerBatch(ledger, batch) - sumVATSaleLedgerBatch(ledger, batch) - costSumSaleLedgerBatch(ledger, batch));
+
 //по складу и Batch на дату
 quantitySoldBatchStockDate (batch, stock, date) = GROUP SUM costSaleLedgerBatch(ledger, batch) IF activeSaleLedger(ledger)
     BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-costSumSoldBatchStockDate (batch, stock, date) = GROUP SUM costSumSkuLedgerBatch(ledger, batch) 
+costSumSoldBatchStockDate (batch, stock, date) = GROUP SUM costSumSaleLedgerBatch(ledger, batch) 
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-markupSumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) * 100.0 / (100.0 + valueVATBatch(batch)) - costSumSkuLedgerBatch(ledger, batch) 
+markupSumSoldBatchStockDate (batch, stock, date) = GROUP SUM markupSumSaleLedgerBatch(ledger, batch) 
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-sumVATSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) * valueVATBatch(batch) / (100.0 + valueVATBatch(batch))  
+sumVATSoldBatchStockDate (batch, stock, date) = GROUP SUM sumVATSaleLedgerBatch(ledger, batch)  
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-sumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch)  
+sumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedgerBatch(ledger, batch)  
     IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;       
     
 //по складу и Batch за интервал
