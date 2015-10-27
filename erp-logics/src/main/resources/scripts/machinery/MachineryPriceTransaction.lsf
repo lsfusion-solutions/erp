@@ -477,6 +477,28 @@ DESIGN requestExchange {
     }
 }
 
+copyRequestExchange 'Копировать' = ACTION (request) NEWSESSION {
+    FOR ADDOBJ r = RequestExchange DO {
+        stockRequestExchange(r) <- stockRequestExchange(request);
+        dateFromRequestExchange(r) <- dateFromRequestExchange(request);
+        dateToRequestExchange(r) <- dateToRequestExchange(request);
+        requestExchangeTypeRequestExchange(r) <- requestExchangeTypeRequestExchange(request);
+        startDateRequestExchange(r) <- startDateRequestExchange(request);
+        idDiscountCardFromRequestExchange(r) <- idDiscountCardFromRequestExchange(request);
+        idDiscountCardToRequestExchange(r) <- idDiscountCardToRequestExchange(request);
+        
+        FOR inStockRequestExchange(stock, request) DO {
+            inStockRequestExchange(stock, r) <- inStockRequestExchange(stock, request);
+        }
+        
+        FOR dataInMachineryRequestExchange(machinery, request) DO {
+            dataInMachineryRequestExchange(machinery, r) <- dataInMachineryRequestExchange(machinery, request);
+        }
+        
+        FORM requestExchange OBJECTS r = r MANAGESESSION DOCKEDMODAL;
+    }   
+} TOOLBAR;
+
 allStocksRequestExchange 'Склады' (requestExchange)= 
     CONCAT ',', nameStockRequestExchange(requestExchange), extraStocksRequestExchange(requestExchange) 
     MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT; 
@@ -488,7 +510,7 @@ FORM requestExchanges 'Запросы обмена данными'
                            captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange,
                            startDateRequestExchange SHOWIF showStartDate(r) FORCE PANEL, idDiscountCardFromRequestExchange SHOWIF showStartDate(r) FORCE PANEL, 
                            idDiscountCardToRequestExchange SHOWIF showStartDate(r) FORCE PANEL
-    PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(r)          copyRequestExchange, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     
     OBJECTS rl = RequestExchangeLog
     PROPERTIES(rl) READONLY nppMachineryRequestExchangeLog, messageRequestExchangeLog, dateRequestExchangeLog
