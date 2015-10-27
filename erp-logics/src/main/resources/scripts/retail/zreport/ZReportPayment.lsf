@@ -8,18 +8,23 @@ nameTypePayment 'Тип платежа' = CASE WHEN typePayment(payment) == 0 TH
 zReportPayment = DATA ZReport (Payment.Payment);
 numberZReportPayment 'Номер Z-отчета' = numberZReport(zReportPayment(payment));
 
-extraSumCashZReport 'Дополнительная сумма Z-отчета(наличные)' = 
-    GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 0 AND NOT isReturnPayment(payment) BY zReportPayment(payment);  
+extraPositiveSumCashZReport 'Дополнительная сумма Z-отчета(наличные)' = 
+    GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 0 AND NOT isReturnPayment(payment) BY zReportPayment(payment);         
 extraNegativeSumCashZReport 'Дополнительная сумма возврата Z-отчета(наличные)' = 
-    GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 0 AND isReturnPayment(payment) BY zReportPayment(payment);      
+    GROUP SUM Payment.sumPayment(payment)*(-1) IF typePayment(payment) == 0 AND isReturnPayment(payment) BY zReportPayment(payment);
+extraSumCashZReport 'Дополнительная сумма Z-отчета(наличные)' = 
+    extraPositiveSumCashZReport(zReport) (+) extraNegativeSumCashZReport(zReport);            
      
+extraPositiveSumCardZReport 'Дополнительная сумма Z-отчета(карточка)' = 
+    GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 1 AND NOT isReturnPayment(payment) BY zReportPayment(payment);          
+extraNegativeSumCardZReport 'Дополнительная сумма возврата Z-отчета(карточка)' = 
+    GROUP SUM Payment.sumPayment(payment)*(-1) IF typePayment(payment) == 1 AND isReturnPayment(payment) BY zReportPayment(payment);
 extraSumCardZReport 'Дополнительная сумма Z-отчета(карточка)' = 
-    GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 1 AND NOT isReturnPayment(payment) BY zReportPayment(payment);   
-extraNegativSumCardZReport 'Дополнительная сумма возврата Z-отчета(карточка)' = 
-    GROUP SUM Payment.sumPayment(payment) IF typePayment(payment) == 1 AND isReturnPayment(payment) BY zReportPayment(payment);   
+    extraPositiveSumCardZReport(zReport) (+) extraNegativeSumCardZReport(zReport);       
         
 extraSumZReport 'Дополнительная сумма Z-отчета' = 
-    GROUP SUM Payment.sumPayment(payment) BY zReportPayment(payment);   
+    [=GROUP SUM Payment.sumPayment(payment) IF NOT isReturnPayment(payment) BY zReportPayment(payment)](zReport) (-) 
+    [=GROUP SUM Payment.sumPayment(payment) IF isReturnPayment(payment) BY zReportPayment(payment)](zReport);   
 
 totalSumCashZReport 'Общая сумма Z-отчета(наличные)' (ZReport) = sumCashZReport(ZReport) (+) extraSumCashZReport(ZReport);
 totalSumCardZReport 'Общая сумма Z-отчета(карточка)' (ZReport) = sumCardZReport(ZReport) (+) extraSumCardZReport(ZReport);
@@ -27,8 +32,8 @@ totalSumZReport 'Общая сумма Z-отчета' (ZReport) = sumReceiptDet
 
 EXTEND FORM zReports
     PROPERTIES(z) READONLY BEFORE sumReceiptDetailZReport(z) totalSumZReport, totalSumCashZReport, totalSumCardZReport
-    PROPERTIES(z) READONLY AFTER sumReceiptDetailZReport(z) extraSumZReport, extraSumCashZReport, extraSumCardZReport, 
-                                 extraNegativeSumCashZReport, extraNegativSumCardZReport
+    PROPERTIES(z) READONLY AFTER sumReceiptDetailZReport(z) extraSumZReport, extraPositiveSumCashZReport, extraPositiveSumCardZReport, 
+                                 extraNegativeSumCashZReport, extraNegativeSumCardZReport
 ;
 
 EXTEND FORM payments
