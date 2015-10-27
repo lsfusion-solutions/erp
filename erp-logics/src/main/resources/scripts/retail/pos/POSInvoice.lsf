@@ -1,6 +1,6 @@
 MODULE POSInvoice;
 
-REQUIRE POS, SaleInvoiceContract, SaleReturnInvoiceContract, ContractPayment, SaleShipment, ZReportPayment;
+REQUIRE POS, SaleInvoiceContract, SaleReturnInvoiceContract, ContractPayment, SaleShipment, ZReportPayment, Warehouse;
 
 NAMESPACE Sale;
 
@@ -297,6 +297,13 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
                     FOR nameLegalEntityGroup(group) == 'Покупатели' DO {
                         legalEntityGroupLegalEntity(l) <- group;
                     }
+                    FOR ADDOBJ s = Warehouse DO {
+                        nameWarehouse(s) <- nameLegalEntity();
+                        legalEntityWarehouse(s) <- l;
+                        FOR nameWarehouseGroup(gr) == 'Склады контрагентов' DO {
+                            warehouseGroupWarehouse(s) <- gr;
+                        }
+                    }
                     createInvoiceReceipt(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
                 }
             }    
@@ -343,6 +350,7 @@ createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
         FORM prePayment OBJECTS r = receipt MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR ADDOBJ i = UserInvoice DO {
+                operationUserInvoice(i) <- defaultOperationPaymentInstallments();
                 supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
                 supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
                 customerUserInvoice(i) <- partyBContract(chosenObject('c'));
@@ -351,6 +359,7 @@ createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
                 timeUserInvoice(i) <- timeReceipt(receipt);
                 contractSkuUserInvoice(i) <- chosenObject('c');
                 paymentConditionUserInvoice(i) <- paymentConditionContract(chosenObject('c'));
+                priceListTypeUserInvoice(i) <- defaultPriceListTypeOperation(operationUserInvoice(i));                
                 noteUserInvoice(i) <- noteInvoice();
                 createShipmentUserInvoice(i) <- TRUE;
                 isPostedUserInvoice(i) <- TRUE;
@@ -366,8 +375,10 @@ createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
                     skuUserInvoiceDetail(d) <- skuReceiptDetail(detail);
                     quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
                     invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
-                    invoicePriceUserInvoiceDetail(d) <- sumReceiptDetail(detail)/quantityReceiptDetail(detail);
-                    priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + calcValueVATUserInvoiceDetail(d));
+                    shipmentSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
+                    valueVATUserInvoiceDetail(d) <- valueVATReceiptDetail(detail);
+                    invoicePriceUserInvoiceDetail(d) <- priceReceiptDetail(detail);
+                    priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + valueVATUserInvoiceDetail(d));
                 }
             }
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
