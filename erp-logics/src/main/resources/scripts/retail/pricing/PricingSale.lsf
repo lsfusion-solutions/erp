@@ -18,8 +18,34 @@ editPricingDetail (d)+= ACTION editInvoiceDetail(invoiceDetailInvoicePricingDeta
 
 
 // Автоматически проставляем цены поставщика и розничные
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, supplierPricingPriceListType, supplier, sku, supplierStock);
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, retailPricingPriceListType, retail, sku, supplierStock);
+supplierPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail) 
+                                                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                               batchUserInvoiceDetail(detail),
+                                                                                               supplierStockUserInvoiceDetail(detail),
+                                                                                               dateTimeUserInvoiceDetail(detail))
+                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                             skuUserInvoiceDetail(detail),
+                                                                                             supplierStockUserInvoiceDetail(detail),
+                                                                                             dateTimeUserInvoiceDetail(detail))
+                                                WHEN DO CHANGED(skuUserInvoiceDetail(detail)) OR
+                                                     CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+                                                     CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+                                                     CHANGED(batchUserInvoiceDetail(detail));
+
+
+retailPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail)
+                                                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                               batchUserInvoiceDetail(detail),
+                                                                                               supplierStockUserInvoiceDetail(detail),
+                                                                                               dateTimeUserInvoiceDetail(detail))
+                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                             skuUserInvoiceDetail(detail),
+                                                                                             supplierStockUserInvoiceDetail(detail),
+                                                                                             dateTimeUserInvoiceDetail(detail))
+                                                WHEN DO CHANGED(skuUserInvoiceDetail(detail)) OR
+                                                     CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+                                                     CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+                                                     CHANGED(batchUserInvoiceDetail(detail));
 
 // Автоматический расчет розничной надбавки
 retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
