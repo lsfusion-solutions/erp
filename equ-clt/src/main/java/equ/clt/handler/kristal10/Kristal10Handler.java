@@ -845,6 +845,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         barcode = dateTimeReceipt + "/" + count;
                                     }
 
+                                    BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
+
                                     //временное решение для весовых товаров
                                     if(barcode != null) {
                                         if (barcode.length() == 7 && barcode.startsWith("2") && ignoreSalesWeightPrefix) {
@@ -852,12 +854,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         } else if (barcode.startsWith(weightCode) && barcode.length() == 7)
                                             barcode = barcode.substring(2);
 
+
                                         // временно для касс самообслуживания в виталюре
-                                        if (barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") && ignoreSalesWeightPrefix)
+                                        if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") &&
+                                                quantity != null && (quantity.intValue() != quantity.doubleValue() || parseWeight(barcode.substring(7, 12)) == quantity.doubleValue()))
                                             barcode = barcode.substring(2, 7);
                                     }
 
-                                    BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
                                     quantity = (quantity != null && !isSale) ? quantity.negate() : quantity;
                                     BigDecimal price = readBigDecimalXMLAttribute(positionEntryNode, "cost");
                                     BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "amount");
@@ -1131,6 +1134,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         } catch (Exception e) {
             sendSalesLogger.error("Kristal10 Error: ", e);
             return null;
+        }
+    }
+
+    private double parseWeight(String value) {
+        try {
+            return (double) Integer.parseInt(value) / 1000;
+        } catch (Exception e) {
+            return 0.0;
         }
     }
 
