@@ -261,10 +261,10 @@ dateLabelTransaction (transaction) <- currentDate() WHEN SET(transaction IS Labe
 timeLabelTransaction 'Время' = DATA TIME (LabelTransaction);
 timeLabelTransaction (transaction) <- currentTime() WHEN SET(transaction IS LabelTransaction);
 
-dateTimeLabelTransaction 'Дата/время' (t) = dateTimeToDateTime(dateLabelTransaction(t), timeLabelTransaction(t)) PERSISTENT;
+dateTimeLabelTransaction 'Дата/время' (t) = dateTimeToDateTime(dateLabelTransaction(t), timeLabelTransaction(t)) PERSISTENT IN recognize;
 
 departmentStoreLabelTransaction = DATA DepartmentStore (LabelTransaction);
-nameDepartmentStoreLabelTransaction 'Отдел магазина' (transaction) = nameDepartmentStore(departmentStoreLabelTransaction(transaction));
+nameDepartmentStoreLabelTransaction 'Отдел магазина' (transaction) = nameDepartmentStore(departmentStoreLabelTransaction(transaction)) IN recognize;
 nameStoreLabelTransaction 'Магазин' (transaction) = nameStore(storeDepartmentStore(departmentStoreLabelTransaction(transaction)));
 addressStoreLabelTransaction 'Адрес магазина' (transaction) = addressStore(storeDepartmentStore(departmentStoreLabelTransaction(transaction)));
 
@@ -272,7 +272,7 @@ nameLegalEntityLabelTransaction 'Компания' (transaction) = nameLegalEnti
 fullNameLegalEntityLabelTransaction 'Компания (полное наименование)' (transaction) = fullNameLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransaction(transaction)));
 
 labelTypeLabelTransaction 'Тип ценника' = DATA LabelType (LabelTransaction) NOT NULL;
-nameLabelTypeLabelTransaction 'Тип ценника' (transaction) = nameLabelType(labelTypeLabelTransaction(transaction));
+nameLabelTypeLabelTransaction 'Тип ценника' (transaction) = nameLabelType(labelTypeLabelTransaction(transaction)) IN recognize;
 
 CONSTRAINT labelTypeLabelTransaction(transaction) AND NOT inLabelTypeDepartmentStore(labelTypeLabelTransaction(transaction), departmentStoreLabelTransaction(transaction))
            CHECKED BY labelTypeLabelTransaction MESSAGE 'Тип ценника запрещен для выбранного подразделения';
