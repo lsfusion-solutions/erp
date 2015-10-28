@@ -114,61 +114,101 @@ GROUP pricingCommittee 'Комиссия' : public;
 META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee###object (object) = DATA PricingCommittee(###object);
 
-    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    name###prefix###pricingCommittee###object 'Комиссия' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
     prefix###pricingCommittee###object (object) <- pricingCommitteeDepartmentStore(stockClass###object(object))
         WHEN CHANGED(stockClass###object(object));
 
     CONSTRAINT prefix###pricingCommittee###object (object) AND NOT inCommitteeStock(prefix###pricingCommittee###object(object), stockClass###object(object))
         CHECKED BY prefix###pricingCommittee###object MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
-
-    name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###CheckedMan###object 'Реестр проверил' (object) = nameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###LabeledMan###object 'Товар промаркировал' (object) = nameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###AccountantMan###object 'Бухгалтер' (object) = nameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###HeadMan###object 'Зав. магазином' (object) = nameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-
-    positionName###prefix###FormedMan###object 'Цены сформировал' (object) = positionNameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###CheckedMan###object 'Реестр проверил' (object) = positionNameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###LabeledMan###object 'Товар промаркировал' (object) = positionNameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###AccountantMan###object 'Бухгалтер' (object) = positionNameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###HeadMan###object 'Зав. магазином' (object) = positionNameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
         
-    positionShortName###prefix###FormedMan###object 'Цены сформировал' (object) = positionShortNameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###CheckedMan###object 'Реестр проверил' (object) = positionShortNameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###LabeledMan###object 'Товар промаркировал' (object) = positionShortNameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###AccountantMan###object 'Бухгалтер' (object) = positionShortNameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###HeadMan###object 'Зав. магазином' (object) = positionShortNameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    data###prefix###formedMan###object 'Цены сформировал' (object) = DATA Employee (###object);
+    data###prefix###checkedMan###object 'Реестр проверил' (object) = DATA Employee (###object);
+    data###prefix###labeledMan###object 'Товар промаркировал' (object) = DATA Employee (###object);
+    data###prefix###accountantMan###object 'Бухгалтер' (object) = DATA Employee (###object);
+    data###prefix###headMan###object 'Зав. магазином' (object) = DATA Employee (###object);    
+          
+    CONSTRAINT data###prefix###formedMan###object(object) AND NOT inStockEmployee(stockClass###object(object), data###prefix###formedMan###object(object))
+        CHECKED BY data###prefix###formedMan###object MESSAGE 'В качестве "Цены сформировал" выбран сотрудник, который не является сотрудником склада документа.';                  
+    CONSTRAINT data###prefix###checkedMan###object(object) AND NOT inStockEmployee(stockClass###object(object), data###prefix###checkedMan###object(object))
+        CHECKED BY data###prefix###checkedMan###object MESSAGE 'В качестве "Реестр проверил" выбран сотрудник, который не является сотрудником склада документа.';                        
+    CONSTRAINT data###prefix###labeledMan###object(object) AND NOT inStockEmployee(stockClass###object(object), data###prefix###labeledMan###object(object))
+        CHECKED BY data###prefix###labeledMan###object MESSAGE 'В качестве "Товар промаркировал" выбран сотрудник, который не является сотрудником склада документа.';                         
+    CONSTRAINT data###prefix###accountantMan###object(object) AND NOT inStockEmployee(stockClass###object(object), data###prefix###accountantMan###object(object))
+        CHECKED BY data###prefix###accountantMan###object MESSAGE 'В качестве "Бухгалтер" выбран сотрудник, который не является сотрудником склада документа.';                         
+    CONSTRAINT data###prefix###headMan###object(object) AND NOT inStockEmployee(stockClass###object(object), data###prefix###headMan###object(object))
+        CHECKED BY data###prefix###headMan###object MESSAGE 'В качестве "Зав. магазином" выбран сотрудник, который не является сотрудником склада документа.'; 
+    
+    prefix###formedMan###object 'Цены сформировал' (object) = OVERRIDE formedManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###FormedMan###object(object);
+    prefix###checkedMan###object 'Реестр проверил' (object) = OVERRIDE checkedManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###CheckedMan###object(object);
+    prefix###labeledMan###object 'Товар промаркировал' (object) = OVERRIDE labeledManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###LabeledMan###object(object);
+    prefix###accountantMan###object 'Бухгалтер' (object) = OVERRIDE accountantManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###AccountantMan###object(object);
+    prefix###headMan###object 'Зав. магазином' (object) = OVERRIDE headManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###HeadMan###object(object);
+    
+    name###prefix###formedMan###object 'Сформировал' (object) = nameContact(prefix###formedMan###object(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix###checkedMan###object 'Проверил' (object) = nameContact(prefix###checkedMan###object(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix###labeledMan###object 'Промаркировал' (object) = nameContact(prefix###labeledMan###object(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix###accountantMan###object 'Бухгалтер' (object) = nameContact(prefix###accountantMan###object(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    name###prefix###headMan###object 'Зав.маг.' (object) = nameContact(prefix###headMan###object(object)) IN pricingCommittee MINCHARWIDTH 10 PREFCHARWIDTH 15;    
+       
+    positionName###prefix###formedMan###object 'Цены сформировал' (object) = positionNameEmployee(prefix###formedMan###object(object)) IN pricingCommittee;
+    positionName###prefix###checkedMan###object 'Реестр проверил' (object) = positionNameEmployee(prefix###checkedMan###object(object)) IN pricingCommittee;
+    positionName###prefix###labeledMan###object 'Товар промаркировал' (object) = positionNameEmployee(prefix###labeledMan###object(object)) IN pricingCommittee;
+    positionName###prefix###accountantMan###object 'Бухгалтер' (object) = positionNameEmployee(prefix###accountantMan###object(object)) IN pricingCommittee;
+    positionName###prefix###headMan###object 'Зав. магазином' (object) = positionNameEmployee(prefix###headMan###object(object)) IN pricingCommittee;        
 
-
+    positionShortName###prefix###formedMan###object 'Цены сформировал' (object) = positionShortNameEmployee(prefix###formedMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###checkedMan###object 'Реестр проверил' (object) = positionShortNameEmployee(prefix###checkedMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###labeledMan###object 'Товар промаркировал' (object) = positionShortNameEmployee(prefix###labeledMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###accountantMan###object 'Бухгалтер' (object) = positionShortNameEmployee(prefix###accountantMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###headMan###object 'Зав. магазином' (object) = positionShortNameEmployee(prefix###headMan###object(object)) IN pricingCommittee;   
 END
 META defineDocumentHeaderAbstractPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee###object (object) = ABSTRACT PricingCommittee(###object) PERSISTENT;
 
-    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-    name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###CheckedMan###object 'Реестр проверил' (object) = nameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###LabeledMan###object 'Товар промаркировал' (object) = nameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###AccountantMan###object 'Бухгалтер' (object) = nameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    name###prefix###HeadMan###object 'Зав. магазином' (object) = nameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    data###prefix###FormedMan###object 'Цены сформировал' (object) = ABSTRACT Employee (###object);
+    data###prefix###CheckedMan###object 'Реестр проверил' (object) = ABSTRACT Employee (###object);
+    data###prefix###LabeledMan###object 'Товар промаркировал' (object) = ABSTRACT Employee (###object);
+    data###prefix###AccountantMan###object 'Бухгалтер' (object) = ABSTRACT Employee (###object);
+    data###prefix###HeadMan###object 'Зав. магазином' (object) = ABSTRACT Employee (###object);    
 
-    positionName###prefix###FormedMan###object 'Цены сформировал' (object) = positionNameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###CheckedMan###object 'Реестр проверил' (object) = positionNameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###LabeledMan###object 'Товар промаркировал' (object) = positionNameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###AccountantMan###object 'Бухгалтер' (object) = positionNameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionName###prefix###HeadMan###object 'Зав. магазином' (object) = positionNameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-        
-    positionShortName###prefix###FormedMan###object 'Цены сформировал' (object) = positionShortNameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###CheckedMan###object 'Реестр проверил' (object) = positionShortNameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###LabeledMan###object 'Товар промаркировал' (object) = positionShortNameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###AccountantMan###object 'Бухгалтер' (object) = positionShortNameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
-    positionShortName###prefix###HeadMan###object 'Зав. магазином' (object) = positionShortNameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    prefix###formedMan###object 'Цены сформировал' (object) = OVERRIDE formedManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###FormedMan###object(object);
+    prefix###checkedMan###object 'Реестр проверил' (object) = OVERRIDE checkedManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###CheckedMan###object(object);
+    prefix###labeledMan###object 'Товар промаркировал' (object) = OVERRIDE labeledManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###LabeledMan###object(object);
+    prefix###accountantMan###object 'Бухгалтер' (object) = OVERRIDE accountantManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###AccountantMan###object(object);
+    prefix###headMan###object 'Зав. магазином' (object) = OVERRIDE headManPricingCommittee(prefix###pricingCommittee###object(object)), data###prefix###HeadMan###object(object);
+    
+    name###prefix###formedMan###object 'Цены сформировал' (object) = nameContact(prefix###formedMan###object(object)) IN pricingCommittee;
+    name###prefix###checkedMan###object 'Реестр проверил' (object) = nameContact(prefix###checkedMan###object(object)) IN pricingCommittee;
+    name###prefix###labeledMan###object 'Товар промаркировал' (object) = nameContact(prefix###labeledMan###object(object)) IN pricingCommittee;
+    name###prefix###accountantMan###object 'Бухгалтер' (object) = nameContact(prefix###accountantMan###object(object)) IN pricingCommittee;
+    name###prefix###headMan###object 'Зав. магазином' (object) = nameContact(prefix###headMan###object(object)) IN pricingCommittee;    
+       
+    positionName###prefix###formedMan###object 'Цены сформировал' (object) = positionNameEmployee(prefix###formedMan###object(object)) IN pricingCommittee;
+    positionName###prefix###checkedMan###object 'Реестр проверил' (object) = positionNameEmployee(prefix###checkedMan###object(object)) IN pricingCommittee;
+    positionName###prefix###labeledMan###object 'Товар промаркировал' (object) = positionNameEmployee(prefix###labeledMan###object(object)) IN pricingCommittee;
+    positionName###prefix###accountantMan###object 'Бухгалтер' (object) = positionNameEmployee(prefix###accountantMan###object(object)) IN pricingCommittee;
+    positionName###prefix###headMan###object 'Зав. магазином' (object) = positionNameEmployee(prefix###headMan###object(object)) IN pricingCommittee;        
+
+    positionShortName###prefix###formedMan###object 'Цены сформировал' (object) = positionShortNameEmployee(prefix###formedMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###checkedMan###object 'Реестр проверил' (object) = positionShortNameEmployee(prefix###checkedMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###labeledMan###object 'Товар промаркировал' (object) = positionShortNameEmployee(prefix###labeledMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###accountantMan###object 'Бухгалтер' (object) = positionShortNameEmployee(prefix###accountantMan###object(object)) IN pricingCommittee;
+    positionShortName###prefix###headMan###object 'Зав. магазином' (object) = positionShortNameEmployee(prefix###headMan###object(object)) IN pricingCommittee; 
 END
 
 META defineDocumentInterfaceHeaderPricingCommittee (object, stockClass, prefix)
     @defineDocumentHeaderAbstractPricingCommittee (object, stockClass, prefix);
     @defineDocumentHeaderPricingCommittee (user###object, stockClass, prefix);
     prefix###pricingCommittee###object (object) += prefix###pricingCommittee###user###object(object);
+    
+    data###prefix###FormedMan###object (object) += data###prefix###FormedMan###user###object(object);
+    data###prefix###CheckedMan###object (object) += data###prefix###CheckedMan###user###object(object);
+    data###prefix###LabeledMan###object(object) += data###prefix###LabeledMan###user###object(object);
+    data###prefix###AccountantMan###object (object) += data###prefix###AccountantMan###user###object(object);
+    data###prefix###HeadMan###object (object) += data###prefix###HeadMan###user###object(object);
+    
 END
 META defineDocumentInterfaceHeaderPricingCommittee (object, stockClass)
     @defineDocumentInterfaceHeaderPricingCommittee (object, stockClass, );
