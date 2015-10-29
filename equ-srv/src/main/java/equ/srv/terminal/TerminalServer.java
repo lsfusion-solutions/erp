@@ -28,17 +28,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TerminalServer extends LifecycleAdapter {
 
     public static byte WRONG_PARAMETER_COUNT = 101;
-    public static String WRONG_PARAMETER_COUNT_TEXT = "Неверное число параметров";
+    public static String WRONG_PARAMETER_COUNT_TEXT = "Неверное кол-во параметров";
     public static byte UNKNOWN_ERROR = 102;
     public static String UNKNOWN_ERROR_TEXT = "Неизвестная ошибка";
     public static byte LOGIN_ERROR = 103;
-    public static String LOGIN_ERROR_TEXT = "Неверный пароль";
+    public static String LOGIN_ERROR_TEXT = "Пользователь не найден";
     public static byte ITEM_NOT_FOUND = 104;
     public static String ITEM_NOT_FOUND_TEXT = "Товар не найден";
     public static byte PROCESS_DOCUMENT_ERROR = 105;
-    public static String PROCESS_DOCUMENT_ERROR_TEXT = "Ошибка обработки документа";
+    public static String PROCESS_DOCUMENT_ERROR_TEXT = "Ошибка при сохранении строки документа";
     public static byte AUTHORISATION_REQUIRED = 106;
-    public static String AUTHORISATION_REQUIRED_TEXT = "Необходима авторизация";
+    public static String AUTHORISATION_REQUIRED_TEXT = "Необходима повторная ON-LINE авторизация";
     public static byte NOT_ACTIVE_TERMINAL = 107;
     public static String NOT_ACTIVE_TERMINAL_TEXT = "Терминал не зарегистрирован или заблокирован";
     public static byte UNKNOWN_COMMAND = 111;
