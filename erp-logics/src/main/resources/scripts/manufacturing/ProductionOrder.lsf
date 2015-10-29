@@ -1415,7 +1415,37 @@ WHEN SESSION FORMS order (CHANGED(manufactureDateProductDetail(d)) OR CHANGED(sk
 overShowEditOrder = ABSTRACT BOOLEAN (Order);
 overShowDeleteOrder = ABSTRACT BOOLEAN (Order);
 
+filterOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFromOrder (i) = dateOrder(i) >= filterOrderDateFrom() OR (i IS Order AND NOT filterOrderDateFrom());      
+
+filterOrderDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateToOrder (i) = dateOrder(i) <= filterOrderDateTo() OR (i IS Order AND NOT filterOrderDateTo());      
+ 
+filterOrderComponentsStock  = DATA LOCAL Stock ();
+nameFilterOrderComponentsStock 'Склад компонент' = nameStock(filterOrderComponentsStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterComponentsStockOrder (i) = componentsStockOrder(i) == filterOrderComponentsStock() OR (i IS Order AND NOT filterOrderComponentsStock());    
+
+filterOrderProductsStock  = DATA LOCAL Stock ();
+nameFilterOrderProductsStock 'Склад изделий' = nameStock(filterOrderProductsStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterProductsStockOrder (i) = productsStockOrder(i) == filterOrderProductsStock() OR (i IS Order AND NOT filterOrderProductsStock());      
+
+filterOrderCustomUser  = DATA LOCAL CustomUser ();
+nameFilterOrderCustomUser 'Создан пользователем' = nameContact(filterOrderCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterCustomUserOrder (i) = createdUserOrder(i) == filterOrderCustomUser() OR (i IS Order AND NOT filterOrderCustomUser());  
+
+filterOrderComputer = DATA LOCAL Computer ();
+nameFilterOrderComputer 'Создан на компьютере' = hostnameComputer(filterOrderComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterComputerOrder (i) = createdComputerOrder(i) == filterOrderComputer() OR (i IS Order AND NOT filterOrderComputer());
+
+CONSTRAINT filterOrderProductsStock() AND NOT isCompanyStock(filterOrderProductsStock())
+    CHECKED BY filterOrderProductsStock MESSAGE 'Склад изделий в фильтре для производственного заказа не является складом компании';
+CONSTRAINT filterOrderComponentsStock() AND NOT isCompanyStock(filterOrderComponentsStock())
+    CHECKED BY filterOrderComponentsStock MESSAGE 'Склад компонент в фильтре для производственного заказа не является складом компании';
+
 FORM orders 'Производственные заказы'
+
+        PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderComponentsStock, nameFilterOrderProductsStock, 
+                     nameFilterOrderCustomUser, nameFilterOrderComputer
 
     OBJECTS o = Order
     PROPERTIES(o) READONLYIF isReadonly() isClosedOrder, isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder, nameCompanyOrder,
@@ -1461,7 +1491,12 @@ FORM orders 'Производственные заказы'
     PROPERTIES(sk,o) READONLY quantityComponentDetailSkuOrder, costSkuOrder, dataBruttoPriceSkuOrder, 
                     valueVATSkuOrder BACKGROUND backgroundVATOrder(o) SHOWIF VATOrder(o)
     FILTERS quantityComponentDetailSkuOrder(sk,o)                
-
+    FILTERS filterDateFromOrder(o), 
+            filterDateToOrder(o),
+            filterComponentsStockOrder(o),
+            filterProductsStockOrder(o),
+            filterCustomUserOrder(o),
+            filterComputerOrder(o)
 ;
 DESIGN orders {
     PROPERTY (deleteo) {
@@ -1472,7 +1507,30 @@ DESIGN orders {
         type = SPLITV;
         fill = 1;
 
-        MOVE o.box;
+        NEW filtersBox {                       
+            fill = 1;
+            NEW topFilters {
+                caption = 'Фильтры';
+                type = CONTAINERV; 
+                NEW topFilters1 {
+                    type = CONTAINERH; 
+                    MOVE PROPERTY(filterOrderDateFrom());
+                    MOVE PROPERTY(filterOrderDateTo());                            
+                    MOVE PROPERTY(nameFilterOrderComponentsStock());   
+                    MOVE PROPERTY(nameFilterOrderProductsStock());    
+                    MOVE PROPERTY(nameFilterOrderCustomUser());
+                    MOVE PROPERTY(nameFilterOrderComputer());                                                                                
+                }
+//                NEW topFilters2 {
+//                    type = CONTAINERH; 
+//                    MOVE PROPERTY(nameFilterOrderCustomUser());
+//                    MOVE PROPERTY(nameFilterOrderComputer());                            
+//                }                                                                                         
+            }
+            MOVE o.box {
+                fill = 1;
+            }
+        }
 
         NEW documentDetail {
             type = TABBED;
@@ -1608,6 +1666,22 @@ DESIGN operation {
         MOVE PROPERTY(hideBatchComponentOperation(o));
     }
 }
+
+filterOrderOperation = DATA LOCAL Operation ();
+nameFilterOrderOperation 'Операция' = nameOperation(filterOrderOperation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterOperationOrder (i) = operationOrder(i) == filterOrderOperation() OR (i IS Order AND NOT filterOrderOperation());
+
+EXTEND FORM orders
+    PROPERTIES () nameFilterOrderOperation
+    FILTERS filterOperationOrder(o)
+;
+DESIGN orders {
+    topFilters1 {
+        type = CONTAINERH; 
+        MOVE PROPERTY(nameFilterOrderOperation()) AFTER PROPERTY(filterOrderDateTo());                                                                           
+    }
+}
+
 
 hideBatchComponentOrder = hideBatchComponentOperation(operationOrder(o));
 showBatchComponentOrder(o) = o IS Order AND NOT hideBatchComponentOrder(o); 
