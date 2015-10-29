@@ -434,6 +434,7 @@ quantityComponentsBOMOrder 'Кол-во спецификаций' (BOM, order) =
     [= GROUP MAX NUMERIC[19,8](bruttoQuantityComponentDetail(componentDetail)) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
     BY BOMComponent(componentComponentDetail(componentDetail)), orderComponentDetail(componentDetail)](BOM, order);
 
+overCreateProductsOrder = ABSTRACT ACTION LIST (Order);
 createProductsOrder 'Заполнить изделия из спецификации ' = ACTION (order)  {
 
     FOR q == quantityComponentsBOMOrder(BOMProduct(product), order) ADDOBJ d = ProductDetail DO {
@@ -442,7 +443,7 @@ createProductsOrder 'Заполнить изделия из спецификац
         productProductDetail(d) <- product;
         quantityProductDetail(d) <- round3(quantityProduct(product) * q);
     }
-
+    overCreateProductsOrder(order);
 } TOOLBAR;
 
 expandComponentDetail 'Развернуть изделие' = ACTION (componentDetail)  {
