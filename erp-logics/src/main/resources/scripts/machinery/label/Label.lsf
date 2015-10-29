@@ -274,8 +274,8 @@ fullNameLegalEntityLabelTransaction 'Компания (полное наимен
 labelTypeLabelTransaction 'Тип ценника' = DATA LabelType (LabelTransaction) NOT NULL;
 nameLabelTypeLabelTransaction 'Тип ценника' (transaction) = nameLabelType(labelTypeLabelTransaction(transaction)) IN recognize;
 
-CONSTRAINT labelTypeLabelTransaction(transaction) AND NOT inLabelTypeDepartmentStore(labelTypeLabelTransaction(transaction), departmentStoreLabelTransaction(transaction))
-           CHECKED BY labelTypeLabelTransaction MESSAGE 'Тип ценника запрещен для выбранного подразделения';
+//CONSTRAINT labelTypeLabelTransaction(transaction) AND NOT inLabelTypeDepartmentStore(labelTypeLabelTransaction(transaction), departmentStoreLabelTransaction(transaction))
+//           CHECKED BY labelTypeLabelTransaction MESSAGE 'Тип ценника запрещен для выбранного подразделения';
            
 priceListTypeLabelTransaction = DATA PriceListType (LabelTransaction);     
 namePriceListTypeLabelTransaction 'Вид цен' (labelTransaction) = namePriceListType(priceListTypeLabelTransaction(labelTransaction));         
@@ -391,9 +391,28 @@ changeBarcodeLabelTransactionDetail(d)  = ACTION {
     }
 }
 
+FORM labelTypesDialog 'Доступные типы ценников'
+    OBJECTS ds = DepartmentStore  FIXED PANEL   
+    FILTERS isCompanyStock(ds)
+
+    OBJECTS l = LabelType
+    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType, namePriceListTypeLabelType, printNullPriceLabelType
+    FILTERS inLabelTypeDepartmentStore(l,ds)
+;
+DESIGN labelTypesDialog { main{ preferredSize = (800, 600); } } 
+
+changeLabelTypeLabelTransaction(t)  = ACTION {
+    REQUEST OBJECT l
+    FORM labelTypesDialog OBJECTS ds = departmentStoreLabelTransaction(t) MODAL;
+    IF formResult() == FormResult.ok THEN {
+        labelTypeLabelTransaction(t) <- requestedObject();
+
+    }    
+}
+
 FORM customLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
-    PROPERTIES(l) nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, dateLabelTransaction, timeLabelTransaction,
+    PROPERTIES(l) nameLabelTypeLabelTransaction ON CHANGE changeLabelTypeLabelTransaction(l), nameDepartmentStoreLabelTransaction, dateLabelTransaction, timeLabelTransaction,
                   descriptionLabelTransaction READONLY 
                    
     OBJECTS d = LabelTransactionDetail
