@@ -1,0 +1,106 @@
+MODULE MachineryPriceTransactionPromotion;
+
+REQUIRE MachineryPriceTransaction;
+
+NAMESPACE Machinery;
+
+isForbidPromotionSkuGroup 'Запрет' = DATA BOOLEAN (SkuGroup);
+isForbidPromotionSkuGroupStock 'Запрет (склад)' = DATA BOOLEAN (SkuGroup, Stock);
+overIsForbidPromotionSkuGroupStock 'Запрет (перегруженный)' = OVERRIDE isForbidPromotionSkuGroup(group) IF stock IS Stock, isForbidPromotionSkuGroupStock(group, stock);
+
+isForbidPromotionSku 'Запрет' = DATA BOOLEAN (Sku);
+isForbidPromotionSkuStock 'Запрет(склад)' = DATA BOOLEAN (Sku, Stock);
+overIsForbidPromotionSkuStock 'Запрет (перегруженный)' = OVERRIDE isForbidPromotionSku(sku) IF stock IS Stock, isForbidPromotionSkuStock(sku, stock);
+
+levelParentSkuGroup(group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF isForbidPromotionSkuGroup(parent)
+    BY group;
+nearestParentSkuGroup(group) = groupGroupLevel(group, levelParentSkuGroup(group));
+nearestForbidPromotionSkuGroup(group) = isForbidPromotionSkuGroup(nearestParentSkuGroup(group));
+
+levelParentSkuGroupStock (group, stock) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF isForbidPromotionSkuGroupStock(parent, stock)
+    BY group, stock;
+nearestParentSkuGroupStock (group, stock) = groupGroupLevel(group, levelParentSkuGroupStock(group, stock));
+nearestForbidPromotionSkuGroupStock (group, stock) = isForbidPromotionSkuGroupStock(nearestParentSkuGroupStock (group, stock), stock);
+
+levelParentOverSkuGroupStock (group, stock) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF overIsForbidPromotionSkuGroupStock(parent, stock)
+    BY group, stock;
+nearestParentOverSkuGroupStock (group, stock) = groupGroupLevel(group, levelParentOverSkuGroupStock(group, stock));
+nearestOverForbidPromotionSkuGroupStock (group, stock) = overIsForbidPromotionSkuGroupStock(nearestParentOverSkuGroupStock (group, stock), stock);
+
+resultForbidPromotionSkuGroupStock 'Запрет (перегруженный)' ( group, stock) = OVERRIDE
+    nearestOverForbidPromotionSkuGroupStock(group, stock),
+    overIsForbidPromotionSkuGroupStock( group, stock);
+
+resultForbidPromotionSkuStock 'Запрет (перегруженный)' = OVERRIDE 
+    resultForbidPromotionSkuGroupStock(skuGroupSku( sku), stock),
+    overIsForbidPromotionSkuStock(sku, stock) ;
+
+     
+quantityChildWithForbidPromotionSkuGroup (group) = GROUP SUM 1 IF isForbidPromotionSkuGroup(childGroup) AND isParentSkuGroupSkuGroup(childGroup, group) BY group;
+quantityParentWithForbidPromotionSkuGroup (group) = GROUP SUM 1 IF isForbidPromotionSkuGroup(parentGroup) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group;          
+backgroundIsForbidPromotionSkuGroup 'Цвет' (group) = CASE
+    WHEN isForbidPromotionSkuGroup(group) THEN RGB(0,0,0)
+    WHEN nearestForbidPromotionSkuGroup(group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithForbidPromotionSkuGroup(group) != descendantNumberSkuGroup(group) AND NOT quantityParentWithForbidPromotionSkuGroup(group) THEN RGB(203,203,203);           
+   
+quantityChildWithForbidPromotionSkuGroupStock (group, stock) = GROUP SUM 1 IF isForbidPromotionSkuGroupStock(childGroup, stock) AND isParentSkuGroupSkuGroup(childGroup, group) BY group, stock;
+quantityParentWithForbidPromotionSkuGroupStock (group, stock) = GROUP SUM 1 IF isForbidPromotionSkuGroupStock(parentGroup, stock) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group, stock;          
+backgroundIsForbidPromotionSkuGroupStock 'Цвет' (group, stock) = CASE
+    WHEN isForbidPromotionSkuGroupStock(group, stock) THEN RGB(0,0,0)
+    WHEN nearestForbidPromotionSkuGroupStock(group, stock) THEN RGB(230,248,250) 
+    WHEN quantityChildWithForbidPromotionSkuGroupStock(group, stock) != descendantNumberSkuGroup(group) AND NOT quantityParentWithForbidPromotionSkuGroupStock(group, stock) THEN RGB(203,203,203);           
+
+quantityChildWithOverForbidPromotionSkuGroupStock (group, stock) = GROUP SUM 1 IF overIsForbidPromotionSkuGroupStock(childGroup, stock) AND isParentSkuGroupSkuGroup(childGroup, group) BY group, stock;
+quantityParentWithOverForbidPromotionSkuGroupStock (group, stock) = GROUP SUM 1 IF overIsForbidPromotionSkuGroupStock(parentGroup, stock) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group, stock;          
+backgroundIsOverForbidPromotionSkuGroupStock 'Цвет' (group, stock) = CASE
+    WHEN overIsForbidPromotionSkuGroupStock(group, stock) THEN RGB(0,0,0)
+    WHEN nearestOverForbidPromotionSkuGroupStock(group, stock) THEN RGB(230,248,250) 
+    WHEN quantityChildWithOverForbidPromotionSkuGroupStock(group, stock) != descendantNumberSkuGroup(group) AND NOT quantityParentWithOverForbidPromotionSkuGroupStock(group, stock) THEN RGB(203,203,203);           
+
+FORM forbidPromotion 'Запрет на применение скидок'
+    OBJECTS st = Stock FIXED PANEL 
+    PROPERTIES nameStock(st) SELECTOR
+    FILTERS isCompanyStock(st)
+    
+    TREE treeGroup g=SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
+    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+    PROPERTIES isForbidPromotionSkuGroup( g) BACKGROUND backgroundIsForbidPromotionSkuGroup(g), isForbidPromotionSkuGroupStock (g, st) BACKGROUND backgroundIsForbidPromotionSkuGroupStock(g,st)
+    PROPERTIES READONLY resultForbidPromotionSkuGroupStock(g, st) BACKGROUND backgroundIsOverForbidPromotionSkuGroupStock(g,st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY nameSku, idBarcodeSku
+    FILTERS isParentSkuGroupSku(g, s) OR s IS Sku AND NOT g
+    PROPERTIES isForbidPromotionSku(s) BACKGROUND backgroundIsForbidPromotionSku(s), isForbidPromotionSkuStock(s, st) BACKGROUND backgroundIsForbidPromotionSkuStock(s,st)
+    PROPERTIES READONLY resultForbidPromotionSkuStock(s,st) BACKGROUND backgroundIsOverForbidPromotionSkuStock(s,st)
+    
+    FILTERGROUP forbid
+        FILTER  'Отм.'  resultForbidPromotionSkuStock(s,st) 'F10'
+;
+
+DESIGN forbidPromotion {
+    NEW treeContainer{
+        fill = 1;
+        type = SPLITH;
+        MOVE treeGroup.tree.box { caption = 'Группы товаров';}
+        MOVE s.box ;
+    }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    machineryExport {
+        ADD forbidPromotion;
+    }
+}
+
+overForbidPromotionSkuStock 'Запрет продаж' = ABSTRACT BOOLEAN (Sku, Stock);
+
+extraFlagsBarcodeStock(b, s) = ABSTRACT  INTEGER (Barcode, Stock);
+
+dataFlagsBarcodeStock(b, s) =
+    (IF (resultForbidPromotionSkuStock(skuBarcode(b), s) OR overForbidPromotionSkuStock(skuBarcode(b),s)) THEN 0 ELSE 16) + extraFlagsBarcodeStock(b, s);
+                                     
+@defineMachineryPriceTransactionAttributeStock(dataFlags, 'Флаги', INTEGER);
+flagsMachineryPriceTransactionBarcode (t, b) += dataFlagsMachineryPriceTransactionBarcode(t, b);
