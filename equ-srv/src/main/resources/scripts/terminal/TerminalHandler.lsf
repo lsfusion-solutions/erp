@@ -5,3 +5,14 @@ REQUIRE Terminal, MachineryPriceTransaction;
 processTerminalDocument 'Обработка документа ТСД' (terminalDocument) = ABSTRACT ACTION LIST (TerminalDocument);
 
 priceBeforeSkuStock 'Старая цена' = ABSTRACT NUMERIC[14,2](Sku, Stock);
+
+checkIdTerminal 'Ограничение доступа по коду терминала' = DATA BOOLEAN ();
+
+@defineExternalizable(terminal, VARSTRING[100]);
+blockedTerminal 'Заблокирован' = DATA BOOLEAN (Terminal);
+notActiveTerminal (t) = blockedTerminal(t) AND checkIdTerminal();
+
+EXTEND FORM groupTerminal PROPERTIES(t) BEFORE nppMachinery(t) idTerminal, blockedTerminal;
+EXTEND FORM groupsTerminal
+    PROPERTIES () checkIdTerminal
+    PROPERTIES(t) BEFORE nppMachinery(t) READONLY idTerminal, blockedTerminal;

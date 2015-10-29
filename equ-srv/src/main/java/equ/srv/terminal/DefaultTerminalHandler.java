@@ -173,6 +173,20 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
+    public boolean isActiveTerminal(DataSession session, String idTerminal) throws RemoteException, SQLException {
+        try {
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+            if (terminalHandlerLM != null) {
+                ObjectValue terminalObject = terminalHandlerLM.findProperty("terminalId").readClasses(session, new DataObject(idTerminal));
+                return terminalObject instanceof DataObject && terminalHandlerLM.findProperty("notActiveTerminal").read(session, terminalObject) == null;
+            }
+            return false;
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public DataObject getUserObject(DataSession session, String login, String password) throws RemoteException, SQLException {
         try {
 
