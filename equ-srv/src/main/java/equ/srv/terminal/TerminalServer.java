@@ -28,12 +28,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TerminalServer extends LifecycleAdapter {
 
     public static byte WRONG_PARAMETER_COUNT = 101;
+    public static String WRONG_PARAMETER_COUNT_TEXT = "Неверное число параметров";
     public static byte UNKNOWN_ERROR = 102;
+    public static String UNKNOWN_ERROR_TEXT = "Неизвестная ошибка";
     public static byte LOGIN_ERROR = 103;
+    public static String LOGIN_ERROR_TEXT = "Неверный пароль";
     public static byte ITEM_NOT_FOUND = 104;
+    public static String ITEM_NOT_FOUND_TEXT = "Товар не найден";
     public static byte PROCESS_DOCUMENT_ERROR = 105;
+    public static String PROCESS_DOCUMENT_ERROR_TEXT = "Ошибка обработки документа";
     public static byte AUTHORISATION_REQUIRED = 106;
+    public static String AUTHORISATION_REQUIRED_TEXT = "Необходима авторизация";
+    public static byte NOT_ACTIVE_TERMINAL = 107;
+    public static String NOT_ACTIVE_TERMINAL_TEXT = "Терминал не зарегистрирован или заблокирован";
     public static byte UNKNOWN_COMMAND = 111;
+    public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
 
     public static final byte GET_USER_INFO = 4;
     public static final byte GET_ITEM_INFO = 5;
@@ -182,7 +191,8 @@ public class TerminalServer extends LifecycleAdapter {
 
                 String result = null;
                 List<String> itemInfo = null;
-                byte error = 0;
+                byte errorCode = 0;
+                String errorText = null;
                 String sessionId;
                 switch (command) {
                     case GET_USER_INFO:
@@ -191,15 +201,24 @@ public class TerminalServer extends LifecycleAdapter {
                             String[] params = readParams(inFromClient);
                             if(params != null && params.length == 3) {
                                 logger.info("logging user " + params[0]);
-                                result = getSessionId(params[0], params[1], params[2]);
-                                if (result == null)
-                                    error = LOGIN_ERROR;
+                                if(terminalHandlerInterface.isActiveTerminal(createSession(), params[2])) {
+                                    result = getSessionId(params[0], params[1], params[2]);
+                                    if (result == null) {
+                                        errorCode = LOGIN_ERROR;
+                                        errorText = LOGIN_ERROR_TEXT;
+                                    }
+                                } else {
+                                    errorCode = NOT_ACTIVE_TERMINAL;
+                                    errorText = NOT_ACTIVE_TERMINAL_TEXT;
+                                }
                             } else {
-                                error = WRONG_PARAMETER_COUNT;
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
                             logger.error("Unknown error: ", e);
-                            error = UNKNOWN_ERROR;
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = UNKNOWN_ERROR_TEXT;
                         }
                         break;
                     case GET_ITEM_INFO:
@@ -211,19 +230,25 @@ public class TerminalServer extends LifecycleAdapter {
                                 sessionId = params[0];
                                 String barcode = params[1];
                                 DataObject user = userMap.get(sessionId);
-                                if (user == null)
-                                    error = AUTHORISATION_REQUIRED;
+                                if (user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                }
                                 else {
                                     itemInfo = readItem(user, barcode);
-                                    if (itemInfo == null)
-                                        error = ITEM_NOT_FOUND;
+                                    if (itemInfo == null) {
+                                        errorCode = ITEM_NOT_FOUND;
+                                        errorText = ITEM_NOT_FOUND_TEXT;
+                                    }
                                 }
                             } else {
-                                error = WRONG_PARAMETER_COUNT;
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
                             logger.error("Unknown error: ", e);
-                            error = UNKNOWN_ERROR;
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = UNKNOWN_ERROR_TEXT;
                         }
                         break;
                     case SAVE_DOCUMENT:
@@ -233,13 +258,16 @@ public class TerminalServer extends LifecycleAdapter {
                             if(params != null && params.size() >= 1) {
                                 String[] document = params.get(0);
                                 if(document.length < 8) {
-                                    error = WRONG_PARAMETER_COUNT;
+                                    errorCode = WRONG_PARAMETER_COUNT;
+                                    errorText = WRONG_PARAMETER_COUNT_TEXT;
                                 } else {
                                     List<List<Object>> terminalDocumentDetailList = new ArrayList<>();
                                     String sessionIdDocument = document[0];
                                     DataObject user = userMap.get(sessionIdDocument);
-                                    if (user == null)
-                                        error = AUTHORISATION_REQUIRED;
+                                    if (user == null) {
+                                        errorCode = AUTHORISATION_REQUIRED;
+                                        errorText = AUTHORISATION_REQUIRED_TEXT;
+                                    }
                                     else {
                                         logger.info("receiving document number " + document[2]);
                                         String dateDocument = document[1];
@@ -253,7 +281,8 @@ public class TerminalServer extends LifecycleAdapter {
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
                                             if (line.length < 5) {
-                                                error = WRONG_PARAMETER_COUNT;
+                                                errorCode = WRONG_PARAMETER_COUNT;
+                                                errorText = WRONG_PARAMETER_COUNT_TEXT;
                                             } else {
                                                 String barcodeDocumentDetail = line[0];
                                                 BigDecimal quantityDocumentDetail = parseBigDecimal(line[1]);
@@ -270,16 +299,20 @@ public class TerminalServer extends LifecycleAdapter {
                                         if(emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType));
                                         result = importTerminalDocumentDetail(idDocument, user, terminalDocumentDetailList, emptyDocument);
-                                        if (result != null)
-                                            error = PROCESS_DOCUMENT_ERROR;
+                                        if (result != null) {
+                                            errorCode = PROCESS_DOCUMENT_ERROR;
+                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT;
+                                        }
                                     }
                                 }
                             } else {
-                                error = WRONG_PARAMETER_COUNT;
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
                             logger.error("Unkown error", e);
-                            error = UNKNOWN_ERROR;
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = UNKNOWN_ERROR_TEXT;
                         }
                         break;
                     case GET_ITEM_HTML:
@@ -291,62 +324,73 @@ public class TerminalServer extends LifecycleAdapter {
                                 String barcode = params[0];
                                 String idStock = params[1];
                                 result = readItemHtml(barcode, idStock);
-                                if (result == null)
-                                    error = ITEM_NOT_FOUND;
+                                if (result == null) {
+                                    errorCode = ITEM_NOT_FOUND;
+                                    errorText = ITEM_NOT_FOUND_TEXT;
+                                }
                             } else {
-                                error = WRONG_PARAMETER_COUNT;
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
                             logger.error("Unknown error: ", e);
-                            error = UNKNOWN_ERROR;
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = UNKNOWN_ERROR_TEXT;
                         }
                         break;
                     default:
                         result = "unknown command";
-                        error = UNKNOWN_COMMAND;
+                        errorCode = UNKNOWN_COMMAND;
+                        errorText = UNKNOWN_COMMAND_TEXT;
                         break;
                 }
 
-                logger.info("error code: " + (int) error);
+                logger.info("error code: " + (int) errorCode);
+                if(errorText != null)
+                    logger.info("error: " + errorText);
                 outToClient.writeByte(stx);
                 outToClient.flush();
                 outToClient.writeByte(id);
                 outToClient.flush();
                 outToClient.writeByte(command);
                 outToClient.flush();
-                outToClient.writeByte(error);
+                outToClient.writeByte(errorCode);
                 outToClient.flush();
-
-                switch (command) {
-                    case GET_USER_INFO:
-                        if (result != null) {
-                            outToClient.writeBytes(result);
-                            outToClient.flush();
-                            outToClient.writeByte(esc);
-                            outToClient.flush();
-                            outToClient.write(String.valueOf(System.currentTimeMillis()).getBytes("cp1251"));
-                            outToClient.flush();
-                        }
-                        break;
-                    case GET_ITEM_INFO:
-                        if (itemInfo != null) {
-                            for (int i = 0; i < 8; i++) {
-                                if (itemInfo.size() > i) {
-                                    outToClient.write(itemInfo.get(i).getBytes("cp1251"));
-                                    outToClient.flush();
-                                }
+                if(errorText != null) {
+                    outToClient.writeChars(errorText);
+                    outToClient.flush();
+                } else {
+                    switch (command) {
+                        case GET_USER_INFO:
+                            if (result != null) {
+                                outToClient.writeBytes(result);
+                                outToClient.flush();
                                 outToClient.writeByte(esc);
                                 outToClient.flush();
+                                outToClient.write(String.valueOf(System.currentTimeMillis()).getBytes("cp1251"));
+                                outToClient.flush();
                             }
-                        }
-                        break;
-                    case SAVE_DOCUMENT:
-                    case GET_ITEM_HTML:
-                        if (result != null) {
-                            outToClient.write(result.getBytes("cp1251"));
-                            outToClient.flush();
-                        }
-                        break;
+                            break;
+                        case GET_ITEM_INFO:
+                            if (itemInfo != null) {
+                                for (int i = 0; i < 8; i++) {
+                                    if (itemInfo.size() > i) {
+                                        outToClient.write(itemInfo.get(i).getBytes("cp1251"));
+                                        outToClient.flush();
+                                    }
+                                    outToClient.writeByte(esc);
+                                    outToClient.flush();
+                                }
+                            }
+                            break;
+                        case SAVE_DOCUMENT:
+                        case GET_ITEM_HTML:
+                            if (result != null) {
+                                outToClient.write(result.getBytes("cp1251"));
+                                outToClient.flush();
+                            }
+                            break;
+                    }
                 }
 
                 outToClient.writeByte(etx);
