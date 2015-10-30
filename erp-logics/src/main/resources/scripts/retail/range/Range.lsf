@@ -519,6 +519,11 @@ levelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(range
                                               ORDER dateIn
                                               WHERE (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
 
+dateRangeStoreTypeDate (r, t, d) = GROUP LAST dateIn
+                                              BY range, storeType, date
+                                              ORDER dateIn
+                                              WHERE dataLevelRangeStoreTypeDate(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
+
 //levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
 nameLevelRangeStoreTypeDate 'Уровень' (r, t, d)= nameRangeLevel(levelRangeStoreTypeDate(r, t, d)); 
 
@@ -563,6 +568,11 @@ levelRangeStoreDate (r, st, d) = GROUP LAST dataLevelRangeStoreDate(range, st, d
                                               ORDER dateIn
                                               WHERE (dataLevelRangeStoreDate(range, st, dateIn) OR excludeLevelRangeStoreDate(range, st, dateIn)) AND dateIn <= (date AS DATE); 
 
+dateRangeStoreDate (r, st, d) = GROUP LAST dateIn
+                                              BY range, st, date
+                                              ORDER dateIn
+                                              WHERE dataLevelRangeStoreDate(range, st, dateIn) AND dateIn <= (date AS DATE); 
+
 changeLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
     REQUEST OBJECT l
         IF levelRangeStoreDate(r, st, d) THEN {
@@ -583,13 +593,22 @@ backgroundLevelRangeStoreDate(range, store, dateIn) = (dataLevelRangeStoreDate(r
 countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
 
 overLevelRangeStoreDate(r, st, d) = OVERRIDE levelRangeStoreTypeDate(r, storeTypeStore(st), d), levelRangeStoreDate(r, st, d);  
+overDateRangeStoreDate 'Дата включения' (r, st, d) = OVERRIDE dateRangeStoreTypeDate(r, storeTypeStore(st), d), dateRangeStoreDate(r, st, d);  
 nameOverLevelRangeStoreDate 'Уровень (перегруженный)' (r, st, d)= nameRangeLevel(overLevelRangeStoreDate(r, st, d));               
 nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));    
 
-overCountRangeSkuStoreDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+//overCountRangeSkuStoreDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
 //countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
-countRangeSkuStoreDate 'В ассортименте' (s, st, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+countRangeSkuStoreDate 'В ассортименте' (s, st, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, st, d) >= levelRangeSkuDate(range, s, d) BY s, st, d;
 countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreDate(s, storeDepartmentStore(ds), d); 
+countRangeRangeSkuStoreDate 'В ассортименте' (r, s, st, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, st, d) >= levelRangeSkuDate(range, s, d) BY range, s, st, d;
+
+
+countRangeStoreSkuDate = GROUP SUM 1 IF levelRangeStoreDate(r, st, d) >= levelRangeSkuDate(r, sk, d) BY st, sk, d;
+countTypeRangeStoreSkuDate = GROUP SUM 1 IF levelRangeStoreTypeDate(r, storeTypeStore(st), d) >= levelRangeSkuDate(r, sk, d) BY st, sk, d;
+
+statusRangeSkuDate 'Вид ассортимента' (st, s, d) = CASE WHEN countRangeStoreSkuDate(st, s, d) THEN 'Магазин'
+    WHEN countTypeRangeStoreSkuDate(st, s, d) THEN 'Формат';
 
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
@@ -616,33 +635,75 @@ FORM storeRange 'Ассортимент магазинов'
     
     OBJECTS st = Store FIXED GRID 
     PROPERTIES nameStore(st) READONLY, nameStoreTypeStore(st) READONLY, nameOverLevelRangeStoreDate(r, st, d), nameLevelRangeStoreDate(r, st, d)  BACKGROUND backgroundLevelRangeStoreDate(r, st, d) ON CHANGE changeLevelRangeStoreDate(r, st, d)
+    
+    OBJECTS ds = Store FIXED PANEL
+    PROPERTIES (ds) nameStore SELECTOR
+    
+    TREE treeGroup g=SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
+    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
+    FILTERGROUP inactiveD FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+    
+    OBJECTS sk = Sku 
+    PROPERTIES (sk) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku
+    PROPERTIES statusRangeSkuDate(ds, sk, d)
+    FILTERS isParentSkuGroupSku(g, sk) OR s IS Sku AND NOT g, countRangeSkuStoreDate(sk, ds, d)
+    
+    OBJECTS rn = Range
+    PROPERTIES READONLY nameRange(rn), nameLevelRangeSkuDate(rn, sk, d), overDateRangeStoreDate(rn, st, d)
+    PROPERTIES (rn) EDITFORM
+    FILTERS countRangeRangeSkuStoreDate (rn, sk, ds, d)
 ;
 
 DESIGN storeRange {
-    MOVE dc.box;
-    NEW pane {
-        fill = 1;
-        type = SPLITH;
-        MOVE skuTree.tree.box {
-            caption = 'Группы товаров';
-        }
-        NEW rightPane {
-            fill = 2;
-            type = SPLITV;
-            MOVE r.box {
-                fill = 2;
-                PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
-                    background = #FFEEFF;
-                }
-            }
-            NEW rightPane1 {
-                fill = 1;
-                type = TABBED ;                
-                MOVE st.box;
-                MOVE s.box;
-            }             
-        }
+    NEW filters{
+        type = CONTAINERH;
+        MOVE dc.box;
+        MOVE ds.box;
     }
+    NEW tabPane{
+        fill = 1;
+        type = TABBED;
+        NEW pane {
+            fill = 1;
+            type = SPLITH;
+            caption = 'Назначение ассортимента';
+            MOVE skuTree.tree.box {
+                caption = 'Группы товаров';
+            }
+            NEW rightPane {
+                fill = 2;
+                type = SPLITV;
+                MOVE r.box {
+                    fill = 2;
+                    PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
+                        background = #FFEEFF;
+                    }
+                }
+                NEW rightPane1 {
+                    fill = 1;
+                    type = TABBED ;                
+                    MOVE st.box;
+                    MOVE s.box;
+                }             
+            }
+        }
+        NEW store {
+            fill = 1;
+            type = SPLITH;
+            caption = 'Ассортимент по магазинам';
+            MOVE treeGroup.tree.box {
+                caption = 'Группы товаров';
+            }
+            NEW storeRightPane {
+                fill = 2;
+                type = SPLITV;
+                MOVE sk.box{fill = 2;};
+                MOVE rn.box{fill = 1;};
+            }
+        }        
+    }
+
     MOVE functions.box;
 }
 @extendFormFilterSkuGroupAccess(storeRange, sg);
