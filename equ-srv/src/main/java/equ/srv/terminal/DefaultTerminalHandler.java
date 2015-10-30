@@ -1,6 +1,7 @@
 package equ.srv.terminal;
 
 import com.google.common.base.Throwables;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
@@ -13,8 +14,10 @@ import lsfusion.server.session.DataSession;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 
 public class DefaultTerminalHandler implements TerminalHandlerInterface {
@@ -190,7 +193,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public DataObject getUserObject(DataSession session, String login, String password) throws RemoteException, SQLException {
+    public DataObject login(DataSession session, String login, String password, String idTerminal) throws RemoteException, SQLException {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
@@ -200,7 +203,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcaseLogin").readClasses(session, new DataObject(login.toUpperCase()));
                 String sha256PasswordCustomUser = (String) terminalHandlerLM.findProperty("sha256PasswordCustomUser").read(session, customUser);
                 boolean check = customUser instanceof DataObject && sha256PasswordCustomUser != null && calculatedHash != null && sha256PasswordCustomUser.equals(calculatedHash);
-                return check ? (DataObject) customUser : null;
+                DataObject result = check ? (DataObject) customUser : null;
+                if(result != null) {
+                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminalId").readClasses(session, new DataObject(idTerminal));
+                    if(terminalObject instanceof DataObject) {
+                        terminalHandlerLM.findProperty("lastConnectionTimeTerminal").change(new Timestamp(Calendar.getInstance().getTime().getTime()), session, (DataObject) terminalObject);
+                        terminalHandlerLM.findProperty("lastUserTerminal").change(result.getValue(), session, (DataObject) terminalObject);
+                        String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics());
+                        if(applyMessage != null)
+                            ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s", applyMessage, login, idTerminal));
+                    }
+                }
+                return result;
             } else return null;
 
         } catch (Exception e) {

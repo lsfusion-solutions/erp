@@ -17,5 +17,5 @@ public interface TerminalHandlerInterface {
 
     boolean isActiveTerminal(DataSession session, String idTerminal) throws RemoteException, SQLException;
 
-    DataObject getUserObject(DataSession session, String login, String password) throws RemoteException, SQLException;
+    DataObject login(DataSession session, String login, String password, String idTerminal) throws RemoteException, SQLException;
 }

@@ -202,7 +202,7 @@ public class TerminalServer extends LifecycleAdapter {
                             if(params != null && params.length == 3) {
                                 logger.info("logging user " + params[0]);
                                 if(terminalHandlerInterface.isActiveTerminal(createSession(), params[2])) {
-                                    result = getSessionId(params[0], params[1], params[2]);
+                                    result = login(params[0], params[1], params[2]);
                                     if (result == null) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = LOGIN_ERROR_TEXT;
@@ -483,8 +483,8 @@ public class TerminalServer extends LifecycleAdapter {
         }
     }
 
-    public String getSessionId(String login, String password, String idTerminal) throws RemoteException, SQLException {
-        DataObject userObject = terminalHandlerInterface.getUserObject(createSession(), login, password);
+    public String login(String login, String password, String idTerminal) throws RemoteException, SQLException {
+        DataObject userObject = terminalHandlerInterface.login(createSession(), login, password, idTerminal);
         if(userObject != null) {
             String sessionId = String.valueOf((login + password + idTerminal).hashCode());
             userMap.put(sessionId, userObject);
