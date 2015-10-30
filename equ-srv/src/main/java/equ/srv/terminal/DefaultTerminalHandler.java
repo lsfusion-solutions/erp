@@ -177,10 +177,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
-                ObjectValue terminalObject = terminalHandlerLM.findProperty("terminalId").readClasses(session, new DataObject(idTerminal));
-                return terminalObject instanceof DataObject && terminalHandlerLM.findProperty("notActiveTerminal").read(session, terminalObject) == null;
+                boolean checkIdTerminal = terminalHandlerLM.findProperty("checkIdTerminal").read(session) != null;
+                if(checkIdTerminal) {
+                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminalId").readClasses(session, new DataObject(idTerminal));
+                    return terminalObject instanceof DataObject && terminalHandlerLM.findProperty("blockedTerminal").read(session, terminalObject) == null;
+                }
             }
-            return false;
+            return true;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
