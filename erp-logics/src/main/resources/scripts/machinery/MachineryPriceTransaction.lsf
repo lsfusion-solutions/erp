@@ -195,15 +195,22 @@ lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) =
           BY barcode, groupInMachineryPriceTransactionBarcode(transaction, barcode)
           ORDER orderMachineryPriceTransaction(transaction)
           WHERE NOT canceledMachineryPriceTransaction(transaction) PERSISTENT;
-prevLastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = PREV(lastTransactionBarcodeGroupMachinery (barcode, groupMachinery));
+          
+lastFullTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
+    GROUP LAST transaction 
+          BY barcode, groupMachineryMachineryPriceTransaction(transaction)
+          ORDER orderMachineryPriceTransaction(transaction)
+          WHERE inMachineryPriceTransactionBarcode(transaction, barcode) AND NOT canceledMachineryPriceTransaction(transaction);
+          
+prevLastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = PREV(lastFullTransactionBarcodeGroupMachinery (barcode, groupMachinery));
 
 transactionNameBarcodeGroupMachinery 'Текущее наименование в оборудовании' (barcode, groupMachinery)  =
     nameMachineryPriceTransactionBarcode(lastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode);
-prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery) = PREV(transactionNameBarcodeGroupMachinery(barcode, groupMachinery));
+prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery) = nameMachineryPriceTransactionBarcode(prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode);
 
 transactionPriceBarcodeGroupMachinery 'Текущая цена в оборудовании' (barcode, groupMachinery)  =
     priceMachineryPriceTransactionBarcode(lastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode) PERSISTENT;
-prevTransactionPriceBarcodeGroupMachinery (barcode, groupMachinery) = PREV(transactionPriceBarcodeGroupMachinery(barcode, groupMachinery));
+prevTransactionPriceBarcodeGroupMachinery (barcode, groupMachinery) = priceMachineryPriceTransactionBarcode(prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery),barcode);
 
 transactionPriceBarcodeStock 'Текущая цена в оборудовании' (barcode, stock) =
     GROUP LAST transactionPriceBarcodeGroupMachinery(b, g) 
