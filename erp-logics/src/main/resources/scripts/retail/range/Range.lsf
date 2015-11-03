@@ -441,7 +441,7 @@ createRangeRevRangeDate 'Создать версию' = ACTION (range, date) NEW
 } TOOLBAR;
 
 EXTEND FORM ranges
-    OBJECTS vl = RangeLevel FIXED GRID
+    OBJECTS vl = RangeLevel FIXED GRID BEFORE r
 
     PROPERTIES READONLY countSkuRangeDate(r, d)
     PROPERTIES READONLY countSkuRangeRangeLevelDate(r, vl, d) TODRAW r COLUMNS (vl) HEADER nameRangeLevel(vl) 
@@ -595,7 +595,9 @@ countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1
 overLevelRangeStoreDate(r, st, d) = OVERRIDE levelRangeStoreTypeDate(r, storeTypeStore(st), d), levelRangeStoreDate(r, st, d);  
 overDateRangeStoreDate 'Дата включения' (r, st, d) = OVERRIDE dateRangeStoreTypeDate(r, storeTypeStore(st), d), dateRangeStoreDate(r, st, d);  
 nameOverLevelRangeStoreDate 'Уровень (перегруженный)' (r, st, d)= nameRangeLevel(overLevelRangeStoreDate(r, st, d));               
-nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));    
+nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));
+
+countSkuRangeStoreDate 'Кол-во товаров' (r, st, d) = countRecSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), overLevelRangeStoreDate(r, st, d));
 
 //overCountRangeSkuStoreDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
 //countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
@@ -617,6 +619,7 @@ FORM storeRange 'Ассортимент магазинов'
      
     OBJECTS t = StoreType FIXED GRID
     FILTERS chainStoresStoreType(t) == c
+    OBJECTS st1 = Store FIXED GRID
     
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
@@ -626,11 +629,14 @@ FORM storeRange 'Ассортимент магазинов'
     PROPERTIES(r) READONLY nameRange
     PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND backgroundLevelRangeStoreTypeDate(r, t, d) ON CHANGE changeLevelRangeStoreTypeDate(r, t, d),
                         countSkuRangeStoreTypeDate COLUMNS(t) HEADER nameStoreType(t)
+    PROPERTIES (r, st1, d) READONLY countSkuRangeStoreDate COLUMNS (st1) HEADER nameStore(st1)
+                        
     FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
     
     OBJECTS s = Sku FIXED GRID 
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
     PROPERTIES(s, t, d) READONLY countRangeSkuStoreTypeDate COLUMNS (t) HEADER nameStoreType(t)
+    PROPERTIES (s,st1,d) READONLY countRangeSkuStoreDate COLUMNS (st1) HEADER nameStore(st1)
     FILTERS levelRangeSkuDate(r, s, d) 
     
     OBJECTS st = Store FIXED GRID 
@@ -678,6 +684,9 @@ DESIGN storeRange {
                     fill = 2;
                     PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
                         background = #FFEEFF;
+                    }
+                    PROPERTY(countSkuRangeStoreDate(r, st1, d)) {
+                        background = #FDFCD9;
                     }
                 }
                 NEW rightPane1 {
