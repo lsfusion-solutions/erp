@@ -18,21 +18,25 @@ editPricingDetail (d)+= ACTION editInvoiceDetail(invoiceDetailInvoicePricingDeta
 
 
 // Автоматически проставляем цены поставщика и розничные
-supplierPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail) 
-                                                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
-                                                                                               batchUserInvoiceDetail(detail),
-                                                                                               supplierStockUserInvoiceDetail(detail),
-                                                                                               dateTimeUserInvoiceDetail(detail))
-                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
-                                                                                             skuUserInvoiceDetail(detail),
-                                                                                             supplierStockUserInvoiceDetail(detail),
-                                                                                             dateTimeUserInvoiceDetail(detail))
-                                                WHEN DO CHANGED(skuUserInvoiceDetail(detail)) OR
-                                                     CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-                                                     CHANGED(dateTimeUserInvoiceDetail(detail)) OR
-                                                     CHANGED(batchUserInvoiceDetail(detail));
-
-
+WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
+              CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+              (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail)) OR
+              CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(supplierPriceUserInvoiceDetail (detail)) DO {
+    supplierPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail) 
+                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                   batchUserInvoiceDetail(detail),
+                                                                                                   supplierStockUserInvoiceDetail(detail),
+                                                                                                   dateTimeUserInvoiceDetail(detail))
+                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                 skuUserInvoiceDetail(detail),
+                                                                                                 supplierStockUserInvoiceDetail(detail),
+                                                                                                 dateTimeUserInvoiceDetail(detail));
+}
+ 
+WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
+              CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+              (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail)) OR
+              CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(retailPriceUserInvoiceDetail (detail)) DO {
 retailPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail)
                                                 THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                                batchUserInvoiceDetail(detail),
@@ -41,11 +45,8 @@ retailPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND 
                                                 ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                              skuUserInvoiceDetail(detail),
                                                                                              supplierStockUserInvoiceDetail(detail),
-                                                                                             dateTimeUserInvoiceDetail(detail))
-                                                WHEN DO CHANGED(skuUserInvoiceDetail(detail)) OR
-                                                     CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-                                                     CHANGED(dateTimeUserInvoiceDetail(detail)) OR
-                                                     CHANGED(batchUserInvoiceDetail(detail));
+                                                                                             dateTimeUserInvoiceDetail(detail));
+}
 
 // Автоматический расчет розничной надбавки
 retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
