@@ -1,0 +1,78 @@
+MODULE RepricingPriceLimit;
+
+REQUIRE Repricing, PriceLimit;
+
+NAMESPACE Repricing;
+
+//------------------ Предельные надбавки ----------------------//
+
+@defineDocumentInterfaceProperty (repricing, showLimitPrice, 'Предельная надбавка');
+@defineDocumentInterfaceDetailMarkupPrefix (repricing, limit, ' предельная');
+
+WHEN SESSION FORMS userRepricing 
+             (CHANGED(departmentStoreUserRepricingDetail(detail)) OR
+              CHANGED(skuUserRepricingDetail(detail)) OR 
+              SET(showLimitPriceUserRepricingDetail(detail)))
+             AND showLimitPriceUserRepricingDetail(detail) DO {
+    limitMarkupRepricingDetail(detail) <- markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(departmentStoreUserRepricingDetail(detail)), skuUserRepricingDetail(detail));
+}
+
+//----------------------------------------------- Операции -----------------------------------------------------//
+
+// Вид цены для расценки для операции
+@defineDocumentHeaderProperty (operation, showLimitPrice, 'Предельная надбавка');
+
+EXTEND FORM operation
+    PROPERTIES(o) showLimitPriceOperation
+;
+
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showLimitPriceOperation(o));
+    }
+}
+
+// Записываем необходимо ли показывать предельную надбавку по умолчанию из операции расценки, заданной для операции закупка
+showLimitPriceUserRepricing (invoice) <- showLimitPriceOperation(operationUserRepricing(invoice))
+    WHEN CHANGED(operationUserRepricing(invoice));
+
+EXTEND FORM userRepricing
+    PROPERTIES(p) showLimitPriceUserRepricing
+    PROPERTIES(d) SHOWIF showLimitPriceUserRepricing(p) BEFORE markupUserRepricingDetail(d) limitMarkupUserRepricingDetail
+;
+DESIGN userRepricing{
+    p.documentPrm {
+        MOVE PROPERTY (showLimitPriceUserRepricing(p));
+    }
+}
+
+EXTEND FORM repricings
+    PROPERTIES(d) READONLY SHOWIF showLimitPriceRepricing(p) BEFORE markupRepricingDetail(d) limitMarkupRepricingDetail
+;
+
+// Имплементим для расчета оптимальной розничной цены
+
+overLimitBasePriceUserRepricingDetail = ABSTRACT NUMERIC[14,2] (UserRepricingDetail);
+limitBasePriceUserRepricingDetail(d) = OVERRIDE priceUserRepricingDetail(d), overLimitBasePriceUserRepricingDetail(d);
+ 
+limitPriceUserRepricingDetail (detail) = roundPriceRoundCondition(
+                                       IF limitMarkupUserRepricingDetail(detail) > 100 THEN
+                                            [= (X+Y)*(Z+100)/100](
+                                                limitBasePriceUserRepricingDetail(detail),
+                                                limitMarkupUserRepricingDetail(detail),
+                                                valueVATUserRepricingDetail(detail))
+                                       ELSE [= X*(Y+100)*(Z+100)/10000](
+                                                limitBasePriceUserRepricingDetail(detail),
+                                                limitMarkupUserRepricingDetail(detail),
+                                                valueVATUserRepricingDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(departmentStoreUserRepricingDetail(detail)), skuUserRepricingDetail(detail)));
+
+WHEN SESSION FORMS userRepricing GOAFTER retailPriceUserRepricingDetail 
+            (SETCHANGED(retailPriceUserRepricingDetail(d)) OR CHANGED(limitBasePriceUserRepricingDetail(d)) OR CHANGED(limitMarkupUserRepricingDetail(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPriceUserRepricingDetail(d) AND limitPriceUserRepricingDetail(d) < retailPriceUserRepricingDetail(d) DO {
+    retailPriceUserRepricingDetail(d) <- limitPriceUserRepricingDetail(d);
+     
+    markupUserRepricingDetail(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPriceUserRepricingDetail(d),
+                                                       repricingPriceUserRepricingDetail(d),
+                                                       valueVATUserRepricingDetail(d));
+}
