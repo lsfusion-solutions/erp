@@ -617,31 +617,47 @@ FORM storeRange 'Ассортимент магазинов'
     PROPERTIES(d) OBJVALUE
     PROPERTIES(c) SELECTOR nameChainStores
      
-    OBJECTS t = StoreType FIXED GRID
-    FILTERS chainStoresStoreType(t) == c
-    OBJECTS st1 = Store FIXED GRID
-    
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
     ORDER BY orderSkuGroup(sg), skuGroupName
+
+    // По форматам
+    OBJECTS t = StoreType FIXED GRID
+    FILTERS chainStoresStoreType(t) == c
+    
     OBJECTS r = Range
     PROPERTIES(r) READONLY nameRange
     PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND backgroundLevelRangeStoreTypeDate(r, t, d) ON CHANGE changeLevelRangeStoreTypeDate(r, t, d),
                         countSkuRangeStoreTypeDate COLUMNS(t) HEADER nameStoreType(t)
-    PROPERTIES (r, st1, d) READONLY countSkuRangeStoreDate COLUMNS (st1) HEADER nameStore(st1)
-                        
     FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
-    
+    ORDER BY nameRange(r)
+
     OBJECTS s = Sku FIXED GRID 
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
     PROPERTIES(s, t, d) READONLY countRangeSkuStoreTypeDate COLUMNS (t) HEADER nameStoreType(t)
-    PROPERTIES (s,st1,d) READONLY countRangeSkuStoreDate COLUMNS (st1) HEADER nameStore(st1)
-    FILTERS levelRangeSkuDate(r, s, d) 
-    
+    FILTERS levelRangeSkuDate(r, s, d)
+     
+    // По магазинам
     OBJECTS st = Store FIXED GRID 
-    PROPERTIES nameStore(st) READONLY, nameStoreTypeStore(st) READONLY, nameOverLevelRangeStoreDate(r, st, d), nameLevelRangeStoreDate(r, st, d)  BACKGROUND backgroundLevelRangeStoreDate(r, st, d) ON CHANGE changeLevelRangeStoreDate(r, st, d)
+    PROPERTIES READONLY nameStore(st), nameStoreTypeStore(st)
+    ORDER BY nameStoreTypeStore(st), nameStore(st)
     
+    OBJECTS sr = Range
+    PROPERTIES(sr) READONLY nameRange
+    PROPERTIES nameOverLevelRangeStoreDate(sr, st, d) BACKGROUND backgroundLevelRangeStoreDate(sr, st, d) ON CHANGE changeLevelRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st)
+    PROPERTIES countSkuRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st) 
+    ORDER BY nameRange(sr)
+    FILTERS inParentRangeSkuGroup(sr, sg) OR NOT countSkuGroupRange(sr)
+    
+    OBJECTS ss = Sku FIXED GRID 
+    PROPERTIES(ss) READONLY idBarcodeSku, nameSku, nameUOMSku
+    PROPERTIES READONLY nameLevelRangeSkuDate(sr, ss, d)
+    PROPERTIES(ss, st, d) READONLY countRangeSkuStoreDate COLUMNS (st) HEADER nameStore(st)
+    ORDER BY nameLevelRangeSkuDate(sr, ss, d), nameSku(ss)
+    FILTERS levelRangeSkuDate(sr, ss, d)
+
+    // -------------- Ассортимент магазина ------------------ //
     OBJECTS ds = Store FIXED PANEL
     PROPERTIES (ds) nameStore SELECTOR
     
@@ -665,7 +681,6 @@ DESIGN storeRange {
     NEW filters{
         type = CONTAINERH;
         MOVE dc.box;
-        MOVE ds.box;
     }
     NEW tabPane{
         fill = 1;
@@ -677,38 +692,49 @@ DESIGN storeRange {
             MOVE skuTree.tree.box {
                 caption = 'Группы товаров';
             }
-            NEW rightPane {
+            NEW setPane {
                 fill = 2;
-                type = SPLITV;
-                MOVE r.box {
-                    fill = 2;
-                    PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
-                        background = #FFEEFF;
-                    }
-                    PROPERTY(countSkuRangeStoreDate(r, st1, d)) {
-                        background = #FDFCD9;
-                    }
-                }
-                NEW rightPane1 {
+                type = TABBED;
+                NEW formatPane {
                     fill = 1;
-                    type = TABBED ;                
-                    MOVE st.box;
+                    type = SPLITV;
+                    caption = 'По форматам';
+                    MOVE r.box {
+                        fill = 2;
+                        PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
+                            background = #FFEEFF;
+                        }
+                    }
                     MOVE s.box;
-                }             
+                }
+                NEW storePane {
+                    fill = 1;
+                    type = SPLITV ;
+                    caption = 'По магазинам';
+                    REMOVE st.box;
+                    MOVE sr.box {
+                        fill = 2;
+                    }
+                    MOVE ss.box;
+                }
             }
         }
         NEW store {
             fill = 1;
-            type = SPLITH;
             caption = 'Ассортимент по магазинам';
-            MOVE treeGroup.tree.box {
-                caption = 'Группы товаров';
-            }
-            NEW storeRightPane {
-                fill = 2;
-                type = SPLITV;
-                MOVE sk.box{fill = 2;};
-                MOVE rn.box{fill = 1;};
+            MOVE ds.box;
+            NEW skus {
+                fill = 1;
+                type = SPLITH;
+                MOVE treeGroup.tree.box {
+                    caption = 'Группы товаров';
+                }
+                NEW storeRightPane {
+                    fill = 2;
+                    type = SPLITV;
+                    MOVE sk.box{fill = 2;};
+                    MOVE rn.box{fill = 1;};
+                }
             }
         }        
     }
