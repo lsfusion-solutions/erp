@@ -120,6 +120,7 @@ FORM ranges 'Ассортиментные матрицы'
     PROPERTIES(r) READONLY nameRange
     PROPERTIES(r) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
     FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
+    ORDER BY nameRange(r)
     
     DIALOG Range OBJECT r
 ;
@@ -588,6 +589,18 @@ changeLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
         excludeLevelRangeStoreDate (r, st, d) <- TRUE;
     }
 }              
+
+changeWYSLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
+    REQUEST VARISTRING[10] INPUT;
+    
+    IF requestedString() THEN {
+        dataLevelRangeStoreDate (r, st, d) <- [= GROUP MAX l BY nameRangeLevel(l)](requestedString());
+        excludeLevelRangeStoreDate (r, st, d) <- NULL;
+    } ELSE {
+        dataLevelRangeStoreDate (r, st, d) <- NULL;
+        excludeLevelRangeStoreDate (r, st, d) <- TRUE;
+    }
+}              
 backgroundLevelRangeStoreDate(range, store, dateIn) = (dataLevelRangeStoreDate(range, store, dateIn) OR excludeLevelRangeStoreDate(range, store, dateIn));
 
 countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
@@ -645,7 +658,7 @@ FORM storeRange 'Ассортимент магазинов'
     
     OBJECTS sr = Range
     PROPERTIES(sr) READONLY nameRange
-    PROPERTIES nameOverLevelRangeStoreDate(sr, st, d) BACKGROUND backgroundLevelRangeStoreDate(sr, st, d) ON CHANGE changeLevelRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st)
+    PROPERTIES nameOverLevelRangeStoreDate(sr, st, d) BACKGROUND backgroundLevelRangeStoreDate(sr, st, d) ON CHANGE changeLevelRangeStoreDate(sr, st, d) ON CHANGEWYS changeWYSLevelRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st)
     PROPERTIES countSkuRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st) 
     ORDER BY nameRange(sr)
     FILTERS inParentRangeSkuGroup(sr, sg) OR NOT countSkuGroupRange(sr)
@@ -941,7 +954,7 @@ EXTEND FORM ranges
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(),nameSku, nameUOMSku, amountPackSku
     PROPERTIES READONLY nameLevelRangeSkuDate(r, s, d)
-    ORDER BY nameSku(s)
+    ORDER BY nameLevelRangeSkuDate(r, s, d), nameSku(s)
     FILTERS inRangeSku (r, s)
 ;
 
