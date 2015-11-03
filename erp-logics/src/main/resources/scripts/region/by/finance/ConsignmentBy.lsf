@@ -134,10 +134,10 @@ fullNameCustomerConsignment 'Наим-ие получателя' (consignment) =
     OVERRIDE fullNameLegalEntity(customerConsignment(consignment)), overFullNameCustomerConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 payerConsignment = ABSTRACT LegalEntity (Consignment);
-UNPPayerConsignment 'УНП заказчика перевозки' (consignment) = UNPLegalEntity(payerConsignment(consignment));
-addressPayerConsignment 'Юр. адрес заказчика перевозки' (consignment) =
+UNPPayerConsignment 'УНП заказчика' (consignment) = UNPLegalEntity(payerConsignment(consignment));
+addressPayerConsignment 'Юр. адрес заказчика' (consignment) =
     addressLegalEntityDate(payerConsignment(consignment), dateConsignment(consignment));
-fullNamePayerConsignment 'Наим-ие для накладных заказчика перевозки' (consignment) =
+fullNamePayerConsignment 'Наим-ие заказчика' (consignment) =
     fullNameLegalEntity(payerConsignment(consignment)) ;
 
 // ------------------------------------- Атрибуты --------------------------------- //
@@ -193,7 +193,7 @@ ownerTruckConsignment 'Владелец автомобиля' (consignment) = OV
     WHEN supplierConsignment(consignment) == legalEntityTruck(truckConsignment(consignment)) OR ownerTrackTypeConsignment(consignment) == OwnerTrackType.supplier THEN 'Грузоотравитель'
     WHEN customerConsignment(consignment) == legalEntityTruck(truckConsignment(consignment)) OR ownerTrackTypeConsignment(consignment) == OwnerTrackType.customer THEN 'Грузополучатель'
     ELSE 
-    OVERRIDE nameLegalEntityTruck(truckConsignment(consignment)), ownerTruck(truckConsignment(consignment))), dataOwnerTruckConsignment(consignment)  IN carConsignment;
+    OVERRIDE nameLegalEntityTruck(truckConsignment(consignment)), ownerTruck(truckConsignment(consignment))), dataOwnerTruckConsignment(consignment)  IN carConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
 
 dataTrailerConsignment = ABSTRACT VARSTRING[100] (Consignment);
 trailerConsignment 'Прицеп' (consignment) = OVERRIDE trailerTruck(truckConsignment(consignment)),
@@ -323,7 +323,7 @@ changeForwarderConsignment = ACTION (consignment){
 }
 
 warrantConsignment 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment;
-warrantHolderConsignment 'По доверенности выданной (наименование орг-ии)' (consignment) = ABSTRACT VARSTRING[200] (Consignment) IN issuanceConsignment;
+warrantHolderConsignment 'По доверенности выданной ' (consignment) = ABSTRACT VARSTRING[200] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
 
 
 useGoodsAcceptedConsignment 'Использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
@@ -860,7 +860,7 @@ DESIGN consignment {
             columns = 2;
         }
         MOVE c.loadingConsignment {
-            columns = 4;
+            columns = 3;
         }
         NEW sum {
             type = CONTAINERH;
