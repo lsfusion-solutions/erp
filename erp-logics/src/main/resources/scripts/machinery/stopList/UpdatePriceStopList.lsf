@@ -4,7 +4,57 @@ REQUIRE UpdatePriceDashboard, StopList;
 
 NAMESPACE Pricing;
 
+statusStopListSkuStock 'Запрет продаж' (sku, stock)= IF inStopListSkuStockDateTime(sku, stock, currentDateTime())
+    THEN 'В стоп-листе'
+    ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
+backgroundStopListSkuStock 'Цвет' (sku, stock) = RGB (255,0,0) IF inStopListSkuStockDateTime(sku, stock, currentDateTime());
+
+createReversStopListStock 'Исключить из стоп-листа'  = ACTION (department) {
+    IF countSelectSkus() THEN {
+        NESTEDSESSION {   
+            FOR ADDOBJ sl = StopList DO {    
+                inStockStopList(st, sl) <- TRUE WHERE st == department;  
+                excludeStopList(sl) <-TRUE;
+                isPostedStopList(sl) <-TRUE;
+                       
+                FOR selectSku(sku) ADDOBJ d = StopListDetail DO {
+                    
+                    stopListStopListDetail(d) <- sl;
+                    skuStopListDetail(d) <- sku;            
+                }   
+                FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
+            }        
+        }
+    } ELSE {
+        MESSAGE 'Не отмечены товары.';
+    }
+};
 EXTEND FORM updatePriceDashboard
+    PROPERTIES (d) FORCE PANEL TOOLBAR SHOWIF countSelectSkus() createReversStopListStock TODRAW sk  
+    PROPERTIES (sk,d) READONLY statusStopListSkuStock BACKGROUND backgroundStopListSkuStock(sk,d)
     FILTERGROUP stop
-        FILTER 'Разрешен к продаже' NOT inStopListSkuStockDateTime(sk, d, currentDateTime()) 'F8' DEFAULT
+        FILTER 'Разрешен к продаже' NOT inStopListSkuStockDateTime(sk, d, currentDateTime()) 'F8'
 ;
+
+DESIGN updatePriceDashboard {
+
+    sk.box {
+        NEW skuTopPane FIRST{
+            type = CONTAINERH;
+            NEW stoplist {
+                type = CONTAINERH;
+                caption = 'Стоп-листы';
+                MOVE filters.stop;
+                MOVE PROPERTY(createReversStopListStock(d)); 
+            }
+            NEW filters {
+                type = CONTAINERH;
+                caption = 'Фильтры';
+                MOVE filters.inactive;
+                MOVE filters.error;
+            }
+        
+        }
+    }
+
+}
