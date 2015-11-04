@@ -145,9 +145,9 @@ EXTEND FORM userShipment
 disableUpdateShipmentPriceUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
 WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
               CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-              CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+              (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail)) OR
               CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(shipmentPriceUserInvoiceDetail(detail)) AND NOT disableUpdateShipmentPriceUserInvoiceDetail(detail) DO 
-    shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail)
+    shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail)
 
                                                     THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
                                                                                                    batchUserInvoiceDetail(detail),
