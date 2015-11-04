@@ -45,16 +45,20 @@ EXTEND FORM invoices
 overLimitBasePriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
 limitBasePriceUserInvoiceDetail(d) = OVERRIDE priceUserInvoiceDetail(d), overLimitBasePriceUserInvoiceDetail(d);
  
-limitPriceUserInvoiceDetail (detail) = roundPriceRoundCondition(
-                                       IF limitMarkupUserInvoiceDetail(detail) > 100 THEN
-                                            [= (X+Y)*(Z+100)/100](
-                                                limitBasePriceUserInvoiceDetail(detail),
-                                                limitMarkupUserInvoiceDetail(detail),
-                                                valueRetailVATUserInvoiceDetail(detail))
-                                       ELSE [= X*(Y+100)*(Z+100)/10000](
-                                                limitBasePriceUserInvoiceDetail(detail),
-                                                limitMarkupUserInvoiceDetail(detail),
-                                                valueRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)));
+limitPriceUserInvoiceDetail (detail) =
+                                       IF limitMarkupUserInvoiceDetail(detail) > 3000 THEN
+                                           limitMarkupUserInvoiceDetail(detail)
+                                       ELSE
+                                           roundPriceRoundCondition(
+                                           IF limitMarkupUserInvoiceDetail(detail) > 100 THEN
+                                                [= (X+Y)*(Z+100)/100](
+                                                    limitBasePriceUserInvoiceDetail(detail),
+                                                    limitMarkupUserInvoiceDetail(detail),
+                                                    valueRetailVATUserInvoiceDetail(detail))
+                                           ELSE [= X*(Y+100)*(Z+100)/10000](
+                                                    limitBasePriceUserInvoiceDetail(detail),
+                                                    limitMarkupUserInvoiceDetail(detail),
+                                                    valueRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)));
 
 WHEN SESSION FORMS userInvoice GOAFTER retailPriceUserInvoiceDetail 
             (SETCHANGED(retailPriceUserInvoiceDetail(d)) OR CHANGED(limitBasePriceUserInvoiceDetail(d)) OR CHANGED(limitMarkupUserInvoiceDetail(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 

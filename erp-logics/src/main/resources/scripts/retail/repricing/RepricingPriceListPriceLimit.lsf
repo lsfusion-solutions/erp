@@ -7,13 +7,16 @@ NAMESPACE Repricing;
 skipRepricingPriceLimitSku = ABSTRACT BOOLEAN (Sku);
 overSetManagementRetailPriceDepartmentStoreDateTime(d, dt) += ACTION (d, dt) {
     LOCAL limitPriceSku = NUMERIC[14,2] (Sku);
-    limitPriceSku(sku) <- roundPriceRoundCondition(
-                            IF markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku) > 100 THEN
+    limitPriceSku(sku) <- IF markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku) > 3000 THEN
+                                markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku)
+                          ELSE
+                                roundPriceRoundCondition(
+                                IF markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku) > 100 THEN
                                 [= (X+Y)*(Z+100)/100](
                                     prevPriceAPriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(priceLimitPriceListTypeDepartmentStore(d)), sku, d, dt),
                                     markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku),
                                     valueVATSkuStock(sku, d))
-                            ELSE [= X*(Y+100)*(Z+100)/10000](
+                                ELSE [= X*(Y+100)*(Z+100)/10000](
                                     prevPriceAPriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(priceLimitPriceListTypeDepartmentStore(d)), sku, d, dt),
                                     markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku),
                                     valueVATSkuStock(sku, d)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(d), sku)) WHERE managementRetailPriceSku(sku);

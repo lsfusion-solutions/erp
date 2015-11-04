@@ -55,16 +55,20 @@ EXTEND FORM repricings
 overLimitBasePriceUserRepricingDetail = ABSTRACT NUMERIC[14,2] (UserRepricingDetail);
 limitBasePriceUserRepricingDetail(d) = OVERRIDE priceUserRepricingDetail(d), overLimitBasePriceUserRepricingDetail(d);
  
-limitPriceUserRepricingDetail (detail) = roundPriceRoundCondition(
-                                       IF limitMarkupUserRepricingDetail(detail) > 100 THEN
-                                            [= (X+Y)*(Z+100)/100](
-                                                limitBasePriceUserRepricingDetail(detail),
-                                                limitMarkupUserRepricingDetail(detail),
-                                                valueVATUserRepricingDetail(detail))
-                                       ELSE [= X*(Y+100)*(Z+100)/10000](
-                                                limitBasePriceUserRepricingDetail(detail),
-                                                limitMarkupUserRepricingDetail(detail),
-                                                valueVATUserRepricingDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(departmentStoreUserRepricingDetail(detail)), skuUserRepricingDetail(detail)));
+limitPriceUserRepricingDetail (detail) =
+                                       IF limitMarkupUserRepricingDetail(detail) > 3000 THEN
+                                           limitMarkupUserRepricingDetail(detail)
+                                       ELSE
+                                           roundPriceRoundCondition(
+                                           IF limitMarkupUserRepricingDetail(detail) > 100 THEN
+                                                [= (X+Y)*(Z+100)/100](
+                                                    limitBasePriceUserRepricingDetail(detail),
+                                                    limitMarkupUserRepricingDetail(detail),
+                                                    valueVATUserRepricingDetail(detail))
+                                           ELSE [= X*(Y+100)*(Z+100)/10000](
+                                                    limitBasePriceUserRepricingDetail(detail),
+                                                    limitMarkupUserRepricingDetail(detail),
+                                                    valueVATUserRepricingDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(departmentStoreUserRepricingDetail(detail)), skuUserRepricingDetail(detail)));
 
 WHEN SESSION FORMS userRepricing GOAFTER retailPriceUserRepricingDetail 
             (SETCHANGED(retailPriceUserRepricingDetail(d)) OR CHANGED(limitBasePriceUserRepricingDetail(d)) OR CHANGED(limitMarkupUserRepricingDetail(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
