@@ -7,8 +7,8 @@ NAMESPACE Repricing;
 
 //----------------------------------------------- Переоценка (розница) ---------------------------------------------------//
 
-CLASS ABSTRACT Repricing 'Акт переоценки';
-CLASS ABSTRACT RepricingDetail 'Строка акта переоценки': InLIFOSkuLedger;
+CLASS ABSTRACT Repricing 'Акт переоценки' : Document;
+CLASS ABSTRACT RepricingDetail 'Строка акта переоценки': InLIFOSkuLedger, DocumentDetail;
 
 CLASS UserRepricing 'Акт переоценки (польз.)' : Repricing;
 CLASS UserRepricingDetail 'Строка акта переоценки (польз.)' : RepricingDetail;
@@ -464,6 +464,9 @@ toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-�
 
 allowRecalculatePriceUserRepricing (p) = NOT denyRecalculatePriceOperation(operationUserRepricing(p));
 
+@implementDocumentPrefix(repricing, retail, );
+@implementDocumentBatch(repricing);
+
 // --------------------------- Формы --------------------------------- //
 editRepricing 'Редактировать' = ABSTRACT ACTION LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editSkuUserRepricingDetail 'Редактировать SKU' (d) = ACTION editSku(skuUserRepricingDetail(d));
@@ -833,3 +836,5 @@ pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPrice
 inPriceListLedgerStock (ledger, stock) += departmentStoreRepricingDetail(ledger) == stock;
 
 editPriceListLedger(d) += ACTION editRepricingDetail(d);
+
+@defineDocumentLogForm(repricings, p);
