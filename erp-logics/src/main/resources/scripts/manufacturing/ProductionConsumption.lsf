@@ -776,3 +776,39 @@ consumedSumComponentDetailBOMOrder 'Сумма компонентов' (BOM, ord
 CONSTRAINT  createConsumptionOrder(order) AND createOutputOrder(order) AND equalRestrictionOrder(order) 
     AND (outputProductsSumProductDetailBOMOrder(BOM, order) != consumedSumComponentDetailBOMOrder(BOM, order))
     MESSAGE 'Сумма списания компонентов для изделия должна быть равной сумме произведенного изделия в производственном заказе'; 
+
+banChangeBOMs 'Запретить изменения в спецификациях, по которым было производство' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES ()banChangeBOMs
+;
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY (banChangeBOMs());
+    }
+}
+
+isProductsBOM 'Было производство' (BOM)  = GROUP SUM 1 IF consumedQuantityComponentDetail(cd) >0 AND isPostedComponentDetail(cd) BY BOMComponentDetail(cd);
+                                                 
+CONSTRAINT SET(c IS Component) AND isProductsBOM(BOMComponent(c)) 
+    AND banChangeBOMs()
+        MESSAGE 'Запрещено изменять спецификацию, по которой было производство';
+    
+CONSTRAINT SET(p IS Product) AND isProductsBOM(BOMProduct(p)) 
+    AND banChangeBOMs()
+        MESSAGE 'Запрещено изменять спецификацию, по которой было производство';   
+     
+CONSTRAINT DROPPED(c IS Component) AND PREV(isProductsBOM(BOMComponent(c))) 
+    AND banChangeBOMs()
+        MESSAGE 'Запрещено изменять спецификацию, по которой было производство';
+    
+CONSTRAINT DROPPED(p IS Product) AND PREV(isProductsBOM(BOMProduct(p))) 
+    AND banChangeBOMs()
+        MESSAGE 'Запрещено изменять спецификацию, по которой было производство';   
+    
+CONSTRAINT (CHANGED(materialComponent(c)) OR CHANGED(bruttoQuantityComponent(c)) OR CHANGED(wastageComponent(c))) 
+    AND isProductsBOM(BOMComponent(c)) AND banChangeBOMs()
+     MESSAGE 'Запрещено изменять спецификацию, по которой было производство';
+    
+CONSTRAINT (CHANGED(skuProduct(p)) OR CHANGED(quantityProduct(p)) OR CHANGED(pricePercentProduct(p))) AND isProductsBOM(BOMProduct(p)) AND banChangeBOMs()
+        MESSAGE 'Запрещено изменять спецификацию, по которой было производство';   
