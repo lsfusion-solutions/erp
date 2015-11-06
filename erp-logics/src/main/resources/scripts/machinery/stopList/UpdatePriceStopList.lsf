@@ -29,8 +29,30 @@ createReversStopListStock 'Исключить из стоп-листа'  = ACTIO
         MESSAGE 'Не отмечены товары.';
     }
 };
+createStopListStock 'Включить в стоп-лист'  = ACTION (department) {
+    IF countSelectSkus() THEN {
+        NESTEDSESSION {   
+            FOR ADDOBJ sl = StopList DO {    
+                inStockStopList(st, sl) <- TRUE WHERE st == department;  
+                excludeStopList(sl) <-NULL;
+                isPostedStopList(sl) <-TRUE;
+                       
+                FOR selectSku(sku) ADDOBJ d = StopListDetail DO {
+                    
+                    stopListStopListDetail(d) <- sl;
+                    skuStopListDetail(d) <- sku;            
+                }   
+                FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
+            }        
+        }
+    } ELSE {
+        MESSAGE 'Не отмечены товары.';
+    }
+};
+
+
 EXTEND FORM updatePriceDashboard
-    PROPERTIES (d) FORCE PANEL TOOLBAR SHOWIF countSelectSkus() createReversStopListStock TODRAW sk  
+    PROPERTIES (d) FORCE PANEL TOOLBAR SHOWIF countSelectSkus()  TODRAW sk  createReversStopListStock, createStopListStock
     PROPERTIES (sk,d) READONLY statusStopListSkuStock BACKGROUND backgroundStopListSkuStock(sk,d)
     FILTERGROUP stop
         FILTER 'Разрешен к продаже' NOT inStopListSkuStockDateTime(sk, d, currentDateTime()) 'F8'
@@ -46,6 +68,7 @@ DESIGN updatePriceDashboard {
                 caption = 'Стоп-листы';
                 MOVE filters.stop;
                 MOVE PROPERTY(createReversStopListStock(d)); 
+                MOVE PROPERTY(createStopListStock(d)); 
             }
             NEW filters {
                 type = CONTAINERH;
