@@ -230,7 +230,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(prefixP###price###idetail(detail)) OR
          CHANGED(sku###idetail(detail)) OR
          CHANGED(stockProp###idetail(detail)) OR
-         CHANGED(dateTime###idetail(detail)) OR
+        (CHANGED(dateTime###idetail(detail)) AND NOT isPosted###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
         AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND roundCondition == roundConditionCalcPriceListTypeSku(priceListType, sku###idetail(detail))
         AND NOT CHANGED(prefix###price###idetail(detail))
@@ -244,27 +244,12 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
         }
         
-    ON SESSION {
-        FOR (CHANGED(prefix###priceListType###idetail(detail)) OR
-                         CHANGED(prefixP###price###idetail(detail)) OR
-                         CHANGED(sku###idetail(detail)) OR
-                         CHANGED(stockProp###idetail(detail)) OR
-                         CHANGED(dateTime###idetail(detail)) OR
-                         CHANGED(value###prefix###VAT###idetail(detail))) AND remoteExLogEnabledUser(currentUser()) DO {
-             MESSAGE sku###idetail(detail);
-             MESSAGE prefix###priceListType###idetail(detail);
-             MESSAGE roundConditionCalcPriceListTypeSku(prefix###priceListType###idetail(detail), sku###idetail(detail));
-             MESSAGE CHANGED(prefix###price###idetail(detail));
-             MESSAGE pricingDocumentCalcPriceListType(prefix###priceListType###idetail(detail));
-        }
-    }
-
     WHEN SESSION
         (CHANGED(prefix###priceListType###idetail(detail)) OR
          CHANGED(prefixP###price###idetail(detail)) OR
          CHANGED(sku###idetail(detail)) OR
          CHANGED(stockProp###idetail(detail)) OR
-         CHANGED(dateTime###idetail(detail)) OR
+        (CHANGED(dateTime###idetail(detail)) AND NOT isPosted###idetail(detail)) OR
          CHANGED(batch###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
         AND NOT CHANGED(prefix###price###idetail(detail))
