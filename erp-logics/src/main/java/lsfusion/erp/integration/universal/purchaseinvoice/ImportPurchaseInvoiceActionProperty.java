@@ -693,116 +693,115 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         try {
             wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         } catch (Exception e) {
-            context.requestUserInteraction(new MessageClientAction("Файл неизвестного либо устаревшего формата", "Ошибка при открытии файла"));
+            String error = "Файл неизвестного либо устаревшего формата";
+            context.requestUserInteraction(new MessageClientAction(error, "Ошибка при открытии файла"));
+            throw new RuntimeException(error, e);
         }
-        if (wb != null) {
-            Sheet sheet = wb.getSheet(0);
+        Sheet sheet = wb.getSheet(0);
 
-            Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
-            currentTimestamp = getCurrentTimestamp();
+        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
+        currentTimestamp = getCurrentTimestamp();
 
-            for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
+        for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
 
-                Map<String, Object> fieldValues = new HashMap<>();
-                for (String field : stringFields) {
-                    String value = getXLSFieldValue(sheet, i, defaultColumns.get(field));
-                    switch (field) {
-                        case "nameCountry":
-                        case "nameOriginCountry":
-                            fieldValues.put(field, modifyNameCountry(value));
-                            break;
-                        case "valueVAT":
-                            fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                            break;
-                        case "barcodeItem":
-                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                            break;
-                        case "idCustomerStock":
-                            value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
-                            fieldValues.put("idCustomerStock", value);
-                            fieldValues.put("idCustomer", readIdCustomer(session, value));
-                            break;
-                        default:
-                            fieldValues.put(field, value);
-                            break;
-                    }
-                }
-
-                for (String field : bigDecimalFields) {
-                    ImportColumnDetail column = defaultColumns.get(field);
-                    BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, column);
-                    switch (field) {
-                        case "sumVAT":
-                            fieldValues.put(field, value == null && column != null ? BigDecimal.ZERO : value);
-                            break;
-                        case "dataIndex":
-                            fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
-                            break;
-                        case "price":
-                            fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
-                            break;
-                        default:
-                            fieldValues.put(field, value);
-                            break;
-                    }
-                }
-
-                for (String field : dateFields) {
-                    switch (field) {
-                        case "dateDocument":
-                            Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
-                            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                            fieldValues.put(field, dateDocument);
-                            fieldValues.put("dateVAT", dateVAT);
-                            break;
-                        case "expiryDate":
-                            fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field), true));
-                            break;
-                        default:
-                            fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field)));
-                            break;
-                    }
-                }
-
-                for(String field : timeFields) {
-                    fieldValues.put(field, getXLSTimeFieldValue(sheet, i, defaultColumns.get(field)));
-                }
-                
-                String numberDocument = getXLSFieldValue(sheet, i, defaultColumns.get("numberDocument"));
-                String idDocument = getXLSFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
-                String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-                BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
-                BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeight"));
-                BigDecimal netWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeightSum"));
-                netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
-                BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeight"));
-                BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeightSum"));
-                grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-
-                LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
-                for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
-                    customValues.put(column.getKey(), getXLSFieldValue(sheet, i, column.getValue()));
-                }
-
-                if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
-                    PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
-                            idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum,
-                            grossWeight, grossWeightSum);
-
-                    String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
-                    String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
-                        primaryList.add(purchaseInvoiceDetail);
-                    else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
-                        secondaryList.add(purchaseInvoiceDetail);
+            Map<String, Object> fieldValues = new HashMap<>();
+            for (String field : stringFields) {
+                String value = getXLSFieldValue(sheet, i, defaultColumns.get(field));
+                switch (field) {
+                    case "nameCountry":
+                    case "nameOriginCountry":
+                        fieldValues.put(field, modifyNameCountry(value));
+                        break;
+                    case "valueVAT":
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                        break;
+                    case "barcodeItem":
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                        break;
+                    case "idCustomerStock":
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                        fieldValues.put("idCustomerStock", value);
+                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
                 }
             }
-            currentTimestamp = null;
 
-            return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
-                    primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
-        } else
-            return null;
+            for (String field : bigDecimalFields) {
+                ImportColumnDetail column = defaultColumns.get(field);
+                BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, column);
+                switch (field) {
+                    case "sumVAT":
+                        fieldValues.put(field, value == null && column != null ? BigDecimal.ZERO : value);
+                        break;
+                    case "dataIndex":
+                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                        break;
+                    case "price":
+                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
+            }
+
+            for (String field : dateFields) {
+                switch (field) {
+                    case "dateDocument":
+                        Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
+                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                        fieldValues.put(field, dateDocument);
+                        fieldValues.put("dateVAT", dateVAT);
+                        break;
+                    case "expiryDate":
+                        fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field), true));
+                        break;
+                    default:
+                        fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field)));
+                        break;
+                }
+            }
+
+            for(String field : timeFields) {
+                fieldValues.put(field, getXLSTimeFieldValue(sheet, i, defaultColumns.get(field)));
+            }
+
+            String numberDocument = getXLSFieldValue(sheet, i, defaultColumns.get("numberDocument"));
+            String idDocument = getXLSFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
+            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
+            BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
+            BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeight"));
+            BigDecimal netWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeightSum"));
+            netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
+            BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeight"));
+            BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeightSum"));
+            grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
+
+            LinkedHashMap<String, String> customValues = new LinkedHashMap<>();
+            for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
+                customValues.put(column.getKey(), getXLSFieldValue(sheet, i, column.getValue()));
+            }
+
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
+                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum,
+                        grossWeight, grossWeightSum);
+
+                String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
+                String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                    primaryList.add(purchaseInvoiceDetail);
+                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
+                    secondaryList.add(purchaseInvoiceDetail);
+            }
+        }
+        currentTimestamp = null;
+
+        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType,
+                primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, DataSession session, byte[] importFile, 
