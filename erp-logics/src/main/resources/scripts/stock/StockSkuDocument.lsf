@@ -100,7 +100,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
 
         OBJECTS ks=Sku
         PROPERTIES READONLY      inputName = nameSku(ks) BACKGROUND backgroundPickNameSku###object(ks, concrete)
-        PROPERTIES(ks) READONLY  idBarcodeSku, shortNameUOMSku
+        PROPERTIES(ks) READONLY  idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
         PROPERTIES(ks, concrete) quantity###detail###skuProp###object ON CHANGE changeQuantitySku###object(ks, concrete) 
                                     BACKGROUND backgroundQuantitySku###object(ks, concrete)
                                     QUICKFILTER inputName,
@@ -465,7 +465,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
 
         OBJECTS           sst=Stock
         OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
-        PROPERTIES        READONLY BACKGROUND backgroundSku###object###Stock(ks, concrete, st) nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks)
+        PROPERTIES        READONLY BACKGROUND backgroundSku###object###Stock(ks, concrete, st) nameSku(ks), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks)
         PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###stock###object(concrete)
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
 
@@ -749,7 +749,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
         FILTERGROUP object##inactiveStock2 FILTER 'Активный' activeStock(cc) 'ctrl F10' DEFAULT
         
         OBJECTS           sts=(st=Stock, ks=Sku)
-        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks), nameStock(st) SHOWIF not###stockProp###object(concrete) 
+        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks), nameStock(st) SHOWIF not###stockProp###object(concrete) 
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
         FILTERS           isParentSkuGroupSku(sk, ks),
                           (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
@@ -963,7 +963,7 @@ META extendFormDocumentSkuStockIn(object, form, concrete, contBox)
         ORDER BY orderGroup(gg), nameGroup(gg) 
         OBJECTS ks=Sku
         PROPERTIES             inSku###object(ks,concrete) ON CHANGE changeInSku###object(ks, concrete), inputName = nameSku(ks) READONLY
-        PROPERTIES(ks)          READONLY idBarcodeSku, shortNameUOMSku
+        PROPERTIES(ks)          READONLY idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
         PROPERTIES(ks, concrete)currentBalanceSku###object READONLY
         PROPERTIES             addSku() TODRAW ks, editSku(ks), copySku(ks)
 
@@ -1040,7 +1040,7 @@ META defineDialogSku (form)
         FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
 
         OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
-        PROPERTIES READONLY    idSku(s), inputName = nameSku(s) //form###nameSku(s)
+        PROPERTIES READONLY    idSku(s) SHOWIF showIDs(), inputName = nameSku(s) //form###nameSku(s)
         PROPERTIES(s)          form###quantity
         PROPERTIES             editSku(s)
 
