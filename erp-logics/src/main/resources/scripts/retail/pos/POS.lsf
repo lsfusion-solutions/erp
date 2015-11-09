@@ -1153,6 +1153,20 @@ NAVIGATOR {
     }
 }
 
+onlyPossitivePriceReceipDetail 'Требовать, что бы цены в строке чека были больше ноля' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () onlyPossitivePriceReceipDetail
+;
+DESIGN options {
+    pos {
+        MOVE PROPERTY (onlyPossitivePriceReceipDetail());
+    }  
+}
+
+CONSTRAINT onlyPossitivePriceReceipDetail() AND detail IS ReceiptDetail AND NOT priceReceiptDetail(detail) > 0.0
+    MESSAGE 'Цена для строки чека должна быть задана и быть больше 0';
+
 // ----------------------------------------- Кассовые операции ---------------------------------------------- //
 fiscalZReport 'Закрыть Z-отчёт' = ABSTRACT ACTION LIST () CONFIRM;
 fiscalZReport() += ACTION IF NOT sidModelCurrentCashRegister() THEN closeCurrentZReport();
