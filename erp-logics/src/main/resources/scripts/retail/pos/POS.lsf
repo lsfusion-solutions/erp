@@ -502,9 +502,13 @@ changeBarcodeSaleReceipt = ACTION (receipt) {
     IF NOT consumedChangeBarcodeSaleReceipt() THEN{
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcodeIdDate(barcode(), currentDate());
-
         IF dialogBarcodeSku() IS Sku THEN {
-            createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), barcode());
+            IF activeSku(dialogBarcodeSku()) THEN {
+                createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), barcode());
+            } ELSE {
+                MESSAGE CONCAT ' ', nameSku(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
+            }
+            
         } ELSE
             MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
     }
@@ -537,6 +541,8 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
 
     FILTERGROUP filters
         FILTER 'Доступные для продажи' filterSearchSkuSaleReceipt(s, st, r) 'F10' DEFAULT
+        
+    FILTERGROUP inactiveSku FILTER 'Активные' activeSku(s) 'F11' DEFAULT
 
 ;
 
