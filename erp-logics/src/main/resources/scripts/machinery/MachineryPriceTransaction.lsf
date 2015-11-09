@@ -195,6 +195,12 @@ lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) =
           BY barcode, groupInMachineryPriceTransactionBarcode(transaction, barcode)
           ORDER orderMachineryPriceTransaction(transaction)
           WHERE NOT canceledMachineryPriceTransaction(transaction) PERSISTENT;
+
+lastTransactionSkuStock (sku, stock) =
+    GROUP LAST lastTransactionBarcodeGroupMachinery(b, g) 
+          BY skuBarcode(b), stockGroupMachinery(g)
+          ORDER orderMachineryPriceTransaction(lastTransactionBarcodeGroupMachinery(b, g))
+          WHERE lastTransactionBarcodeGroupMachinery(b, g);
           
 lastFullTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
     GROUP LAST transaction 
