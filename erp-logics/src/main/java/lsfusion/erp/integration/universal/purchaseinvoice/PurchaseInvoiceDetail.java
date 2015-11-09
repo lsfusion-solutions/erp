@@ -10,6 +10,7 @@ public class PurchaseInvoiceDetail {
     public Boolean isPosted;
     public String idUserInvoice;
     public String numberUserInvoice;
+    public String seriesUserInvoice;
     public String idUserInvoiceDetail;
     public BigDecimal quantity;
     public BigDecimal netWeight;
@@ -18,14 +19,15 @@ public class PurchaseInvoiceDetail {
     public BigDecimal sumGrossWeight;
 
     public PurchaseInvoiceDetail(LinkedHashMap<String, String> customValues, Map<String, Object> fieldValues, 
-                                 Boolean isPosted, String idUserInvoice, String numberUserInvoice, String idUserInvoiceDetail,
-                                 BigDecimal quantity, BigDecimal netWeight, BigDecimal sumNetWeight, 
+                                 Boolean isPosted, String idUserInvoice, String numberUserInvoice, String seriesUserInvoice,
+                                 String idUserInvoiceDetail, BigDecimal quantity, BigDecimal netWeight, BigDecimal sumNetWeight,
                                  BigDecimal grossWeight, BigDecimal sumGrossWeight) {
         this.customValues = customValues;
         this.fieldValues = fieldValues;
         this.isPosted = isPosted;
         this.idUserInvoice = idUserInvoice;
         this.numberUserInvoice = numberUserInvoice;
+        this.seriesUserInvoice = seriesUserInvoice;
         this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.quantity = quantity;
         this.netWeight = netWeight;

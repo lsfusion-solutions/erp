@@ -212,6 +212,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
             }
 
+            if (showField(userInvoiceDetailsList, "seriesUserInvoice")) {
+                addDataField(props, fields, defaultColumns, findProperty("seriesUserInvoice"), "seriesDocument", invoiceKey);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).seriesUserInvoice);
+            }
+
             if (showField(userInvoiceDetailsList, "dateDocument")) {
                 addDataField(props, fields, defaultColumns, findProperty("dateUserInvoice"), "dateDocument", invoiceKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -793,6 +799,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             String numberDocument = getXLSFieldValue(sheet, i, defaultColumns.get("numberDocument"));
             String idDocument = getXLSFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
+            String seriesDocument = getXLSFieldValue(sheet, i, defaultColumns.get("seriesDocument"));
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
             BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeight"));
@@ -809,7 +816,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
-                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum,
+                        idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum,
                         grossWeight, grossWeightSum);
 
                 String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
@@ -921,6 +928,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             
             String numberDocument = getCSVFieldValue(valuesList, defaultColumns.get("numberDocument"), count);
             String idDocument = getCSVFieldValue(valuesList, defaultColumns.get("idDocument"), count, numberDocument);
+            String seriesDocument = getCSVFieldValue(valuesList, defaultColumns.get("seriesDocument"), count);
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, count);
             BigDecimal quantity = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("quantity"), count);
             BigDecimal netWeight = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("netWeight"), count);
@@ -937,7 +945,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
-                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
+                        idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
                 String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
@@ -1043,6 +1051,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             
             String numberDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("numberDocument"));
             String idDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
+            String seriesDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("seriesDocument"));
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
             BigDecimal netWeight = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeight"));
@@ -1059,7 +1068,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
-                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
+                        idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
                 String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
@@ -1182,6 +1191,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 String numberDocument = getDBFFieldValue(file, defaultColumns.get("numberDocument"), i, charset);
                 String idDocument = getDBFFieldValue(file, defaultColumns.get("idDocument"), i, charset, numberDocument);
+                String seriesDocument = getDBFFieldValue(file, defaultColumns.get("seriesDocument"), i, charset);
                 String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
                 BigDecimal quantity = getDBFBigDecimalFieldValue(file, defaultColumns.get("quantity"), i, charset);
                 BigDecimal netWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeight"), i, charset);
@@ -1198,7 +1208,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 if (checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
                     PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
-                            idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
+                            idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
                     String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
                     String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
