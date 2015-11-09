@@ -360,6 +360,30 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCaptionItem"));
             }
 
+            if (showField(userInvoiceDetailsList, "netWeight")) {
+                addDataField(props, fields, defaultColumns, findProperty("netWeightItem"), "netWeight", itemKey);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).netWeight);
+            }
+
+            if (showField(userInvoiceDetailsList, "grossWeight")) {
+                addDataField(props, fields, defaultColumns, findProperty("grossWeightItem"), "grossWeight", itemKey);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).grossWeight);
+            }
+
+            if (showField(userInvoiceDetailsList, "sumNetWeight")) {
+                addDataField(props, fields, defaultColumns, findProperty("sumNetWeightUserInvoiceDetail"), "sumNetWeight", userInvoiceDetailKey);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).sumNetWeight);
+            }
+
+            if (showField(userInvoiceDetailsList, "sumGrossWeight")) {
+                addDataField(props, fields, defaultColumns, findProperty("sumGrossWeightUserInvoiceDetail"), "sumGrossWeight", userInvoiceDetailKey);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).sumGrossWeight);
+            }
+
             if (showField(userInvoiceDetailsList, "UOMItem")) {
                 ImportField idUOMField = new ImportField(findProperty("idUOM"));
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
@@ -523,8 +547,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             new ImportPurchaseInvoiceItemPharmacyBy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey);
             
             new ImportPurchaseInvoicePurchaseInvoicePharmacy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
-
-            new ImportPurchaseInvoicePurchaseDeclarationDetail(LM).makeImport(context, fields, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 
             new ImportPurchaseInvoicePurchaseCompliance(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
             

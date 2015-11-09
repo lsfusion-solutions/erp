@@ -51,8 +51,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             }
 
             if (showField(userInvoiceDetailsList, "netWeight")) {
-                ImportField netWeightField = new ImportField(LM.findProperty("netWeightItem"));
-                props.add(new ImportProperty(netWeightField, LM.findProperty("netWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "netWeight")));
+                ImportField netWeightField = new ImportField(LM.findProperty("netWeightArticle"));
                 props.add(new ImportProperty(netWeightField, LM.findProperty("netWeightArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "netWeight")));
                 fields.add(netWeightField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -60,8 +59,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             }
 
             if (showField(userInvoiceDetailsList, "grossWeight")) {
-                ImportField grossWeightField = new ImportField(LM.findProperty("grossWeightItem"));
-                props.add(new ImportProperty(grossWeightField, LM.findProperty("grossWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "grossWeight")));
+                ImportField grossWeightField = new ImportField(LM.findProperty("grossWeightArticle"));
                 props.add(new ImportProperty(grossWeightField, LM.findProperty("grossWeightArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "grossWeight")));
                 fields.add(grossWeightField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
