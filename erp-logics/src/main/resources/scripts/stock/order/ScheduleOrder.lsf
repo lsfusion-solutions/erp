@@ -332,23 +332,24 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 tmpDateP() <- tmpDate();
                 WHILE tmpDate() < sumDate(tmpDateP(), 7) AND tmpDate() <= toDate() DO {
                     IF inMonthScheduleOrder(scheduleOrder, extractMonth(tmpDate())) AND shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrder, extractDOW(tmpDate())) THEN {
-                        FOR inScheduleOrderStock(scheduleOrder, stock) DO {                     
+                        LOCAL orderDate = DATE();
+                        orderDate() <- subtractDate(tmpDate(), 
+                                                    shipmentTimeScheduleOrderTime(shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrder, 
+                                                                                                                            extractDOW(tmpDate()))));
+                        FOR inScheduleOrderStock(scheduleOrder, stock) AND NOT countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrder, tmpDate(), orderDate(), stock) DO {                     
                             FOR ADDOBJ o = ScheduleOrderDetail DO {
-                                dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), 
-                                                                                shipmentTimeScheduleOrderTime(shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrder, 
-                                                                                                                                                      extractDOW(tmpDate()))));
+                                dateOrderScheduleOrderDetail(o) <- orderDate();
                                 dateSupplyScheduleOrderDetail(o) <- tmpDate();
                                 scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
                                 customerStockScheduleOrderDetail(o) <- stock;   
                                 overCreateScheduleOrderDetail(o);                                                                                                                                                               
-                                // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа, поставки и складом покупателя
-                                DELETE o WHERE countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrderScheduleOrderDetail(o), dateSupplyScheduleOrderDetail(o), dateOrderScheduleOrderDetail(o), stock) > 1 ;
                             }
                         }
                     }
                     tmpDate() <- sumDate(tmpDate(), 1);
                 }
-                tmpDate() <- sumDate(tmpDate(), (overPeriodScheduleOrder(scheduleOrder) - 1) * 7);
+                IF overPeriodScheduleOrder(scheduleOrder) >= 1 THEN
+                    tmpDate() <- sumDate(tmpDate(), (overPeriodScheduleOrder(scheduleOrder) - 1) * 7);
             }
         }
 
