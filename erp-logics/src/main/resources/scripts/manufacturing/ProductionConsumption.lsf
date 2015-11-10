@@ -143,10 +143,10 @@ toConsumeComponentDetailOrder 'Не списано по заказу' (order) =
 
 consumedQuantityComponentDetail(detail) <- quantityComponentDetail(detail) WHEN CHANGED(quantityComponentDetail(detail));
 
-consumedSumComponentDetail (detail) <- NUMERIC[16,2](roundPriceCurrency((priceComponentDetail(detail)* consumedQuantityComponentDetail(detail)), currencyComponentDetail(detail)))
-        WHEN CHANGED(priceComponentDetail(detail)) OR
-             CHANGED(consumedQuantityComponentDetail(detail)) OR
-             CHANGED(currencyComponentDetail(detail));
+calcConsumedSumComponentDetail = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (ComponentDetail);
+calcConsumedSumComponentDetail(componentDetail) += NUMERIC[16,2](roundPriceCurrency(consumedQuantityComponentDetail(componentDetail) * priceComponentDetail(componentDetail), currencyComponentDetail(componentDetail))); 
+consumedSumComponentDetail (componentDetail) <- calcConsumedSumComponentDetail(componentDetail)
+                WHEN DO CHANGED(consumedQuantityComponentDetail(componentDetail)) OR CHANGED (priceComponentDetail(componentDetail)) OR CHANGED(currencyComponentDetail(componentDetail));
 
 consumedSumComponentDetailOrder 'Сумма списанных компонент' (order) = GROUP SUM consumedSumComponentDetail(detail) BY orderComponentDetail(detail) IN documentSum;
 
