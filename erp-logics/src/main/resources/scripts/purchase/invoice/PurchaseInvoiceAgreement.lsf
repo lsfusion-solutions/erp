@@ -180,10 +180,15 @@ minDeviationPriceInvoiceDetail 'Мин. цена' (d) = (100.0 - percDeviationDo
                                                          
 overMaxDeviationPriceInvoiceDetail 'Макс. цена' (d) = IF orderInvoiceDetail(d) THEN maxDeviationPriceOrderInvoiceDetail(d) ELSE maxDeviationPriceInvoiceDetail(d);
 overMinDeviationPriceInvoiceDetail 'Мин. цена' (d) = IF orderInvoiceDetail(d) THEN minDeviationPriceOrderInvoiceDetail(d) ELSE minDeviationPriceInvoiceDetail(d);                                                                                                                      
-                                                         
-//CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) > overMaxDeviationPriceInvoiceDetail(d)    
-//    MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
-//
+
+CONSTRAINT (SET(isPostedInvoiceDetail(d)) OR CHANGED(priceInvoiceDetail(d)) OR CHANGED(skuInvoiceDetail(d)) OR CHANGED(dateTimeInvoiceDetail(d)) OR CHANGED(agreementInvoiceDetail(d))) AND 
+           isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) > overMaxDeviationPriceInvoiceDetail(d)    
+           MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
+
+CONSTRAINT (SET(isPostedInvoiceDetail(d)) OR CHANGED(priceInvoiceDetail(d)) OR CHANGED(skuInvoiceDetail(d)) OR CHANGED(dateTimeInvoiceDetail(d)) OR CHANGED(agreementInvoiceDetail(d))) AND 
+           isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)    
+           MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
+
 //CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)    
 //    MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';
                 
