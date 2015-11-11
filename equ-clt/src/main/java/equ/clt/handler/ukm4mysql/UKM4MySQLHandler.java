@@ -391,7 +391,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, trim(item.idItem, 40)); //item
-                        ps.setInt(3, item.amountBarcode != null ? item.amountBarcode.intValue() : 1); //quantity
+                        ps.setDouble(3, item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
                         ps.setInt(6, 0); //deleted
