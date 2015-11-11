@@ -11,3 +11,8 @@ WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND componentComponent
 WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND NOT componentComponentDetail(d) AND (productionCoeffBatch(batchComponentDetail(d)) OR PREV(productionCoeffBatch(batchComponentDetail(d)))) DO {
     consumedQuantityComponentDetail(d) <- calcSkuConsumedQuantityComponentDetail (d);
 }
+
+CONSTRAINT (SETCHANGED(batchConsumptionDetail(d)) OR SETCHANGED(stockConsumptionDetail(d)) OR SETCHANGED(quantityConsumptionDetail(d))) 
+    AND SET(currentBalanceBatchStock(batchConsumptionDetail(d), stockConsumptionDetail(d)) < 0) 
+    AND banNegativeCuttingComponentOperation(operationComponentDetail(componentDetailConsumptionDetail(d)))
+        MESSAGE 'Запрещены отрицательные остатки по компонентам';
