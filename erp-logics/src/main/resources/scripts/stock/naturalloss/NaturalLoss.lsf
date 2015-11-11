@@ -286,6 +286,12 @@ quantitySaleSkuDepartmentNaturalLoss 'Продано' (sku, stock, dateFrom, dat
               AND inIntervalNaturalLoss(dateSaleLedger(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroupCountrySku(countryStock(stockSaleLedger(ledger)), skuSaleLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
               BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
+              
+quantitySaleSkuDepartmentNaturalLossPrice 'Продано' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail, price) =
+    GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger) AND dateSaleLedger(ledger) >= dateFrom AND dateSaleLedger(ledger) <= dateTo
+              AND inIntervalNaturalLoss(dateSaleLedger(ledger), subNaturalLossGroupDetail)
+              AND subNaturalLossGroupCountrySku(countryStock(stockSaleLedger(ledger)), skuSaleLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
+              BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail, averageDiscountPriceSaleLedger(ledger);              
 
 sumNaturalLossDetail 'Сумма' (naturalLossDetail) = DATA NUMERIC[16,2] (NaturalLossDetail);
 sumNaturalLossDetail (naturalLossDetail) <- priceNaturalLossDetail(naturalLossDetail) * quantityNaturalLossDetail(naturalLossDetail)
@@ -296,28 +302,53 @@ sumNaturalLoss 'Сумма' (naturalLoss) = GROUP SUM sumNaturalLossDetail(natur
     BY naturalLossNaturalLossDetail(naturalLossDetail) IN documentSum;
 
 toSaleFillNaturalLossDetail 'Заполнить на основе продаж' = ACTION (naturalLoss) {
+//    FOR quantitySaleSkuDepartmentNaturalLossPrice(  sku,
+//                                                    stockNaturalLoss(naturalLoss),
+//                                                    dateFromNaturalLoss(naturalLoss),
+//                                                    dateToNaturalLoss(naturalLoss),
+//                                                    subNaturalLossGroupDetail,
+//                                                    price) > 0 ORDER nameSku(sku), subNaturalLossGroupDetail
+//          DO {
+//          FOR ADDOBJ d = NaturalLossDetail DO {
+//              naturalLossNaturalLossDetail(d) <- naturalLoss;
+//              skuNaturalLossDetail(d) <- sku;
+//              subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
+//              quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLossPrice(
+//                                                                      sku,
+//                                                                      stockNaturalLoss(naturalLoss),
+//                                                                      dateFromNaturalLoss(naturalLoss),
+//                                                                      dateToNaturalLoss(naturalLoss),
+//                                                                      subNaturalLossGroupDetail,
+//                                                                      price);
+//              subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
+//              percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
+//              quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
+//              priceNaturalLossDetail(d) <- NUMERIC[14,2](price);
+//              sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
+//          }
+//    }    
     FOR quantitySaleSkuDepartmentNaturalLoss( sku,
-                                              stockNaturalLoss(naturalLoss),
-                                              dateFromNaturalLoss(naturalLoss),
-                                              dateToNaturalLoss(naturalLoss),
-                                              subNaturalLossGroupDetail) > 0 ORDER nameSku(sku), subNaturalLossGroupDetail
-        DO {
-        FOR ADDOBJ d = NaturalLossDetail DO {
-            ASSIGN naturalLossNaturalLossDetail(d) <- naturalLoss;
-            ASSIGN skuNaturalLossDetail(d) <- sku;
-            ASSIGN subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
-            ASSIGN quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLoss(
-                                                                    sku,
-                                                                    stockNaturalLoss(naturalLoss),
-                                                                    dateFromNaturalLoss(naturalLoss),
-                                                                    dateToNaturalLoss(naturalLoss),
-                                                                    subNaturalLossGroupDetail);
-            ASSIGN subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
-            ASSIGN percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
-            ASSIGN quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
-            ASSIGN sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
-        };
-    };
+                                                    stockNaturalLoss(naturalLoss),
+                                                    dateFromNaturalLoss(naturalLoss),
+                                                    dateToNaturalLoss(naturalLoss),
+                                                    subNaturalLossGroupDetail) > 0 ORDER nameSku(sku), subNaturalLossGroupDetail
+          DO {
+          FOR ADDOBJ d = NaturalLossDetail DO {
+              naturalLossNaturalLossDetail(d) <- naturalLoss;
+              skuNaturalLossDetail(d) <- sku;
+              subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
+              quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLoss(
+                                                                      sku,
+                                                                      stockNaturalLoss(naturalLoss),
+                                                                      dateFromNaturalLoss(naturalLoss),
+                                                                      dateToNaturalLoss(naturalLoss),
+                                                                      subNaturalLossGroupDetail);
+              subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
+              percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
+              quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
+              sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
+          }
+    }                
 } IN fillNaturalLoss CONFIRM;
 
 //--
@@ -337,21 +368,21 @@ toPurchaseFillNaturalLossDetail 'Заполнить на основе посту
                                               subNaturalLossGroupDetail) ORDER nameSku(sku), subNaturalLossGroupDetail
         DO {
         FOR ADDOBJ d = NaturalLossDetail DO {
-            ASSIGN naturalLossNaturalLossDetail(d) <- naturalLoss;
-            ASSIGN skuNaturalLossDetail(d) <- sku;
-            ASSIGN subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
-            ASSIGN quantityLossNaturalLossDetail(d) <- quantityPurchaseSkuDepartmentNaturalLoss(
+            naturalLossNaturalLossDetail(d) <- naturalLoss;
+            skuNaturalLossDetail(d) <- sku;
+            subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
+            quantityLossNaturalLossDetail(d) <- quantityPurchaseSkuDepartmentNaturalLoss(
                                                                     sku,
                                                                     stockNaturalLoss(naturalLoss),
                                                                     dateFromNaturalLoss(naturalLoss),
                                                                     dateToNaturalLoss(naturalLoss),
                                                                     subNaturalLossGroupDetail);
-            ASSIGN subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
-            ASSIGN percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
-            ASSIGN quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
-            ASSIGN sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
-        };
-    };
+            subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
+            percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
+            quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
+            sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
+        }
+    }
 } IN fillNaturalLoss CONFIRM;
 
 FORM naturalLoss 'Ведомость естественной убыли'
@@ -491,25 +522,25 @@ NAVIGATOR {
 
 loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли' = ACTION (idCountry, string)  {
     FOR ADDOBJ cg = NaturalLossGroup DO {
-         ASSIGN nameNaturalLossGroup(cg) <- string;
-         ASSIGN countryNaturalLossGroup(cg) <- countrySID(idCountry);
+         nameNaturalLossGroup(cg) <- string;
+         countryNaturalLossGroup(cg) <- countrySID(idCountry);
     }
 }
 
 loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли' = ACTION (idCountry, string, stringOne, stringTwo, numeric)  {
     FOR ADDOBJ g = SubNaturalLossGroup DO {
-        ASSIGN parentNaturalLossGroup(g) <- naturalLossGroupName(string);
-        ASSIGN nameSubNaturalLossGroup(g) <-  stringOne;
-        ASSIGN countrySubNaturalLossGroup(g) <- countrySID(idCountry);
-        ASSIGN codeSubNaturalLossGroup(g) <- stringTwo;
+        parentNaturalLossGroup(g) <- naturalLossGroupName(string);
+        nameSubNaturalLossGroup(g) <-  stringOne;
+        countrySubNaturalLossGroup(g) <- countrySID(idCountry);
+        codeSubNaturalLossGroup(g) <- stringTwo;
 
         FOR ADDOBJ d = SubNaturalLossGroupDetail  DO {
-            ASSIGN subNaturalLossGroupSubNaturalLossGroupDetail(d) <- g;
-            ASSIGN percentNaturalLossGroupDetail(d) <- numeric;
-            ASSIGN dayFromNaturalLossGroupDetail(d) <- 1;
-            ASSIGN monthFromNaturalLossGroupDetail(d) <- Month.january;
-            ASSIGN dayToNaturalLossGroupDetail(d) <- 31;
-            ASSIGN monthToNaturalLossGroupDetail(d) <- Month.december;
+            subNaturalLossGroupSubNaturalLossGroupDetail(d) <- g;
+            percentNaturalLossGroupDetail(d) <- numeric;
+            dayFromNaturalLossGroupDetail(d) <- 1;
+            monthFromNaturalLossGroupDetail(d) <- Month.january;
+            dayToNaturalLossGroupDetail(d) <- 31;
+            monthToNaturalLossGroupDetail(d) <- Month.december;
         }
     }
 }
@@ -517,21 +548,21 @@ loadDefaultSubNaturalLossGroup 'Добавить нормы естественн
 //-- Для сезонов
 overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли' = ACTION (idCountry, string, stringOne, stringTwo)  {
     FOR ADDOBJ g = SubNaturalLossGroup DO {
-        ASSIGN parentNaturalLossGroup(g) <- naturalLossGroupName(string);
-        ASSIGN nameSubNaturalLossGroup(g) <-  stringOne;
-        ASSIGN countrySubNaturalLossGroup(g) <- countrySID(idCountry);
-        ASSIGN codeSubNaturalLossGroup(g) <- stringTwo;
+        parentNaturalLossGroup(g) <- naturalLossGroupName(string);
+        nameSubNaturalLossGroup(g) <-  stringOne;
+        countrySubNaturalLossGroup(g) <- countrySID(idCountry);
+        codeSubNaturalLossGroup(g) <- stringTwo;
     }
 }
 
 overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли' = ACTION (id, numeric, dayFrom, monthFrom, dayTo, monthTo)  {
     FOR ADDOBJ d = SubNaturalLossGroupDetail  DO {
-        ASSIGN subNaturalLossGroupSubNaturalLossGroupDetail(d) <- subNaturalLossGroupId(id);
-        ASSIGN percentNaturalLossGroupDetail(d) <- numeric;
-        ASSIGN dayFromNaturalLossGroupDetail(d) <- dayFrom;
-        ASSIGN monthFromNaturalLossGroupDetail(d) <-monthNumber(monthFrom);
-        ASSIGN dayToNaturalLossGroupDetail(d) <- dayTo;
-        ASSIGN monthToNaturalLossGroupDetail(d) <- monthNumber(monthTo);
+        subNaturalLossGroupSubNaturalLossGroupDetail(d) <- subNaturalLossGroupId(id);
+        percentNaturalLossGroupDetail(d) <- numeric;
+        dayFromNaturalLossGroupDetail(d) <- dayFrom;
+        monthFromNaturalLossGroupDetail(d) <-monthNumber(monthFrom);
+        dayToNaturalLossGroupDetail(d) <- dayTo;
+        monthToNaturalLossGroupDetail(d) <- monthNumber(monthTo);
     }
 }
 
