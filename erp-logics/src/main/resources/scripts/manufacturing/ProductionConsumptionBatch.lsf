@@ -12,7 +12,6 @@ WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND NOT componentCompo
     consumedQuantityComponentDetail(d) <- calcSkuConsumedQuantityComponentDetail (d);
 }
 
-CONSTRAINT (SETCHANGED(batchConsumptionDetail(d)) OR SETCHANGED(stockConsumptionDetail(d)) OR SETCHANGED(quantityConsumptionDetail(d))) 
-    AND SET(currentBalanceBatchStock(batchConsumptionDetail(d), stockConsumptionDetail(d)) < 0) 
-    AND banNegativeCuttingComponentOperation(operationComponentDetail(componentDetailConsumptionDetail(d)))
-        MESSAGE 'Запрещены отрицательные остатки по компонентам';
+CONSTRAINT CHANGED(costDataSkuLedgerBatch(ledger, batch)) AND currentBalanceBatchStock(batch, stockSkuLedger(ledger)) < 0
+    AND banNegativeCuttingComponentOperation(operationComponentDetail(componentDetailConsumptionDetail(ledger)))
+    MESSAGE 'Запрещено списывать компоненты по производственному заказу в минус';
