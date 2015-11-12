@@ -7,11 +7,13 @@ NAMESPACE Stock;
 VATBatch 'НДС партии, шкала' = ABSTRACT Range (Batch);
 numberVATBatch 'НДС партии, шкала' = numberRange(VATBatch(batch));
 valueVATBatch 'НДС партии, %' = ABSTRACT NUMERIC[10,5](Batch) PERSISTENT;
+prevValueVATBatch(b) = PREV(valueVATBatch(b));
 
 lastValueVATSkuStockDateTime(s, st, dt) = GROUP LAST valueVATBatch(b)
                                                                                    BY skuBatch(b), st, dt
                                                                                    ORDER orderBatch(b)
-                                                                                   WHERE countLedgerBatchStock(b, st) AND valueVATBatch(b) AND dateTimeBatch(b) < dt COMPLEX; 
+                                                                                   WHERE countLedgerBatchStock(b, st) AND valueVATBatch(b) AND dateTimeBatch(b) < dt COMPLEX;
+prevLastValueVATSkuStockDateTime(s, st, dt) = PREV(lastValueVATSkuStockDateTime(s, st, dt));
                                                                                    
 valueVATStockBatchDate 'НДС, %' (stock, batch, date)= OVERRIDE valueRateRangeDate(VATSkuStock(skuBatch(batch), stock), date), valueVATBatch(batch) IF stock IS Stock AND date IS DATE;
 currentValueVATStockBatch 'НДС, %' (stock, batch) = valueVATStockBatchDate(stock, batch, currentDate());
