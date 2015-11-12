@@ -142,3 +142,69 @@ NAVIGATOR {
         ADD saleZreportStock;
     }
 }
+
+divider 'Диапозон суммы'  = DATA LOCAL NUMERIC[16,2] ();
+
+dividerReceipt 'Диапозон суммы' (r)  = INTEGER (sumReceiptDetailReceipt(r) / divider())*divider();
+
+filterReceiptSumFrom 'Сумма с' = DATA LOCAL NUMERIC[16,2] ();
+filterSumFromReceipt (r) = sumReceiptDetailReceipt(r) >= filterReceiptSumFrom() OR (r IS Receipt AND NOT filterReceiptSumFrom());   
+
+filterReceiptSumTo 'Сумма по' = DATA LOCAL NUMERIC[16,2] ();
+filterSumToReceipt (r) = sumReceiptDetailReceipt(r) <= filterReceiptSumTo() OR (r IS Receipt AND NOT filterReceiptSumTo());   
+
+FORM receiptListPeriod 'Реестр чеков'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)     
+       
+    PROPERTIES () filterReceiptSumFrom, filterReceiptSumTo, divider
+    
+    OBJECTS st = DepartmentStore FIXED PANEL 
+    PROPERTIES nameStock(st) SELECTOR 
+    FILTERS isCompanyStock(st), activeStock(st)    
+    
+    OBJECTS r = Receipt
+    PROPERTIES(r) READONLY  numberReceipt, dateReceipt, timeReceipt, numberCashRegisterReceipt, nameEmployeeReceipt,
+                            sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
+                            discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
+                            sumCashPaymentReceipt, sumCardPaymentReceipt, dividerReceipt SHOWIF divider()
+    ORDER BY dateReceipt(r), timeReceipt(r)                                            
+    FILTERS dateReceipt(r) >= dFrom,
+            dateReceipt(r) <= dTo,
+            isPostedReceipt(r),
+            departmentStoreReceipt(r) == st,
+            filterSumFromReceipt(r),
+            filterSumToReceipt(r)
+;
+DESIGN receiptListPeriod {
+    main {
+        NEW top {
+            type = CONTAINERH;
+            MOVE dates.box {caption ='Период';}
+            MOVE st.box;
+        }
+        NEW mid {
+            type = CONTAINERH;
+         
+            NEW filter {
+                type = CONTAINERH;
+                caption = 'Фильтры';
+                MOVE PROPERTY (filterReceiptSumFrom());
+                MOVE PROPERTY (filterReceiptSumTo());
+            }
+            NEW mid1 {
+                caption = 'Делитель';
+                MOVE PROPERTY (divider());
+            }
+        }
+        MOVE r.box;
+        MOVE functions.box;
+    }
+}
+
+NAVIGATOR {
+    retailReports  {
+        ADD receiptListPeriod;
+    }
+}
