@@ -18,6 +18,29 @@ NAMESPACE Sale;
 @defineDocumentSkuStockSupplier (userOrder, userOrder, o);
 @defineDocumentBatchStockSupplier(userOrder, userOrder, o);
 
+//использовать цены склада покупателя
+usePriceCustomerStockOrder 'Использовать цены для склада покупателя' = ABSTRACT BOOLEAN (Order);
+usePriceCustomerStockUserOrder 'Использовать цены для склада покупателя'  = DATA BOOLEAN (Order);
+
+usePriceCustomerStockOrder(order) += usePriceCustomerStockUserOrder(order);
+
+EXTEND FORM userOrder
+    PROPERTIES (o) usePriceCustomerStockUserOrder         
+;          
+
+DESIGN userOrder {
+    headerExtraParams{
+        NEW prices {
+            caption = 'Цены';
+            type = COLUMNS;
+            columns = 1;
+            MOVE PROPERTY(usePriceCustomerStockUserOrder(o));
+        }         
+    }
+}
+
+priceStockUserOrder(o) += WHEN usePriceCustomerStockUserOrder(o) THEN customerStockUserOrder(o); 
+
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 @defineDocumentOperationContainer(order, o);
@@ -42,6 +65,9 @@ overCopyOrder(s, d) += ACTION(s, d) {
     ASSIGN operationUserOrder(d) <- operationOrder(s);
 }
 @defineOperationFilterProperty(order, o, orders, nameFilterOrderSupplier);
+
+@defineOperationProperty(usePriceCustomerStock, 'Использовать цены для склада покупателя', createContainer);
+@deriveDocumentOperationProperty(userOrder, usePriceCustomerStock);
 
 // ----------------------------- Автоматическая отсылка почты ---------------------------------- //
 
@@ -139,7 +165,7 @@ EXTEND FORM userOrder
 
     FILTERGROUP filter3
         FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserOrderSupplierStock(b, o, sto) 'F9'
+        FILTER 'В документе ' quantityBatchUserOrderPriceStock(b, o, sto) 'F9'
         
     FILTERGROUP filter4
         FILTER 'С продажей ' inUserOrderBatch(o, b) 'F8'
