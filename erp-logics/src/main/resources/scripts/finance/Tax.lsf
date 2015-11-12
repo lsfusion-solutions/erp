@@ -361,9 +361,10 @@ END
 META deriveDocumentDetailValueVATCustom(detail, prefix)
     overDeriveValue###prefix###VAT###detail (detail) = ABSTRACT NUMERIC[10,5] (###detail);  
     overSetValue###prefix###VAT###detail (detail) = ABSTRACT NUMERIC[10,5] (###detail);     
-    calcSetValue###prefix###VAT###detail (detail) = OVERRIDE overDeriveValue###prefix###VAT###detail (detail),
-                                                          valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail)),
-                                                          overSetValue###prefix###VAT###detail(detail);
+    calcSetValue###prefix###VAT###detail (detail) = OVERRIDE (IF prefix###VAT###detail(detail) THEN
+                                                                valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail))
+                                                              ELSE overDeriveValue###prefix###VAT###detail (detail)),
+                                                              overSetValue###prefix###VAT###detail(detail);
     changedValue###prefix###VAT###detail(detail) = ABSTRACT BOOLEAN (###detail);
     WHEN SESSION GOAFTER prefix###VAT###detail
         (CHANGED(prefix###VAT###detail(detail)) OR CHANGED (dateTime###detail(detail)) OR changedValue###prefix###VAT###detail(detail)) AND NOT CHANGED(value###prefix###VAT###detail (detail)) DO {
