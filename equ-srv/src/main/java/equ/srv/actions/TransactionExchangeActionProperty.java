@@ -431,7 +431,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             String typeReceiptDetail = trim((String) entry.get("typeReceiptDetail").getValue());
             boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
-            salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, numberReceipt,
+            salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt,
                     dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCard,
                     barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
                     discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, null, null));

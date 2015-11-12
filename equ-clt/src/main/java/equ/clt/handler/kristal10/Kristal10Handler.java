@@ -889,7 +889,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         }
 
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
-                                                numberZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
+                                                numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
                                                 sumGiftCard, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
                                                 discountSumReceipt, discountCard, numberReceiptDetail, fileName, null));
                                     }

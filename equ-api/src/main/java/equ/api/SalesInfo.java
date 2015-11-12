@@ -11,6 +11,8 @@ public class SalesInfo implements Serializable {
     public Integer nppGroupMachinery;
     public Integer nppMachinery;
     public String numberZReport;
+    public Date dateZReport;
+    public Time timeZReport;
     public Integer numberReceipt;
     public Date dateReceipt;
     public Time timeReceipt;
@@ -34,10 +36,10 @@ public class SalesInfo implements Serializable {
     public String filename;
     public String idSection;
 
-    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Integer numberReceipt,
-                     Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact, String lastNameContact,
-                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem, String idItem,
-                     Integer itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
+    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
+                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
+                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
+                     String idItem, Integer itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                      String idSection) {
@@ -45,6 +47,8 @@ public class SalesInfo implements Serializable {
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
         this.numberZReport = numberZReport;
+        this.dateZReport = dateZReport;
+        this.timeZReport = timeZReport;
         this.numberReceipt = numberReceipt;
         this.dateReceipt = dateReceipt;
         this.timeReceipt = timeReceipt;
@@ -71,8 +75,8 @@ public class SalesInfo implements Serializable {
 
     //startDate - для обратной совместимости
     public String getIdZReport(Date startDate) {
-        if (startDate == null || startDate.compareTo(dateReceipt) <= 0)
-            return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt);
+        if (startDate == null || startDate.compareTo(dateZReport) <= 0)
+            return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateZReport);
         else
             return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
     }
