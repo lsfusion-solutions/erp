@@ -326,7 +326,13 @@ toSaleFillNaturalLossDetail 'Заполнить на основе продаж' 
 //              priceNaturalLossDetail(d) <- NUMERIC[14,2](price);
 //              sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
 //          }
-//    }    
+//    }   
+    IF countNaturalLossDetailNaturalLoss(naturalLoss) THEN {
+        CONFIRM 'Существующие строки будут удалены.';
+        IF confirmed() THEN {
+            DELETE d WHERE naturalLossNaturalLossDetail(d) == naturalLoss;
+        } 
+    }
     FOR quantitySaleSkuDepartmentNaturalLoss( sku,
                                                     stockNaturalLoss(naturalLoss),
                                                     dateFromNaturalLoss(naturalLoss),
@@ -349,7 +355,7 @@ toSaleFillNaturalLossDetail 'Заполнить на основе продаж' 
               sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
           }
     }                
-} IN fillNaturalLoss CONFIRM;
+} IN fillNaturalLoss;
 
 //--
 skipNatulassLossPurchaseLedger = ABSTRACT BOOLEAN (PurchaseLedger);
@@ -361,6 +367,14 @@ quantityPurchaseSkuDepartmentNaturalLoss 'Поступило' (sku, stock, dateF
               BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
               
 toPurchaseFillNaturalLossDetail 'Заполнить на основе поступлений' = ACTION (naturalLoss) {
+
+    IF countNaturalLossDetailNaturalLoss(naturalLoss) THEN {
+        CONFIRM 'Существующие строки будут удалены.';
+        IF confirmed() THEN {
+            DELETE d WHERE naturalLossNaturalLossDetail(d) == naturalLoss;
+        } 
+    }
+    
     FOR quantityPurchaseSkuDepartmentNaturalLoss( sku,
                                               stockNaturalLoss(naturalLoss),
                                               dateFromNaturalLoss(naturalLoss),
@@ -383,7 +397,7 @@ toPurchaseFillNaturalLossDetail 'Заполнить на основе посту
             sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
         }
     }
-} IN fillNaturalLoss CONFIRM;
+} IN fillNaturalLoss;
 
 FORM naturalLoss 'Ведомость естественной убыли'
     OBJECTS s=NaturalLoss FIXED PANEL
