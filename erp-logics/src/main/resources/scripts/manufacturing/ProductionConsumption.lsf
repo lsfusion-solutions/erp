@@ -149,6 +149,7 @@ consumedSumComponentDetail (componentDetail) <- calcConsumedSumComponentDetail(c
                 WHEN DO CHANGED(consumedQuantityComponentDetail(componentDetail)) OR CHANGED (priceComponentDetail(componentDetail)) OR CHANGED(currencyComponentDetail(componentDetail));
 
 consumedSumComponentDetailOrder 'Сумма списанных компонент' (order) = GROUP SUM consumedSumComponentDetail(detail) BY orderComponentDetail(detail) IN documentSum;
+consumedQuantityComponentDetailOrder 'Кол-во списанных компонент' (order) = GROUP SUM consumedQuantityComponentDetail(detail) BY orderComponentDetail(detail) IN documentSum;
 
 // Расчет количеств компонент для произведенных изделий
 quantityOutputProductOrder 'Кол-во изделий в заказе (произведенных)' (product, order) = GROUP SUM outputQuantityProductDetail(productDetail)
@@ -770,6 +771,9 @@ DESIGN order {
     }
 }
 
+consumedQuantityComponentDetailBOMOrder= GROUP SUM consumedQuantityComponentDetail(cd) BY BOMComponentDetail(cd), orderComponentDetail(cd);
+outputQuantityProductDetailBOMOrder= GROUP SUM outputQuantityProductDetail(pd) BY BOMProductDetail(pd), orderProductDetail(pd);
+
 outputProductsSumProductDetailBOMOrder 'Сумма изделий' (BOM, order) = GROUP SUM outputProductsSumProductDetail(d) BY BOMProduct(productProductDetail(d)), orderProductDetail(d);
 consumedSumComponentDetailBOMOrder 'Сумма компонентов' (BOM, order) = GROUP SUM consumedSumComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 
@@ -812,3 +816,19 @@ CONSTRAINT (CHANGED(materialComponent(c)) OR CHANGED(bruttoQuantityComponent(c))
     
 CONSTRAINT (CHANGED(skuProduct(p)) OR CHANGED(quantityProduct(p)) OR CHANGED(pricePercentProduct(p))) AND isProductsBOM(BOMProduct(p)) AND banChangeBOMs()
         MESSAGE 'Запрещено изменять спецификацию, по которой было производство';   
+               
+//-- Допустимые отклонения по цене и сумме для разруба
+
+fromOutputQuantityOrder(order) = consumedQuantityComponentDetailOrder(order)*( 100.0 - percQuantityOperation(operationOrder(order)))/100.0;
+toOutputQuantityOrder(order) = consumedQuantityComponentDetailOrder(order)*( 100.0 + percQuantityOperation(operationOrder(order)))/100.0;
+
+CONSTRAINT percQuantityOperation(operationOrder(o)) AND isPostedOrder(o) AND outputQuantityProductDetailOrder(o) AND consumedQuantityComponentDetailOrder(o)
+    AND NOT (outputQuantityProductDetailOrder(o) >=fromOutputQuantityOrder(o) AND outputQuantityProductDetailOrder(o) <=toOutputQuantityOrder(o))
+        MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по количеству.';
+
+fromOutputProductsSumOrder(order) = consumedSumComponentDetailOrder(order)*( 100.0 - percSumOperation(operationOrder(order)))/100.0;
+toOutputProductsSumOrder(order) = consumedSumComponentDetailOrder(order)*( 100.0 + percSumOperation(operationOrder(order)))/100.0;
+        
+CONSTRAINT percSumOperation(operationOrder(o)) AND isPostedOrder(o) AND consumedSumComponentDetailOrder(o) AND outputProductsSumProductDetailOrder(o)
+    AND NOT (outputProductsSumProductDetailOrder(o) >= fromOutputProductsSumOrder(o) AND outputProductsSumProductDetailOrder(o) <= toOutputProductsSumOrder(o))
+        MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по сумме.';

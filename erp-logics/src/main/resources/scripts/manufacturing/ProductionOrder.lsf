@@ -1991,9 +1991,15 @@ showBOMProductDetail'Показать спецификацию' (d) = ACTION FOR
 showBOMComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d), c = componentComponentDetail(d) NEWSESSION MODAL SHORTCUT nameComponentComponentDetail;
 showBOMNameComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d) NEWSESSION MODAL SHORTCUT fullNameBOMComponentDetail;
 
-
-
 @defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);
 
 overShowEditOrder (i) += showEditDeleteUserOrder(i) AND isOpenedOrder(i);
 overShowDeleteOrder (i) += showEditDeleteUserOrder(i) AND isOpenedOrder(i); 
+
+//-- Допустимый процент отклонения учетной цены от цены изделия
+fromComponentsPriceProductDetail(pd) = componentsPriceProductDetail(pd)*( 100.0 - percPriceOperation(operationProductDetail(pd)))/100.0;
+toComponentsPriceProductDetail(pd) = componentsPriceProductDetail(pd)*( 100.0 + percPriceOperation(operationProductDetail(pd)))/100.0;
+
+CONSTRAINT percPriceOperation(operationProductDetail(pd)) AND isPostedProductDetail(pd) AND priceProductDetail(pd) AND componentsPriceProductDetail(pd)
+    AND NOT (priceProductDetail(pd) >= fromComponentsPriceProductDetail(pd) AND priceProductDetail(pd) <= toComponentsPriceProductDetail(pd))
+        MESSAGE 'Внимание!!! Отклонение между ценой компонентов и ценой изделия не попадает в допустимый процент по цене.';
