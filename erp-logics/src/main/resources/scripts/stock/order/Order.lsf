@@ -306,6 +306,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDetailPrice(order); // объявляем цену без НДС
     Order.priceOrderDetail(detail) += priceOrderDetail(detail);
 
+    overPriceStockUserOrder = ABSTRACT CASE OVERRIDE FIRST Stock (Order) PERSISTENT;
+    priceStockUserOrder(o) = OVERRIDE stockProp##StockOrder(o), overPriceStockUserOrder(o);
+    notPriceStockUserOrder(o) = NOT priceStockUserOrder(o); 
+    priceStockUserOrderDetail(d) = priceStockUserOrder(userOrderUserOrderDetail(d)); 
+
     @defineDocumentInterfaceDetailVAT(order, country###stockProp###stock, , ); // объявляем шкалу
     
     overVATUserOrderDetail = ABSTRACT OVERRIDE FIRST Range (UserOrderDetail);
@@ -825,10 +830,6 @@ META defineOrderBatch(legalEntityProp, stockProp)
     } 
     replaceSkuBatch(s, b) += ACTION (s, b){ skuUserOrderDetail(detail) <- s WHERE batchUserOrderDetail(detail) == b;}
     // Пишем в цену заказа из вида цен в зависимости от партии
-    priceStockUserOrder = ABSTRACT CASE OVERRIDE FIRST Stock (Order) PERSISTENT;
-    priceStockUserOrder(o) += WHEN stockProp##StockOrder(o) THEN stockProp##StockOrder(o);
-    notPriceStockUserOrder(o) = NOT priceStockUserOrder(o); 
-    priceStockUserOrderDetail(d) = priceStockUserOrder(userOrderUserOrderDetail(d)); 
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceStock, userOrder);
 
     // История по правой кнопке
@@ -838,8 +839,8 @@ META defineOrderBatch(legalEntityProp, stockProp)
     @defineMovementBatch(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор
-    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, price);
-    @extendFormDocumentBatchStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, price);
+    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp);
+    @extendFormDocumentBatchStockPriceListTypeAgreement(userOrder, userOrder, o, legalEntityProp, stockProp);
     @implementDocumentBatch(order);
     
     maxOrderDetailBatchOrder (batch, order) = GROUP MAX orderDetail BY batchOrderDetail(orderDetail),  orderOrderDetail(orderDetail);
