@@ -296,9 +296,9 @@ FORM printGroupSalesReport 'Отчет по продажам'
     FILTERGROUP inactive FILTER 'Активные' activeGroup(sk) 'F5' DEFAULT
 ;
 
-printGroupSalesReport 'По группам' (stock, groupType, dateFrom, dateTo) =
+printGrSalesReport 'По группам' (stock, groupType, dateFrom, dateTo) =
     ACTION FORM printGroupSalesReport OBJECTS st = stock, gt = groupType, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
-printGroupSalesReportXLS 'По группам (XLS)' (stock, groupType, dateFrom, dateTo) =
+printGrSalesReportXLS 'По группам (XLS)' (stock, groupType, dateFrom, dateTo) =
     ACTION FORM printGroupSalesReport OBJECTS st = stock, gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
     
 FORM printGroupCustomerSalesReport 'Отчет по продажам'
@@ -337,9 +337,9 @@ FORM printGroupCustomerSalesReport 'Отчет по продажам'
             customerSaleLedger(s) == l
 ;
 
-printGroupCustomerSalesReport 'По покупателям' (stock, groupType, dateFrom, dateTo) =
+printGrCustomerSalesReport 'По покупателям' (stock, groupType, dateFrom, dateTo) =
     ACTION FORM printGroupCustomerSalesReport OBJECTS st = stock, gt = groupType, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
-printGroupCustomerSalesReportXLS 'По покупателям (XLS)' (stock, groupType, dateFrom, dateTo) =
+printGrCustomerSalesReportXLS 'По покупателям (XLS)' (stock, groupType, dateFrom, dateTo) =
     ACTION FORM printGroupCustomerSalesReport OBJECTS st = stock, gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
     
 FORM printGroupCustomerSkuSalesReport 'Отчет по продажам'
@@ -449,10 +449,10 @@ FORM salesReport 'Отчет по продажам'
             stockSaleLedger(s) == st,
             dateSaleLedger(s) >= df,
             dateSaleLedger(s) <= dt
-    PROPERTIES(st, gt,df, dt) printListSalesReport, printListSkuSalesReport, printSalesReport, printSkuSalesReport, printGroupSalesReport,
-                           printGroupCustomerSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport
-    PROPERTIES(st, gt,df, dt) printListSalesReportXLS, printListSkuSalesReportXLS, printSalesReportXLS, printSkuSalesReportXLS, printGroupSalesReportXLS,
-                           printGroupCustomerSalesReportXLS, printGroupCustomerSkuSalesReportXLS, printCustomerSalesReportXLS                           
+    PROPERTIES(st, gt,df, dt) printListSalesReport, printListSkuSalesReport, printSalesReport, printSkuSalesReport, printGrSalesReport,
+                           printGrCustomerSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport
+    PROPERTIES(st, gt,df, dt) printListSalesReportXLS, printListSkuSalesReportXLS, printSalesReportXLS, printSkuSalesReportXLS, printGrSalesReportXLS,
+                           printGrCustomerSalesReportXLS, printGroupCustomerSkuSalesReportXLS, printCustomerSalesReportXLS                           
     EVENTS 
         ON CHANGE gt fillSaleReportDateFromTo(st, gt, df, dt), 
         ON CHANGE df fillSaleReportDateFromTo(st, gt, df, dt), 
@@ -502,13 +502,13 @@ DESIGN salesReport {
                             columns = 2;
                             MOVE PROPERTY(printSalesReport(st,gt,df,dt));
                             MOVE PROPERTY(printSkuSalesReport(st,gt,df,dt));
-                            MOVE PROPERTY(printGroupCustomerSalesReport(st,gt,df,dt));
+                            MOVE PROPERTY(printGrCustomerSalesReport(st,gt,df,dt));
                             MOVE PROPERTY(printGroupCustomerSkuSalesReport(st,gt,df,dt));
                         }
                         NEW secondColumnSalesContainer{
                             caption = 'Без детализации';
                             type = CONTAINERV;
-                            MOVE PROPERTY(printGroupSalesReport(st,gt,df,dt));
+                            MOVE PROPERTY(printGrSalesReport(st,gt,df,dt));
                             MOVE PROPERTY(printCustomerSalesReport(st,gt,df,dt));
                         }
                         NEW thirdColumnSalesContainer{
@@ -527,13 +527,13 @@ DESIGN salesReport {
                             columns = 2;
                             MOVE PROPERTY(printSalesReportXLS(st,gt,df,dt));
                             MOVE PROPERTY(printSkuSalesReportXLS(st,gt,df,dt));
-                            MOVE PROPERTY(printGroupCustomerSalesReportXLS(st,gt,df,dt));
+                            MOVE PROPERTY(printGrCustomerSalesReportXLS(st,gt,df,dt));
                             MOVE PROPERTY(printGroupCustomerSkuSalesReportXLS(st,gt,df,dt));
                         }
                         NEW secondColumnSalesContainerXLS{
                             caption = 'Без детализации';
                             type = CONTAINERV;
-                            MOVE PROPERTY(printGroupSalesReportXLS(st,gt,df,dt));
+                            MOVE PROPERTY(printGrSalesReportXLS(st,gt,df,dt));
                             MOVE PROPERTY(printCustomerSalesReportXLS(st,gt,df,dt));
                         }
                         NEW thirdColumnSalesContainerXLS{
