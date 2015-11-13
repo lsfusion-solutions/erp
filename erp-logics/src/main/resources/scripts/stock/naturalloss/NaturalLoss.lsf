@@ -291,7 +291,7 @@ quantitySaleSkuDepartmentNaturalLossPrice 'Продано' (sku, stock, dateFrom
     GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger) AND dateSaleLedger(ledger) >= dateFrom AND dateSaleLedger(ledger) <= dateTo
               AND inIntervalNaturalLoss(dateSaleLedger(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroupCountrySku(countryStock(stockSaleLedger(ledger)), skuSaleLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
-              BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail, averageDiscountPriceSaleLedger(ledger);              
+              BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail, priceSaleLedger(ledger);              
 
 sumNaturalLossDetail 'Сумма' (naturalLossDetail) = DATA NUMERIC[16,2] (NaturalLossDetail);
 sumNaturalLossDetail (naturalLossDetail) <- priceNaturalLossDetail(naturalLossDetail) * quantityNaturalLossDetail(naturalLossDetail)
@@ -302,59 +302,37 @@ sumNaturalLoss 'Сумма' (naturalLoss) = GROUP SUM sumNaturalLossDetail(natur
     BY naturalLossNaturalLossDetail(naturalLossDetail) IN documentSum;
 
 toSaleFillNaturalLossDetail 'Заполнить на основе продаж' = ACTION (naturalLoss) {
-//    FOR quantitySaleSkuDepartmentNaturalLossPrice(  sku,
-//                                                    stockNaturalLoss(naturalLoss),
-//                                                    dateFromNaturalLoss(naturalLoss),
-//                                                    dateToNaturalLoss(naturalLoss),
-//                                                    subNaturalLossGroupDetail,
-//                                                    price) > 0 ORDER nameSku(sku), subNaturalLossGroupDetail
-//          DO {
-//          FOR ADDOBJ d = NaturalLossDetail DO {
-//              naturalLossNaturalLossDetail(d) <- naturalLoss;
-//              skuNaturalLossDetail(d) <- sku;
-//              subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
-//              quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLossPrice(
-//                                                                      sku,
-//                                                                      stockNaturalLoss(naturalLoss),
-//                                                                      dateFromNaturalLoss(naturalLoss),
-//                                                                      dateToNaturalLoss(naturalLoss),
-//                                                                      subNaturalLossGroupDetail,
-//                                                                      price);
-//              subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
-//              percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
-//              quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
-//              priceNaturalLossDetail(d) <- NUMERIC[14,2](price);
-//              sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
-//          }
-//    }   
     IF countNaturalLossDetailNaturalLoss(naturalLoss) THEN {
         CONFIRM 'Существующие строки будут удалены.';
         IF confirmed() THEN {
             DELETE d WHERE naturalLossNaturalLossDetail(d) == naturalLoss;
         } 
     }
-    FOR quantitySaleSkuDepartmentNaturalLoss( sku,
+    FOR quantitySaleSkuDepartmentNaturalLossPrice(  sku,
                                                     stockNaturalLoss(naturalLoss),
                                                     dateFromNaturalLoss(naturalLoss),
                                                     dateToNaturalLoss(naturalLoss),
-                                                    subNaturalLossGroupDetail) > 0 ORDER nameSku(sku), subNaturalLossGroupDetail
+                                                    subNaturalLossGroupDetail,
+                                                    price) > 0 ORDER nameSku(sku), subNaturalLossGroupDetail
           DO {
           FOR ADDOBJ d = NaturalLossDetail DO {
               naturalLossNaturalLossDetail(d) <- naturalLoss;
               skuNaturalLossDetail(d) <- sku;
               subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
-              quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLoss(
+              quantityLossNaturalLossDetail(d) <- quantitySaleSkuDepartmentNaturalLossPrice(
                                                                       sku,
                                                                       stockNaturalLoss(naturalLoss),
                                                                       dateFromNaturalLoss(naturalLoss),
                                                                       dateToNaturalLoss(naturalLoss),
-                                                                      subNaturalLossGroupDetail);
+                                                                      subNaturalLossGroupDetail,
+                                                                      price);
               subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
               percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
               quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
+              priceNaturalLossDetail(d) <- NUMERIC[14,2](price);
               sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
           }
-    }                
+    }                 
 } IN fillNaturalLoss;
 
 //--
