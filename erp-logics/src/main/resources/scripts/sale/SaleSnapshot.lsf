@@ -422,10 +422,10 @@ EXTEND FORM snapshot
                        saleNetWeightBatchSupplierStockSnapshot SHOWIF isNetWeightSaleBatchSnapshot(r)                       
                        
 ;
-//------------------------  Товароооборачиваемость ----------------------//
+//------------------------  Товарооборачиваемость ----------------------//
 
 isSaleSnapshotType 'Продажа' = DATA BOOLEAN (SnapshotType);
-turnoverSkuSnapshotType 'Рассчитывать товароооборачиваемость' = DATA BOOLEAN (SnapshotType); 
+turnoverSkuSnapshotType 'Рассчитывать Товарооборачиваемость' = DATA BOOLEAN (SnapshotType); 
 
 EXTEND FORM snapshotType
     PROPERTIES (t) isSaleSnapshotType, turnoverSkuSnapshotType
@@ -441,7 +441,7 @@ EXTEND FORM snapshotTypes
 ;
 daysOnStockSkuStockSnapshot 'Дней на складе' = DATA INTEGER (Sku, Stock, Snapshot);
 cumBalanceSkuStockSnapshot 'Накопленный остаток' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
-turnoverSkuSnapshot 'Рассчитывать товароооборачиваемость' = DATA BOOLEAN (Snapshot) IN evidence; 
+turnoverSkuSnapshot 'Рассчитывать Товарооборачиваемость' = DATA BOOLEAN (Snapshot) IN evidence; 
 
 @deriveDocumentSnapshotProperty(isSale);
 @deriveDocumentSnapshotProperty(turnoverSku);
@@ -450,7 +450,7 @@ averageSoldSkuStockSnapshot 'Продаж в день' (sku, stock, snapshot) =
     saleQuantitySkuStockSnapshot(sku, stock, snapshot) /
     daysOnStockSkuStockSnapshot(sku, stock, snapshot);
 
-turnoverSkuStockSnapshot 'Товароооборачиваемость, дн.' (sku, stock, snapshot) = cumBalanceSkuStockSnapshot(sku, stock, snapshot) /
+turnoverSkuStockSnapshot 'Товарооборачиваемость, дн.' (sku, stock, snapshot) = cumBalanceSkuStockSnapshot(sku, stock, snapshot) /
     (saleSumSkuStockSnapshot(sku, stock, snapshot) IF saleSumSkuStockSnapshot(sku, stock, snapshot) != 0);
     
 coutDaysToEndSkuStockSnapshot 'Дней хватит' (sku, stock, snapshot) = balanceASkuStockSnapshot(sku, stock, snapshot) / 
@@ -465,14 +465,14 @@ cumBalanceGroupStockSnapshot 'Накопленный остаток' (group, sto
 cumBalanceGroupSnapshot 'Накопленный остаток' (group, snapshot) =
     GROUP SUM cumBalanceGroupStockSnapshot(group, stock, snapshot) BY group, snapshot PERSISTENT;   
     
-turnoverGroupSnapshot 'Товароооборачиваемость, дн.' (group, snapshot) = cumBalanceGroupSnapshot(group, snapshot) /
+turnoverGroupSnapshot 'Товарооборачиваемость, дн.' (group, snapshot) = cumBalanceGroupSnapshot(group, snapshot) /
     (saleSumSkuGroupSnapshot(group, snapshot) IF saleSumSkuGroupSnapshot(group, snapshot) != 0);    
          
 //--По складам 
 cumBalanceStockSnapshot 'Накопленный остаток' (stock, snapshot) =
     GROUP SUM cumBalanceSkuStockSnapshot(sku, stock, snapshot) BY stock, snapshot;            
 
-turnoverStockSnapshot 'Товароооборачиваемость, дн.' (stock, snapshot) = cumBalanceStockSnapshot(stock, snapshot) /
+turnoverStockSnapshot 'Товарооборачиваемость, дн.' (stock, snapshot) = cumBalanceStockSnapshot(stock, snapshot) /
     (saleSumStockSnapshot(stock, snapshot) IF saleSumStockSnapshot(stock, snapshot) != 0);          
  
 overCalcSaleSkuParamsInterval= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
@@ -521,14 +521,14 @@ averageSoldBatchStockSnapshot 'Продаж в день' (batch, stock, snapshot
     saleQuantityBatchStockSnapshot(batch, stock, snapshot) /
     daysOnStockBatchStockSnapshot(batch, stock, snapshot);
 
-turnoverBatchStockSnapshot 'Товароооборачиваемость, дн.' (batch, stock, snapshot) = cumBalanceBatchStockSnapshot(batch, stock, snapshot) /
+turnoverBatchStockSnapshot 'Товарооборачиваемость, дн.' (batch, stock, snapshot) = cumBalanceBatchStockSnapshot(batch, stock, snapshot) /
     (saleSumBatchStockSnapshot(batch, stock, snapshot) IF saleSumBatchStockSnapshot(batch, stock, snapshot) != 0);
     
 //-- По поставщикам   
 cumBalanceSupplierSnapshot 'Накопленный остаток' (supplier, snapshot) =
     GROUP SUM cumBalanceBatchStockSnapshot(batch, stock, snapshot) BY supplierBatch(batch), snapshot;  
     
-turnoverSupplierSnapshot 'Товароооборачиваемость, дн.' (supplier, snapshot) = cumBalanceSupplierSnapshot(supplier, snapshot) /
+turnoverSupplierSnapshot 'Товарооборачиваемость, дн.' (supplier, snapshot) = cumBalanceSupplierSnapshot(supplier, snapshot) /
     (saleSumBatchSupplierSnapshot(supplier, snapshot) IF saleSumBatchSupplierSnapshot(supplier, snapshot) != 0);      
     
 
