@@ -155,15 +155,19 @@ META defineInvoiceOrder(sign, NS)
     currencyOrderInvoiceDetail (detail) = currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(detail)) PERSISTENT;
 
     priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
+    
+    sumOrderDetailInvoiceDetail(invoiceDetail) = NUMERIC[16,2](roundPriceCurrency(invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail)) * priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail)), currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(invoiceDetail))));
+    VATSumOrderDetailInvoiceDetail(invoiceDetail) =  NUMERIC[16,2](roundPriceCurrency((sumOrderDetailInvoiceDetail(invoiceDetail) * calcValueVATUserOrderDetail (orderDetailOrderInvoiceDetail(invoiceDetail)) / 100), currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(invoiceDetail))));
+    invoiceSumOrderDetailInvoiceDetail(invoiceDetail) = sumOrderDetailInvoiceDetail(invoiceDetail) (+) VATSumOrderDetailInvoiceDetail(invoiceDetail);
 
     quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    sumInvoiceDetail(invoiceDetail) += sumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    sumInvoiceDetail(invoiceDetail) += sumOrderDetailInvoiceDetail(invoiceDetail);
     VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetailInvoiceDetail(invoiceDetail);
+    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetailInvoiceDetail(invoiceDetail);
 
     orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
