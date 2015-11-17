@@ -1,10 +1,10 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.UserInvoiceDetail;
 import jxl.Sheet;
-import jxl.Workbook;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -13,7 +13,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -47,39 +46,32 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | BiffException | ParseException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     protected static List<UserInvoiceDetail> importUserInvoices(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 13);
 
-        List<UserInvoiceDetail> data = new ArrayList<UserInvoiceDetail>();
+        List<UserInvoiceDetail> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
-
-            String seriesUserInvoice = parseString(sheet.getCell(0, i).getContents());
-            String numberUserInvoice = parseString(sheet.getCell(1, i).getContents());
-            Date dateUserInvoice = parseDate(sheet.getCell(2, i).getContents());
-            String idItem = parseString(sheet.getCell(3, i).getContents());
-            BigDecimal quantity = parseBigDecimal(sheet.getCell(4, i).getContents());
-            String supplier = parseString(sheet.getCell(5, i).getContents());
-            String customerWarehouse = parseString(sheet.getCell(6, i).getContents());
-            String supplierWarehouse = parseString(sheet.getCell(7, i).getContents());
-            BigDecimal price = parseBigDecimal(sheet.getCell(8, i).getContents());
-            BigDecimal chargePrice = parseBigDecimal(sheet.getCell(9, i).getContents());
-            BigDecimal retailPrice = parseBigDecimal(sheet.getCell(10, i).getContents());
-            BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(11, i).getContents());
-            String textCompliance = parseString(sheet.getCell(12, i).getContents());
-
-            String userInvoiceDetailSID = (seriesUserInvoice==null ? "" : seriesUserInvoice) + numberUserInvoice + idItem;
+            String seriesUserInvoice = parseString(sheet.getCell(0, i));
+            String numberUserInvoice = parseString(sheet.getCell(1, i));
+            Date dateUserInvoice = parseDateValue(sheet.getCell(2, i));
+            String idItem = parseString(sheet.getCell(3, i));
+            BigDecimal quantity = parseBigDecimal(sheet.getCell(4, i));
+            String supplier = parseString(sheet.getCell(5, i));
+            String customerWarehouse = parseString(sheet.getCell(6, i));
+            String supplierWarehouse = parseString(sheet.getCell(7, i));
+            BigDecimal price = parseBigDecimal(sheet.getCell(8, i));
+            BigDecimal chargePrice = parseBigDecimal(sheet.getCell(9, i));
+            BigDecimal retailPrice = parseBigDecimal(sheet.getCell(10, i));
+            BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(11, i));
+            String textCompliance = parseString(sheet.getCell(12, i));
+            String userInvoiceDetailSID = (seriesUserInvoice == null ? "" : seriesUserInvoice) + numberUserInvoice + idItem;
 
             data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice, seriesUserInvoice, numberUserInvoice,
                     null, true, userInvoiceDetailSID, dateUserInvoice, idItem, false, quantity, supplier,

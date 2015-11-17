@@ -1,10 +1,10 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.ItemGroup;
 import jxl.Sheet;
-import jxl.Workbook;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -13,7 +13,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -46,27 +45,22 @@ public class ImportExcelGroupItemsActionProperty extends ImportExcelActionProper
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | BiffException | ParseException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     public static List<ItemGroup> importGroupItems(byte[] file, Boolean parents) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 3);
 
-        List<ItemGroup> data = new ArrayList<ItemGroup>();
+        List<ItemGroup> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idGroup = parseString(sheet.getCell(0, i).getContents());
-            String nameGroup = parseString(sheet.getCell(1, i).getContents());
-            String idParentGroup = parseString(sheet.getCell(2, i).getContents());
+            String idGroup = parseString(sheet.getCell(0, i));
+            String nameGroup = parseString(sheet.getCell(1, i));
+            String idParentGroup = parseString(sheet.getCell(2, i));
             if (parents)
                 data.add(new ItemGroup(idGroup, null, idParentGroup));
             else

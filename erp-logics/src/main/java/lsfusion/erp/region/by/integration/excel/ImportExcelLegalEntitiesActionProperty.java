@@ -1,10 +1,10 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.LegalEntity;
 import jxl.Sheet;
-import jxl.Workbook;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -13,7 +13,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -45,43 +44,38 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | BiffException | ParseException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     protected static List<LegalEntity> importLegalEntities(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 14);
 
-        List<LegalEntity> data = new ArrayList<LegalEntity>();
+        List<LegalEntity> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idLegalEntity = parseString(sheet.getCell(0, i).getContents());
-            String idLegalEntityGroup = parseString(sheet.getCell(1, i).getContents());
-            String nameLegalEntity = parseString(sheet.getCell(2, i).getContents());
-            String addressLegalEntity = parseString(sheet.getCell(3, i).getContents());
-            String phoneLegalEntity = parseString(sheet.getCell(4, i).getContents());
-            String emailLegalEntity = parseString(sheet.getCell(5, i).getContents());
-            String numberAccount = parseString(sheet.getCell(6, i).getContents());
-            String idBank = parseString(sheet.getCell(7, i).getContents());
-            String nameCountry = parseString(sheet.getCell(8, i).getContents());
+            String idLegalEntity = parseString(sheet.getCell(0, i));
+            String idLegalEntityGroup = parseString(sheet.getCell(1, i));
+            String nameLegalEntity = parseString(sheet.getCell(2, i));
+            String addressLegalEntity = parseString(sheet.getCell(3, i));
+            String phoneLegalEntity = parseString(sheet.getCell(4, i));
+            String emailLegalEntity = parseString(sheet.getCell(5, i));
+            String numberAccount = parseString(sheet.getCell(6, i));
+            String idBank = parseString(sheet.getCell(7, i));
+            String nameCountry = parseString(sheet.getCell(8, i));
             nameCountry = nameCountry == null ? null : nameCountry.toUpperCase();
-            Boolean isSupplier = parseBoolean(sheet.getCell(9, i).getContents());
-            Boolean isCompany = parseBoolean(sheet.getCell(10, i).getContents());
-            Boolean isCustomer = parseBoolean(sheet.getCell(11, i).getContents());
-            String unpLegalEntity = parseString(sheet.getCell(12, i).getContents());
-            String okpoLegalEntity = parseString(sheet.getCell(13, i).getContents());
+            Boolean isSupplier = parseBoolean(sheet.getCell(9, i));
+            Boolean isCompany = parseBoolean(sheet.getCell(10, i));
+            Boolean isCustomer = parseBoolean(sheet.getCell(11, i));
+            String unpLegalEntity = parseString(sheet.getCell(12, i));
+            String okpoLegalEntity = parseString(sheet.getCell(13, i));
             String[] ownership = getAndTrimOwnershipFromName(nameLegalEntity);
 
             data.add(new LegalEntity(idLegalEntity, nameLegalEntity, addressLegalEntity, unpLegalEntity, okpoLegalEntity,
-                    phoneLegalEntity, emailLegalEntity, ownership[1], ownership[0], numberAccount, null, null, idBank, 
+                    phoneLegalEntity, emailLegalEntity, ownership[1], ownership[0], numberAccount, null, null, idBank,
                     nameCountry, isSupplier, isCompany, isCustomer, idLegalEntityGroup));
         }
 

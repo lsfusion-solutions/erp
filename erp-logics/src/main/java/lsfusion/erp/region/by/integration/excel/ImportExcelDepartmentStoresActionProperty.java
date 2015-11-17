@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import lsfusion.erp.integration.*;
 import jxl.Sheet;
-import jxl.Workbook;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -11,7 +11,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -43,27 +42,22 @@ public class ImportExcelDepartmentStoresActionProperty extends ImportExcelAction
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | BiffException | ParseException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     protected static List<DepartmentStore> importDepartmentStores(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 3);
 
-        List<DepartmentStore> data = new ArrayList<DepartmentStore>();
+        List<DepartmentStore> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idDepartmentStore = parseString(sheet.getCell(0, i).getContents());
-            String nameDepartmentStore = parseString(sheet.getCell(1, i).getContents());
-            String idStore = parseString(sheet.getCell(2, i).getContents());
+            String idDepartmentStore = parseString(sheet.getCell(0, i));
+            String nameDepartmentStore = parseString(sheet.getCell(1, i));
+            String idStore = parseString(sheet.getCell(2, i));
 
             data.add(new DepartmentStore(idDepartmentStore, nameDepartmentStore, idStore));
         }

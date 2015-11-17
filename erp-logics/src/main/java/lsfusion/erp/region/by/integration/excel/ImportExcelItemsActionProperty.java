@@ -1,11 +1,11 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
+import jxl.Sheet;
+import jxl.read.biff.BiffException;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Item;
-import jxl.Sheet;
-import jxl.Workbook;
-import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.ObjectValue;
@@ -13,13 +13,13 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
@@ -47,46 +47,40 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | BiffException | ParseException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     protected static List<Item> importItems(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 21);
 
-        List<Item> data = new ArrayList<Item>();
+        List<Item> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
-
-            String idItem = parseString(sheet.getCell(0, i).getContents());
-            String idGroup = parseString(sheet.getCell(1, i).getContents());
-            String nameItem = parseString(sheet.getCell(2, i).getContents());
-            String idUOM = parseString(sheet.getCell(3, i).getContents());
-            String nameBrand = parseString(sheet.getCell(4, i).getContents());
-            String idBrand = parseString(sheet.getCell(5, i).getContents());
-            String nameCountry = parseString(sheet.getCell(6, i).getContents());
-            String barcode = parseString(sheet.getCell(7, i).getContents());
-            Date date = parseDate(sheet.getCell(8, i).getContents());
-            Boolean split = parseBoolean(sheet.getCell(9, i).getContents());
-            BigDecimal netWeightItem = parseBigDecimal(sheet.getCell(10, i).getContents());
-            BigDecimal grossWeightItem = parseBigDecimal(sheet.getCell(11, i).getContents());
-            String compositionItem = parseString(sheet.getCell(12, i).getContents());
-            BigDecimal retailVAT = parseBigDecimal(sheet.getCell(13, i).getContents());
-            String idWare = parseString(sheet.getCell(14, i).getContents());
-            BigDecimal priceWare = parseBigDecimal(sheet.getCell(15, i).getContents());
-            BigDecimal wareVAT = parseBigDecimal(sheet.getCell(16, i).getContents());
-            String idWriteOffRate = parseString(sheet.getCell(17, i).getContents());
-            BigDecimal baseMarkup = parseBigDecimal(sheet.getCell(18, i).getContents());
-            BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(19, i).getContents());
-            BigDecimal amountPack = parseBigDecimal(sheet.getCell(20, i).getContents());
-            amountPack = (amountPack==null || amountPack.equals(BigDecimal.ZERO)) ? null : amountPack;
+            String idItem = parseString(sheet.getCell(0, i));
+            String idGroup = parseString(sheet.getCell(1, i));
+            String nameItem = parseString(sheet.getCell(2, i));
+            String idUOM = parseString(sheet.getCell(3, i));
+            String nameBrand = parseString(sheet.getCell(4, i));
+            String idBrand = parseString(sheet.getCell(5, i));
+            String nameCountry = parseString(sheet.getCell(6, i));
+            String barcode = parseString(sheet.getCell(7, i));
+            Date date = parseDateValue(sheet.getCell(8, i), new Date(Calendar.getInstance().getTime().getTime()));
+            Boolean split = parseBoolean(sheet.getCell(9, i));
+            BigDecimal netWeightItem = parseBigDecimal(sheet.getCell(10, i));
+            BigDecimal grossWeightItem = parseBigDecimal(sheet.getCell(11, i));
+            String compositionItem = parseString(sheet.getCell(12, i));
+            BigDecimal retailVAT = parseBigDecimal(sheet.getCell(13, i));
+            String idWare = parseString(sheet.getCell(14, i));
+            BigDecimal priceWare = parseBigDecimal(sheet.getCell(15, i));
+            BigDecimal wareVAT = parseBigDecimal(sheet.getCell(16, i));
+            String idWriteOffRate = parseString(sheet.getCell(17, i));
+            BigDecimal baseMarkup = parseBigDecimal(sheet.getCell(18, i));
+            BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(19, i));
+            BigDecimal amountPack = parseBigDecimal(sheet.getCell(20, i));
+            amountPack = (amountPack == null || amountPack.equals(BigDecimal.ZERO)) ? null : amountPack;
 
             data.add(new Item(idItem, idGroup, nameItem, idUOM, nameBrand, idBrand, nameCountry,
                     barcode, barcode, date, split, netWeightItem, grossWeightItem, compositionItem, retailVAT, idWare,

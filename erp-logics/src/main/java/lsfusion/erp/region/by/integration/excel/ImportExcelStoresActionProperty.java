@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import lsfusion.erp.integration.*;
 import jxl.Sheet;
-import jxl.Workbook;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -11,7 +11,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -43,28 +42,22 @@ public class ImportExcelStoresActionProperty extends ImportExcelActionProperty {
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | BiffException | ParseException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     protected static List<LegalEntity> importStores(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 4);
 
-        List<LegalEntity> data = new ArrayList<LegalEntity>();
+        List<LegalEntity> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
-
-            String idStore = parseString(sheet.getCell(0, i).getContents());
-            String nameStore = parseString(sheet.getCell(1, i).getContents());
-            String addressStore = parseString(sheet.getCell(2, i).getContents());
-            String idLegalEntity = parseString(sheet.getCell(3, i).getContents());
+            String idStore = parseString(sheet.getCell(0, i));
+            String nameStore = parseString(sheet.getCell(1, i));
+            String addressStore = parseString(sheet.getCell(2, i));
+            String idLegalEntity = parseString(sheet.getCell(3, i));
 
             data.add(new Store(idStore, nameStore, addressStore, idLegalEntity, null, null));
         }

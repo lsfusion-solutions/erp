@@ -47,29 +47,24 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (IOException | BiffException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
 
     protected static List<Warehouse> importWarehouses(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 6);
 
-        List<Warehouse> data = new ArrayList<Warehouse>();
+        List<Warehouse> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idWarehouse = parseString(sheet.getCell(0, i).getContents());
-            String nameWarehouse = parseString(sheet.getCell(1, i).getContents());
-            String idWarehouseGroup = parseString(sheet.getCell(2, i).getContents());
-            String idLegalEntity = parseString(sheet.getCell(4, i).getContents());
-            String addressWarehouse = parseString(sheet.getCell(5, i).getContents());
+            String idWarehouse = parseString(sheet.getCell(0, i));
+            String nameWarehouse = parseString(sheet.getCell(1, i));
+            String idWarehouseGroup = parseString(sheet.getCell(2, i));
+            String idLegalEntity = parseString(sheet.getCell(4, i));
+            String addressWarehouse = parseString(sheet.getCell(5, i));
 
             data.add(new Warehouse(idLegalEntity, idWarehouseGroup, idWarehouse, nameWarehouse, addressWarehouse));
         }
@@ -86,8 +81,8 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idWarehouseGroup = parseString(sheet.getCell(2, i).getContents());
-            String nameWarehouseGroup = parseString(sheet.getCell(3, i).getContents());
+            String idWarehouseGroup = parseString(sheet.getCell(2, i));
+            String nameWarehouseGroup = parseString(sheet.getCell(3, i));
 
             data.add(new WarehouseGroup(idWarehouseGroup, nameWarehouseGroup));
         }

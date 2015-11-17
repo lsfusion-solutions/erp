@@ -1,10 +1,10 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import lsfusion.erp.integration.Bank;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import jxl.Sheet;
-import jxl.Workbook;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -13,7 +13,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -45,30 +44,25 @@ public class ImportExcelBanksActionProperty extends ImportExcelActionProperty {
 
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | ParseException | BiffException e) {
+            throw Throwables.propagate(e);
         }
     }
 
     protected static List<Bank> importBanks(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
-        Sheet sheet = Wb.getSheet(0);
+        Sheet sheet = getSheet(file, 6);
 
-        List<Bank> data = new ArrayList<Bank>();
+        List<Bank> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idBank = parseString(sheet.getCell(0, i).getContents());
-            String nameBank = parseString(sheet.getCell(1, i).getContents());
-            String addressBank = parseString(sheet.getCell(2, i).getContents());
-            String departmentBank = parseString(sheet.getCell(3, i).getContents());
-            String mfoBank = parseString(sheet.getCell(4, i).getContents());
-            String cbuBank = parseString(sheet.getCell(5, i).getContents());
+            String idBank = parseString(sheet.getCell(0, i));
+            String nameBank = parseString(sheet.getCell(1, i));
+            String addressBank = parseString(sheet.getCell(2, i));
+            String departmentBank = parseString(sheet.getCell(3, i));
+            String mfoBank = parseString(sheet.getCell(4, i));
+            String cbuBank = parseString(sheet.getCell(5, i));
 
             data.add(new Bank(idBank, nameBank, addressBank, departmentBank, mfoBank, cbuBank));
         }
