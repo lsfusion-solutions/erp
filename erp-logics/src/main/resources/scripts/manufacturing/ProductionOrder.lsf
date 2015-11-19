@@ -159,6 +159,11 @@ CONSTRAINT denyRepeatSkuOrder() AND [= GROUP SUM 1 BY skuProductDetail(d), order
 
 calcBOMPriceProductDetail = calcBOMPriceOrder(orderProductDetail(d)) PERSISTENT;
 
+@defineDocumentDetailQuantityCustomPrefix(productDetail, BOM, ' в спецификации'); //-- первичное свойство
+
+BOMQuantityProductDetail(d) <- quantityProduct(productProductDetail(d))
+    WHEN CHANGED (productProductDetail(d));
+
 quantityBOMProductDetail 'Кол-во в спецификации' = quantityProduct(productProductDetail(d)) PERSISTENT;
 quantityPriceProductDetail 'Кол-во для расчета цены' = IF calcBOMPriceProductDetail(d) THEN
                                                             quantityBOMProductDetail(d) ELSE
@@ -271,6 +276,7 @@ CONSTRAINT productComponentDetail(componentDetail) AND bruttoSkuComponentDetail(
 
 // Кол-во
 @defineDocumentDetailQuantityCustomPrefix (componentDetail, brutto, ' (брутто)');
+@defineDocumentDetailQuantityCustomPrefix(componentDetail, BOM, ' в спецификации'); //-- первичное свойство
 
 @defineDocumentDetailPriceCustomPrefix (componentDetail, , );
 costComponentDetail 'Себестоимость' = DATA NUMERIC[14,2] (ComponentDetail);
@@ -394,6 +400,8 @@ createComponentsOrder 'Заполнить компоненты из специф
                 orderComponentDetail(d) <- order;
                 componentComponentDetail(d) <- component;
                 bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order)) * quantityProductsBOMOrder(BOM,order);
+                BOMQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order)); 
+                
                 BOMComponentDetail(d) <- BOM; 
                 
                 IF materialComponent(component) IS Sku THEN {
@@ -411,6 +419,7 @@ createComponentsOrder 'Заполнить компоненты из специф
 } TOOLBAR;
 
 recBruttoQuantityBOMOrderSku 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM quantityProductsBOMOrder(BOM, order) * recBruttoQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY BOM, order, sku;
+recBOMQuantityBOMOrderSku 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM recBruttoQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY BOM, order, sku;
 
 productionCoeffComponentDetail = ABSTRACT NUMERIC[20,9] (ComponentDetail);
 quantityCoeffComponentDetail(d) = OVERRIDE 1.0 IF d IS ComponentDetail, productionCoeffComponentDetail(d) PERSISTENT; 
@@ -421,12 +430,16 @@ createRecComponentsOrder 'Заполнить из спецификации (ре
         BOMComponentDetail(d) <- BOM;
         bruttoSkuComponentDetail(d) <- sku;
         bruttoQuantityComponentDetail(d) <- q;
+        BOMQuantityComponentDetail(d)  <- recBOMQuantityBOMOrderSku(BOM, order, sku);
     }
 } TOOLBAR;
 
 calcBruttoQuantityComponentDetail (d) = recBruttoQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
+calcBOMQuantityComponentDetail (d) = recBOMQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
+
 updateComponentsOrder 'Пересчитать кол-во для всех' = ACTION (order) {
     bruttoQuantityComponentDetail(d) <- calcBruttoQuantityComponentDetail (d);
+    BOMQuantityComponentDetail(d)  <- calcBOMQuantityComponentDetail(d);
 } TOOLBAR;
 
 // ------------- Заполнение изделий из спецификаций --------------- //
@@ -443,6 +456,7 @@ createProductsOrder 'Заполнить изделия из спецификац
         skuProductDetail(d) <- skuProduct(product);
         productProductDetail(d) <- product;
         quantityProductDetail(d) <- round3(quantityProduct(product) * q);
+        BOMQuantityProductDetail(d) <- quantityProduct(product);
     }
     overCreateProductsOrder(order);
 } TOOLBAR;
@@ -455,6 +469,9 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
             componentComponentDetail(d) <- component;
             bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(orderComponentDetail(componentDetail))) *
                 bruttoQuantityComponentDetail(componentDetail) / quantityProduct(productComponentDetail(componentDetail));    //ceil
+            BOMQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(orderComponentDetail(componentDetail))) *
+                BOMQuantityComponentDetail(componentDetail) / quantityProduct(productComponentDetail(componentDetail));    //ceil
+                                
             BOMComponentDetail(d) <- BOMComponentDetail(componentDetail);     
 
             IF materialComponent(component) IS Sku THEN {
@@ -473,6 +490,7 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
 backgroundComponentDetail 'Цвет' (componentDetail) = RGB(255,255,229) IF productComponentDetail(componentDetail);
 
 recBruttoQuantityBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityProductsBOMOrder(BOM, order) * recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
+recBOMQuantityBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
 
 createForRecComponentsOrder 'Заполнить из спецификации (рекурсивно по компонентам)' = ACTION (order)  {
 
@@ -482,6 +500,7 @@ createForRecComponentsOrder 'Заполнить из спецификации (�
         bruttoSkuComponentDetail(d) <- materialComponent(component);
         componentComponentDetail(d) <- component;
         bruttoQuantityComponentDetail(d) <- q;
+        BOMQuantityComponentDetail(d) <- recBOMQuantityBOMOrderComponent(BOM, order, component);
     }
 } TOOLBAR;
 
@@ -692,6 +711,7 @@ sumComponentDetailBOMSkuOrder 'Сумма' (BOM, sku, order) = GROUP SUM sumComp
 
 sumComponentDetailBOMOrder = GROUP SUM sumComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 quantityComponentDetailBOMOrder = GROUP SUM quantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
+BOMQuantityComponentDetailBOMOrder = GROUP SUM BOMQuantityComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
 
 priceComponentsBOMOrder (b, o) = sumComponentDetailBOMOrder(b, o) / quantityComponentDetailBOMOrder(b, o);  
 
@@ -1083,6 +1103,8 @@ backgroundBalanceSkuPriceStockOrder(s,o) = RGB (255,156,156) IF quantityComponen
 editSkuProductDetail 'Редактировать SKU' (d) = ACTION editSku(skuProductDetail(d));
 editBruttoSkuComponentDetail 'Редактировать SKU' (d) = ACTION editSku(bruttoSkuComponentDetail(d));
 
+showBOMQuantityOrder = ABSTRACT BOOLEAN (Order);
+
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
@@ -1093,7 +1115,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) indexProductDetail, nameSkuProductDetail ON EDIT editSkuProductDetail(pd), idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
-                   shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, quantityProductDetail,
+                   shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, BOMQuantityProductDetail READONLY SHOWIF showBOMQuantityOrder(o), quantityProductDetail,
                    calcComponentsPriceProductDetail READONLY, componentsPriceProductDetail ON CHANGE changeComponentsPriceProductDetail(pd),
                    costPriceProductDetail
     PROPERTIES(pd) markupProductDetail ON CHANGE changeMarkupProductDetail(pd) BACKGROUND backgroundMarkupProductDetail(pd),
@@ -1110,7 +1132,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail ON EDIT editBruttoSkuComponentDetail(cd), nameBatchComponentDetail ON CHANGE changeBatchComponentDetail(cd) SHOWIF showBatchComponentDetail(cd),
                    nameMaterialComponentDetail, 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
-                   fullNameBOMComponentDetail, shortNameUOMComponentDetail READONLY, bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
+                   fullNameBOMComponentDetail, shortNameUOMComponentDetail READONLY,  BOMQuantityComponentDetail READONLY SHOWIF showBOMQuantityOrder(o),bruttoQuantityComponentDetail ON SHORTCUT updateComponentsOrder(o)
     PROPERTIES(cd) BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail ON CHANGE chooseSubstituteComponentDetail(cd), substituteQuantityComponentDetail
     PROPERTIES(cd) costComponentDetail, priceComponentDetail
     PROPERTIES(cd) sumComponentDetail
@@ -1459,7 +1481,7 @@ FORM orders 'Производственные заказы'
 
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
-                   shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, quantityProductDetail, 
+                   shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, BOMQuantityProductDetail SHOWIF showBOMQuantityOrder(o), quantityProductDetail, 
                    calcComponentsPriceProductDetail, componentsPriceProductDetail, 
                    costPriceProductDetail, markupProductDetail, pricePercentProductDetail SHOWIF isPricePercentOrder(o), calcPriceCoeffProductDetail SHOWIF isPriceCoeffOrder(o),
                    priceProductDetail, sumProductDetail 
@@ -1468,13 +1490,12 @@ FORM orders 'Производственные заказы'
     OBJECTS cd = ComponentDetail
     PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameBatchComponentDetail SHOWIF showBatchComponentDetail(cd), 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,
-                   shortNameUOMComponentDetail, bruttoQuantityComponentDetail//, overCalcPriceComponentDetail 
+                   shortNameUOMComponentDetail, BOMQuantityComponentDetail SHOWIF showBOMQuantityOrder(o), bruttoQuantityComponentDetail//, overCalcPriceComponentDetail 
     PROPERTIES(cd) READONLY BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail, substituteQuantityComponentDetail
     PROPERTIES(cd) READONLY costComponentDetail, priceComponentDetail
     PROPERTIES(cd) READONLY sumComponentDetail
 
     FILTERS orderComponentDetail(cd)==o
-
     
     OBJECTS s = Sku
     PROPERTIES(s) READONLY nameSku, idBarcodeSku, shortNameUOMSku
@@ -1654,6 +1675,8 @@ nameOperationProductDetail 'Операция' (d)= nameOperation(operationProduc
 operationComponentDetail (d) = operationOrder(orderComponentDetail(d));
 nameOperationComponentDetail 'Операция' (d)= nameOperation(operationComponentDetail (d));
 
+showBOMQuantityOrder(o) += showBOMQuantityOperation(operationOrder(o));
+
 //-- Партия для строки компонента
 hideBatchComponentOperation 'Не показывать партии' = DATA BOOLEAN (Operation);
 EXTEND FORM operation
@@ -1722,6 +1745,7 @@ copyOrder 'Копировать' = ACTION (order) NEWSESSION {
             skuProductDetail(p) <- skuProductDetail(productDetail);
             productProductDetail(p) <- productProductDetail(productDetail);
             quantityProductDetail(p) <- quantityProductDetail(productDetail);
+            BOMQuantityProductDetail(p) <- BOMQuantityProductDetail(productDetail);
             markupProductDetail(p) <- markupProductDetail(productDetail);
             pricePercentProductDetail(p) <- pricePercentProductDetail(productDetail);
         }
@@ -1733,6 +1757,7 @@ copyOrder 'Копировать' = ACTION (order) NEWSESSION {
             productComponentDetail(c) <- productComponentDetail(componentDetail);
             componentComponentDetail(c) <- componentComponentDetail(componentDetail);
             bruttoQuantityComponentDetail(c) <- bruttoQuantityComponentDetail(componentDetail);
+//            BOMQuantityComponentDetail(c) <- BOMQuantityComponentDetail(componentDetail);
             BOMComponentDetail(c) <- BOMComponentDetail(componentDetail);
 
         }
