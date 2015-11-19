@@ -93,8 +93,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     for (ScalesInfo scales : enabledScalesList) {
                         TCPPort port = new TCPPort(scales.port, 1025);
                         if (scales.port != null) {
-                            if(brokenPortsMap.containsKey(scales.port)) {
-                                errors.put(scales.port, Collections.singletonList("Broken ip: " + scales.port));
+                            String brokenPortError = brokenPortsMap.get(scales.port);
+                            if(brokenPortError != null) {
+                                errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
                                 taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters));
@@ -157,12 +158,12 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    private String openPort(TCPPort port, String ip) {
+    private String openPort(TCPPort port, String ip, boolean transaction) {
         try {
-            processTransactionLogger.info("Bizerba: Connecting..." + ip);
+            (transaction ? processTransactionLogger : processStopListLogger).info("Bizerba: Connecting..." + ip);
             port.open();
         } catch (Exception e) {
-            processTransactionLogger.error(e);
+            (transaction ? processTransactionLogger : processStopListLogger).error("Bizerba Error: ", e);
             return e.getMessage();
         }
         return null;
@@ -583,9 +584,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
         public SendTransactionResult call() throws Exception {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
-            String openPortResult = openPort(port, scales.port);
+            String openPortResult = openPort(port, scales.port, true);
             if(openPortResult != null) {
-                localErrors.add(openPortResult);
+                localErrors.add(openPortResult + ", transaction: " + transaction.id + ";");
             } else {
                 int globalError = 0;
                 try {
@@ -624,7 +625,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                     }
 
                 } catch (Exception e) {
-                    logError(localErrors, String.format("Bizerba: IP %s error ", scales.port), e);
+                    logError(localErrors, String.format("Bizerba: IP %s error, transaction %s;", scales.port, transaction.id), e);
                 } finally {
                     processTransactionLogger.info("Bizerba: Finally disconnecting..." + scales.port);
                     try {
@@ -670,7 +671,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         @Override
         public List<String> call() throws Exception {
             List<String> localErrors = new ArrayList<>();
-            String openPortResult = openPort(port, scales.port);
+            String openPortResult = openPort(port, scales.port, false);
             if(openPortResult != null) {
                 localErrors.add(openPortResult);
             } else {
