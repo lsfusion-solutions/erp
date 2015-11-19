@@ -656,20 +656,25 @@ sumItemAccountShortageCollationSheet = sumItemAccountBCollationSheet(collationSh
 sumContainerAccountShortageCollationSheet = sumContainerAccountBCollationSheet(collationSheet) (-) sumContainerPageInventoryDetailCollationSheet (collationSheet); 
 
 skipStockDocumentLedgerInventory 'Не проводить по товарному отчету'  = DATA BOOLEAN (Inventory) IN documentPrm;
-
 skipStockDocumentLedgerOperation 'Не проводить по товарному отчету' = DATA BOOLEAN (Operation);
 
+skipSkuLedgerInventory 'Не изменять остатки'  = DATA BOOLEAN (Inventory) IN documentPrm;
+skipSkuLedgerOperation 'Не изменять остатки' = DATA BOOLEAN (Operation);
+
 EXTEND FORM operation
-     PROPERTIES(o) skipStockDocumentLedgerOperation
+     PROPERTIES(o) skipStockDocumentLedgerOperation, skipSkuLedgerOperation
  ;
 DESIGN operation {
     showContainer {
         MOVE PROPERTY(skipStockDocumentLedgerOperation(o));
+        MOVE PROPERTY(skipSkuLedgerOperation(o));
     }
 }
 
 skipStockDocumentLedgerCollationSheet (cs) = skipStockDocumentLedgerInventory(inventoryCollationSheet(cs));
 skipStockDocumentLedger(l) += skipStockDocumentLedgerCollationSheet(l);
+
+skipSkuLedgerCollationSheet (cs) = skipSkuLedgerInventory(inventoryCollationSheet(cs));
 
 isShortageStockDocumentInventory 'Считать недостачу из товарного отчета' = DATA BOOLEAN (Inventory) IN documentPrm;
 
@@ -800,12 +805,14 @@ quantityOutFIFOSkuLedger (ledger) += quantityOutInventorySkuDetail(ledger);
 @implementSkuLedgerOutFIFOBalance(outInventorySkuDetail, stock);
 sumOutSkuLedger (ledger) += sumOutInventorySkuDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetOutInventorySkuDetail(ledger);
+skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetOutInventorySkuDetail(ledger));
 
 EXTEND CLASS InInventorySkuDetail : InLIFOSkuLedger;
 quantityInLIFOSkuLedger (ledger) += quantityInInventorySkuDetail(ledger);
 @implementSkuLedgerInLIFOBalance(inInventorySkuDetail, stock);
 sumInSkuLedger (ledger) += sumInInventorySkuDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetInInventorySkuDetail(ledger);
+skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetInInventorySkuDetail(ledger));
 
 //---------------------------- Изменение остатка инвентаризации batch----------------------------//
 
@@ -878,13 +885,15 @@ quantityOutFIFOSkuLedger (ledger) += quantityOutInventoryBatchDetail(ledger);
 limitOutFIFOSkuLedgerBatch(ledger, batch) += quantityOutInventoryBatchDetail(ledger) IF batchInventoryBatchDetail(ledger) == batch;
 sumOutSkuLedger (ledger) += sumOutInventoryBatchDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetOutInventoryBatchDetail(ledger);
+skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetOutInventoryBatchDetail(ledger));
 
 EXTEND CLASS InInventoryBatchDetail : InLIFOSkuLedger;
 quantityInLIFOSkuLedger (ledger) += quantityInInventoryBatchDetail(ledger);
 limitInLIFOSkuLedgerBatch (ledger, batch) += quantityInInventoryBatchDetail(ledger) IF batchInventoryBatchDetail(ledger) == batch;
 sumInSkuLedger (ledger) += sumInInventoryBatchDetail(ledger);
-
 stockDocumentLedgerSkuLedger(ledger) += collationSheetInInventoryBatchDetail(ledger);
+skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetInInventoryBatchDetail(ledger));
+
 //------------------------------------ Выбор складов для инвентаризации------------------------------------------//
 
 FORM dialogStockInventory 'Выбор складов для инвентаризации'
@@ -1168,7 +1177,7 @@ FORM inventory 'Инвентаризация'
                      noteInventory, nameStockInventory ON CHANGE dialogStockInventory(in),
                      recalculatePriceInventory, recalculateBalanceInventory,
                      timeFromInventory, timeToInventory, nameHeadManInventory,
-                     nameCommitteeInventory, nameChairmanCommitteeInventory, nameEmployeeInventory, skipStockDocumentLedgerInventory
+                     nameCommitteeInventory, nameChairmanCommitteeInventory, nameEmployeeInventory, skipStockDocumentLedgerInventory, skipSkuLedgerInventory
 
     TREE treeStock ds=Stock, li=ListInventory, pl=PageInventory
     PROPERTIES       READONLY nameStock(ds),  nameListInventory(li), namePageInventory(pl)
@@ -1422,7 +1431,7 @@ showOpenInventory (i) = isClosedInventory(i) AND NOT overPreventOpenInventory(i)
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory
     PROPERTIES(in) READONLY             isClosedInventory FORCE GRID, isPostedInventory FORCE GRID, isBatchInventory,  numberInventory, seriesInventory, dateInventory, timeInventory,
-                                        nameStockInventory, nameInventory, noteInventory, skipStockDocumentLedgerInventory, isShortageStockDocumentInventory
+                                        nameStockInventory, nameInventory, noteInventory, skipStockDocumentLedgerInventory, skipSkuLedgerInventory, isShortageStockDocumentInventory
     PROPERTIES(in) FORCE PANEL READONLY createdNameUserInventory, createdTimeInventory, createdHostnameComputerInventory, 
                                         postedNameUserInventory, postedTimeInventory, postedHostnameComputerInventory
     
@@ -1567,7 +1576,7 @@ nameOperationCollationSheet 'Операция' (cs) = nameOperation(operationCol
 idOperationCollationSheet 'ID операции' (cs) = idOperation(operationCollationSheet(cs)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 @deriveDocumentOperationProperty(Inventory, skipStockDocumentLedger);
-
+@deriveDocumentOperationProperty(Inventory, skipSkuLedger);
 @deriveDocumentOperationProperty(Inventory, isShortageStockDocument);
 
 @defineDocumentOperationConstraint(inventory, 'инвентаризация', Inventory);
