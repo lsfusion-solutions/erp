@@ -1493,7 +1493,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     findProperty("bankId").getMapping(idBankField));
             keys.add(bankKey);
             props.add(new ImportProperty(idBankField, findProperty("idBank").getMapping(bankKey)));
-            props.add(new ImportProperty(idBankField, findProperty("nameBank").getMapping(bankKey)));
+            props.add(new ImportProperty(idBankField, findProperty("nameBank").getMapping(bankKey), true));
             props.add(new ImportProperty(idBankField, findProperty("Bank.bankAccount").getMapping(accountKey),
                     LM.object(findClass("Bank")).getMapping(bankKey)));
             fields.add(idBankField);
