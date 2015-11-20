@@ -7,6 +7,7 @@ NAMESPACE Inventory;
 //------------------------------------------ Печатные формы -------------------------------------------------//
 
 //------------------------------------ Опись ------------------------------------------//
+countResponsiblePersonStockListInventory = TRUE IF [ =GROUP SUM 1 IF isOverResponsiblePersonStockEmployee(stockListInventory(l), e1) BY l](l);
 
 FORM printListInventoryBy 'Опись'
 
@@ -15,7 +16,8 @@ FORM printListInventoryBy 'Опись'
                     nameInventoryListInventory, nameListInventory, noteListInventory, committeeListInventory,
                     nameCommitteeListInventory, nameChairmanCommitteeListInventory, namePositionChairmanListInventory, nameEmployeeListInventory,
                     countPageInventoryListInventory, countPageInventoryDetailListInventory, quantityPageInventoryDetailListInventory,
-                    sumPageInventoryDetailListInventory, countIndexListInventory, countIndexBatchListInventory, isBatchListInventory, isSkuListInventory
+                    sumPageInventoryDetailListInventory, countIndexListInventory, countIndexBatchListInventory, isBatchListInventory, isSkuListInventory,
+                    countResponsiblePersonStockListInventory
 
     OBJECTS t = DATETIME FIXED PANEL
     PROPERTIES(t) dateTime = OBJVALUE
@@ -37,6 +39,10 @@ FORM printListInventoryBy 'Опись'
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   nameContact, namePositionEmployee
     FILTERS        inListInventoryEmployee(li, e)
+    
+    OBJECTS e1=Employee
+    PROPERTIES(e1) READONLY   nameContact, namePositionEmployee, shortNameContact, positionNameEmployee, positionShortNameEmployee
+    FILTERS    isOverResponsiblePersonStockEmployee(stockListInventory(li), e1)  
 ;
 
 DESIGN printListInventoryBy {
@@ -173,6 +179,8 @@ countIndexCollationSheet 'Количество наименований това
 countIndexBatchCollationSheet 'Количество наименований партий'(cs) = GROUP SUM 1 IF includeCollationSheetBatch(cs,b) 
     AND (quantityPageInventoryDetailCollationSheetBatch(cs,b) OR quantityBalanceCollationSheetBatch(cs,b))
         BY cs IN documentSum;     
+  
+countResponsiblePersonStockCollationSheet = TRUE IF [ =GROUP SUM 1 IF isOverResponsiblePersonStockEmployee(stockCollationSheet(cs), e1) BY cs](cs);
         
 FORM printCollationSheet 'Опись'
 
@@ -186,7 +194,8 @@ FORM printCollationSheet 'Опись'
                               sumItemPageInventoryDetailCollationSheet, sumContainerPageInventoryDetailCollationSheet,
                               sumItemBalanceCollationSheet, sumContainerBalanceCollationSheet, timeFromCollationSheet, timeToCollationSheet,
                               sumItemShortageCollationSheet, sumContainerShortageCollationSheet, isBatchCollationSheet, isSkuCollationSheet,
-                              countIndexCollationSheet, countIndexBatchCollationSheet, numberDisposalCollationSheet 
+                              countIndexCollationSheet, countIndexBatchCollationSheet, numberDisposalCollationSheet,
+                              countResponsiblePersonStockCollationSheet
 
     OBJECTS          i=Sku
     PROPERTIES(i)     SELECTOR nameSku, idBarcodeSku, idSku, shortNameUOMSku
@@ -207,8 +216,15 @@ FORM printCollationSheet 'Опись'
     
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   nameContact, namePositionEmployee
-    FILTERS        inCollationSheetEmployee(cs, e)    
+    FILTERS        inCollationSheetEmployee(cs, e)  
+      
+    OBJECTS e1=Employee
+    PROPERTIES(e1) READONLY   nameContact, namePositionEmployee, shortNameContact, positionNameEmployee, positionShortNameEmployee
+    FILTERS    isOverResponsiblePersonStockEmployee(stockCollationSheet(cs), e1)          
     
+    OBJECTS e2=Employee
+    PROPERTIES(e2) READONLY   nameContact, namePositionEmployee, shortNameContact, positionNameEmployee, positionShortNameEmployee
+    FILTERS    isOverResponsiblePersonStockEmployee(stockCollationSheet(cs), e2)     
 ;
 
 printCollationSheet 'Опись' (collationSheet) =
