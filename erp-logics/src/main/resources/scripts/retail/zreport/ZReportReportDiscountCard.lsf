@@ -9,14 +9,15 @@ countReceiptsDiscountCardDepartmentStoreDate 'Кол-во чеков по дис
         BY departmentStoreZReport(zReport), dateZReport(zReport);
         
 nameDiscountCardStock (stock)= nameStock(stock) + ' (кол-во чеков по диск.картам)';    
-  
+countReceiptsDiscountCardStocksDate 'Кол-во чеков по дисконтным картам' = GROUP SUM countReceiptsDiscountCardDepartmentStoreDate(st,dt) IF inReportStock(st) BY dt; 
         
 EXTEND FORM saleZreportStock 
-    PROPERTIES READONLY countReceiptsDiscountCardDepartmentStoreDate(st,dt)  COLUMNS (st) HEADER nameDiscountCardStock(st) AFTER countFiscalReceiptDepartmentStoreDate(st,dt)  
+    PROPERTIES READONLY SHOWIF showPropertyDepartmentStore(sts) countReceiptsDiscountCardDepartmentStoreDate(sts,d)  COLUMNS (sts) HEADER nameDiscountCardStock(sts) AFTER countFiscalReceiptDepartmentStoreDate(sts,d)  
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptsDiscountCardStocksDate(d) 
+
+    PROPERTIES READONLY SHOWIF showPropertyDepartmentStore(st) countReceiptsDiscountCardDepartmentStoreDate(st,dt)  COLUMNS (st) HEADER nameDiscountCardStock(st) AFTER countFiscalReceiptDepartmentStoreDate(st,dt)  
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptsDiscountCardStocksDate(dt)                       
 ;
-//DESIGN saleZreportStock {
-//    PROPERTY(countReceiptsDiscountCardDepartmentStoreDate(st,dt)) { background = #A9DBDB; } 
-//}
 
 EXTEND FORM receiptListPeriod
     PROPERTIES(r) READONLY AFTER nameEmployeeReceipt(r) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt
