@@ -155,23 +155,51 @@ META defineInvoiceOrder(sign, NS)
     currencyOrderInvoiceDetail (detail) = currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(detail)) PERSISTENT;
 
     priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
+
+    sumInvoiceUserOrderDetail 'Сумма' = DATA NUMERIC[16,2] (UserOrderDetail);
+    sumInvoiceOrderDetail 'Сумма' = ABSTRACT NUMERIC[16,2] (OrderDetail);
+    sumInvoiceOrderDetail(d) += sumInvoiceUserOrderDetail(d);
     
-    sumOrderDetailInvoiceDetail(invoiceDetail) = NUMERIC[16,2](roundPriceCurrency(invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail)) * priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail)), currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(invoiceDetail))));
-    VATSumOrderDetailInvoiceDetail(invoiceDetail) =  NUMERIC[16,2](roundPriceCurrency((sumOrderDetailInvoiceDetail(invoiceDetail) * calcValueVATUserOrderDetail (orderDetailOrderInvoiceDetail(invoiceDetail)) / 100), currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(invoiceDetail))));
-    invoiceSumOrderDetailInvoiceDetail(invoiceDetail) = sumOrderDetailInvoiceDetail(invoiceDetail) (+) VATSumOrderDetailInvoiceDetail(invoiceDetail);
+    sumInvoiceUserOrderDetail (orderDetail) <- NUMERIC[16,2](roundPriceCurrency(invoiceQuantityOrderDetail(orderDetail) * priceOrderDetail(orderDetail), currencyOrderDetail(orderDetail)))
+                    WHEN DO CHANGED(invoiceQuantityOrderDetail(orderDetail)) OR CHANGED (priceOrderDetail(orderDetail)) OR CHANGED(currencyOrderDetail(orderDetail));  
+
+    VATSumInvoiceUserOrderDetail 'Сумма НДС'  = DATA NUMERIC[16,2] (UserOrderDetail);
+    VATSumInvoiceOrderDetail 'Сумма НДС'  = ABSTRACT NUMERIC[16,2] (OrderDetail);
+    VATSumInvoiceOrderDetail(d) += VATSumInvoiceUserOrderDetail(d);
+    
+    VATSumInvoiceUserOrderDetail (orderDetail)  <- roundPriceCurrency((sumInvoiceOrderDetail(orderDetail) * calcValueVATOrderDetail (orderDetail) / 100), currencyOrderDetail(orderDetail))
+                    WHEN DO CHANGED(sumInvoiceOrderDetail(orderDetail)) OR CHANGED (calcValueVATOrderDetail (orderDetail)) OR CHANGED (currencyOrderDetail (orderDetail));
+    
+    invoiceSumInvoiceUserOrderDetail 'Сумма с НДС'  = DATA NUMERIC[16,2] (UserOrderDetail);
+    invoiceSumInvoiceOrderDetail 'Сумма с НДС'  = ABSTRACT NUMERIC[16,2] (OrderDetail);
+    invoiceSumInvoiceOrderDetail(d) += invoiceSumInvoiceUserOrderDetail(d);
+    
+    invoiceSumInvoiceUserOrderDetail (orderDetail) <- sumInvoiceOrderDetail(orderDetail) (+) VATSumInvoiceOrderDetail(orderDetail)
+        WHEN CHANGED(sumInvoiceOrderDetail(orderDetail)) OR CHANGED(VATSumInvoiceOrderDetail(orderDetail));
 
     quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    sumInvoiceDetail(invoiceDetail) += sumOrderDetailInvoiceDetail(invoiceDetail);
+    sumInvoiceDetail(invoiceDetail) += sumInvoiceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
     invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetailInvoiceDetail(invoiceDetail);
-    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetailInvoiceDetail(invoiceDetail);
+    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumInvoiceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    VATSumInvoiceDetail(invoiceDetail) += VATSumInvoiceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
     orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
     editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
     closeInvoice(invoice) += ACTION EXEC closeOrder(orderOrderInvoice(invoice)); 
     editInvoiceDetail(d) += ACTION EXEC editOrderDetail(orderDetailOrderInvoiceDetail(d));
+    
+    isNewOrderInvoiceDetail = DATA BOOLEAN ();
+    onStarted() += ACTION (){
+        IF NOT isNewOrderInvoiceDetail() THEN {
+            sumInvoiceUserOrderDetail(d) <- sumOrderDetail(d); 
+            VATSumInvoiceUserOrderDetail(d) <- VATSumOrderDetail(d); 
+            invoiceSumInvoiceUserOrderDetail(d) <- invoiceSumOrderDetail(d);
+            isNewOrderInvoiceDetail() <- TRUE;
+            apply();
+        }
+    }
 END
