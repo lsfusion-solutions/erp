@@ -211,6 +211,8 @@ inventoryPageInventoryDetail(pageInventoryDetail) = inventoryListInventory(listI
 @defineDocumentDetailIndex(pageInventory);
 @defineDocumentDetailSku(pageInventory, sku);
 
+nameSkuTypeSkuPageInventoryDetail 'Тип товара' (d) = nameSkuTypeSku(skuPageInventoryDetail(d));
+
 // Для инвентаризации по партиям
 @defineDocumentDetailBatchCustom(pageInventoryDetail, batch);
 
@@ -649,8 +651,19 @@ sumContainerManageShortageCollationSheet 'Сумма недостачи, тар�
                                                                                 ELSE sumContainerSkuShortageCollationSheet(collationSheet);
 
 //-------------------------------------- Проведение по товарному отчету ----------------------------------------------------//
-sumItemAccountBCollationSheet 'Сумма по ТО, товар' = PREV(sumItemAccountBDocumentLedgerDateTime(stockCollationSheet(collationSheet), dateTimeCollationSheet(collationSheet)));
-sumContainerAccountBCollationSheet 'Сумма по ТО, тара' = PREV(sumContainerAccountBDocumentLedgerDateTime(stockCollationSheet(collationSheet), dateTimeCollationSheet(collationSheet)));
+
+sumItemAccountBCollationSheet 'Сумма по ТО, товар' = DATA NUMERIC[16,2] (CollationSheet);
+sumContainerAccountBCollationSheet 'Сумма по ТО, тара' = DATA NUMERIC[16,2] (CollationSheet);
+recalculateSumAccountBCollationSheet 'Пересчитать остатки по ТО' = ACTION (c) {
+    sumItemAccountBCollationSheet(c) <- sumItemAccountBDocumentLedgerDateTime(stockCollationSheet(c), dateTimeCollationSheet(c));
+    sumContainerAccountBCollationSheet (c) <- sumContainerAccountBDocumentLedgerDateTime(stockCollationSheet(c), dateTimeCollationSheet(c));
+}
+
+WHEN SESSION CHANGED(stockCollationSheet(c)) OR CHANGED(dateTimeCollationSheet(c)) DO
+    recalculateSumAccountBCollationSheet(c);
+
+WHEN CHANGED(stockCollationSheet(c)) OR CHANGED(dateTimeCollationSheet(c)) DO
+    recalculateSumAccountBCollationSheet(c);
 
 sumItemAccountShortageCollationSheet = sumItemAccountBCollationSheet(collationSheet) (-) sumItemPageInventoryDetailCollationSheet (collationSheet); 
 sumContainerAccountShortageCollationSheet = sumContainerAccountBCollationSheet(collationSheet) (-) sumContainerPageInventoryDetailCollationSheet (collationSheet); 
@@ -690,6 +703,16 @@ DESIGN operation {
 }
 
 showAccountSumsCollationSheet = typeOfAdditionCollationSheet(c)==TypeOfAddition.remains AND isShortageStockDocumentInventory(inventoryCollationSheet(c)) PERSISTENT;
+
+migratedAccountSum = DATA BOOLEAN();
+onStarted() += ACTION {
+    IF NOT migratedAccountSum() THEN {
+        FOR showAccountSumsCollationSheet(c) DO {
+            recalculateSumAccountBCollationSheet(c);
+        }
+        migratedAccountSum() <- TRUE;
+    }
+}
 
 accountSumItemBalanceCollationSheet = IF showAccountSumsCollationSheet(collationSheet)
                                                             THEN sumItemAccountBCollationSheet(collationSheet)
@@ -749,14 +772,17 @@ TABLE inventorySkuDetail (InventorySkuDetail);
 CLASS OutInventorySkuDetail 'Недостача инвентаризации' : InventorySkuDetail;
 CLASS InInventorySkuDetail 'Излишки инвентаризации' : InventorySkuDetail;
 
-needToOutLedgerCollationSheetSku (collationSheet, sku) = (quantityShortageCollationSheetSku(collationSheet, sku) > 0  OR (sumShortageCollationSheetSku(collationSheet, sku) > 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
-    AND includeCollationSheetSku(collationSheet, sku) 
+needToOutLedgerCollationSheetSku (collationSheet, sku) = 
+    (quantityShortageCollationSheetSku(collationSheet, sku) > 0  OR (sumShortageCollationSheetSku(collationSheet, sku) > 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
+    AND includeCollationSheetSku(collationSheet, sku)
+    AND NOT skipSkuLedgerCollationSheet(collationSheet) 
 //    AND isPostedCollationSheet(collationSheet) 
     AND NOT isBatchCollationSheet(collationSheet);
 
 needToInLedgerCollationSheetSku (collationSheet, sku) = (quantityShortageCollationSheetSku(collationSheet, sku) < 0 OR (sumShortageCollationSheetSku(collationSheet, sku) < 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
     AND includeCollationSheetSku(collationSheet, sku) 
 //    AND isPostedCollationSheet(collationSheet) 
+    AND NOT skipSkuLedgerCollationSheet(collationSheet) 
     AND NOT isBatchCollationSheet(collationSheet);
 
 @defineAggregation(collationSheet, sku, outInventorySkuDetail, needToOutLedger);
@@ -805,14 +831,12 @@ quantityOutFIFOSkuLedger (ledger) += quantityOutInventorySkuDetail(ledger);
 @implementSkuLedgerOutFIFOBalance(outInventorySkuDetail, stock);
 sumOutSkuLedger (ledger) += sumOutInventorySkuDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetOutInventorySkuDetail(ledger);
-skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetOutInventorySkuDetail(ledger));
 
 EXTEND CLASS InInventorySkuDetail : InLIFOSkuLedger;
 quantityInLIFOSkuLedger (ledger) += quantityInInventorySkuDetail(ledger);
 @implementSkuLedgerInLIFOBalance(inInventorySkuDetail, stock);
 sumInSkuLedger (ledger) += sumInInventorySkuDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetInInventorySkuDetail(ledger);
-skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetInInventorySkuDetail(ledger));
 
 //---------------------------- Изменение остатка инвентаризации batch----------------------------//
 
@@ -824,11 +848,13 @@ CLASS InInventoryBatchDetail 'Излишки инвентаризации' : Inv
 
 needToOutLedgerCollationSheetBatch (collationSheet, batch) = quantityShortageCollationSheetBatch(collationSheet, batch) > 0
     AND includeCollationSheetBatch(collationSheet, batch) 
+    AND NOT skipSkuLedgerCollationSheet(collationSheet) 
 //    AND isPostedCollationSheet(collationSheet) 
     AND isBatchCollationSheet(collationSheet);
 
 needToInLedgerCollationSheetBatch (collationSheet, batch) = quantityShortageCollationSheetBatch(collationSheet, batch) < 0
     AND includeCollationSheetBatch(collationSheet, batch) 
+    AND NOT skipSkuLedgerCollationSheet(collationSheet) 
 //    AND isPostedCollationSheet(collationSheet) 
     AND isBatchCollationSheet(collationSheet);
 
@@ -885,14 +911,12 @@ quantityOutFIFOSkuLedger (ledger) += quantityOutInventoryBatchDetail(ledger);
 limitOutFIFOSkuLedgerBatch(ledger, batch) += quantityOutInventoryBatchDetail(ledger) IF batchInventoryBatchDetail(ledger) == batch;
 sumOutSkuLedger (ledger) += sumOutInventoryBatchDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetOutInventoryBatchDetail(ledger);
-skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetOutInventoryBatchDetail(ledger));
 
 EXTEND CLASS InInventoryBatchDetail : InLIFOSkuLedger;
 quantityInLIFOSkuLedger (ledger) += quantityInInventoryBatchDetail(ledger);
 limitInLIFOSkuLedgerBatch (ledger, batch) += quantityInInventoryBatchDetail(ledger) IF batchInventoryBatchDetail(ledger) == batch;
 sumInSkuLedger (ledger) += sumInInventoryBatchDetail(ledger);
 stockDocumentLedgerSkuLedger(ledger) += collationSheetInInventoryBatchDetail(ledger);
-skipSkuLedger (ledger) +=skipSkuLedgerCollationSheet(collationSheetInInventoryBatchDetail(ledger));
 
 //------------------------------------ Выбор складов для инвентаризации------------------------------------------//
 
@@ -987,7 +1011,7 @@ createPageListInventory 'Создать страницу описи с оста�
         FOR ADDOBJ p = PageInventory  DO {
             listInventoryPageInventory(p) <- listInventory;
             IF isBatchInventory(inventoryListInventory(listInventory)) THEN {
-                FOR (cnt == balanceBBatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) AND inSessionGroup(skuGroupSku(skuBatch(b)))) ADDOBJ d = PageInventoryDetail DO {
+                FOR (cnt == balanceBBatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) AND cnt > 0 AND inSessionGroup(skuGroupSku(skuBatch(b)))) AND (isItemSku(skuBatch(b)) OR isContainerSku(skuBatch(b))) ADDOBJ d = PageInventoryDetail DO {
                     pageInventoryPageInventoryDetail(d) <- p;
                     skuPageInventoryDetail(d) <- skuBatch(b);
                     batchPageInventoryDetail(d) <- b;
@@ -995,7 +1019,7 @@ createPageListInventory 'Создать страницу описи с оста�
                     pricePageInventoryDetail(d) <- accountPriceABatchStockDateTime(b, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory)));
                 }
             } ELSE {
-                FOR (cnt == balanceBSkuStockDateTime(sk, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) AND inSessionGroup(skuGroupSku(sk))) ORDER nameSku (sk) ADDOBJ d = PageInventoryDetail DO {
+                FOR (cnt == balanceBSkuStockDateTime(sk, stockListInventory(listInventory), dateTimeInventory(inventoryListInventory(listInventory))) AND cnt > 0 AND inSessionGroup(skuGroupSku(sk))) AND (isItemSku(sk) OR isContainerSku(sk)) ORDER nameSku (sk) ADDOBJ d = PageInventoryDetail DO {
                     pageInventoryPageInventoryDetail(d) <- p;
                     skuPageInventoryDetail(d) <- sk;
                     quantityPageInventoryDetail(d) <- cnt;
@@ -1018,7 +1042,7 @@ FORM listInventory 'Опись'
     FILTERS         listInventoryPageInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
-    PROPERTIES (dp) indexPageInventoryDetail, idSkuPageInventoryDetail SHOWIF showIDs(), idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail SHOWIF isBatchListInventory(li), 
+    PROPERTIES (dp) indexPageInventoryDetail, nameSkuTypeSkuPageInventoryDetail, idSkuPageInventoryDetail SHOWIF showIDs(), idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail SHOWIF isBatchListInventory(li), 
                     quantityGrid = quantityPageInventoryDetail, pricePageInventoryDetail,
                     sumPageInventoryDetail, ADDOBJ SHOWIF countPageInventoryListInventory(li), DELETESESSION
     FILTERS         listInventoryPageInventory(pageInventoryPageInventoryDetail(dp)) == li 
@@ -1197,7 +1221,7 @@ FORM inventory 'Инвентаризация'
     PROPERTIES(pl)   READONLY countPageInventoryDetailPageInventory, quantityPageInventoryDetailPageInventory, sumPageInventoryDetailPageInventory, dumbPageInventory
 
     OBJECTS          dp=PageInventoryDetail FIXED GRID
-    PROPERTIES (dp)  READONLY indexPageInventoryDetail, idSkuPageInventoryDetail SHOWIF showIDs(), idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail  SHOWIF isBatchListInventory(li),
+    PROPERTIES (dp)  READONLY indexPageInventoryDetail, nameSkuTypeSkuPageInventoryDetail, idSkuPageInventoryDetail SHOWIF showIDs(), idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail  SHOWIF isBatchListInventory(li),
                               quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
     FILTERS                   inInventoryStockListInventoryPageInventoryPageInventoryDetail(in, ds, li, pl, dp)
 
@@ -1218,7 +1242,7 @@ FORM inventory 'Инвентаризация'
     OBJECTS          cs=CollationSheet
     PROPERTIES (cs)              nameCollationSheet, nameTypeOfAdditionCollationSheet, nameStockCollationSheet, numberDisposalCollationSheet,
                                  quantityPageInventoryDetailCollationSheet, quantityBalanceCollationSheet, quantityShortageCollationSheet,
-                                 sumPageInventoryDetailCollationSheet, sumBalanceCollationSheet, sumItemAccountBCollationSheet SHOWIF showAccountSumsCollationSheet(cs), 
+                                 sumPageInventoryDetailCollationSheet, sumBalanceCollationSheet, sumItemAccountBCollationSheet SHOWIF showAccountSumsCollationSheet(cs) ON SHORTCUT recalculateSumAccountBCollationSheet(cs), 
                                  sumContainerAccountBCollationSheet SHOWIF showAccountSumsCollationSheet(cs), 
                                  sumShortageCollationSheet, sumItemPageInventoryDetailCollationSheetGrid = sumItemPageInventoryDetailCollationSheet, 
                                  sumItemShortageCollationSheetGrid = sumItemShortageCollationSheet, 
