@@ -1103,7 +1103,9 @@ backgroundBalanceSkuPriceStockOrder(s,o) = RGB (255,156,156) IF quantityComponen
 editSkuProductDetail 'Редактировать SKU' (d) = ACTION editSku(skuProductDetail(d));
 editBruttoSkuComponentDetail 'Редактировать SKU' (d) = ACTION editSku(bruttoSkuComponentDetail(d));
 
-showBOMQuantityOrder = ABSTRACT BOOLEAN (Order);
+showBOMQuantityOrder 'Показывать количество в спецификации' = DATA BOOLEAN (Order);
+showBOMQuantityProductDetail= showBOMQuantityOrder(orderProductDetail(pd));
+showBOMQuantityComponentDetail= showBOMQuantityOrder(orderComponentDetail(pd));
 
 FORM order 'Производственный заказ'
 
@@ -1112,7 +1114,7 @@ FORM order 'Производственный заказ'
                   nameProductsStockOrder ON CHANGE changeProductsStockCompanyOrder(o), nameNumeratorOrder, numberOrder, seriesOrder,
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, sumProductDetailOrder, 
                   quantityComponentDetailOrder, sumComponentDetailOrder, calcBOMPriceOrder, isPricePercentOrder, isPriceCoeffOrder 
-    PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder
+    PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder, showBOMQuantityOrder
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) indexProductDetail, nameSkuProductDetail ON EDIT editSkuProductDetail(pd), idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, 
                    shortNameUOMProductDetail, expiryDateProductDetail, manufactureDateProductDetail, BOMQuantityProductDetail READONLY SHOWIF showBOMQuantityOrder(o), quantityProductDetail,
@@ -1298,6 +1300,7 @@ DESIGN order {
                     MOVE PROPERTY (calcBOMPriceOrder(o));
                     MOVE PROPERTY (isPricePercentOrder(o));
                     MOVE PROPERTY (isPriceCoeffOrder(o));
+                    MOVE PROPERTY (showBOMQuantityOrder(o)); 
                 } 
             }
 
@@ -1675,8 +1678,7 @@ nameOperationProductDetail 'Операция' (d)= nameOperation(operationProduc
 operationComponentDetail (d) = operationOrder(orderComponentDetail(d));
 nameOperationComponentDetail 'Операция' (d)= nameOperation(operationComponentDetail (d));
 
-showBOMQuantityOrder(o) += showBOMQuantityOperation(operationOrder(o));
-
+@deriveDocumentOperationProperty(Order, showBOMQuantity);
 //-- Партия для строки компонента
 hideBatchComponentOperation 'Не показывать партии' = DATA BOOLEAN (Operation);
 EXTEND FORM operation
