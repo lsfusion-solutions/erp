@@ -14,6 +14,15 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceDetailDataSumCustomPrefix (invoiceDetail, charge, ' услуг'); // объявляем сумму услуг
 @deriveDocumentDetailSumCustomPrefix(userInvoiceDetail, charge, currency, quantity); // записываем сумму услуг
 
+@defineOperationProperty(isRateablyGrossWeight, 'Услуги расписывать пропорционально весу', commonContainer);
+
+isRateablyGrossWeightInvoice 'Услуги расписывать пропорционально весу' = ABSTRACT BOOLEAN (Invoice);
+isRateablyGrossWeightUserInvoice 'Услуги расписывать пропорционально весу' = DATA BOOLEAN (UserInvoice);
+isRateablyGrossWeightInvoice(i) += isRateablyGrossWeightUserInvoice(i);
+
+
+@deriveDocumentOperationProperty(userInvoice, isRateablyGrossWeight) ;
+
 extraCostPriceUserInvoiceDetail(detail) += chargePriceUserInvoiceDetail(detail);
 
 chargeSumUserInvoiceDetailUserInvoice 'Сумма услуг' (i) = GROUP SUM chargeSumUserInvoiceDetail(idetail)
@@ -39,9 +48,19 @@ changeChargePercentUserInvoice = ACTION (userInvoice) {
     setChargePercentUserInvoice(userInvoice, requestedNumeric());
 }
 
+changeChargeSumUserInvoiceDetailUserInvoiceExtra = ACTION (userInvoice, sum) {    
+    IF NOT isRateablyGrossWeightUserInvoice(userInvoice) THEN {
+        setChargePercentUserInvoice(userInvoice, sum * 100.000000 / (incomeSumUserInvoice(userInvoice) IF incomeSumUserInvoice(userInvoice) != 0));
+    } ELSE {
+        chargePercentUserInvoiceDetail(d) <- [= (X*Y)/(Z*W)*100.000000](sumGrossWeightUserInvoiceDetail(d),sum,sumGrossWeightUserInvoiceDetailUserInvoice(userInvoice),(incomePriceUserInvoiceDetail(d) * quantityUserInvoiceDetail(d)))  WHERE userInvoiceUserInvoiceDetail(d) == userInvoice; 
+// либо записывать сразу в цену услуги и не трогать процент
+//        chargePriceUserInvoiceDetail(d) <- [= (X*Y)/(Z*W)](sumGrossWeightUserInvoiceDetail(d),requestedNumeric(),sumGrossWeightUserInvoiceDetailUserInvoice(userInvoice),quantityUserInvoiceDetail(d))  WHERE userInvoiceUserInvoiceDetail(d) == userInvoice;
+    }    
+}
+
 changeChargeSumUserInvoiceDetailUserInvoice = ACTION (userInvoice) {
     REQUEST NUMERIC[16,2] INPUT;
-    setChargePercentUserInvoice(userInvoice, requestedNumeric() * 100.000000 / (incomeSumUserInvoice(userInvoice) IF incomeSumUserInvoice(userInvoice) != 0));
+    changeChargeSumUserInvoiceDetailUserInvoiceExtra(userInvoice,requestedNumeric());  
 }
 
 backgroundChargeInvoice 'Цвет' = RGB(224, 255, 128);
@@ -49,6 +68,7 @@ backgroundChargeInvoice 'Цвет' = RGB(224, 255, 128);
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice() showChargePriceUserInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice() SHOWIF showChargePriceUserInvoice(i)
+                                                        isRateablyGrossWeightUserInvoice,
                                                         chargePercentUserInvoice ON CHANGE changeChargePercentUserInvoice(i),
                                                         chargeSumUserInvoiceDetailUserInvoice ON CHANGE changeChargeSumUserInvoiceDetailUserInvoice(i)
     PROPERTIES(d) BACKGROUND backgroundChargeInvoice() SHOWIF showChargePriceUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
@@ -63,6 +83,7 @@ DESIGN userInvoice {
             type = COLUMNS;
             columns = 1;
             MOVE PROPERTY(showChargePriceUserInvoice(i));
+            MOVE PROPERTY(isRateablyGrossWeightUserInvoice(i));
             MOVE PROPERTY(chargePercentUserInvoice(i));
             MOVE PROPERTY(chargeSumUserInvoiceDetailUserInvoice(i));
         }
