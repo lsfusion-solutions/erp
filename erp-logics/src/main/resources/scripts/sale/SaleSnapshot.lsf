@@ -450,11 +450,11 @@ averageSoldSkuStockSnapshot 'Продаж в день' (sku, stock, snapshot) =
     saleQuantitySkuStockSnapshot(sku, stock, snapshot) /
     daysOnStockSkuStockSnapshot(sku, stock, snapshot);
 
-turnoverSkuStockSnapshot 'Товарооборачиваемость, дн.' (sku, stock, snapshot) = cumBalanceSkuStockSnapshot(sku, stock, snapshot) /
-    (saleSumSkuStockSnapshot(sku, stock, snapshot) IF saleSumSkuStockSnapshot(sku, stock, snapshot) != 0);
+turnoverSkuStockSnapshot 'Товарооборачиваемость, дн.' (sku, stock, snapshot) = NUMERIC[12,3](cumBalanceSkuStockSnapshot(sku, stock, snapshot) /
+    saleSumSkuStockSnapshot(sku, stock, snapshot));
     
-coutDaysToEndSkuStockSnapshot 'Дней хватит' (sku, stock, snapshot) = balanceASkuStockSnapshot(sku, stock, snapshot) / 
-    (averageSoldSkuStockSnapshot(sku, stock, snapshot) IF averageSoldSkuStockSnapshot(sku, stock, snapshot) != 0);
+coutDaysToEndSkuStockSnapshot 'Дней хватит' (sku, stock, snapshot) = NUMERIC[12,3](balanceASkuStockSnapshot(sku, stock, snapshot) / 
+    averageSoldSkuStockSnapshot(sku, stock, snapshot));
         
 //-- группа/склад       
 cumBalanceGroupStockSnapshot 'Накопленный остаток' (group, stock, snapshot) =
@@ -465,15 +465,15 @@ cumBalanceGroupStockSnapshot 'Накопленный остаток' (group, sto
 cumBalanceGroupSnapshot 'Накопленный остаток' (group, snapshot) =
     GROUP SUM cumBalanceGroupStockSnapshot(group, stock, snapshot) BY group, snapshot PERSISTENT;   
     
-turnoverGroupSnapshot 'Товарооборачиваемость, дн.' (group, snapshot) = cumBalanceGroupSnapshot(group, snapshot) /
-    (saleSumSkuGroupSnapshot(group, snapshot) IF saleSumSkuGroupSnapshot(group, snapshot) != 0);    
+turnoverGroupSnapshot 'Товарооборачиваемость, дн.' (group, snapshot) = NUMERIC[12,3](cumBalanceGroupSnapshot(group, snapshot) /
+    saleSumSkuGroupSnapshot(group, snapshot));    
          
 //--По складам 
 cumBalanceStockSnapshot 'Накопленный остаток' (stock, snapshot) =
     GROUP SUM cumBalanceSkuStockSnapshot(sku, stock, snapshot) BY stock, snapshot;            
 
-turnoverStockSnapshot 'Товарооборачиваемость, дн.' (stock, snapshot) = cumBalanceStockSnapshot(stock, snapshot) /
-    (saleSumStockSnapshot(stock, snapshot) IF saleSumStockSnapshot(stock, snapshot) != 0);          
+turnoverStockSnapshot 'Товарооборачиваемость, дн.' (stock, snapshot) = NUMERIC[12,3](cumBalanceStockSnapshot(stock, snapshot) /
+    saleSumStockSnapshot(stock, snapshot));          
  
 overCalcSaleSkuParamsInterval= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
 calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (snapshot, dateFrom, dateTo) {    
@@ -521,15 +521,15 @@ averageSoldBatchStockSnapshot 'Продаж в день' (batch, stock, snapshot
     saleQuantityBatchStockSnapshot(batch, stock, snapshot) /
     daysOnStockBatchStockSnapshot(batch, stock, snapshot);
 
-turnoverBatchStockSnapshot 'Товарооборачиваемость, дн.' (batch, stock, snapshot) = cumBalanceBatchStockSnapshot(batch, stock, snapshot) /
-    (saleSumBatchStockSnapshot(batch, stock, snapshot) IF saleSumBatchStockSnapshot(batch, stock, snapshot) != 0);
+turnoverBatchStockSnapshot 'Товарооборачиваемость, дн.' (batch, stock, snapshot) = NUMERIC[12,3](cumBalanceBatchStockSnapshot(batch, stock, snapshot) /
+    saleSumBatchStockSnapshot(batch, stock, snapshot));
     
 //-- По поставщикам   
 cumBalanceSupplierSnapshot 'Накопленный остаток' (supplier, snapshot) =
     GROUP SUM cumBalanceBatchStockSnapshot(batch, stock, snapshot) BY supplierBatch(batch), snapshot;  
     
-turnoverSupplierSnapshot 'Товарооборачиваемость, дн.' (supplier, snapshot) = cumBalanceSupplierSnapshot(supplier, snapshot) /
-    (saleSumBatchSupplierSnapshot(supplier, snapshot) IF saleSumBatchSupplierSnapshot(supplier, snapshot) != 0);      
+turnoverSupplierSnapshot 'Товарооборачиваемость, дн.' (supplier, snapshot) = NUMERIC[12,3](cumBalanceSupplierSnapshot(supplier, snapshot) /
+    saleSumBatchSupplierSnapshot(supplier, snapshot));      
     
 
 overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) +=  ACTION (snapshot, dateFrom, dateTo) {
