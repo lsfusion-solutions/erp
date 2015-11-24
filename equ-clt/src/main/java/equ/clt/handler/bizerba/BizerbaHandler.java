@@ -2,7 +2,10 @@ package equ.clt.handler.bizerba;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
-import equ.api.scales.*;
+import equ.api.scales.ScalesHandler;
+import equ.api.scales.ScalesInfo;
+import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.OrderedMap;
@@ -14,12 +17,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.apache.commons.lang.StringUtils.trimToEmpty;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public abstract class BizerbaHandler extends ScalesHandler {
 

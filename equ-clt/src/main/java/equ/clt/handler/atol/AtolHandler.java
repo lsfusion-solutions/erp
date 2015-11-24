@@ -3,7 +3,7 @@ package equ.clt.handler.atol;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.util.FileCopyUtils;
 
