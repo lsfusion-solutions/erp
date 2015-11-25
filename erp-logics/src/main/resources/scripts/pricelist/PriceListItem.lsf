@@ -45,6 +45,7 @@ changePricePriceListTypeSkuStock = ACTION (type, sku, stock) {   //-- todo: чт
         DELETE ledger WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock);
     }
 };                
+notePriceLIstPriceListDetail 'Примечание' = notePriceList(priceListPriceListDetail(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 EXTEND FORM item
     OBJECTS tc = DataPriceListType FIXED GRID
@@ -52,12 +53,27 @@ EXTEND FORM item
             FILTER 'С текущей ценой' currentPricePriceListTypeSkuStock  (tc, i, st2) 'F10'
             
     PROPERTIES  READONLY nameDataPriceListType(tc), includeVATPriceListType(tc), nameCurrencyDataPriceListType(tc), nameRoundConditionPriceListType(tc) 
-    PROPERTIES(tc, i, st2)  currentPricePriceListTypeSkuStock ON CHANGE  changePricePriceListTypeSkuStock(tc, i, st2)                           
-                      
+    PROPERTIES(tc, i, st2)  currentPricePriceListTypeSkuStock ON CHANGE  changePricePriceListTypeSkuStock(tc, i, st2) 
+                              
+    OBJECTS pd = PriceListDetail
+    PROPERTIES(pd) READONLY 
+           isPostedPriceListDetail FORCE GRID, seriesNumberPriceListDetail, dateTimePriceListDetail, 
+           fromDatePriceListDetail, fromTimePriceListDetail, toDatePriceListDetail, toTimePriceListDetail, 
+           nameCompanyPriceListDetail, nameCompanyStockPriceListDetail, priceListTypesPriceListDetail, stocksPriceListDetail, notePriceLIstPriceListDetail
+    ORDER BY dateTimePriceListDetail(pd)
+           
+    FILTERS skuPriceListDetail(pd)==i
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActivePriceListDetail(pd) 'F11'            
+        FILTER 'Активные' isActivePriceListDetail(pd) OR (fromDateTimePriceListDetail(pd) > currentDateTime()) 'F10' DEFAULT                      
 ;
 DESIGN item {
     calcPriceListTypePrm {
-        MOVE tc.box;
+        MOVE tc.box;        
+    }
+    itemDetail {
+        MOVE pd.box {caption = 'Прайс';}
     }
 }
+
 
