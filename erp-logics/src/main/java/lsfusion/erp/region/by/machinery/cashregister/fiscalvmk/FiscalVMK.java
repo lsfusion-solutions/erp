@@ -12,7 +12,7 @@ import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
-import static org.apache.commons.lang.StringUtils.trimToEmpty;
+import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class FiscalVMK {
 

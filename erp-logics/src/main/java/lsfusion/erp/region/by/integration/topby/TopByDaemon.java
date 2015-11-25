@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.commons.lang.StringUtils.trimToEmpty;
+import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
     private static final Logger logger = ServerLoggers.systemLogger;
