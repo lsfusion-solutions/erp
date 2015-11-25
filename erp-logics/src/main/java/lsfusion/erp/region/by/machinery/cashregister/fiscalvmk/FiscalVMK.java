@@ -364,6 +364,7 @@ public class FiscalVMK {
                         item.isGiftCard ? "1" : "0", trim(receipt.sumDisc), trim(receipt.sumCard), trim(receipt.sumCash),
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
+
             for(ReceiptItem item : receipt.receiptReturnList) {
                 sw.write(String.format("%s|%s|2|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,
                         trimToEmpty(item.barcode), item.name, item.price, item.quantity, item.sumPos, item.articleDiscSum,
