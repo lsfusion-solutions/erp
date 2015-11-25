@@ -48,7 +48,7 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static org.apache.commons.lang.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.trim;
 
 public class EquipmentServer extends LifecycleAdapter implements EquipmentServerInterface, InitializingBean {
     private static final Logger logger = Logger.getLogger(EquipmentServer.class);
