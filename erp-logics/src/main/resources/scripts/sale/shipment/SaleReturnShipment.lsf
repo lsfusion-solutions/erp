@@ -142,8 +142,37 @@ EXTEND FORM userShipment
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
 
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, supplierStock);
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, , , sku, supplierStock);
+shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail)
+
+                                                THEN OVERRIDE   costBatch(batchUserInvoiceDetail(detail)),
+                                                                prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                          batchUserInvoiceDetail(detail),
+                                                                                                          supplierStockUserInvoiceDetail(detail),
+                                                                                                          dateTimeUserInvoiceDetail(detail))
+                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                             skuUserInvoiceDetail(detail),
+                                                                                             supplierStockUserInvoiceDetail(detail),
+                                                                                             dateTimeUserInvoiceDetail(detail))
+                                                WHEN DO CHANGED(skuUserInvoiceDetail(detail)) OR
+                                                     CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+                                                     CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+                                                     CHANGED(batchUserInvoiceDetail(detail));
+
+priceUserShipmentDetail (detail)  <- IF batchUserShipmentDetail(detail)
+
+                                                THEN OVERRIDE costBatch(batchUserShipmentDetail(detail)),
+                                                              prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                        batchUserShipmentDetail(detail),
+                                                                                                        supplierStockUserShipmentDetail(detail),
+                                                                                                        dateTimeUserShipmentDetail(detail))
+                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                             skuUserShipmentDetail(detail),
+                                                                                             supplierStockUserShipmentDetail(detail),
+                                                                                             dateTimeUserShipmentDetail(detail))
+                                                WHEN DO CHANGED(skuUserShipmentDetail(detail)) OR
+                                                     CHANGED(supplierStockUserShipmentDetail(detail)) OR
+                                                     CHANGED(dateTimeUserShipmentDetail(detail)) OR
+                                                     CHANGED(batchUserShipmentDetail(detail));
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 @implementStockDocumentLedgerInc(Shipment, supplierStock);
