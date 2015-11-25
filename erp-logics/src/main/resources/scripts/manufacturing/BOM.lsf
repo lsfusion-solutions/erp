@@ -1188,10 +1188,10 @@ bruttoQuantityBOMMaterialDate (BOM, material, date) = GROUP SUM bruttoQuantityCo
 
 bruttoQuantityBOMSkuDate(BOM, sku, date) = bruttoQuantityBOMMaterialDate(BOM, sku, date) IF sku IS Sku;
 
-bruttoQuantityBOMBOM (parent, child) = GROUP MAX bruttoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material) PERSISTENT;
+bruttoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](bruttoQuantityBOMMaterial(BOM, material) / quantityProduct(material)) BY BOM, BOMProduct(material) PERSISTENT;
 
 TABLE BOMBOM(BOM, BOM);
-TABLE BOMBOMResult(BOM, BOM, NUMERIC[22,11]);
+TABLE BOMBOMResult(BOM, BOM, NUMERIC[20,11]);
 
 recBruttoQuantityBOMBOMResult (parent, child, q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
 recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
@@ -1204,7 +1204,7 @@ recBruttoQuantityBOMComponentDate (BOM, sku, date) = GROUP SUM recBruttoQuantity
 recBruttoNodeQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date; //](BOM, sku);
 
 // Расчет цены
-priceCoeffBOMBOM(parent, child) = GROUP SUM bruttoQuantityBOMMaterial(BOM, material) * priceCoeffProduct(material) / quantityProduct(material) BY BOM, BOMProduct(material) PERSISTENT;
+priceCoeffBOMBOM(parent, child) = GROUP SUM NUMERIC[20,11](bruttoQuantityBOMMaterial(BOM, material) * priceCoeffProduct(material) / quantityProduct(material)) BY BOM, BOMProduct(material) PERSISTENT;
 
 recPriceCoeffBOMBOMResult (parent, child, q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES NO) PERSISTENT;
 recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
@@ -1219,7 +1219,7 @@ recPriceCoeffBOMSkuDate (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOM(BOM, ch
 nettoQuantityBOMMaterial 'Кол-во нетто компонентов в документе' (BOM, material) = GROUP SUM nettoQuantityComponent(component) BY BOMComponent(component), materialComponent(component);
 nettoQuantityBOMSku(BOM, sku) = nettoQuantityBOMMaterial(BOM, sku) IF sku IS Sku;
 
-nettoQuantityBOMBOM (parent, child) = GROUP MAX nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material) BY BOM, BOMProduct(material) PERSISTENT;
+nettoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material)) BY BOM, BOMProduct(material) PERSISTENT;
 
 recNettoQuantityBOMBOMResult (parent, child, q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
 recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
