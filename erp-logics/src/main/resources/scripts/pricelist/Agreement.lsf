@@ -159,6 +159,13 @@ CONSTRAINT currencyAgreement(agreement) != currencyPriceListType(priceListTypeAg
            CHECKED BY priceListTypeAgreement
            MESSAGE 'Валюта соглашения должна совпадать с валютой вида цены';
 
+returnPriceListTypeAgreement 'Вид цены (возврат)' (agreement) = DATA PriceListType (Agreement);
+nameReturnPriceListTypeAgreement 'Вид цены (возврат)' (agreement) = namePriceListType(returnPriceListTypeAgreement(agreement));
+
+CONSTRAINT currencyAgreement(agreement) != currencyPriceListType(returnPriceListTypeAgreement(agreement))
+           CHECKED BY returnPriceListTypeAgreement
+           MESSAGE 'Валюта соглашения должна совпадать с валютой вида цены (возврат)';
+
 // Уточнение по группам
 groupTypeAgreement = DATA GroupType (Agreement);
 nameGroupTypeAgreement 'Тип классификатора' (agreement) = nameGroupType(groupTypeAgreement(agreement));
@@ -220,6 +227,8 @@ priceListTypeAgreementSku (agreement, sku) = OVERRIDE priceListTypeAgreement(agr
                                                       priceListTypeAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
                                                       dataPriceListTypeAgreementSku(agreement, sku);
 
+returnPriceListTypeAgreementSku (agreement, sku) = OVERRIDE returnPriceListTypeAgreement(agreement) IF sku IS Sku;
+
 namePriceListTypeAgreementSku 'Вид цены' = namePriceListType(priceListTypeAgreementSku(agreement, sku));
 
 // ------------------------------------------- Условия оплаты ------------------------------------- //
@@ -235,7 +244,7 @@ FORM agreement 'Соглашение'
     OBJECTS a = Agreement FIXED PANEL
     PROPERTIES(a) nameAgreement, idAgreement, nameNumeratorAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                   fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
-                  nameCurrencyAgreement, namePriceListTypeAgreement, descriptionPaymentConditionAgreement, nameGroupTypeAgreement, noteAgreement
+                  nameCurrencyAgreement, namePriceListTypeAgreement, nameReturnPriceListTypeAgreement, descriptionPaymentConditionAgreement, nameGroupTypeAgreement, noteAgreement
 
     TREE supplierGroupTree f = LegalEntityGroup PARENT parentLegalEntityGroup
     PROPERTIES READONLY fTreeName = nameLegalEntityGroup(f)
@@ -310,6 +319,7 @@ DESIGN agreement {
         columns = 2;
         MOVE PROPERTY(nameCurrencyAgreement(a));
         MOVE PROPERTY(namePriceListTypeAgreement(a));
+        MOVE PROPERTY(nameReturnPriceListTypeAgreement(a));
         MOVE PROPERTY(descriptionPaymentConditionAgreement(a));
         MOVE PROPERTY(noteAgreement(a));
     }
@@ -404,6 +414,7 @@ copyDataAgreement = ACTION (s, d) {
 
     currencyAgreement(d) <- currencyAgreement(s);
     priceListTypeAgreement(d) <- priceListTypeAgreement(s);
+    returnPriceListTypeAgreement(d) <- returnPriceListTypeAgreement(s);
     noteAgreement(d) <- noteAgreement(s);
     groupTypeAgreement(d) <- groupTypeAgreement(s);
 
@@ -620,17 +631,17 @@ META defineDocumentInterfaceAgreement (object)
 END
 
 
-META deriveDocumentDetailPriceListTypeAgreement (object, detail)
+META deriveDocumentDetailPriceListTypeAgreement (object, detail, prefix)
     WHEN SESSION
         (CHANGED(agreement###object(object###detail(d))) OR
          CHANGED(priceListType###object(object###detail(d))) OR
          CHANGED(sku###detail(d))) AND NOT CHANGED(priceListType###detail(d)) DO {
             priceListType###detail(d) <- OVERRIDE priceListType###object(object###detail(d)),
-                                         priceListTypeAgreementSku(agreement###object(object###detail(d)), sku###detail(d));                                         
+                                         prefix###priceListTypeAgreementSku(agreement###object(object###detail(d)), sku###detail(d));                                         
         }
 END
-META deriveDocumentDetailPriceListTypeAgreement (object)
-    @deriveDocumentDetailPriceListTypeAgreement(object, object###detail);
+META deriveDocumentDetailPriceListTypeAgreement (object, prefix)
+    @deriveDocumentDetailPriceListTypeAgreement(object, object###detail, prefix);
 END
 
 //--------------------------------------- Для двух объектов (object1 - документ)----------------------------------------------------------//

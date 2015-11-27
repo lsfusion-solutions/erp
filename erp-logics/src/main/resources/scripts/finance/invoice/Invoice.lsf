@@ -138,7 +138,7 @@ DESIGN options {
 }
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
-META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
+META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTypePrefix, NS)
 
     CLASS ABSTRACT Invoice 'Накладная'###sign : Invoice.Invoice;
     CLASS ABSTRACT InvoiceDetail 'Строка накладной'###sign : Invoice.InvoiceDetail;
@@ -334,7 +334,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     priceRoundInvoiceDetail (detail) = OVERRIDE defaultRoundCurrency(currencyInvoiceDetail(detail)), overPriceRoundUserInvoiceDetail(detail); 
 
     @defineDocumentInterfacePriceListType(invoice); // объявляем вид цены
-    @deriveDocumentDetailPriceListTypeAgreement(userInvoice); // записываем вид цены из соглашения
+    @deriveDocumentDetailPriceListTypeAgreement(userInvoice, priceListTypePrefix); // записываем вид цены из соглашения
 //    @deriveDocumentDetailPricePriceListTypeVAT (userInvoice, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
     @defineDocumentInterfaceDetailDataSum(invoice); // объявляем сумму без НДС
@@ -599,7 +599,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     CONSTRAINT equalSkuVATInvoices() AND VATUserInvoiceDetail(d) AND isPostedUserInvoiceDetail(d) AND NOT overVATUserInvoiceDetail(d) == VATUserInvoiceDetail(d)
         MESSAGE 'НДС в строке накладной '##sign##' не соответствует НДС для SKU';        
     // Добавляем подбор товаров / партий
-    @defineDocumentSkuPriceListTypeAgreement(userInvoice, stockProp);
+    @defineDocumentSkuPriceListTypeAgreement(userInvoice, stockProp, priceListTypePrefix);
     @extendFormDocumentSkuPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
 
     addUserInvoice 'Добавить' = ACTION ADDFORM UserInvoice;
@@ -856,7 +856,7 @@ END
 
 // -------------------------- Метакод по добавлению партий ------------------------- //
 
-META defineInvoiceBatch(stockProp, NS, sign)
+META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign)
     @showDocumentInterfaceDetailBatch(invoice);
     
     @defineDocumentInterfaceDetailBatch(invoice, batch); 
@@ -878,7 +878,7 @@ META defineInvoiceBatch(stockProp, NS, sign)
     @defineMovementBatch(userInvoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор по партиям
-    @defineDocumentBatchPriceListTypeAgreement(userInvoice, stockProp);
+    @defineDocumentBatchPriceListTypeAgreement(userInvoice, stockProp, priceListTypePrefix);
     @extendFormDocumentBatchPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
     
     // Подбор документа
