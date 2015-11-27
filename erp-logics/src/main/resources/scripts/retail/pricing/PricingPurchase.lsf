@@ -32,12 +32,15 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(retailPric
 // Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
 extraCalcRetailCalcPriceListTypeUserInvoiceDetail= ABSTRACT CalcPriceListType(UserInvoiceDetail);
 
+skipSetRetailPriceListTypeUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
 WHEN SESSION FORMS userInvoice
     (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
      CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
      CHANGED(skuUserInvoiceDetail(detail)) OR
      CHANGED(customerStockUserInvoiceDetail(detail)) OR
-     (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
+     (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
+     AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail)
+     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
      retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
                                                                                                 skuUserInvoiceDetail(detail),
                                                                                                 customerStockUserInvoiceDetail(detail),
@@ -50,7 +53,9 @@ WHEN SESSION FORMS userInvoice
      CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
      CHANGED(skuUserInvoiceDetail(detail)) OR
      CHANGED(customerStockUserInvoiceDetail(detail)) OR
-     (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail) DO
+     (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
+     AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail)
+     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) DO
      retailPriceListTypeUserInvoiceDetail(detail) <- OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);     
      
 //fillRetailPriceListTypeUserInvoiceDetailAll 'Пересчитать цену для всех'  = ACTION (detail) { // нужно чтобы еще сработали SESSION потом, которые изменяют цену и надбавку
