@@ -213,8 +213,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     toShowGenDayMonth (scheduleOrder) = typeScheduleOrder(scheduleOrder) == GenType.genDayMonth;
     toShowMonths (scheduleOrder) = typeScheduleOrder(scheduleOrder) == GenType.genDayMonth AND NOT inAllMonthScheduleOrder(scheduleOrder);
     
-    dateOrderScheduleOrderDetail 'Дата заказа' = DATA DATE (ScheduleOrderDetail) IN base;
-    dateSupplyScheduleOrderDetail 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN base;
+    dateOrderScheduleOrderDetail 'Дата заказа' = DATA DATE (ScheduleOrderDetail) IN recognize;
+    dateSupplyScheduleOrderDetail 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN recognize;
     
     isClosedScheduleOrderDetail  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
     isOpenedScheduleOrderDetail  'Не аннулирован' (o) = o IS ScheduleOrderDetail  AND NOT isClosedScheduleOrderDetail (o) PERSISTENT;
@@ -237,7 +237,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     nameOperationScheduleOrderDetail 'Операция' (scheduleOrderDetail) = nameOperation(operationScheduleOrderDetail(scheduleOrderDetail));    
 
     supplierScheduleOrderDetail(scheduleOrderDetail) = supplierScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
-    nameSupplierScheduleOrderDetail 'Поставщик' (scheduleOrderDetail) = nameLegalEntity(supplierScheduleOrderDetail(scheduleOrderDetail));
+    nameSupplierScheduleOrderDetail 'Поставщик' (scheduleOrderDetail) = nameLegalEntity(supplierScheduleOrderDetail(scheduleOrderDetail)) IN recognize;
 
     customerScheduleOrderDetail(scheduleOrderDetail) = customerScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
     nameCustomerScheduleOrderDetail 'Покупатель' (scheduleOrderDetail) = nameLegalEntity(customerScheduleOrderDetail(scheduleOrderDetail));
@@ -249,7 +249,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 //    nameCustomerStockScheduleOrderDetail 'Склад покупателя' (scheduleOrderDetail) = nameStock(customerStockScheduleOrderDetail(scheduleOrderDetail));
 
     customerStockScheduleOrderDetail(scheduleOrderDetail) = DATA Stock (ScheduleOrderDetail);
-    nameCustomerStockScheduleOrderDetail 'Склад покупателя' (scheduleOrderDetail) = nameStock(customerStockScheduleOrderDetail(scheduleOrderDetail));
+    nameCustomerStockScheduleOrderDetail 'Склад покупателя' (scheduleOrderDetail) = nameStock(customerStockScheduleOrderDetail(scheduleOrderDetail)) IN recognize;
     
     countDetailsScheduleOrderDateSupplyDateOrder (scheduleOrder, dateSupply, dateOrder, customerStock)= GROUP SUM 1
         BY  scheduleOrderScheduleOrderDetail(d), dateSupplyScheduleOrderDetail(d), dateOrderScheduleOrderDetail(d), customerStockScheduleOrderDetail(d);   
