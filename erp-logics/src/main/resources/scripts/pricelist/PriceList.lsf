@@ -210,11 +210,12 @@ inPriceListStockGroup 'Отм' (priceList, stockGroup) = OVERRIDE
     inParentPriceListStockGroup (priceList, stockGroup),
     dataInPriceListStockGroup(priceList, stockGroup);
 
+allowStockPriceList = ABSTRACT BOOLEAN (Stock, PriceList);
+
 inPriceListStock 'Отм' (priceList, stock) =
     (OVERRIDE inPriceListStockGroup(priceList, stockGroupStock(stock)),
               dataInPriceListStock(priceList, stock))
-    AND isCompanyStock(stock) PERSISTENT;
-       
+    AND allowStockPriceList(stock, priceList) PERSISTENT;     
              
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    
 
@@ -487,6 +488,10 @@ originalIdBarcodeSkuPriceListDetail(d) += originalIdBarcodeSkuUserPriceListDetai
 showOriginalIdBarcodeSkuPriceList 'Штрихкод поставщика' = ABSTRACT BOOLEAN (PriceList);
 showOriginalIdBarcodeSkuUserPriceList 'Штрихкод поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
 showOriginalIdBarcodeSkuPriceList(d) += showOriginalIdBarcodeSkuUserPriceList(d); 
+
+showNotCompanyStocksPriceList 'Склады контрагентов' =  ABSTRACT BOOLEAN (PriceList);   
+showNotCompanyStocksUserPriceList 'Склады контрагентов' =  DATA BOOLEAN (PriceList);  
+showNotCompanyStocksPriceList(p) += showNotCompanyStocksUserPriceList(p);
       
 @defineMovementSku(priceListDetail); //-- показываем по нажатию правой клавиши движение товара
 @defineMovementSku(userPriceListDetail); //-- показываем по нажатию правой клавиши движение товара
@@ -498,6 +503,11 @@ showOriginalIdBarcodeSkuPriceList(d) += showOriginalIdBarcodeSkuUserPriceList(d)
 
 @defineMovementPriceSku(priceListDetail); //-- показываем по нажатию правой клавиши изменение цены товара
 @defineMovementPriceSku(userPriceListDetail); //-- показываем по нажатию правой клавиши  изменение цены товара      
+
+showPriceListStock (priceList, stock) = IF showNotCompanyStocksPriceList(priceList) THEN stock IS Stock
+                                                                                               ELSE isCompanyStock(stock); 
+
+allowStockPriceList(stock, priceList) += showPriceListStock (priceList, stock);                                                                                                               
       
 FORM userPriceList 'Прайс'
     OBJECTS p = UserPriceList FIXED PANEL
@@ -506,7 +516,8 @@ FORM userPriceList 'Прайс'
                   fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
                   nameCurrencyUserPriceList, nameCompanyUserPriceList, nameCompanyStockUserPriceList, noteUserPriceList,
                   nameGroupTypeS = nameGroupTypeUserPriceList, nameGroupTypeP = nameGroupTypeUserPriceList,
-                  showBatchUserPriceList, showCompanyUserPriceList, showDateTimeUserPriceList, showOriginalIdBarcodeSkuUserPriceList, showOriginalNameSkuUserPriceList
+                  showBatchUserPriceList, showCompanyUserPriceList, showDateTimeUserPriceList, showOriginalIdBarcodeSkuUserPriceList, 
+                  showOriginalNameSkuUserPriceList, showNotCompanyStocksUserPriceList
 
     OBJECTS t = PriceListType
     PROPERTIES(t) READONLY namePriceListType, includeVATLedgerPriceListType FORCE GRID
@@ -562,7 +573,7 @@ FORM userPriceList 'Прайс'
 //    PROPERTIES(d, to, ts) currentPriceUserPriceListDetailPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
 //    PROPERTIES(d, th, ts) changePriceUserPriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th)
     FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ts),
-            isCompanyStock(ts)
+            showPriceListStock(p, ts)
     FILTERGROUP filters2
             FILTER 'Выбранные склады' inPriceListStock(p, ts) 'F10'
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
@@ -585,7 +596,7 @@ FORM userPriceList 'Прайс'
 
     OBJECTS ts2 = Stock FIXED PANEL
     PROPERTIES(ts2) SELECTOR nameStock
-    FILTERS inPriceListStock(p, ts2),
+    FILTERS isCompanyStock(ts2),
             isCompanyStock(ts2)
     PROPERTIES(p) FORCE PANEL nameFilterPriceListTypeUserPriceList
 
@@ -727,6 +738,7 @@ DESIGN userPriceList {
             MOVE PROPERTY(showBatchUserPriceList(p)); 
             MOVE PROPERTY(showCompanyUserPriceList(p));
             MOVE PROPERTY(showDateTimeUserPriceList(p));
+            MOVE PROPERTY(showNotCompanyStocksUserPriceList(p));
         }         
     }
 
