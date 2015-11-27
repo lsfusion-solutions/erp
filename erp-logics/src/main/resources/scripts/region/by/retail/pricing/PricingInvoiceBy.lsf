@@ -13,8 +13,8 @@ META defineInvoicePricingByAggregation(dumb)
                     WHEN CHANGED(retailMarkupSumUserInvoiceDetail(detail)) OR CHANGED (pricingQuantityUserInvoiceDetail(detail));
 
     calcRetailMarkupPriceUserInvoiceDetail(userInvoiceDetail, markupPrice)  = roundPriceRoundCondition(NUMERIC[14,2]([= (X (+) Y)*(Z+100)/100](
-        pricingPriceUserInvoiceDetail(userInvoiceDetail),
-        markupPrice,
+        pricingPriceUserInvoiceDetail(userInvoiceDetail) IF markupPrice IS NUMERIC[20,7],
+        markupPrice AS NUMERIC[20,7] IF userInvoiceDetail IS UserInvoiceDetail,
         valueRetailVATUserInvoiceDetail(userInvoiceDetail))), roundConditionMarkupPrice());                    
                     
     changeMarkupPriceUserInvoiceDetail = ACTION (userInvoiceDetail) {
