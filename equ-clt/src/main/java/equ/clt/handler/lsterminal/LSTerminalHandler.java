@@ -194,8 +194,9 @@ public class LSTerminalHandler extends TerminalHandler {
             Set<String> directorySet = new HashSet<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
-                if (t.directory != null)
+                if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("InventoryTechHandler")) {
                     directorySet.add(t.directory);
+                }
             }
 
             List<String> filePathList = new ArrayList<>();
@@ -558,20 +559,36 @@ public class LSTerminalHandler extends TerminalHandler {
 
     private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
         if (listNotEmpty(terminalOrderList)) {
-            Statement statement = connection.createStatement();
-            String sql = "BEGIN TRANSACTION;";
-            for (TerminalOrder order : terminalOrderList) {
-                if (order.number != null) {
-                    String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
-                    sql += String.format("INSERT OR REPLACE INTO zayavki VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.date), formatValue(order.number), supplier, formatValue(order.barcode),
-                            formatValue(order.quantity), formatValue(order.price), formatValue(order.minQuantity),
-                            formatValue(order.maxQuantity), formatValue(order.minPrice), formatValue(order.maxPrice));
+
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalOrder order : terminalOrderList) {
+                    if (order.number != null) {
+                        String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
+                        statement.setObject(1, formatValue(order.date));
+                        statement.setObject(2, formatValue(order.number));
+                        statement.setObject(3,supplier);
+                        statement.setObject(4,formatValue(order.barcode));
+                        statement.setObject(5,formatValue(order.quantity));
+                        statement.setObject(6,formatValue(order.price));
+                        statement.setObject(7,formatValue(order.minQuantity));
+                        statement.setObject(8,formatValue(order.maxQuantity));
+                        statement.setObject(9,formatValue(order.minPrice));
+                        statement.setObject(10,formatValue(order.maxPrice));
+                        statement.addBatch();
+                    }
                 }
+                statement.executeBatch();
+                connection.commit();
+
+            } finally {
+                if(statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
             }
-            sql += "COMMIT;";
-            statement.executeUpdate(sql);
-            statement.close();
         }
     }
 

@@ -77,7 +77,7 @@ public class InventoryTechHandler extends TerminalHandler {
                         createBasesUpdFile(path);
 
                     } catch (Exception e) {
-                        processTransactionLogger.error(e);
+                        processTransactionLogger.error("InventoryTech Error: ", e);
                         throw Throwables.propagate(e);
                     }
                 }
@@ -141,7 +141,7 @@ public class InventoryTechHandler extends TerminalHandler {
             Map<String, Integer> groupIds = new HashMap<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
-                if (t.directory != null) {
+                if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("InventoryTechHandler")) {
                     directorySet.add(t.directory);
                     groupIds.put(t.directory, t.numberGroup);
                 }
@@ -218,7 +218,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
             return new InventoryTerminalDocumentBatch(terminalDocumentDetailList, docRecordsMap);
         } catch (Exception e) {
-            sendTerminalDocumentLogger.error(e);
+            sendTerminalDocumentLogger.error("InventoryTech Error: ", e);
             throw Throwables.propagate(e);
         }
     }
