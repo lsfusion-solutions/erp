@@ -62,7 +62,7 @@ public class LSTerminalHandler extends TerminalHandler {
                     }
                 }
             } catch (Exception e) {
-                processTransactionLogger.error(e);
+                processTransactionLogger.error("LSTerminal Error: ", e);
                 exception = e;
             }
             sendTransactionBatchMap.put(((TransactionTerminalInfo) transactionInfo).id, new SendTransactionBatch(exception));
@@ -118,7 +118,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 }
             }
         } catch (Exception e) {
-            machineryExchangeLogger.error(e);
+            machineryExchangeLogger.error("LSTerminal Error: ", e);
             throw Throwables.propagate(e);
         }
     }
@@ -138,18 +138,23 @@ public class LSTerminalHandler extends TerminalHandler {
                     connection = DriverManager.getConnection("jdbc:sqlite:" +
                             makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal));
 
+                    processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table Goods", transactionInfo.id));
                     createGoodsTableIfNotExists(connection);
                     updateGoodsTable(connection, transactionInfo);
 
+                    processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table Assort", transactionInfo.id));
                     createAssortTableIfNotExists(connection);
                     updateAssortTable(connection, transactionInfo);
 
+                    processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table VAN", transactionInfo.id));
                     createVANTableIfNotExists(connection);
                     updateVANTable(connection, transactionInfo);
 
+                    processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table ANA", transactionInfo.id));
                     createANATableIfNotExists(connection);
                     updateANATable(connection, transactionInfo);
 
+                    processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table VOP", transactionInfo.id));
                     createVOPTableIfNotExists(connection);
                     updateVOPTable(connection, transactionInfo);
                 } finally {
@@ -158,7 +163,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 }
 
             } catch (Exception e) {
-                processTransactionLogger.error(e);
+                processTransactionLogger.error("LSTerminal Error: ", e);
                 throw Throwables.propagate(e);
             }
         } else {
@@ -265,7 +270,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
             return new TerminalDocumentBatch(terminalDocumentDetailList, filePathList);
         } catch (Exception e) {
-            sendTerminalDocumentLogger.error(e);
+            sendTerminalDocumentLogger.error("LSTerminal Error: ", e);
             throw Throwables.propagate(e);
         }
     }
@@ -328,17 +333,24 @@ public class LSTerminalHandler extends TerminalHandler {
 
     private void updateANATable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         if (listNotEmpty(transactionInfo.terminalLegalEntityList)) {
-            String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '');";
-            PreparedStatement statement = connection.prepareStatement(sql);
-            for (TerminalLegalEntity legalEntity : transactionInfo.terminalLegalEntityList) {
-                if (legalEntity.idLegalEntity != null) {
-                    statement.setString(1, "ПС" + formatValue(legalEntity.idLegalEntity));
-                    statement.setString(2, (String) formatValue(legalEntity.nameLegalEntity));
-                    statement.addBatch();
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '');";
+                statement = connection.prepareStatement(sql);
+                for (TerminalLegalEntity legalEntity : transactionInfo.terminalLegalEntityList) {
+                    if (legalEntity.idLegalEntity != null) {
+                        statement.setObject(1, "ПС" + formatValue(legalEntity.idLegalEntity));
+                        statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
+                        statement.addBatch();
+                    }
                 }
+                statement.executeBatch();
+            } finally {
+                if (statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
             }
-            statement.executeBatch();
-            statement.close();
         }
     }
 
@@ -358,16 +370,30 @@ public class LSTerminalHandler extends TerminalHandler {
 
     private void updateVOPTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         if (listNotEmpty(transactionInfo.terminalDocumentTypeList)) {
-            Statement statement = connection.createStatement();
-            String sql = "BEGIN TRANSACTION;";
-            for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
-                if (tdt.id != null)
-                    sql += String.format("INSERT OR REPLACE INTO vop VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(tdt.id), "", formatValue(tdt.name), formatValue(tdt.analytics1), formatValue(tdt.analytics2), "", formatValue(tdt.flag == null ? "1" : tdt.flag));
+
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO vop VALUES(?, ?, ?, ?, ?, ?, ?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
+                    if (tdt.id != null) {
+                        statement.setObject(1, "ПС" + formatValue(tdt.id));
+                        statement.setObject(2, "");
+                        statement.setObject(3, formatValue(tdt.name));
+                        statement.setObject(4, formatValue(tdt.analytics1));
+                        statement.setObject(5, formatValue(tdt.analytics2));
+                        statement.setObject(6, "");
+                        statement.setObject(7, formatValue(tdt.flag == null ? "1" : tdt.flag));
+                        statement.addBatch();
+                    }
+                }
+                statement.executeBatch();
+            } finally {
+                if (statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
             }
-            sql += "COMMIT;";
-            statement.executeUpdate(sql);
-            statement.close();
         }
     }
 
@@ -389,16 +415,25 @@ public class LSTerminalHandler extends TerminalHandler {
             statement.close();
         }
         if (listNotEmpty(transactionInfo.terminalAssortmentList)) {
-            Statement statement = connection.createStatement();
-            String sql = "BEGIN TRANSACTION;";
-            for (TerminalAssortment assortment : transactionInfo.terminalAssortmentList) {
-                if (assortment.idBarcode != null && assortment.idSupplier != null)
-                    sql += String.format("INSERT OR REPLACE INTO assort VALUES('%s', '%s');",
-                            ("ПС" + assortment.idSupplier), assortment.idBarcode);
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalAssortment assortment : transactionInfo.terminalAssortmentList) {
+                    if (assortment.idBarcode != null && assortment.idSupplier != null) {
+                        statement.setObject(1, formatValue(("ПС" + assortment.idSupplier)));
+                        statement.setObject(2, formatValue(assortment.idBarcode));
+                        statement.addBatch();
+                    }
+                }
+                statement.executeBatch();
+                connection.commit();
+            } finally {
+                if (statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
             }
-            sql += "COMMIT;";
-            statement.executeUpdate(sql);
-            statement.close();
         }
     }
 
@@ -442,20 +477,29 @@ public class LSTerminalHandler extends TerminalHandler {
             statement.close();
         }
         if (listNotEmpty(transactionInfo.itemsList)) {
-            String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?);";
-            PreparedStatement statement = connection.prepareStatement(sql);
-            for (TerminalItemInfo item : transactionInfo.itemsList) {
-                if (item.idBarcode != null) {
-                    statement.setObject(1, formatValue(item.idBarcode));
-                    statement.setObject(2, formatValue(item.name));
-                    statement.setObject(3, formatValue(item.price));
-                    statement.setObject(4, formatValue(item.quantity));
-                    statement.setObject(5, formatValue(item.image));
-                    statement.addBatch();
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalItemInfo item : transactionInfo.itemsList) {
+                    if (item.idBarcode != null) {
+                        statement.setObject(1, formatValue(item.idBarcode));
+                        statement.setObject(2, formatValue(item.name));
+                        statement.setObject(3, formatValue(item.price));
+                        statement.setObject(4, formatValue(item.quantity));
+                        statement.setObject(5, formatValue(item.image));
+                        statement.addBatch();
+                    }
                 }
+                statement.executeBatch();
+                connection.commit();
+
+            } finally {
+                if(statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
             }
-            statement.executeBatch();
-            statement.close();
         }
     }
 
@@ -470,16 +514,26 @@ public class LSTerminalHandler extends TerminalHandler {
 
     private void updateVANTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         if (listNotEmpty(transactionInfo.terminalHandbookTypeList)) {
-            Statement statement = connection.createStatement();
-            String sql = "BEGIN TRANSACTION;";
-            for (TerminalHandbookType terminalHandbookType : transactionInfo.terminalHandbookTypeList) {
-                if (terminalHandbookType.id != null && terminalHandbookType.name != null)
-                    sql += String.format("INSERT OR REPLACE INTO van VALUES('%s', '%s');",
-                            terminalHandbookType.id, terminalHandbookType.name);
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO van VALUES(?, ?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalHandbookType terminalHandbookType : transactionInfo.terminalHandbookTypeList) {
+                    if (terminalHandbookType.id != null && terminalHandbookType.name != null) {
+                        statement.setObject(1, formatValue(terminalHandbookType.id));
+                        statement.setObject(2, formatValue(terminalHandbookType.name));
+                        statement.addBatch();
+                    }
+                }
+                statement.executeBatch();
+                connection.commit();
+
+            } finally {
+                if(statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
             }
-            sql += "COMMIT;";
-            statement.executeUpdate(sql);
-            statement.close();
         }
     }
 
