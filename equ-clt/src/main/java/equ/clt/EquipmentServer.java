@@ -970,10 +970,11 @@ public class EquipmentServer {
                 for (TransactionInfo transactionInfo : transactionEntry) {
                     try {
                         transactionInfoMap.put(transactionInfo, false);
-                        if (clsHandler instanceof TerminalHandler)
-                            ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
 
                         remote.processingTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
+
+                        if (clsHandler instanceof TerminalHandler)
+                            ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
 
                     } catch (Exception e) {
                         errorTransactionReport(transactionInfo.id, e);
