@@ -626,12 +626,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         props.add(new ImportProperty(customField, customProp.getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                            data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
+                            data.get(i).add(safeParse(customField, userInvoiceDetailsList.get(i).customValues.get(entry.getKey())));
                     } else if(customColumn.key.equals("document")) {
                         props.add(new ImportProperty(customField, customProp.getMapping(invoiceKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                            data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
+                            data.get(i).add(safeParse(customField, userInvoiceDetailsList.get(i).customValues.get(entry.getKey())));
                     }
                 }
             }
@@ -644,6 +644,14 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             session.popVolatileStats();
             return Pair.create(IMPORT_RESULT_OK, userInvoiceObject);
         }   else return Pair.create(IMPORT_RESULT_EMPTY, userInvoiceObject);
+    }
+
+    private Object safeParse(ImportField field, String value) {
+        try {
+            return value == null ? null : field.getFieldClass().parseString(value);
+        } catch (lsfusion.server.data.type.ParseException e) {
+            return null;
+        }
     }
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, DataObject userInvoiceObject,

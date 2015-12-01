@@ -509,7 +509,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         props.add(new ImportProperty(customField, customProp.getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userPriceListDetailList.size(); i++)
-                            data.get(i).add(userPriceListDetailList.get(i).customValues.get(entry.getKey()));
+                            data.get(i).add(safeParse(customField, userPriceListDetailList.get(i).customValues.get(entry.getKey())));
                     }
                 }
             }
@@ -532,6 +532,14 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             return result == null;
         }
         return false;
+    }
+
+    private Object safeParse(ImportField field, String value) {
+        try {
+            return value == null ? null : field.getFieldClass().parseString(value);
+        } catch (lsfusion.server.data.type.ParseException e) {
+            return null;
+        }
     }
 
     private boolean importAdjustmentDetails(ExecutionContext context, List<UserPriceListDetail> dataAdjustment,
