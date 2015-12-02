@@ -1,5 +1,7 @@
 package lsfusion.erp.integration;
 
+import com.google.common.base.Throwables;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -19,6 +21,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.*;
 
 public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
 
@@ -37,6 +40,8 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
+
+    private static ExecutorService executor = Executors.newCachedThreadPool();
 
     static final Locale RU_LOCALE = new Locale("ru");
     static final DateFormatSymbols RU_SYMBOLS = new DateFormatSymbols(RU_LOCALE);
@@ -173,7 +178,38 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     }
 
     protected void checkFileExistence(String filePath) {
+        if(Settings.get().isSafeCheckFileExistence())
+            safeCheckFileExistence(filePath);
+        else
+            unsafeCheckFileExistence(filePath);
+    }
+
+    private void unsafeCheckFileExistence(String filePath) {
         if (!(new File(filePath).exists()))
             throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
     }
+
+    private void safeCheckFileExistence(final String filePath) {
+        try {
+            final Future<Boolean> future = executor.submit(new Callable() {
+                @Override
+                public Boolean call() throws Exception {
+                    return new File(filePath).exists();
+                }
+            });
+
+            boolean result = false;
+            try {
+                result = future.get(1000, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+            }
+
+            if (!result)
+                throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
+        } catch (InterruptedException | ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
 }
