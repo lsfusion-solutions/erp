@@ -356,7 +356,7 @@ public class FiscalVMK {
     public static void logReceipt(ReceiptInstance receipt, Integer numberReceipt) {
         OutputStreamWriter sw = null;
         try {
-            
+
             sw = new OutputStreamWriter(new FileOutputStream(new File("logs/vmk.txt"), true), "UTF-8");
             String dateTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
             for(ReceiptItem item : receipt.receiptSaleList) {
