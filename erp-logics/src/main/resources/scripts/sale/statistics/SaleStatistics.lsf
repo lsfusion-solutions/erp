@@ -698,9 +698,20 @@ valueResidentByStatisticGroupLegalEntityRegionDateTo 'Остаток на кон
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND region IS Region AND date IS DATE
     ;
 
-totalRetailSumSoldByStatisticGroupRegionDateFromTo 'Итого продано, руб.' (group, legalEntity, region, dateFrom, dateTo)=
+totalSumSoldByStatisticGroupLegalEntityRegionDateFromTo 'Продано, руб.' (group, legalEntity, region, dateFrom, dateTo)=
     GROUP SUM sumSoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) IF isParentStatisticGroupSku(group, sku)
     BY group, legalEntityStock(stock), regionStock(stock), dateFrom, dateTo;
+
+totalSumResidentSoldByStatisticGroupLegalEntityRegionDateFromTo 'В т.ч.отеч., руб.' (group, legalEntity, region, dateFrom, dateTo)=
+    GROUP SUM sumSoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) IF residentStatisticGroupSku (group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), dateFrom, dateTo;
+
+// суммовые показатели
+
+sumBalanceAByStatisticGroupLegalEntityRegionDate 'Сумма остатка на конец, руб.' (group, legalEntity, region, date) =
+    GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), dateTo;
+
 
 FORM torgSales 'Статистика (продажи) организация/регион/группа'
 
@@ -724,7 +735,7 @@ FORM torgSales 'Статистика (продажи) организация/р�
 
     PROPERTIES(g, l, r, dFrom, dTo) valueByStatisticGroupLegalEntityRegionDateFromTo, valueResidentByStatisticGroupLegalEntityRegionDateFromTo
     PROPERTIES(g, l, r, dTo) valueByStatisticGroupLegalEntityRegionDateTo, valueResidentByStatisticGroupLegalEntityRegionDateTo
-    PROPERTIES(g, l, r, dFrom, dTo) totalRetailSumSoldByStatisticGroupRegionDateFromTo
+    PROPERTIES(g, l, r, dFrom, dTo) totalSumSoldByStatisticGroupLegalEntityRegionDateFromTo
 ;
 
 DESIGN torgSales {
