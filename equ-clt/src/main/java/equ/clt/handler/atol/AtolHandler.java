@@ -255,7 +255,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
 
-        sendSalesLogger.info("Atol: requesting succeeded SoftCheckInfo");
+        sendSoftCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
 
         Map<String, Timestamp> result = new HashMap<>();
         for (String directory : directorySet) {
@@ -303,9 +303,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     }
 
                     if (result.size() == 0)
-                        sendSalesLogger.info("Atol: no soft checks found");
+                        sendSoftCheckLogger.info("Atol: no soft checks found");
                     else
-                        sendSalesLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
+                        sendSoftCheckLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
                 }
             } catch (FileNotFoundException | ParseException e) {
                 throw Throwables.propagate(e);

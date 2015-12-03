@@ -408,7 +408,7 @@ public class EquipmentServer {
             throws RemoteException, SQLException, ClassNotFoundException {
         Map succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
         if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
-            sendSalesLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
+            sendSoftCheckLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
             String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
             if (result != null)
                 reportEquipmentServerError(remote, sidEquipmentServer, result);
