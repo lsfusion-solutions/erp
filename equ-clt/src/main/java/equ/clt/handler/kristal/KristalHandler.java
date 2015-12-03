@@ -446,7 +446,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
 
-        sendSalesLogger.info("Kristal: requesting succeeded SoftCheckInfo");
+        sendSoftCheckLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
 
@@ -455,14 +455,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         //return result;
 
         if(kristalSettings == null) {
-            sendSalesLogger.error("No kristalSettings found");
+            sendSoftCheckLogger.error("No kristalSettings found");
         } else {
             for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
                 Connection conn = null;
                 try {
 
                     String sqlHost = trim(sqlHostEntry.getValue());
-                    sendSalesLogger.info("Kristal: connection to " + sqlHost);
+                    sendSoftCheckLogger.info("Kristal: connection to " + sqlHost);
 
                     String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
                             sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
@@ -477,7 +477,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         count++;
                     }
 
-                    sendSalesLogger.info("Kristal: found " + count + " SoftCheckInfo");
+                    sendSoftCheckLogger.info("Kristal: found " + count + " SoftCheckInfo");
 
                 } catch (SQLException e) {
                     e.printStackTrace();
