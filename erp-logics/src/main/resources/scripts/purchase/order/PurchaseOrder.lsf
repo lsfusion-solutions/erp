@@ -44,7 +44,8 @@ overPriceStockUserOrder(o) += WHEN usePriceSupplierStockUserOrder(o) THEN suppli
 idSupplierOrder (order) = idLegalEntity(supplierOrder(order)); 
 
 EXTEND FORM userOrder
-    PROPERTIES READONLY TODRAW sts FORCE GRID BEFORE prevCurrentBalanceSkuStock(ks, st) prevCurrentBalanceSkuStock(ks, sst)
+    PROPERTIES READONLY TODRAW sts FORCE GRID AFTER prevCurrentBalanceSkuStock(ks, st) prevCurrentBalanceSkuStock(ks, sst)
+                           
     FILTERS sst == supplierStockUserOrder(o), 
             legalEntityStock(sst) == supplierUserOrder(o),
             isCompanyStock(sst),
@@ -53,7 +54,8 @@ EXTEND FORM userOrder
 
 DESIGN userOrder {
     PROPERTY(prevCurrentBalanceSkuStock(ks, sst)){
-        caption = 'Текущий остаток поставщика';
+        caption = 'Текущий остаток (поставщик)';
+        background = RGB(240, 240, 224);
     }
 }
 
@@ -196,6 +198,23 @@ EXTEND FORM userOrder
 
 @extendFormDocumentBatchStockOrderLedger(userOrder, userOrder, o);
 @extendFormDocumentBatchStockOrderLedgerAll(userOrder, userOrder, o);
+
+EXTEND FORM userOrder
+    PROPERTIES READONLY TODRAW sts FORCE GRID AFTER prevCurrentBalanceSkuStock(ks, sst)
+            prevAvailableQuantitySkuStockUserOrder(ks, sst, o)
+                           
+    FILTERS sst == supplierStockUserOrder(o), 
+            legalEntityStock(sst) == supplierUserOrder(o),
+            isCompanyStock(sst),
+            activeStock(sst)     
+;
+
+DESIGN userOrder {
+    PROPERTY(prevAvailableQuantitySkuStockUserOrder(ks, sst, o)){
+        caption = 'Доступное кол-во (поставщик)';
+        background = RGB(240, 240, 224);
+    }
+}
 
 //--------------------- Проводим по регистру резерва ------------------//
 @implementPurchaseOrderLedger(Order, sku, shipmentDateTime, customerStock, supplier);
