@@ -1,0 +1,55 @@
+MODULE SalePurchaseInvoiceOrder;
+
+REQUIRE SalePurchaseInvoice;
+
+PRIORITY Sale;
+
+
+overFillOrderUserOrderInvoice = ABSTRACT ACTION LIST (Purchase.UserOrder, Sale.Invoice);
+overFillOrderUserOrderDetailInvoiceDetail = ABSTRACT ACTION LIST (Purchase.UserOrderDetail, Sale.InvoiceDetail);
+
+createUserOrderInvoice 'Заказ (закупка)' =  ACTION (invoice) NEWSESSION{
+
+    FOR ADDOBJ o = Purchase.UserOrder DO {
+
+        Purchase.agreementUserOrder(o) <- Sale.agreementInvoice(invoice);
+//        Purchase.priceListTypeUserOrder(o) <- Sale.priceListTypeInvoice(invoice);
+        Purchase.supplierUserOrder(o) <- Sale.supplierInvoice(invoice);
+        Purchase.customerUserOrder(o) <- Sale.customerInvoice(invoice);
+        Purchase.supplierStockUserOrder(o) <- Sale.supplierStockInvoice(invoice);
+        Purchase.customerStockUserOrder(o) <- Sale.customerStockInvoice(invoice);
+        numberUserOrder(o) <- Sale.numberInvoice(invoice);
+        seriesUserOrder(o) <- Sale.seriesInvoice(invoice);
+        Purchase.noteUserOrder(o) <- Sale.noteInvoice(invoice);
+        Purchase.currencyUserOrder(o) <- Sale.currencyInvoice(invoice);
+        Purchase.contractSkuUserOrder(o) <- Sale.contractSkuInvoice(invoice);
+        Purchase.isCommissionUserOrder(o) <- Sale.isCommissionInvoice(invoice);
+        Purchase.showPackUserOrder(o) <- Sale.showPackInvoice(invoice);
+        Purchase.operationUserOrder(o) <- purchaseOperationOperation(Sale.operationInvoice(invoice));
+        overFillOrderUserOrderInvoice(o, invoice);
+
+        FOR Sale.invoiceInvoiceDetail(detail)==invoice ADDOBJ d = Purchase.UserOrderDetail DO {
+
+            Purchase.userOrderUserOrderDetail(d) <- o;
+
+//            Purchase.priceListTypeUserOrderDetail(d) <- Sale.priceListTypeInvoiceDetail(detail); todo: иначе будет записываться цена из вида цен
+            Purchase.dataSupplierStockUserOrderDetail(d) <- Sale.dataSupplierStockInvoiceDetail(detail);
+            Purchase.dataCustomerStockUserOrderDetail(d) <- Sale.dataCustomerStockInvoiceDetail(detail);
+
+            Purchase.skuUserOrderDetail(d) <- Sale.skuInvoiceDetail(detail);
+            Purchase.quantityUserOrderDetail (d) <- Sale.quantityInvoiceDetail(detail);
+            Purchase.VATUserOrderDetail (d) <- Sale.VATInvoiceDetail(detail);
+            Purchase.priceUserOrderDetail (d) <- Sale.priceInvoiceDetail(detail);
+            Purchase.invoicePriceUserOrderDetail (d) <- Sale.invoicePriceInvoiceDetail(detail);
+
+            Purchase.barcodePackUserOrderDetail (d) <- Sale.barcodePackInvoiceDetail(detail);
+            Purchase.amountPackUserOrderDetail (d) <- Sale.amountPackInvoiceDetail(detail);
+            Purchase.packQuantityUserOrderDetail (d) <- Sale.packQuantityInvoiceDetail(detail);
+
+            Purchase.batchUserOrderDetail(d) <- Sale.batchInvoiceDetail(detail) WHERE NOT notUseBatchPurchaseInvoiceOperation(Sale.operationInvoice(invoice));
+            overFillOrderUserOrderDetailInvoiceDetail(d,detail);
+        }
+
+    FORM Purchase.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
