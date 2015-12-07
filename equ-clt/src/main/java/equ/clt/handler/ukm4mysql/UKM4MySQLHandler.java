@@ -520,77 +520,79 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-        String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
-        String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
-        String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
-        Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-        timeout = timeout == null ? 300 : timeout;
-        boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
+        if (!stopListInfo.exclude) {
+            UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
+            String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
+            String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
+            Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
+            timeout = timeout == null ? 300 : timeout;
+            boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
 
-        if (connectionString != null) {
-            Connection conn = null;
-            PreparedStatement ps = null;
-            try {
-                conn = DriverManager.getConnection(connectionString, user, password);
+            if (connectionString != null) {
+                Connection conn = null;
+                PreparedStatement ps = null;
+                try {
+                    conn = DriverManager.getConnection(connectionString, user, password);
 
-                int version = getVersion(conn);
-                version++;
-                if(!skipBarcodes) {
-                    processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
-                    conn.setAutoCommit(false);
+                    int version = getVersion(conn);
+                    version++;
+                    if (!skipBarcodes) {
+                        processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
+                        conn.setAutoCommit(false);
 
+                        ps = conn.prepareStatement(
+                                "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+                        for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                            if (item.idBarcode != null) {
+                                for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
+                                    ps.setInt(1, nppGroupMachinery); //pricelist
+                                    ps.setString(2, item.idBarcode); //var
+                                    ps.setBigDecimal(3, BigDecimal.ZERO); //price
+                                    ps.setInt(4, version); //version
+                                    ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
+                                    ps.addBatch();
+                                }
+                            }
+                        }
+                        ps.executeBatch();
+                        conn.commit();
+                    }
+
+                    processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
                     ps = conn.prepareStatement(
-                            "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+                            "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                                    "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
+
                     for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                        if (item.idBarcode != null) {
+                        if (item.idItem != null) {
                             for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                                 ps.setInt(1, nppGroupMachinery); //pricelist
-                                ps.setString(2, item.idBarcode); //var
+                                ps.setString(2, trim(item.idItem, 40, "")); //item
                                 ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                                ps.setInt(4, version); //version
-                                ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
+                                ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
+                                ps.setInt(5, version); //version
+                                ps.setInt(6, 1); //deleted
                                 ps.addBatch();
                             }
                         }
                     }
                     ps.executeBatch();
                     conn.commit();
-                }
 
-                processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
-                ps = conn.prepareStatement(
-                        "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                                "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
+                    processTransactionLogger.info("ukm4 mysql: executing stopLists, table signal");
+                    exportSignals(conn, null, version, true, timeout, true);
 
-                for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                    if(item.idItem != null) {
-                        for(Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                            ps.setInt(1, nppGroupMachinery); //pricelist
-                            ps.setString(2, trim(item.idItem, 40, "")); //item
-                            ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                            ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
-                            ps.setInt(5, version); //version
-                            ps.setInt(6, stopListInfo.exclude ? 0 : 1); //deleted
-                            ps.addBatch();
-                        }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (ps != null)
+                            ps.close();
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException ignored) {
                     }
-                }
-                ps.executeBatch();
-                conn.commit();
-
-                processTransactionLogger.info("ukm4 mysql: executing stopLists, table signal");
-                exportSignals(conn, null, version, true, timeout, true);
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    if (ps != null)
-                        ps.close();
-                    if (conn != null)
-                        conn.close();
-                } catch (SQLException ignored) {
                 }
             }
         }
@@ -605,7 +607,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
     }
 
     @Override
