@@ -434,7 +434,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
     }
 
     @Override
@@ -857,7 +857,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
 
         for (RequestExchange entry : requestExchangeList) {
             if (entry.isSalesInfoExchange()) {
-                for (String directory : entry.directorySet) {
+                for (String directory : entry.directoryStockMap.keySet()) {
                     if (!directorySet.contains(directory)) continue;
                     List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<RequestExchange>();
                     requestExchangeEntry.add(entry);

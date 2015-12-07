@@ -187,7 +187,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
                 sendSalesLogger.info("Atol: creating request files");
-                for (String directory : entry.directorySet) {
+                for (String directory : entry.directoryStockMap.keySet()) {
 
                     if (!directorySet.contains(directory)) continue;
 
@@ -436,7 +436,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
     }
 
     @Override

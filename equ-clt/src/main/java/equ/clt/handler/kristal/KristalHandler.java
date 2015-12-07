@@ -378,7 +378,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if(entry.isSalesInfoExchange()) {
                 int count = 0;
                 String requestResult = null;
-                for (String directory : entry.directorySet) {
+                for (String directory : entry.directoryStockMap.keySet()) {
 
                     if (!directorySet.contains(directory)) continue;
 
@@ -798,14 +798,16 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Set<String> directorySet, Set<String> stockSet) throws IOException {
+    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
         machineryExchangeLogger.info("Kristal: Send CashierInfoList");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
         String idPositionCashier = kristalSettings != null ? kristalSettings.getIdPositionCashier() : null;
 
-        for (String directory : directorySet) {
+        for (Map.Entry<String, Set<String>> entry : directoryStockMap.entrySet()) {
+            String directory = entry.getKey();
+            Set<String> stockSet = entry.getValue();
 
             String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
             makeDirsIfNeeded(exchangeDirectory);

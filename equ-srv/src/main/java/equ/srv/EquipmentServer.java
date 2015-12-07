@@ -1174,81 +1174,151 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return terminalAssortmentList;
     }
 
+//    @Override
+//    public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
+//
+//        Map<String, RequestExchange> requestExchangeMap = new HashMap<>();
+//        Map<DataObject, List<Set<String>>> extraStockSetMap = new HashMap<>();
+//        if(machineryLM != null && machineryPriceTransactionLM != null) {
+//
+//            try (DataSession session = getDbManager().createSession()) {
+//
+//                KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
+//                KeyExpr machineryExpr = new KeyExpr("machinery");
+//                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
+//                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+//
+//                String[] names = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+//                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
+//                LCP[] properties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+//                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange");
+//                for (int i = 0; i < properties.length; i++) {
+//                    query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
+//                }
+//                query.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
+//                query.addProperty("idStockMachinery", machineryLM.findProperty("idStockMachinery").getExpr(machineryExpr));
+//                query.addProperty("nppMachinery", machineryLM.findProperty("nppMachinery").getExpr(machineryExpr));
+//                query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
+//                query.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeExpr).getWhere());
+//                query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
+//                        machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
+//                query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
+//                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
+//                for (int i = 0, size = result.size(); i < size; i++) {
+//
+//                    DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
+//                    String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
+//                    String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
+//                    Integer nppMachinery = (Integer) result.getValue(i).get("nppMachinery").getValue();
+//                    Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
+//                    Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
+//                    Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
+//                    String idDiscountCardFrom = trim((String) result.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
+//                    String idDiscountCardTo = trim((String) result.getValue(i).get("idDiscountCardToRequestExchange").getValue());
+//                    String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
+//
+//                    Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
+//                    List<Set<String>> extraStockSet;
+//                    if (extraStockSetMap.containsKey(requestExchangeObject)) {
+//                        extraStockSet = extraStockSetMap.get(requestExchangeObject);
+//                    } else {
+//                        extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
+//                        extraStockSetMap.put(requestExchangeObject, extraStockSet);
+//                    }
+//                    directorySet.addAll(extraStockSet.get(1));
+//
+//                    String requestExchangeKey = requestExchangeObject.getValue() + directoryMachinery + idStockMachinery;
+//                    RequestExchange requestExchange = requestExchangeMap.get(requestExchangeKey);
+//                    if (requestExchange == null) {
+//                        requestExchangeMap.put(requestExchangeKey, new RequestExchange((Integer) requestExchangeObject.getValue(),
+//                                new HashSet<>(Collections.singletonList(nppMachinery)), directorySet, idStockMachinery,
+//                                extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
+//                                startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
+//                    } else {
+//                        requestExchange.cashRegisterSet.add(nppMachinery);
+//                    }
+//                }
+//                session.apply(getBusinessLogics());
+//            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+//                throw Throwables.propagate(e);
+//            }
+//        }
+//        return new ArrayList<>(requestExchangeMap.values());
+//    }
+
     @Override
     public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
 
-        Map<String, RequestExchange> requestExchangeMap = new HashMap<>();
-        Map<DataObject, List<Set<String>>> extraStockSetMap = new HashMap<>();
+        List<RequestExchange> requestExchangeList = new ArrayList();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
 
             try (DataSession session = getDbManager().createSession()) {
 
                 KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
-                KeyExpr machineryExpr = new KeyExpr("machinery");
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+                ImRevMap<Object, KeyExpr> requestExchangeKeys = MapFact.singletonRev((Object) "requestExchange", requestExchangeExpr);
+                QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(requestExchangeKeys);
 
-                String[] names = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+                String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
                         "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
-                LCP[] properties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
+                LCP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
                         "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange");
-                for (int i = 0; i < properties.length; i++) {
-                    query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
+                for (int i = 0; i < requestExchangeProperties.length; i++) {
+                    requestExchangeQuery.addProperty(requestExchangeNames[i], requestExchangeProperties[i].getExpr(requestExchangeExpr));
                 }
-                query.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
-                query.addProperty("idStockMachinery", machineryLM.findProperty("idStockMachinery").getExpr(machineryExpr));
-                query.addProperty("nppMachinery", machineryLM.findProperty("nppMachinery").getExpr(machineryExpr));
-                query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
-                query.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeExpr).getWhere());
-                query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
-                        machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
-                query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
-                for (int i = 0, size = result.size(); i < size; i++) {
+                requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
+                for (int i = 0; i < requestExchangeResult.size(); i++) {
 
-                    DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
-                    String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
-                    String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
-                    Integer nppMachinery = (Integer) result.getValue(i).get("nppMachinery").getValue();
-                    Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
-                    Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
-                    Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
-                    String idDiscountCardFrom = trim((String) result.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
-                    String idDiscountCardTo = trim((String) result.getValue(i).get("idDiscountCardToRequestExchange").getValue());
-                    String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
+                    DataObject requestExchangeObject = requestExchangeResult.getKey(i).get("requestExchange");
+                    Date dateFromRequestExchange = (Date) requestExchangeResult.getValue(i).get("dateFromRequestExchange").getValue();
+                    Date dateToRequestExchange = (Date) requestExchangeResult.getValue(i).get("dateToRequestExchange").getValue();
+                    Date startDateRequestExchange = (Date) requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue();
+                    String idDiscountCardFrom = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
+                    String idDiscountCardTo = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardToRequestExchange").getValue());
+                    String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
-                    Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
-                    List<Set<String>> extraStockSet;
-                    if (extraStockSetMap.containsKey(requestExchangeObject)) {
-                        extraStockSet = extraStockSetMap.get(requestExchangeObject);
-                    } else {
-                        extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
-                        extraStockSetMap.put(requestExchangeObject, extraStockSet);
+                    Set<Integer> cashRegisterSet = new HashSet<> ();
+                    Map<String, Set<String>> directoryStockMap = readExtraStockRequestExchange(session, requestExchangeObject);
+                    String idStock = null;
+
+                    KeyExpr machineryExpr = new KeyExpr("machinery");
+                    ImRevMap<Object, KeyExpr> machineryKeys = MapFact.singletonRev((Object) "machinery", machineryExpr);
+                    QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
+
+                    String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery"};
+                    LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectoryMachinery", "idStockMachinery", "nppMachinery");
+                    for (int j = 0; j < machineryProperties.length; j++) {
+                        machineryQuery.addProperty(machineryNames[j], machineryProperties[j].getExpr(machineryExpr));
                     }
-                    directorySet.addAll(extraStockSet.get(1));
+                    machineryQuery.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeObject.getExpr()).getWhere());
+                    machineryQuery.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
+                            machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeObject.getExpr()), Compare.EQUALS));
+                    machineryQuery.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = machineryQuery.executeClasses(session);
+                    for (int j = 0; j < result.size(); j++) {
 
-                    String requestExchangeKey = requestExchangeObject.getValue() + directoryMachinery + idStockMachinery;
-                    RequestExchange requestExchange = requestExchangeMap.get(requestExchangeKey);
-                    if (requestExchange == null) {
-                        requestExchangeMap.put(requestExchangeKey, new RequestExchange((Integer) requestExchangeObject.getValue(),
-                                new HashSet<>(Collections.singletonList(nppMachinery)), directorySet, idStockMachinery,
-                                extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
-                                startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
-                    } else {
-                        requestExchange.cashRegisterSet.add(nppMachinery);
+                        String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
+                        idStock = trim((String) result.getValue(i).get("idStockMachinery").getValue());
+                        Integer nppMachinery = (Integer) result.getValue(i).get("nppMachinery").getValue();
+
+                        cashRegisterSet.add(nppMachinery);
+                        putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
                     }
+
+                    requestExchangeList.add(new RequestExchange((Integer) requestExchangeObject.getValue(), cashRegisterSet,
+                            idStock, directoryStockMap, dateFromRequestExchange, dateToRequestExchange,
+                            startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                 }
                 session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
-        return new ArrayList<>(requestExchangeMap.values());
+        return requestExchangeList;
     }
         
-    private List<Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Set<String> idStockSet = new HashSet<>();
-        Set<String> directorySet = new HashSet<>();
+    private Map<String, Set<String>> readExtraStockRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Set<String>> directoryStockMap = new HashMap<>();
         KeyExpr stockExpr = new KeyExpr("stock");
         KeyExpr machineryExpr = new KeyExpr("machinery");
         ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "machinery", machineryExpr);
@@ -1261,11 +1331,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(stockExpr, Compare.EQUALS));
         query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-        for (ImMap<Object, Object> entry : result.values()) {
-            idStockSet.add(trim((String) entry.get("idStock")));
-            directorySet.add(trim((String) entry.get("overDirectoryMachinery")));
-        }
-        return Arrays.asList(idStockSet, directorySet);
+        for (ImMap<Object, Object> entry : result.values())
+            putDirectoryStockMap(directoryStockMap, trim((String) entry.get("overDirectoryMachinery")), trim((String) entry.get("idStock")));
+        return directoryStockMap;
+    }
+
+    private void putDirectoryStockMap(Map<String, Set<String>> directoryStockMap, String directory, String idStock) {
+        Set<String> stockSet = directoryStockMap.get(directory);
+        if(stockSet == null)
+            stockSet = new HashSet();
+        stockSet.add(idStock);
+        directoryStockMap.put(directory, stockSet);
     }
 
     @Override
