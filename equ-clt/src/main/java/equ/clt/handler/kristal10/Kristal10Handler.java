@@ -325,6 +325,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             int count = 0;
             String requestResult = null;
             if(entry.isSalesInfoExchange()) {
+
+                //временный лог. Потом не забыть убрать
+                for(String directory : directorySet)
+                    sendSalesLogger.info("Kristal10 directory: " + directory);
+
                 for (String directory : entry.directoryStockMap.keySet()) {
 
                     if (!directorySet.contains(directory)) continue;
@@ -348,7 +353,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         succeededRequests.add(entry.requestExchange);
                     else
                         failedRequests.put(entry.requestExchange, requestResult);
-                }
+                } else
+                    succeededRequests.add(entry.requestExchange);
             }
         }
     }

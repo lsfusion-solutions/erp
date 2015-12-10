@@ -433,6 +433,13 @@ public class EquipmentServer {
             Set<Integer> succeededRequests = new HashSet<>();
             Map<Integer, String> failedRequests = new HashMap<>();
             Map<Integer, String> ignoredRequests = new HashMap<>();
+            //временный лог. Потом не забыть убрать
+            sendSalesLogger.info("handler: " + handler);
+            for(String directory : directorySet)
+                sendSalesLogger.info("directory: " + directory);
+            for(RequestExchange requestExchange : requestExchangeList) {
+                sendSalesLogger.info("requestExchange Id: " + requestExchange.requestExchange);
+            }
             handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
             if (!succeededRequests.isEmpty())
                 remote.finishRequestExchange(succeededRequests);
