@@ -440,6 +440,9 @@ public class EquipmentServer {
             for(RequestExchange requestExchange : requestExchangeList) {
                 sendSalesLogger.info("requestExchange Id: " + requestExchange.requestExchange);
             }
+            for(RequestExchange requestExchange : requestExchangeList) {
+                sendSalesLogger.info("directoryStockMap: " + requestExchange.directoryStockMap);
+            }
             handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
             if (!succeededRequests.isEmpty())
                 remote.finishRequestExchange(succeededRequests);

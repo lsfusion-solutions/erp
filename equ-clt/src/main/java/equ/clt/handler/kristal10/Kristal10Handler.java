@@ -332,6 +332,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                 for (String directory : entry.directoryStockMap.keySet()) {
 
+                    sendSalesLogger.info("Kristal10: trying directory: " + directory + " with directorySet: " + directorySet);
                     if (!directorySet.contains(directory)) continue;
 
                     sendSalesLogger.info("Kristal10: creating request files for directory : " + directory);
