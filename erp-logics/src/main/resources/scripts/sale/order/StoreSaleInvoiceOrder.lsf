@@ -4,9 +4,11 @@ REQUIRE StoreSaleOrder, SaleInvoiceOrderAggregation;
 
 NAMESPACE Sale;
 
-WHEN SESSION FORMS userOrder (CHANGED(invoiceQuantityOrderDetail(d)) OR CHANGED(invoicePriceUserOrderDetail(d)) OR CHANGED(valueVATUserOrderDetail(d))) 
+WHEN SESSION FORMS userOrder (CHANGED(invoiceQuantityUserOrderDetail(d)) OR CHANGED(invoicePriceUserOrderDetail(d)) OR CHANGED(valueVATUserOrderDetail(d))) 
                                AND VATUserOrder(userOrderUserOrderDetail(d)) AND includeVATPriceListType(priceListTypeUserOrderDetail(d)) DO {
-    invoiceSumInvoiceUserOrderDetail(d) <- roundPriceCurrency(invoiceQuantityOrderDetail(d) * invoicePriceUserOrderDetail(d), currencyUserOrderDetail(d));
+    invoiceSumInvoiceUserOrderDetail(d) <- IF individualLegalEntitySaleOperation(operationUserOrderDetail(d)) THEN 
+            roundPriceRoundCondition(invoiceQuantityUserOrderDetail(d) * invoicePriceUserOrderDetail(d), roundConditionDepartmentStore(supplierStockUserOrderDetail(d)))     
+        ELSE roundPriceCurrency(invoiceQuantityUserOrderDetail(d) * invoicePriceUserOrderDetail(d), currencyUserOrderDetail(d));
     VATSumInvoiceUserOrderDetail(d) <- roundPriceCurrency(invoiceSumInvoiceUserOrderDetail(d) * calcValueVATUserOrderDetail(d) / (100.0 + calcValueVATUserOrderDetail(d)), currencyUserOrderDetail(d));
     sumInvoiceUserOrderDetail(d) <- invoiceSumInvoiceUserOrderDetail(d) (-) VATSumInvoiceUserOrderDetail(d); 
 }
