@@ -1337,11 +1337,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     private void putDirectoryStockMap(Map<String, Set<String>> directoryStockMap, String directory, String idStock) {
-        Set<String> stockSet = directoryStockMap.get(directory);
-        if(stockSet == null)
-            stockSet = new HashSet();
-        stockSet.add(idStock);
-        directoryStockMap.put(directory, stockSet);
+        if(directory != null) {
+            Set<String> stockSet = directoryStockMap.get(directory);
+            if (stockSet == null)
+                stockSet = new HashSet();
+            stockSet.add(idStock);
+            directoryStockMap.put(directory, stockSet);
+        }
     }
 
     @Override
