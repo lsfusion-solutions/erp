@@ -1297,9 +1297,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = machineryQuery.executeClasses(session);
                     for (int j = 0; j < result.size(); j++) {
 
-                        String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
-                        idStock = trim((String) result.getValue(i).get("idStockMachinery").getValue());
-                        Integer nppMachinery = (Integer) result.getValue(i).get("nppMachinery").getValue();
+                        String directoryMachinery = trim((String) result.getValue(j).get("overDirectoryMachinery").getValue());
+                        idStock = trim((String) result.getValue(j).get("idStockMachinery").getValue());
+                        Integer nppMachinery = (Integer) result.getValue(j).get("nppMachinery").getValue();
 
                         cashRegisterSet.add(nppMachinery);
                         putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
