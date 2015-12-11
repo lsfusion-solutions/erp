@@ -1034,14 +1034,21 @@ createPageListInventory 'Создать страницу описи с оста�
         }
     }    
 };
-                                                                                                                                                
+
+isParentSkuGroupSkuPageInventoryDetail = isParentSkuGroupSku(g, skuPageInventoryDetail(detail));
+
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory FIXED PANEL
     PROPERTIES (li) nameStockListInventory, nameInventoryListInventory, nameListInventory, noteListInventory,
                     nameCommitteeListInventory, nameChairmanCommitteeListInventory, nameEmployeeListInventory,
                     countPageInventoryListInventory, countPageInventoryDetailListInventory, quantityPageInventoryDetailListInventory,
                     sumPageInventoryDetailListInventory, createPageListInventory
-
+    
+    TREE skuTree g = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
+    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+        
     OBJECTS         pl=PageInventory FIXED GRID
     PROPERTIES(pl)  namePageInventory, notePageInventory FORCE PANEL, countPageInventoryDetailPageInventory, quantityPageInventoryDetailPageInventory, sumPageInventoryDetailPageInventory, ADDOBJ, DELETESESSION
     FILTERS         listInventoryPageInventory(pl) == li
@@ -1050,7 +1057,7 @@ FORM listInventory 'Опись'
     PROPERTIES (dp) indexPageInventoryDetail, nameSkuTypeSkuPageInventoryDetail, idSkuPageInventoryDetail SHOWIF showIDs(), idBarcodeSkuPageInventoryDetail, nameSkuPageInventoryDetail, nameBatchPageInventoryDetail SHOWIF isBatchListInventory(li), 
                     quantityGrid = quantityPageInventoryDetail, pricePageInventoryDetail,
                     sumPageInventoryDetail, ADDOBJ SHOWIF countPageInventoryListInventory(li), DELETESESSION
-    FILTERS         listInventoryPageInventory(pageInventoryPageInventoryDetail(dp)) == li 
+    FILTERS         listInventoryPageInventory(pageInventoryPageInventoryDetail(dp)) == li, isParentSkuGroupSkuPageInventoryDetail(g, dp)
     FILTERGROUP page
     FILTER 'На странице' pageInventoryPageInventoryDetail(dp) == pl DEFAULT 
 
@@ -1059,14 +1066,15 @@ FORM listInventory 'Опись'
     PROPERTIES (i)     idSku SHOWIF showIDs(), idBarcodeSku, nameSku
     PROPERTIES (li,i)  quantityPageInventoryDetailListInventorySku, pricePageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li),
                        sumPageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li)
-    FILTERS            quantityPageInventoryDetailListInventorySku(li,i) //> 0
+    FILTERS            quantityPageInventoryDetailListInventorySku(li,i), //> 0
+                       isParentSkuGroupSku(g, i)
 
     OBJECTS         bt=Batch FIXED GRID
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) indexListInventoryBatch
     PROPERTIES (bt)    SHOWIF isBatchListInventory(li) idBarcodeSkuBatch, nameSkuBatch, nameBatch
     PROPERTIES (li,bt) SHOWIF isBatchListInventory(li) quantityPageInventoryDetailListInventoryBatch, pricePageInventoryDetailListInventoryBatch, sumPageInventoryDetailListInventoryBatch
-    FILTERS            quantityPageInventoryDetailListInventoryBatch(li,bt) //> 0
-
+    FILTERS            quantityPageInventoryDetailListInventoryBatch(li,bt), //> 0
+                       isParentSkuGroupBatch(g, bt)
 
     EDIT ListInventory OBJECT li
 ;
@@ -1108,15 +1116,24 @@ DESIGN listInventory {
             type = SPLITH;
             MOVE pl.box;
             NEW case1 {
-                fill = 2;
-                type = TABBED;
-
-                MOVE dp.box;
-                MOVE i.box {
-                    caption = 'Опись-товар';
+                fill = 3;
+                type = SPLITH;
+                MOVE skuTree.tree.box {
+                    caption = 'Группы';
+                 fill = 1;
                 }
-                MOVE bt.box {
-                    caption = 'Опись-партия';
+                NEW detailPageBox {
+                    fill = 2;
+                    type = TABBED; 
+                    MOVE dp.box {
+                        caption = 'Строки';
+                    }
+                    MOVE i.box {
+                        caption = 'Опись-товар';
+                    }
+                    MOVE bt.box {
+                        caption = 'Опись-партия';
+                    }
                 }
             }
         }
