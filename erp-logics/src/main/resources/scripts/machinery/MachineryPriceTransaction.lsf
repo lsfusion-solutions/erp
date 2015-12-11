@@ -635,6 +635,8 @@ createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (M
 
 excludeGroupMachinery = DATA LOCAL BOOLEAN (GroupMachinery);
 
+supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать сообщение если загрузка не требуется
+
 createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
@@ -692,7 +694,8 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
     IF sentSomething() THEN
         MESSAGE NO WAIT message()
     ELSE
-        MESSAGE NO WAIT 'Загрузка прайса в оборудование не требуется.';
+        IF NOT supressNoNeedMessage() THEN
+            MESSAGE NO WAIT 'Загрузка прайса в оборудование не требуется.';
 };
 
 createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION {
