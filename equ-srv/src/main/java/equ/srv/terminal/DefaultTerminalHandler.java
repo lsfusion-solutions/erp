@@ -155,7 +155,6 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
 
-                session.pushVolatileStats("TH_TD");
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
 
@@ -164,7 +163,6 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 terminalHandlerLM.findAction("processTerminalDocument").execute(session, terminalDocumentObject);
 
                 String result = session.applyMessage(getLogicsInstance().getBusinessLogics());
-                session.popVolatileStats();
                 session.close();
                 return result;
 
