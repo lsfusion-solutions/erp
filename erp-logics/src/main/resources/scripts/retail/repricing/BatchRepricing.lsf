@@ -6,8 +6,25 @@ NAMESPACE Repricing;
 
 //----------------- 
 
+isSupplierRepricing 'Дооценка по партиям за счет цены поставщика' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() isSupplierRepricing
+;
+
+DESIGN options {
+    repricings  {
+        MOVE PROPERTY(isSupplierRepricing());
+    }
+}
+
+
 // По партиям
 
+//-- поставщика
+supplierPriceBBatchSkuStockDateTime 'Цена по товару' (batch, stock, dateTime)= priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, skuBatch(batch), stock, dateTime);
+
+//-- розничная
 priceBBatchStockDateTime 'Цена партии' (batch, stock, dateTime)= priceBBatchLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
 priceBBatchSkuStockDateTime 'Цена по товару' (batch, stock, dateTime)= priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuBatch(batch), stock, dateTime);
 
@@ -31,6 +48,8 @@ setUserRepricingStockDateTimeOperation 'Создать акт переоценк
                 quantityUserRepricingDetail(d) <- balanceBBatchStockDateTime(batch, stock, dateTime);
                 curRetailPriceUserRepricingDetail(d) <- priceBBatchStockDateTime(batch, stock, dateTime);
                 retailPriceUserRepricingDetail(d) <- priceBBatchSkuStockDateTime(batch, stock, dateTime);
+                
+                priceUserRepricingDetail(d) <- supplierPriceBBatchSkuStockDateTime(batch, stock, dateTime) WHERE isSupplierRepricing();
             }  
             FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL;
         }
