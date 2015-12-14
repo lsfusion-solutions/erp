@@ -56,6 +56,16 @@ setUserRepricingStockDateTimeOperation 'Создать акт переоценк
     }     
 } TOOLBAR;
 
+documentNameSkuBatchRepricingDetail 'Наименование (для документов)' = documentNameSkuBatch(batchRepricingDetail(d));
+documentNameSkuBatchUserRepricingDetail 'Наименование (для документов)' = documentNameSkuBatch(batchUserRepricingDetail(d));
+
+EXTEND FORM userRepricing
+    PROPERTIES documentNameSkuBatchUserRepricingDetail(d) ON CHANGE changeBatchUserRepricingDetail(d) AFTER nameBatchUserRepricingDetail(d)
+;
+EXTEND FORM repricings
+    PROPERTIES READONLY documentNameSkuBatchRepricingDetail(d) AFTER nameBatchRepricingDetail(d)
+;
+
 FORM repricingBatchDashboard 'Дооценка по партиям'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES (d) SELECTOR nameDepartmentStore
@@ -69,7 +79,7 @@ FORM repricingBatchDashboard 'Дооценка по партиям'
     PROPERTIES(t) OBJVALUE        
      
     OBJECTS bt = Batch
-    PROPERTIES (bt) READONLY dateBatch, nameBatch, nameSkuBatch 
+    PROPERTIES (bt) READONLY dateBatch, nameBatch, nameSkuBatch, documentNameSkuBatch 
     PROPERTIES (bt,d,t) READONLY balanceBBatchStockDateTime, priceBBatchStockDateTime, priceBBatchSkuStockDateTime
     
     FILTERS toRepricingBatchStockDateTime(bt,d,t)       
