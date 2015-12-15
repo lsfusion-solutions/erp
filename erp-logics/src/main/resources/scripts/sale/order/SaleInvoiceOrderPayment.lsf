@@ -1,0 +1,52 @@
+MODULE SaleInvoiceOrderPayment;
+
+REQUIRE SaleInvoiceOrderAggregation, SaleInvoicePayment;
+
+NAMESPACE Sale;
+  
+costOutContractLedgerUserOrder 'Оплачено из документа' = costOutContractLedgerInContractLedger(payment, orderInvoiceOrder(order));
+
+addPaymentOrder 'Оплатить' = ACTION (order) {
+    currentInContractLedger() <- orderInvoiceOrder(order);
+    FOR ADDOBJ p = Payment DO{
+        ASSIGN contractPayment(p) <- contractSkuInvoice(orderInvoiceOrder(order));
+        ASSIGN datePayment(p) <- currentDate();
+        ASSIGN timePayment(p) <- currentTime();
+        ASSIGN payerPayment(p) <- customerInvoice(orderInvoiceOrder(order));
+        ASSIGN beneficiaryPayment(p) <- supplierInvoice(orderInvoiceOrder(order));
+        ASSIGN sumPayment(p) <- invoiceSumInvoiceDetailInvoice(orderInvoiceOrder(order));
+        ASSIGN costOutContractLedgerInContractLedger(p, invoice) <- sumContractPayment(p) WHERE invoice == orderInvoiceOrder(order);
+        FORM payment OBJECTS p=p MODAL;
+        IF NOT formResult() == FormResult.ok THEN {
+            DELETE p;
+        }
+    }
+}
+
+editPaymentOrder 'Редактировать' = ACTION (payment, order) {
+    currentInContractLedger() <- orderInvoiceOrder(order);
+    FORM payment OBJECTS p=payment MODAL;
+} IMAGE 'edit.png';
+    
+EXTEND FORM userOrder
+    OBJECTS pm = Payment FIXED GRID
+    PROPERTIES(pm) READONLY SHOWIF createInvoiceUserOrder(o) seriesNumberPayment, dateTimePayment, namePayerPayment, nameBeneficiaryPayment,
+                            notePayment, isPostedPayment
+    ORDER BY dateTimePayment(pm)
+    PROPERTIES(pm, o) SHOWIF createInvoiceUserOrder(o)  costOutContractLedgerUserOrder
+    PROPERTIES TODRAW pm FORCE PANEL TOOLBAR SHOWIF createInvoiceUserOrder(o)  addPaymentOrder(o), editPaymentOrder(pm, o)
+    PROPERTIES(pm) SHOWIF createInvoiceUserOrder(o) DELETESESSION
+
+    FILTERGROUP filters
+        FILTER 'Платежи по накладной' costOutContractLedgerUserOrder(pm, o) 'F10' DEFAULT
+    FILTERS contractPayment(pm) == contractSkuUserOrder(o)
+;
+
+DESIGN userOrder{
+    specification.box{
+        NEW paymentContainer{
+            caption = 'Платежи';
+            MOVE pm.box;
+        }
+    }
+}
