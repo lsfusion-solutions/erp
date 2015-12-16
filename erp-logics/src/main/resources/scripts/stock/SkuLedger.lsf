@@ -350,6 +350,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     
     currentBalance##postfix##BatchStock 'Текущий остаток'###caption (batch, stock) = GROUP SUM signedQuantityActive##postfix##SkuLedgerBatch(ledger, batch)
                                                                                            BY batch, stockSkuLedger(ledger) PERSISTENT;
+    skuCurrentBalance##postfix##BatchStock (batch, stock) = skuBatch(batch) IF currentBalance##postfix##BatchStock(batch, stock) PERSISTENT INDEXED; 
     prevCurrentBalance##postfix##BatchStock 'Текущий остаток'###caption (batch, stock) = PREV(currentBalance##postfix##BatchStock(batch, stock));
     prevCurrentBalance##postfix##Batch 'Текущий остаток'###caption (batch) = GROUP SUM prevCurrentBalance##postfix##BatchStock(batch, stock) BY batch;    
 
@@ -363,8 +364,10 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     defaultPositive##postfix##BatchSkuStock 'Партия по умолчанию' (sku, stock)= GROUP MIN batch IF currentBalance##postfix##BatchStock(batch, stock) >0
                                                                         BY skuBatch(batch), stock;
 
+    TABLE extraBatchStock(Batch, Stock);
     countLedger##postfix##BatchStock 'Кол-во движений'###caption (batch, stock) =
-        GROUP SUM 1 IF signedQuantityActive##postfix##SkuLedgerBatch(ledger, batch) BY batch, stockSkuLedger(ledger) PERSISTENT;
+        GROUP SUM 1 IF signedQuantityActive##postfix##SkuLedgerBatch(ledger, batch) BY batch, stockSkuLedger(ledger) PERSISTENT TABLE extraBatchStock;
+    skuLedger##postfix##BatchStock (batch, stock) = skuBatch(batch) IF countLedger##postfix##BatchStock(batch, stock) PERSISTENT INDEXED TABLE extraBatchStock; 
 
     countLedger##postfix##BatchStockDateDate 'Кол-во движений за период'###caption (batch, stock, dateFrom, dateTo) =
         GROUP SUM 1 IF signedQuantityActive##postfix##SkuLedgerBatch(ledger, batch) AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger) <= dateTo
@@ -372,34 +375,33 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         
     lastOrderBatch##postfix##SkuStock(sku, stock)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock
-              ORDER orderBatch(batch)
-              WHERE countLedger##postfix##BatchStock(batch, stock) PERSISTENT TABLE extraSkuStock;
+              BY skuLedger##postfix##BatchStock(batch, stock), stock
+              ORDER orderBatch(batch) PERSISTENT TABLE extraSkuStock;
               
               
     lastOrderBatchA##postfix##SkuStockDate(sku, stock, date)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock, dateIn
+              BY skuLedger##postfix##BatchStock, stock, dateIn
               ORDER orderBatch(batch)
-              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateBatch(batch) <= dateIn;   
+              WHERE dateBatch(batch) <= dateIn;   
                          
     lastOrderBatchA##postfix##SkuStockDateTime(sku, stock, dateTimeIn)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock, dateTimeIn
+              BY skuLedger##postfix##BatchStock(batch, stock), stock, dateTimeIn
               ORDER orderBatch(batch)
-              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateTimeBatch(batch) <= dateTimeIn;   
+              WHERE dateTimeBatch(batch) <= dateTimeIn;   
                
     lastOrderBatchB##postfix##SkuStockDate(sku, stock, date)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock, dateIn
+              BY skuLedger##postfix##BatchStock(batch, stock), stock, dateIn
               ORDER orderBatch(batch)
-              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateBatch(batch) < dateIn;   
+              WHERE dateBatch(batch) < dateIn;   
                          
     lastOrderBatchB##postfix##SkuStockDateTime(sku, stock, dateTimeIn)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock, dateTimeIn
+              BY skuLedger##postfix##BatchStock(batch, stock), stock, dateTimeIn
               ORDER orderBatch(batch)
-              WHERE countLedger##postfix##BatchStock(batch, stock) AND dateTimeBatch(batch) < dateTimeIn;                 
+              WHERE dateTimeBatch(batch) < dateTimeIn;                 
                
               
 //    orderBatch##postfix##SkuStock (sku, stock) = GROUP MAX orderBatch(batch) IF countLedger##postfix##BatchStock(batch, stock)
@@ -416,15 +418,15 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     batchLastManufactureDate##postfix##SkuStock (sku, stock)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock
+              BY skuLedger##postfix##BatchStock(batch, stock), stock
               ORDER orderBatch(batch)
-              WHERE countLedgerBatchStock(batch, stock) AND manufactureDateBatch(batch) COMPLEX;
+              WHERE manufactureDateBatch(batch) COMPLEX;
               
     batchLastExpiryDate##postfix##SkuStock (sku, stock)  =
         GROUP LAST batch
-              BY skuBatch(batch), stock
+              BY skuLedger##postfix##BatchStock(batch, stock), stock
               ORDER orderBatch(batch)
-              WHERE countLedgerBatchStock(batch, stock) AND expiryDateBatch(batch) COMPLEX;    
+              WHERE expiryDateBatch(batch) COMPLEX;    
               
     overLastManufactureDate##postfix##SkuStock 'Последняя дата изготовления' (sku, stock) = manufactureDateBatch(batchLastManufactureDate##postfix##SkuStock(sku, stock));
     overLastExpiryDate##postfix##SkuStock 'Последний срок годности' (sku, stock) = expiryDateBatch(batchLastExpiryDate##postfix##SkuStock(sku, stock));
@@ -762,11 +764,11 @@ limitNewInLIFOSkuLedgerBatch = IF ledger IS InLIFOSkuLedger THEN (
                                                         quantityInLIFOSkuLedger(ledger) IF batch == batchSkuLedger(ledger)
                                                      ELSE
                                                         outcomeBatch(batch) IF
-                                                        countLedgerBatchStock(batch, stockDataSkuLedger(ledger)));
+                                                        skuLedgerBatchStock(batch, stockDataSkuLedger(ledger)) == skuDataSkuLedger(ledger));
 
 quantityInLIFOSkuLedgerBatch (ledger, batch) =
         PARTITION UNGROUP quantityInLIFOSkuLedger
-                  LIMIT STRICT limitNewInLIFOSkuLedgerBatch(ledger, batch) IF skuBatch(batch) == skuDataSkuLedger(ledger)
+                  LIMIT STRICT limitNewInLIFOSkuLedgerBatch(ledger, batch)
                   BY ledger
                   ORDER DESC orderInLIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
 
@@ -776,11 +778,11 @@ limitNewOutFIFOSkuLedgerBatch = IF ledger IS OutFIFOSkuLedger THEN (
                                                      IF batchSkuLedger(ledger) THEN
                                                         quantityOutFIFOSkuLedger(ledger) IF batch == batchSkuLedger(ledger)
                                                      ELSE
-                                                        OVERRIDE 0.0 IF countLedgerBatchStock(batch, stockDataSkuLedger(ledger)), currentBalanceBatchStock(batch, stockDataSkuLedger(ledger)));
+                                                        OVERRIDE 0.0 IF skuLedgerBatchStock(batch, stockDataSkuLedger(ledger)) == skuDataSkuLedger(ledger), (currentBalanceBatchStock(batch, stockDataSkuLedger(ledger)) IF skuCurrentBalanceBatchStock(batch, stockDataSkuLedger(ledger)) == skuDataSkuLedger(ledger)));
 
 quantityOutFIFOSkuLedgerBatch (ledger, batch) =
         PARTITION UNGROUP quantityOutFIFOSkuLedger
-                  LIMIT STRICT limitNewOutFIFOSkuLedgerBatch(ledger, batch) IF skuBatch(batch) == skuDataSkuLedger(ledger)
+                  LIMIT STRICT limitNewOutFIFOSkuLedgerBatch(ledger, batch)
                   BY ledger
                   ORDER orderOutFIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
 
