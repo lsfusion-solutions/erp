@@ -39,12 +39,12 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
 
             String pathImageArticles = (String) findProperty("pathImageArticles").read(context);
             pathImageArticles = pathImageArticles == null ? "" : pathImageArticles.trim();
-            String idImageArticle = (String) findProperty("overIdImageArticle").read(context, articleObject);
+            String idImageArticle = (String) findProperty("idImageArticle").read(context, articleObject);
             String idArticle = (String) findProperty("idArticle").read(context, articleObject);
             String idImage = idImageArticle != null ? idImageArticle : idArticle; 
             String idLImage = (idImage == null || idImage.endsWith(".jpg")) ? idImage : (idImage + ".jpg");
             String idUImage = (idImage == null || idImage.endsWith(".JPG")) ? idImage : (idImage + ".JPG"); 
-            String subDirectory = pathImageArticles + ((idImage == null || idImage.length() < 3) ? "" : "//" + idImage.substring(0, 3));
+            String subDirectory = pathImageArticles + ((idImageArticle == null || idImageArticle.length() < 3) ? "" : "//" + idImageArticle.substring(0, 3));
             if (idImage != null) {
                 if (new File(subDirectory + "//" + idLImage).exists())
                     pathImageArticles = subDirectory;
