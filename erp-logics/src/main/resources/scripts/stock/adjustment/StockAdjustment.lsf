@@ -283,6 +283,18 @@ DESIGN adjustments {
                         caption = 'Печать';
                     }
                 }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                        type = CONTAINERV;
+                    }
+//                    NEW machineryContainer {
+//                        caption = 'Загрузка';
+//                        type = CONTAINERV;
+//                    }
+                }
             }
         }
     }
@@ -515,3 +527,148 @@ createUserAdjustmentDateTime = ACTION (dateTime) {
         }        
     }
 } 
+
+
+dataInSessionSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+
+levelParentSkuGroup (group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF dataInSessionSkuGroup(parent)
+    BY group;
+
+inParentSkuGroup (group) = TRUE IF levelParentSkuGroup(group);
+
+inSessionSkuGroup 'Отм.' (group) = OVERRIDE
+    inParentSkuGroup(group),
+    dataInSessionSkuGroup(group);
+
+sessionConcatSkuGroups 'Группы' () =
+    GROUP CONCAT nameSkuGroup(group) IF inSessionSkuGroup(group) AND NOT inSessionSkuGroup(parentSkuGroup(group)),'; ' PREFCHARWIDTH 30;
+
+countInSessionSkuGroups  = GROUP SUM 1 IF dataInSessionSkuGroup(g);
+resetSelectedGroups  'Сбросить отмеченные' = ACTION () {
+    dataInSessionSkuGroup(g) <- NULL WHERE g IS SkuGroup ;    
+}  
+
+toAdjustmentSkuStockDateTime (s,st,dt) = GROUP SUM 1 IF 
+    balanceBBatchStockDateTime(b,st,dt) >0 AND balanceBBatchStockDateTime(b1,st,dt) <0 AND b !=b1 AND skuBatch(b) == skuBatch(b1)
+        BY skuBatch(b),st,dt;
+toAdjustmentStockDateTime = GROUP SUM 1 IF toAdjustmentSkuStockDateTime (s,st,dt) BY st,dt;
+//abs
+
+toPositiveAdjustmentSkuStockDateTime (s,st,dt) = GROUP SUM balanceBBatchStockDateTime(b,st,dt) IF 
+    balanceBBatchStockDateTime(b,st,dt) >0 
+        BY skuBatch(b),st,dt;
+toNegativeAdjustmentSkuStockDateTime (s,st,dt) = GROUP SUM balanceBBatchStockDateTime(b,st,dt) IF 
+    balanceBBatchStockDateTime(b,st,dt) <0 
+        BY skuBatch(b),st,dt;
+        
+FORM selectParamsAdjustment 'Параметры пересорта'
+    OBJECTS st = Stock FIXED PANEL 
+    PROPERTIES SELECTOR nameStock(st)
+    FILTERS isCompanyStock(st)
+    
+    OBJECTS dt = DATETIME FIXED PANEL 
+    PROPERTIES val = OBJVALUE (dt)
+    
+    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
+    ORDER BY orderSkuGroup(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+    
+    PROPERTIES inSessionSkuGroup(sk)         
+;
+DESIGN selectParamsAdjustment {
+    main {
+        preferredSize = (800, 600); 
+        NEW top {
+            type = CONTAINERH;
+            MOVE st.box;
+            MOVE dt.box {caption ='Дата/время документа';}
+        }
+        MOVE skuTree.tree.box;
+    }
+    MOVE functions.box;
+}
+
+inAdjustmentSku = DATA LOCAL BOOLEAN (Sku);
+
+createBatchUserAdjustmentDetailUserAdjustment = ACTION (adjustment) {
+    FOR inAdjustmentSku(sku) DO {
+        LOCAL quantity = NUMERIC[16,5] (Sku);
+        quantity(sku) <- NULL;
+        quantity(sku) <- min(toPositiveAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)), abs(toNegativeAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));        
+        FOR balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)) <0 AND quantity(sku) AND skuBatch(batch) == sku 
+            ORDER DESC balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))
+            ADDOBJ d = UserAdjustmentDetail DO {            
+            userAdjustmentUserAdjustmentDetail(d) <- adjustment;
+            skuUserAdjustmentDetail(d) <- sku;
+            batchUserAdjustmentDetail(d) <- batch;
+            quantityUserAdjustmentDetail(d) <- min(quantity(sku),abs(balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));
+            quantity(sku) <- quantity(sku) (-) quantityUserAdjustmentDetail(d);
+            IF NOT quantity(sku) >0 THEN {
+                BREAK;
+            }        
+        }
+        quantity(sku) <- min(toPositiveAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)), abs(toNegativeAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));        
+        FOR balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)) >0 AND quantity(sku) AND skuBatch(batch) == sku 
+            ORDER balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))
+            ADDOBJ d = UserAdjustmentDetail DO {            
+            userAdjustmentUserAdjustmentDetail(d) <- adjustment;
+            skuUserAdjustmentDetail(d) <- sku;
+            batchUserAdjustmentDetail(d) <- batch;
+            quantityUserAdjustmentDetail(d) <- (-min(quantity(sku),balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));
+            quantity(sku) <- quantity(sku) (+) quantityUserAdjustmentDetail(d);
+            IF NOT quantity(sku) >0 THEN {
+                BREAK;
+            }                   
+        }                        
+    }    
+}
+
+createBatchUserAdjustment 'Документ пересорта' = ACTION () {
+    FORM selectParamsAdjustment MODAL;
+    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN NEWSESSION NESTED dataInSessionSkuGroup, chosenObject, chosenDateTime {
+        FOR ADDOBJ adjustment = UserAdjustment DO {  
+            stockUserAdjustment(adjustment) <- chosenObject('st');
+            dateUserAdjustment(adjustment) <- DATE(chosenDateTime('dt'));
+            timeUserAdjustment(adjustment) <- TIME(chosenDateTime('dt'));          
+
+            inAdjustmentSku(sku) <- NULL;
+            inAdjustmentSku(sku) <-  inSessionSkuGroup(skuGroupSku(sku));
+            inAdjustmentSku(sku) <- NULL WHERE inAdjustmentSku(sku)  AND NOT toAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment));
+            
+            createBatchUserAdjustmentDetailUserAdjustment(adjustment);
+            FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKEDMODAL ;          
+        }
+        dataInSessionSkuGroup(d) <- NULL;
+        chosenObject(d) <- NULL;
+        chosenDateTime(d) <- NULL;
+    }
+}
+
+EXTEND FORM adjustments
+    PROPERTIES createBatchUserAdjustment()  FORCE PANEL 
+;
+DESIGN adjustments {
+    createdContainer {
+        MOVE PROPERTY (createBatchUserAdjustment());
+    }    
+}
+
+createBatchUserAdjustmentStock 'Документ пересорта' = ACTION (stock) {
+
+    IF toAdjustmentStockDateTime(stock,currentDateTime()) THEN NEWSESSION {
+        FOR ADDOBJ adjustment = UserAdjustment DO {  
+            stockUserAdjustment(adjustment) <- stock;
+            dateUserAdjustment(adjustment) <- currentDate();
+            timeUserAdjustment(adjustment) <- currentTime();  
+            isPostedUserAdjustment(adjustment) <- TRUE;
+
+            inAdjustmentSku(sku) <- NULL;
+            inAdjustmentSku(sku) <- TRUE WHERE toAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment));
+            
+            createBatchUserAdjustmentDetailUserAdjustment(adjustment);      
+        }
+        apply();
+    }
+}//-- для планировщика
+
