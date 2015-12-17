@@ -434,12 +434,12 @@ createRecComponentsOrder 'Заполнить из спецификации (ре
     }
 } TOOLBAR;
 
-calcBruttoQuantityComponentDetail (d) = recBruttoQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
-calcBOMQuantityComponentDetail (d) = recBOMQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
+calcSkuBruttoQuantityComponentDetail (d) = recBruttoQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
+calcSkuBOMQuantityComponentDetail (d) = recBOMQuantityBOMOrderSku(BOMComponentDetail(d), orderComponentDetail(d), skuComponentDetail(d)) * quantityCoeffComponentDetail(d);
 
 updateComponentsOrder 'Пересчитать кол-во для всех' = ACTION (order) {
-    bruttoQuantityComponentDetail(d) <- calcBruttoQuantityComponentDetail (d);
-    BOMQuantityComponentDetail(d)  <- calcBOMQuantityComponentDetail(d);
+    bruttoQuantityComponentDetail(d) <- calcSkuBruttoQuantityComponentDetail (d);
+    BOMQuantityComponentDetail(d)  <- calcSkuBOMQuantityComponentDetail(d);
 } TOOLBAR;
 
 // ------------- Заполнение изделий из спецификаций --------------- //
@@ -491,6 +491,9 @@ backgroundComponentDetail 'Цвет' (componentDetail) = RGB(255,255,229) IF pro
 
 recBruttoQuantityBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityProductsBOMOrder(BOM, order) * recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
 recBOMQuantityBOMOrderComponent 'Рекур.кол-во' (BOM, order, component) = GROUP SUM recBruttoQuantityBOMComponentDate(BOM, component, dateOrder(order)) BY BOM, order, component;
+
+calcComponentBruttoQuantityComponentDetail (d) = recBruttoQuantityBOMOrderComponent(BOMComponentDetail(d), orderComponentDetail(d), componentComponentDetail(d)) * quantityCoeffComponentDetail(d);
+calcComponentBOMQuantityComponentDetail (d) = recBOMQuantityBOMOrderComponent(BOMComponentDetail(d), orderComponentDetail(d), componentComponentDetail(d)) * quantityCoeffComponentDetail(d);
 
 createForRecComponentsOrder 'Заполнить из спецификации (рекурсивно по компонентам)' = ACTION (order)  {
 

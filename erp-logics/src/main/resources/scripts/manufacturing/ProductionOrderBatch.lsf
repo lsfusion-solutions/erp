@@ -100,7 +100,11 @@ CONSTRAINT notNullProductionCoeff() AND countProductionNormComponentSku(skuBatch
 productionNormComponentDetail 'Норма' = productionNormComponent(componentComponentDetail(d));
 productionCoeffBatchComponentDetail 'Параметры партии' = productionCoeffBatch(batchComponentDetail(d));
 
-WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND productionNormComponent(componentComponentDetail(d)) DO {
-    bruttoQuantityComponentDetail(d) <- calcBruttoQuantityComponentDetail (d);
-    BOMQuantityComponentDetail(d)  <- calcBOMQuantityComponentDetail(d);
+WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND componentComponentDetail(d) AND productionNormComponent(componentComponentDetail(d)) DO {
+    bruttoQuantityComponentDetail(d) <- calcComponentBruttoQuantityComponentDetail (d);
+    BOMQuantityComponentDetail(d)  <- calcComponentBOMQuantityComponentDetail(d);
+}
+WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND NOT componentComponentDetail(d) AND productionNormComponent(componentComponentDetail(d)) DO {
+    bruttoQuantityComponentDetail(d) <- calcSkuBruttoQuantityComponentDetail (d);
+    BOMQuantityComponentDetail(d)  <- calcSkuBOMQuantityComponentDetail(d);
 }
