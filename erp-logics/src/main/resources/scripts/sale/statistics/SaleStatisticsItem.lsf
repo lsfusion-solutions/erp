@@ -32,13 +32,19 @@ DESIGN item { regionalPrm { MOVE sgt.box;} }
 TABLE statisticGroupTypeItemGroup(StatisticGroupType, ItemGroup);
 @defineItemDefaultValue(statisticGroup, 'Статистическая группа (по-умолчанию)', StatisticGroup, nameStatisticGroup, statisticGroupType);
 
+sidStatisticGroupStatisticGroupTypeItemGroup 'Код группы' (statisticGroupType, itemGroup) = sidStatisticGroup(statisticGroupStatisticGroupTypeItemGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
+
+assignStatisticGroupItemsItemGroup 'Назаначить всем товарам группы' (group) = ACTION NEWSESSION {
+    statisticGroupTypeItem(t, i) <- statisticGroupStatisticGroupTypeItemGroup(t, itemGroupItem(i)) WHERE isParentItemGroupItem(group, i);
+    apply();
+} TOOLBAR CONFIRM;
 
 EXTEND FORM itemGroup
     OBJECTS t=StatisticGroupType 
     PROPERTIES(t)   READONLY nameStatisticGroupType, idStatisticGroupType
-    PROPERTIES(t, g) nameStatisticGroupStatisticGroupTypeItemGroup
+    PROPERTIES(t, g)  sidStatisticGroupStatisticGroupTypeItemGroup, nameStatisticGroupStatisticGroupTypeItemGroup
+    PROPERTIES(g) assignStatisticGroupItemsItemGroup TODRAW t
     FILTERS countryStatisticGroupType(t) == defaultCountry()
-    
 ;    
 
 DESIGN itemGroup {
