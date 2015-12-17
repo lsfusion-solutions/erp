@@ -607,7 +607,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
-                LCP<?> customProp = (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                LCP<?> customProp = customColumn.propertyCanonicalName == null ? null : (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
                 if (customProp != null) {
                     ImportField customField = new ImportField(customProp);
                     ImportKey<?> customKey = null;
