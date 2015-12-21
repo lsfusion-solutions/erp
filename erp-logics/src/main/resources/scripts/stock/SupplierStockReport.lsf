@@ -141,29 +141,29 @@ FORM supplierStockReport 'По поставщикам'
     OBJECTS sup=Stock FIXED PANEL // склад поставщика
     PROPERTIES (sup) SELECTOR nameStock
     FILTERS isSupplierStock(sup)
-
     
-    TREE stockGroupTree sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY nameStockGroup(sg)   
-
+    TREE stockGroupTree b=STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(b), nameStockGroup(sg)
+    ORDER BY nameStockGroup(sg)
+    FILTERS stringEqualsAll(b)
     
     OBJECTS st = Stock FIXED GRID
     PROPERTIES (st) READONLY nameStock, idStock SHOWIF showIDs()
     PROPERTIES (st) inReportStock
+    ORDER BY nameStock(st)
     FILTERS isParentStockGroupStockGroup(stockGroupStock(st), sg) OR
             st IS Stock AND NOT sg IS StockGroup OR
             st IS Stock AND sg IS StockGroup AND NOT stockGroupStock(st)   
     FILTERS isCompanyStock(st)
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'F10' DEFAULT
     
-     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
-     PROPERTIES READONLY orderSkuGroup(g), idSkuGroup(g) SHOWIF showIDs(), nameSkuGroup(g)
-     PROPERTIES inSessionSkuGroup(g) ON SHORTCUT resetSelectedGroups()    
+    TREE treeGroup g=SkuGroup PARENT parentSkuGroup
+    PROPERTIES inSessionSkuGroup(g) ON SHORTCUT resetSelectedGroups()       
+    PROPERTIES READONLY orderSkuGroup(g), idSkuGroup(g) SHOWIF showIDs(), nameSkuGroup(g) 
 
-     ORDER BY orderSkuGroup(g), nameSkuGroup(g)
-     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT        
-     PROPERTIES resetSelectedGroups() TOOLBAR FORCE PANEL TODRAW g    
-    
+    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT        
+    PROPERTIES resetSelectedGroups() TOOLBAR FORCE PANEL TODRAW g        
 
     PROPERTIES(sup,dFrom,dTo) supplierStockReportPrintXLS, supplierStockReportPrintXLSX
 ;
@@ -177,14 +177,21 @@ DESIGN supplierStockReport {
     NEW header {
         fill = 1;
         type = SPLITH;
-        NEW header1{
-            type = SPLITV;
-            fill = 2;
-            MOVE stockGroupTree.tree.box { caption = 'Склады компании';}
-            MOVE treeGroup.tree.box { caption = 'Группы товаров';};
+        NEW leftContainer {
+            type = TABBED;
+            fill = 1;            
+            NEW header1{
+                type = SPLITV;
+                fill = 1;
+                caption = 'Склады компании';
+                MOVE stockGroupTree.tree.box;
+                MOVE st.box;            
+            }        
         }
-            
-        MOVE st.box;
+        MOVE treeGroup.tree.box { 
+            fill = 2;
+            caption = 'Группы товаров';
+        }            
     }
     MOVE functions.box;
 }
