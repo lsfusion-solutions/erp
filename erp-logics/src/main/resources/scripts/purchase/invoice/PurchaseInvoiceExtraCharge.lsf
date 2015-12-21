@@ -1,0 +1,162 @@
+MODULE PurchaseInvoiceExtraCharge;
+
+REQUIRE PurchaseInvoiceCharge;
+
+NAMESPACE Purchase;
+
+inExtraChargeInvoiceInvoiceDetail 'Вкл.' = ABSTRACT BOOLEAN (Invoice, InvoiceDetail);
+inExtraChargeInvoiceUserInvoice 'Вкл.' = DATA BOOLEAN (Invoice, UserInvoice);
+
+inDataExtraChargeInvoiceUserInvoiceDetail = DATA BOOLEAN  (Invoice, UserInvoiceDetail);
+
+inExtraChargeInvoiceUserInvoiceDetail 'Вкл.' (invoice, detail) =
+    OVERRIDE inExtraChargeInvoiceUserInvoice(invoice, userInvoiceUserInvoiceDetail(detail)), inDataExtraChargeInvoiceUserInvoiceDetail(invoice, detail);
+inExtraChargeInvoiceInvoiceDetail(invoice, detail) += inExtraChargeInvoiceUserInvoiceDetail(invoice, detail);
+
+overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
+    inDataExtraChargeInvoiceUserInvoiceDetail(i,d) <- inDataExtraChargeInvoiceUserInvoiceDetail(i,detail);
+} 
+
+backgroupExtraChargeInvoiceUserInvoiceDetail = ABSTRACT COLOR (InvoiceDetail);
+
+extraChargePriceInvoiceInvoiceDetail 'Цена доп. услуг за ед.' = ABSTRACT NUMERIC[14,2] (Invoice,InvoiceDetail);
+extraChargePriceInvoiceUserInvoiceDetail 'Цена доп. услуг за ед.' = DATA NUMERIC[14,2] (Invoice,UserInvoiceDetail);
+extraChargePriceInvoiceInvoiceDetail (i,d) += extraChargePriceInvoiceUserInvoiceDetail(i,d);
+
+extraChargeSumInvoiceInvoiceDetail 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice,InvoiceDetail);
+extraChargeSumInvoiceUserInvoiceDetail 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice,UserInvoiceDetail);
+extraChargeSumInvoiceInvoiceDetail (i,d) += extraChargeSumInvoiceUserInvoiceDetail(i,d);
+
+calcExtraChargeSumInvoiceUserInvoiceDetail = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (Invoice,UserInvoiceDetail);
+calcExtraChargeSumInvoiceUserInvoiceDetail(i,d) += NUMERIC[16,2](roundPriceCurrency(quantityUserInvoiceDetail(d) * extraChargePriceInvoiceUserInvoiceDetail(i,d), currencyInvoice(i))); 
+extraChargeSumInvoiceUserInvoiceDetail (i,d) <- calcExtraChargeSumInvoiceUserInvoiceDetail(i,d)
+                WHEN DO CHANGED(quantityUserInvoiceDetail(d)) OR CHANGED (extraChargePriceInvoiceUserInvoiceDetail(i,d)) OR CHANGED(currencyInvoice(i));
+
+extraChargeSumInvoiceDetailInvoice 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSumInvoiceInvoiceDetail(i,d) BY i;
+extraChargeSumUserInvoiceDetailInvoice 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSumInvoiceUserInvoiceDetail(i,d) BY i;
+
+@defineOperationProperty(showExtraCharge, 'Доп. услуги', commonContainer);
+@defineDocumentInterfaceProperty (invoice, showExtraCharge, 'Доп. услуги');
+@deriveDocumentOperationProperty(UserInvoice, showExtraCharge);
+
+filterOperationExtraChargeUserInvoice= DATA LOCAL Operation (UserInvoice);
+nameFilterOperationExtraChargeUserInvoice 'Операция' = nameOperation(filterOperationExtraChargeUserInvoice(i));
+   
+FORM extraChargeInvoices 'Выбрать накладные'
+    OBJECTS i=UserInvoice FIXED PANEL                          
+    PROPERTIES nameFilterOperationExtraChargeUserInvoice(i)
+    OBJECTS ui=UserInvoice
+    PROPERTIES (i, ui) inExtraChargeInvoiceUserInvoice
+    PROPERTIES (ui) READONLY isPostedInvoice, isClosedInvoice, numberUserInvoice, seriesUserInvoice, dateUserInvoice, timeUserInvoice, 
+                    nameSupplierUserInvoice, nameCustomerUserInvoice, nameCurrencyUserInvoice
+    FILTERS filterOperationExtraChargeUserInvoice(i) == operationUserInvoice(ui) OR TRUE AND NOT filterOperationExtraChargeUserInvoice(i)
+    
+    OBJECTS uid=UserInvoiceDetail
+    PROPERTIES(i, uid) inExtraChargeInvoiceUserInvoiceDetail
+    PROPERTIES(uid) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail, 
+                            quantityUserInvoiceDetail, priceUserInvoiceDetail, sumGrossWeightUserInvoiceDetail
+    FILTERS filterOperationExtraChargeUserInvoice(i) == operationUserInvoiceDetail(uid) OR TRUE AND NOT filterOperationExtraChargeUserInvoice(i)
+            
+    FILTERGROUP filters1
+        FILTER 'Отмеченные' inExtraChargeInvoiceUserInvoice(i, ui) 'F10' 
+    FILTERGROUP filters2
+        FILTER 'По инвойсу' userInvoiceUserInvoiceDetail(uid) == ui 'F11' DEFAULT 
+    FILTERGROUP filters3
+        FILTER 'Отмеченные' inExtraChargeInvoiceUserInvoiceDetail(i, uid) 'F10'         
+;
+
+DESIGN extraChargeInvoices {
+    main {
+        preferredSize = (1024, 768);
+        NEW split {
+            fill = 1;
+            type = SPLITV;
+            NEW header {
+                fill = 1;
+                NEW header1 {                    
+                    caption = 'Фильтры';
+                    type = CONTAINERH;
+                    MOVE PROPERTY (nameFilterOperationExtraChargeUserInvoice(i));
+                }
+                MOVE i.box;
+                MOVE ui.box;
+            }
+            MOVE uid.box;
+        }
+        MOVE functions.box;
+    }
+}
+
+selectExtraChargeInvoice 'Выбрать накладные' = ACTION (i) {   
+    filterOperationExtraChargeUserInvoice(i) <- operationId('purchase_external'); // todo: пока пишем явно операцию
+    FORM extraChargeInvoices OBJECTS i=i MODAL;
+} TOOLBAR;
+
+@defineOperationProperty(toWeightExtraCharge, 'Доп. услуги расписывать пропорционально весу', commonContainer);
+@defineDocumentInterfaceProperty (invoice, toWeightExtraCharge, 'Доп. услуги расписывать пропорционально весу');
+@deriveDocumentOperationProperty(UserInvoice, toWeightExtraCharge);
+backgroundExtraChargeInvoice 'Цвет' = RGB(224, 255, 128);
+EXTEND FORM userInvoice
+    PROPERTIES(i) showExtraChargeUserInvoice          
+    OBJECTS uid = UserInvoiceDetail FIXED GRID
+    PROPERTIES (uid) READONLY SHOWIF showExtraChargeUserInvoice(i) indexUserInvoiceDetail, seriesNumberInvoiceDetail, dateUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, 
+                   idSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail
+    PROPERTIES (uid) READONLY SHOWIF showExtraChargeUserInvoice(i) quantityUserInvoiceDetail, 
+                   priceUserInvoiceDetail, sumUserInvoiceDetail, numberVATUserInvoiceDetail, valueVATUserInvoiceDetail, invoicePriceUserInvoiceDetail,
+                   VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, sumNetWeightUserInvoiceDetail, 
+                   sumGrossWeightUserInvoiceDetail
+    PROPERTIES(i,uid) SHOWIF showExtraChargeUserInvoice(i) extraChargePriceInvoiceUserInvoiceDetail BACKGROUND backgroundExtraChargeInvoice(), extraChargeSumInvoiceUserInvoiceDetail BACKGROUND backgroundExtraChargeInvoice()                               
+    FILTERS inExtraChargeInvoiceUserInvoiceDetail(i,uid)   
+                                        
+    PROPERTIES SHOWIF showExtraChargeUserInvoice(i) toWeightExtraChargeUserInvoice(i), extraChargeSumUserInvoiceDetailInvoice(i) BACKGROUND backgroundExtraChargeInvoice()
+;
+DESIGN userInvoice {
+    specification.box {        
+        NEW headerExtraChargeParams {
+            caption = 'Доп. услуги.';
+            fill = 1;
+            type = CONTAINERV;
+            NEW paneExtra {
+                type = CONTAINERH;
+                MOVE PROPERTY (toWeightExtraChargeUserInvoice(i));
+                MOVE PROPERTY (extraChargeSumUserInvoiceDetailInvoice(i));
+            }
+            MOVE uid.box;
+        }        
+    }
+}
+
+
+totalGrossWeightInvoiceDetailInvoice = GROUP SUM sumGrossWeightInvoiceDetail(d) IF inExtraChargeInvoiceInvoiceDetail(i,d) BY i;
+coeffGrossWeightInvoiceDetailInvoice 'Удельный вес по весу брутто' (d,i) = NUMERIC[22,8](sumGrossWeightInvoiceDetail(d)) / totalGrossWeightInvoiceDetailInvoice(i);
+
+totalSumInvoiceDetailInvoice = GROUP SUM sumInvoiceDetail(d) IF inExtraChargeInvoiceInvoiceDetail(i,d) AND isNotChargeSku(skuInvoiceDetail(d)) AND quantityInvoiceDetail(d)>0 BY i;
+coeffSumInvoiceDetailInvoice 'Удельный вес по весу брутто' (d,i) = NUMERIC[22,8](sumInvoiceDetail(d)) / totalSumInvoiceDetailInvoice(i);
+
+fillExtraChargePriceUserInvoice 'Расписать услуги' = ACTION (i) {
+    IF currencyInvoice(i) THEN {    
+        IF toWeightExtraChargeInvoice(i) THEN {
+            extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](sumInvoiceDetailInvoice(i), coeffGrossWeightInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
+                WHERE inExtraChargeInvoiceInvoiceDetail(i,d);
+        
+        } ELSE {
+            IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraChargeInvoiceInvoiceDetail(i,d) BY i, currencyInvoiceDetail(d)](i,c) BY i](i) >1 THEN {
+                extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](sumInvoiceDetailInvoice(i), coeffSumInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
+                    WHERE inExtraChargeInvoiceInvoiceDetail(i,d) AND isNotChargeSku(skuInvoiceDetail(d)); 
+            } ELSE {
+                MESSAGE 'Для расписывания доп. услуг пропорционально сумме выбраны накладные с разными валютами.';
+            }
+        }
+    } ELSE {
+        MESSAGE 'Для инвойса не задана валюта.';
+    }
+}
+
+EXTEND FORM userInvoice 
+    PROPERTIES FORCE PANEL TOOLBAR TODRAW uid SHOWIF showExtraChargeUserInvoice(i)  selectExtraChargeInvoice(i), fillExtraChargePriceUserInvoice(i)
+;
+
+calcExtraChargePriceUserInvoicedetail (d) = GROUP SUM extraChargePriceInvoiceUserInvoiceDetail(i,d) IF isPostedUserInvoice(i) BY d; //IF isPostedUserInvoiceDetail(d)
+
+chargePriceUserInvoiceDetail (d) <- calcExtraChargePriceUserInvoicedetail(d)
+    WHEN CHANGED(calcExtraChargePriceUserInvoicedetail(d));
