@@ -72,14 +72,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule equipmentCashRegisterLM;
     private ScriptingLogicsModule giftCardLM;
     private ScriptingLogicsModule itemLM;
-    private ScriptingLogicsModule itemFashionLM;    
-    private ScriptingLogicsModule legalEntityLM;
+    private ScriptingLogicsModule itemFashionLM;
     private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
     private ScriptingLogicsModule machineryPriceTransactionSectionLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
-    private ScriptingLogicsModule priceListLedgerLM;
     private ScriptingLogicsModule purchaseInvoiceAgreementLM;
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule scalesItemLM;
@@ -140,13 +138,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         giftCardLM = getBusinessLogics().getModule("GiftCard");
         itemLM = getBusinessLogics().getModule("Item");
         itemFashionLM = getBusinessLogics().getModule("ItemFashion");
-        legalEntityLM = getBusinessLogics().getModule("LegalEntity");
         machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
         machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
-        priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
         purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
         scalesItemLM = getBusinessLogics().getModule("ScalesItem");
@@ -619,10 +615,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null));
                     }
 
-                    List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
-                    List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session);                   
-                    List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session);
-                    List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, priceListTypeGroupMachinery, stockGroupTerminal);
+                    List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session, getBusinessLogics());
+                    List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session, getBusinessLogics());
+                    List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session, getBusinessLogics());
+                    List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
@@ -1019,47 +1015,53 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
 
-    private List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<>();
-        KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
-        LCP<?>[] properties = terminalLM.findProperties("idTerminalHandbookType", "nameTerminalHandbookType");
-        for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
-            query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
-        }
-        query.and(terminalLM.findProperty("idTerminalHandbookType").getExpr(terminalHandbookTypeExpr).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-        for(ImMap<Object, Object> entry : result.values()) {
-            String id = trim((String) entry.get("idTerminalHandbookType"));
-            String name = trim((String) entry.get("nameTerminalHandbookType"));
-            terminalHandbookTypeList.add(new TerminalHandbookType(id, name));
+        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        if(terminalLM != null) {
+            KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+            String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
+            LCP<?>[] properties = terminalLM.findProperties("idTerminalHandbookType", "nameTerminalHandbookType");
+            for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
+                query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
+            }
+            query.and(terminalLM.findProperty("idTerminalHandbookType").getExpr(terminalHandbookTypeExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+            for (ImMap<Object, Object> entry : result.values()) {
+                String id = trim((String) entry.get("idTerminalHandbookType"));
+                String name = trim((String) entry.get("nameTerminalHandbookType"));
+                terminalHandbookTypeList.add(new TerminalHandbookType(id, name));
+            }
         }
         return terminalHandbookTypeList;
     }
     
-    private List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
-        KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
-                "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-        LCP<?>[] properties = terminalLM.findProperties("idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
-                "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType");
-        for (int i = 0; i < properties.length; i++) {
-            query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
-        }
-        query.and(terminalLM.findProperty("idTerminalDocumentType").getExpr(terminalDocumentTypeExpr).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-        for(ImMap<Object, Object> entry : result.values()) {
-            String id = trim((String) entry.get("idTerminalDocumentType"));
-            String name = trim((String) entry.get("nameTerminalDocumentType"));
-            Integer flag = (Integer) entry.get("flagTerminalDocumentType");
-            String analytics1 = trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
-            String analytics2 = trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
-            terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
+        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        if(terminalLM != null) {
+            KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+            String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
+            LCP<?>[] properties = terminalLM.findProperties("idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType");
+            for (int i = 0; i < properties.length; i++) {
+                query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
+            }
+            query.and(terminalLM.findProperty("idTerminalDocumentType").getExpr(terminalDocumentTypeExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+            for (ImMap<Object, Object> entry : result.values()) {
+                String id = trim((String) entry.get("idTerminalDocumentType"));
+                String name = trim((String) entry.get("nameTerminalDocumentType"));
+                Integer flag = (Integer) entry.get("flagTerminalDocumentType");
+                String analytics1 = trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
+                String analytics2 = trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
+                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
+            }
         }
         return terminalDocumentTypeList;
     }
@@ -1123,18 +1125,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return terminalOrderList;
     }
 
-    private List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<>();
-        if (legalEntityLM != null) {
+        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        if (terminalLM != null) {
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
             String[] legalEntityNames = new String[]{"idLegalEntity", "nameLegalEntity"};
-            LCP<?>[] legalEntityProperties = legalEntityLM.findProperties("idLegalEntity", "nameLegalEntity");
+            LCP<?>[] legalEntityProperties = terminalLM.findProperties("idLegalEntity", "nameLegalEntity");
             for (int i = 0; i < legalEntityProperties.length; i++) {
                 legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(legalEntityExpr));
             }
-            legalEntityQuery.and(legalEntityLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
+            legalEntityQuery.and(terminalLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
             for (ImMap<Object, Object> entry : legalEntityResult.values()) {
                 String idLegalEntity = trim((String) entry.get("idLegalEntity"));
@@ -1145,10 +1148,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return terminalLegalEntityList;
     }
 
-    private List<TerminalAssortment> readTerminalAssortmentList(DataSession session, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
+    public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();
-        if (legalEntityLM != null && priceListLedgerLM != null && itemLM != null) {
+        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        if (terminalLM != null) {
             
             DataObject currentDateTimeObject = new DataObject(new Timestamp(Calendar.getInstance().getTime().getTime()), DateTimeClass.instance);
             
@@ -1156,13 +1160,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", priceListLedgerLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(), 
+            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", terminalLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
-            query.addProperty("idBarcodeSku", itemLM.findProperty("idBarcodeSku").getExpr(skuExpr));
-            query.addProperty("idLegalEntity", legalEntityLM.findProperty("idLegalEntity").getExpr(legalEntityExpr));
-            query.and(legalEntityLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
-            query.and(itemLM.findProperty("idBarcodeSku").getExpr(skuExpr).getWhere());
-            query.and(priceListLedgerLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(), 
+            query.addProperty("idBarcodeSku", terminalLM.findProperty("idBarcodeSku").getExpr(skuExpr));
+            query.addProperty("idLegalEntity", terminalLM.findProperty("idLegalEntity").getExpr(legalEntityExpr));
+            query.and(terminalLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
+            query.and(terminalLM.findProperty("idBarcodeSku").getExpr(skuExpr).getWhere());
+            query.and(terminalLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
@@ -1173,78 +1177,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } 
         return terminalAssortmentList;
     }
-
-//    @Override
-//    public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {
-//
-//        Map<String, RequestExchange> requestExchangeMap = new HashMap<>();
-//        Map<DataObject, List<Set<String>>> extraStockSetMap = new HashMap<>();
-//        if(machineryLM != null && machineryPriceTransactionLM != null) {
-//
-//            try (DataSession session = getDbManager().createSession()) {
-//
-//                KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
-//                KeyExpr machineryExpr = new KeyExpr("machinery");
-//                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "machinery", machineryExpr);
-//                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-//
-//                String[] names = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
-//                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
-//                LCP[] properties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
-//                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange");
-//                for (int i = 0; i < properties.length; i++) {
-//                    query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
-//                }
-//                query.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
-//                query.addProperty("idStockMachinery", machineryLM.findProperty("idStockMachinery").getExpr(machineryExpr));
-//                query.addProperty("nppMachinery", machineryLM.findProperty("nppMachinery").getExpr(machineryExpr));
-//                query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
-//                query.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeExpr).getWhere());
-//                query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
-//                        machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeExpr), Compare.EQUALS));
-//                query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
-//                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
-//                for (int i = 0, size = result.size(); i < size; i++) {
-//
-//                    DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
-//                    String directoryMachinery = trim((String) result.getValue(i).get("overDirectoryMachinery").getValue());
-//                    String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
-//                    Integer nppMachinery = (Integer) result.getValue(i).get("nppMachinery").getValue();
-//                    Date dateFromRequestExchange = (Date) result.getValue(i).get("dateFromRequestExchange").getValue();
-//                    Date dateToRequestExchange = (Date) result.getValue(i).get("dateToRequestExchange").getValue();
-//                    Date startDateRequestExchange = (Date) result.getValue(i).get("startDateRequestExchange").getValue();
-//                    String idDiscountCardFrom = trim((String) result.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
-//                    String idDiscountCardTo = trim((String) result.getValue(i).get("idDiscountCardToRequestExchange").getValue());
-//                    String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
-//
-//                    Set<String> directorySet = new HashSet<>(Collections.singletonList(directoryMachinery));
-//                    List<Set<String>> extraStockSet;
-//                    if (extraStockSetMap.containsKey(requestExchangeObject)) {
-//                        extraStockSet = extraStockSetMap.get(requestExchangeObject);
-//                    } else {
-//                        extraStockSet = readExtraStockRequestExchange(session, requestExchangeObject);
-//                        extraStockSetMap.put(requestExchangeObject, extraStockSet);
-//                    }
-//                    directorySet.addAll(extraStockSet.get(1));
-//
-//                    String requestExchangeKey = requestExchangeObject.getValue() + directoryMachinery + idStockMachinery;
-//                    RequestExchange requestExchange = requestExchangeMap.get(requestExchangeKey);
-//                    if (requestExchange == null) {
-//                        requestExchangeMap.put(requestExchangeKey, new RequestExchange((Integer) requestExchangeObject.getValue(),
-//                                new HashSet<>(Collections.singletonList(nppMachinery)), directorySet, idStockMachinery,
-//                                extraStockSet.get(0), dateFromRequestExchange, dateToRequestExchange,
-//                                startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
-//                    } else {
-//                        requestExchange.cashRegisterSet.add(nppMachinery);
-//                    }
-//                }
-//                session.apply(getBusinessLogics());
-//            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-//                throw Throwables.propagate(e);
-//            }
-//        }
-//        return new ArrayList<>(requestExchangeMap.values());
-//    }
 
     @Override
     public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException {

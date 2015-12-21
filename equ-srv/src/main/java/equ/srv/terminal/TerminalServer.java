@@ -41,6 +41,8 @@ public class TerminalServer extends LifecycleAdapter {
     public static String AUTHORISATION_REQUIRED_TEXT = "Необходима повторная ON-LINE авторизация";
     public static byte NOT_ACTIVE_TERMINAL = 107;
     public static String NOT_ACTIVE_TERMINAL_TEXT = "Терминал не зарегистрирован или заблокирован";
+    public static byte GET_ALL_BASE_ERROR = 108;
+    public static String GET_ALL_BASE_ERROR_TEXT = "Ошибка при формировании базы";
     public static byte UNKNOWN_COMMAND = 111;
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
 
@@ -48,6 +50,7 @@ public class TerminalServer extends LifecycleAdapter {
     public static final byte GET_ITEM_INFO = 5;
     public static final byte SAVE_DOCUMENT = 6;
     public static final byte GET_ITEM_HTML = 7;
+    public static final byte GET_ALL_BASE = 8;
 
     private static final Logger logger = Logger.getLogger("TerminalLogger");
 
@@ -191,6 +194,7 @@ public class TerminalServer extends LifecycleAdapter {
 
                 String result = null;
                 List<String> itemInfo = null;
+                byte[] fileBytes = null;
                 byte errorCode = 0;
                 String errorText = null;
                 String sessionId;
@@ -199,7 +203,7 @@ public class TerminalServer extends LifecycleAdapter {
                         try {
                             logger.info("requested getUserInfo");
                             String[] params = readParams(inFromClient);
-                            if(params != null && params.length == 3) {
+                            if(params.length == 3) {
                                 logger.info("logging user " + params[0]);
                                 if(terminalHandlerInterface.isActiveTerminal(createSession(), params[2])) {
                                     result = login(params[0], params[1], params[2]);
@@ -225,7 +229,7 @@ public class TerminalServer extends LifecycleAdapter {
                         try {
                             logger.info("requested getItemInfo");
                             String[] params = readParams(inFromClient);
-                            if(params != null && params.length == 2) {
+                            if(params.length == 2) {
                                 logger.info("requested barcode " + params[1]);
                                 sessionId = params[0];
                                 String barcode = params[1];
@@ -319,7 +323,7 @@ public class TerminalServer extends LifecycleAdapter {
                         try {
                             logger.info("requested getItemHtml");
                             String[] params = readParams(inFromClient);
-                            if(params != null && params.length == 2) {
+                            if(params.length == 2) {
                                 logger.info(String.format("requested barcode %s, stock %s", params[0], params[1]));
                                 String barcode = params[0];
                                 String idStock = params[1];
@@ -327,6 +331,33 @@ public class TerminalServer extends LifecycleAdapter {
                                 if (result == null) {
                                     errorCode = ITEM_NOT_FOUND;
                                     errorText = ITEM_NOT_FOUND_TEXT;
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("Unknown error: ", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = UNKNOWN_ERROR_TEXT;
+                        }
+                        break;
+                    case GET_ALL_BASE:
+                        try {
+                            logger.info("requested getAllBase");
+                            String[] params = readParams(inFromClient);
+                            if(params.length == 1) {
+                                sessionId = params[0];
+                                DataObject user = userMap.get(sessionId);
+                                if (user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    fileBytes = readBase(user);
+                                    if (fileBytes == null) {
+                                        errorCode = GET_ALL_BASE_ERROR;
+                                        errorText = GET_ALL_BASE_ERROR_TEXT;
+                                    }
                                 }
                             } else {
                                 errorCode = WRONG_PARAMETER_COUNT;
@@ -348,53 +379,48 @@ public class TerminalServer extends LifecycleAdapter {
                 logger.info("error code: " + (int) errorCode);
                 if(errorText != null)
                     logger.info("error: " + errorText);
-                outToClient.writeByte(stx);
-                outToClient.flush();
-                outToClient.writeByte(id);
-                outToClient.flush();
-                outToClient.writeByte(command);
-                outToClient.flush();
-                outToClient.writeByte(errorCode);
-                outToClient.flush();
+                writeByte(outToClient, stx);
+                writeByte(outToClient, id);
+                writeByte(outToClient, command);
+                writeByte(outToClient, errorCode);
                 if(errorText != null) {
-                    outToClient.writeChars(errorText);
-                    outToClient.flush();
+                    writeChars(outToClient, errorText);
                 } else {
                     switch (command) {
                         case GET_USER_INFO:
                             if (result != null) {
-                                outToClient.writeBytes(result);
-                                outToClient.flush();
-                                outToClient.writeByte(esc);
-                                outToClient.flush();
-                                outToClient.write(String.valueOf(System.currentTimeMillis()).getBytes("cp1251"));
-                                outToClient.flush();
+                                writeBytes(outToClient, result);
+                                writeByte(outToClient, esc);
+                                write(outToClient, String.valueOf(System.currentTimeMillis()));
                             }
                             break;
                         case GET_ITEM_INFO:
                             if (itemInfo != null) {
                                 for (int i = 0; i < 8; i++) {
                                     if (itemInfo.size() > i) {
-                                        outToClient.write(itemInfo.get(i).getBytes("cp1251"));
-                                        outToClient.flush();
+                                        write(outToClient, itemInfo.get(i));
                                     }
-                                    outToClient.writeByte(esc);
-                                    outToClient.flush();
+                                    writeByte(outToClient, esc);
                                 }
                             }
                             break;
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
                             if (result != null) {
-                                outToClient.write(result.getBytes("cp1251"));
-                                outToClient.flush();
+                                write(outToClient, result);
                             }
                             break;
+                        case GET_ALL_BASE:
+                            if(fileBytes != null) {
+                                write(outToClient, String.valueOf(fileBytes.length));
+                                writeByte(outToClient, etx);
+                                write(outToClient, fileBytes);
+                            }
                     }
                 }
 
-                outToClient.writeByte(etx);
-                outToClient.flush();
+                if(fileBytes == null)
+                    writeByte(outToClient, etx);
 
                 Thread.sleep(1000);
                 return null;
@@ -406,7 +432,6 @@ public class TerminalServer extends LifecycleAdapter {
                         outToClient.close();
                     if(inFromClient !=null)
                         inFromClient.close();
-                    //socket.close();
                 } catch (IOException e) {
                     logger.error("Error occured: ", e);
                 }
@@ -450,7 +475,7 @@ public class TerminalServer extends LifecycleAdapter {
             baos.write(b);
         }
         String result = baos.toString("cp1251");
-        return result.isEmpty() ? null : result.split(escStr, -1);
+        return result.split(escStr, -1);
     }
 
     private static class TerminalThreadFactory implements ThreadFactory {
@@ -501,7 +526,36 @@ public class TerminalServer extends LifecycleAdapter {
         return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
     }
 
+    protected byte[] readBase(DataObject userObject) throws RemoteException, SQLException {
+        return terminalHandlerInterface.readBase(createSession(), userObject);
+    }
+
     protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
         return terminalHandlerInterface.importTerminalDocument(createSession(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+    }
+
+    private void writeByte(DataOutputStream outToClient, byte b) throws IOException {
+        outToClient.writeByte(b);
+        outToClient.flush();
+    }
+
+    private void writeBytes(DataOutputStream outToClient, String s) throws IOException {
+        outToClient.writeBytes(s);
+        outToClient.flush();
+    }
+
+    private void writeChars(DataOutputStream outToClient, String s) throws IOException {
+        outToClient.writeChars(s);
+        outToClient.flush();
+    }
+
+    private void write(DataOutputStream outToClient, byte[] bytes) throws IOException {
+        outToClient.write(bytes);
+        outToClient.flush();
+    }
+
+    private void write(DataOutputStream outToClient, String value) throws IOException {
+        outToClient.write(value.getBytes("cp1251"));
+        outToClient.flush();
     }
 }
