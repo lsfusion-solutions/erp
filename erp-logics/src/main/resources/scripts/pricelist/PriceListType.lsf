@@ -570,17 +570,25 @@ META defineOperationPriceListType(dumb)
     defaultReturnPriceListTypeOperation 'Вид цены по умолчанию (возврат)' = DATA PriceListType(Operation);
     isDefaultReturnPriceListTypeOperation 'По умолчанию (возврат)' (type, operation) = defaultReturnPriceListTypeOperation(operation) == type;
     
+    notUseReturnPriceListTypeOperation 'Не использовать вид цены на возврате' = DATA BOOLEAN(Operation);
+    
     EXTEND FORM operation
         OBJECTS pt = PriceListType
         PROPERTIES(pt, o) inPriceListTypeOperation, isDefaultPriceListTypeOperation, isDefaultReturnPriceListTypeOperation
         PROPERTIES(pt) READONLY idPriceListType SHOWIF showIDs(), namePriceListType, nameCurrencyPriceListType, objectClassName
+        PROPERTIES(o) notUseReturnPriceListTypeOperation
         FILTERGROUP filters
             FILTER 'Показывать отмеченные' inPriceListTypeOperation(pt, o) 'F9'
     ;
 
     DESIGN operation {
         tabContainer {
-            MOVE pt.box;
+            NEW priceListTypes {
+                caption = 'Виды цен';
+                type = CONTAINERV;
+                MOVE pt.box;
+                MOVE PROPERTY(notUseReturnPriceListTypeOperation(o));
+            }
         }
     }
 
@@ -600,7 +608,7 @@ META defineDocumentOperationPriceListType(object, caption, form, defaultPrefix)
     WHEN SESSION FORMS form CHANGED(operation###object(object)) DO {
         IF default###defaultPrefix##PriceListTypeOperation(operation###object(object)) THEN
             priceListType###object(object) <- default###defaultPrefix##PriceListTypeOperation(operation###object(object))
-        ELSE IF defaultPriceListTypeOperation(operation###object(object)) THEN
+        ELSE IF defaultPriceListTypeOperation(operation###object(object)) AND NOT notUseReturnPriceListTypeOperation(operation###object(object)) THEN
                 priceListType###object(object) <- defaultPriceListTypeOperation(operation###object(object)); 
     }
     
