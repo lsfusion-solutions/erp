@@ -38,9 +38,13 @@ nameLegalEntityStockStockDocumentLedger 'Склад контрагента' = na
 
 operationStockDocumentLedger 'Операция' (ledger) = ABSTRACT Operation(StockDocumentLedger) PERSISTENT;
 isReturnStockDocumentLedger 'Возврат' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) PERSISTENT;
+
+captionStockDocumentOperation 'Название операции в товарном отчете (закупка)' = ABSTRACT VARISTRING[100] (Operation);
+returnCaptionStockDocumentOperation 'Название операции в товарном отчете (возврат)' = ABSTRACT VARISTRING[100] (Operation);
+
 nameOperationStockDocumentLedger 'Операция' (ledger) = IF isReturnStockDocumentLedger(ledger) 
-    THEN overNameOperation(operationStockDocumentLedger(ledger))
-    ELSE nameOperation(operationStockDocumentLedger(ledger));
+    THEN OVERRIDE overNameOperation(operationStockDocumentLedger(ledger)), returnCaptionStockDocumentOperation(operationStockDocumentLedger(ledger))
+    ELSE OVERRIDE nameOperation(operationStockDocumentLedger(ledger)), captionStockDocumentOperation(operationStockDocumentLedger(ledger));
 
 descriptionStockDocumentLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) PERSISTENT;
 
