@@ -127,6 +127,7 @@ nameHeadManInventory  'Зав. складом' (inventory) = nameContact(headMan
 
 TABLE stockInventory (Stock, Inventory);
 includeStockInventory 'Вкл' = DATA BOOLEAN (Stock, Inventory);
+countStocksInventory 'Кол-во складов' = GROUP SUM 1 IF includeStockInventory(st, in) BY in;
 nameStockInventory 'Склады' (inventory) =
     GROUP CONCAT nameStock(stock) IF includeStockInventory(stock, inventory), ', '
           BY inventory
@@ -1031,7 +1032,7 @@ createPageListInventory 'Создать страницу описи с оста�
     }    
 };
 
-isParentSkuGroupSkuPageInventoryDetail = isParentSkuGroupSku(g, skuPageInventoryDetail(detail)) OR g IS SkuGroup AND NOT skuPageInventoryDetail(detail);
+isParentSkuGroupSkuPageInventoryDetail = (isParentSkuGroupSku(g, skuPageInventoryDetail(detail))) OR (g IS SkuGroup AND NOT skuPageInventoryDetail(detail));
 
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory FIXED PANEL
@@ -1546,7 +1547,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(cs,bt) READONLY SHOWIF isBatchCollationSheet(cs) sumPageInventoryDetailCollationSheetBatch, sumBalanceCollationSheetBatch, sumShortageCollationSheetBatch
     FILTERS                                                     includeCollationSheetBatch(cs, bt),
                                                                 quantityPageInventoryDetailCollationSheetBatch(cs,bt) OR quantityBalanceCollationSheetBatch(cs,bt)
-    FILTERS accessCompanyStockCurrentUserInventory(in)
+    FILTERS accessCompanyStockCurrentUserInventory(in) OR NOT countStocksInventory(in)
 ;
 
 DESIGN inventories {
