@@ -156,7 +156,98 @@ EXTEND FORM userInvoice
     PROPERTIES FORCE PANEL TOOLBAR TODRAW uid SHOWIF showExtraChargeUserInvoice(i)  selectExtraChargeInvoice(i), fillExtraChargePriceUserInvoice(i)
 ;
 
-calcExtraChargePriceUserInvoicedetail (d) = GROUP SUM extraChargePriceInvoiceUserInvoiceDetail(i,d) IF isPostedUserInvoice(i) BY d; //IF isPostedUserInvoiceDetail(d)
+calcExtraChargePriceUserInvoiceDetail (d) = GROUP SUM extraChargePriceInvoiceUserInvoiceDetail(i,d) IF isPostedUserInvoice(i) BY d; //IF isPostedUserInvoiceDetail(d)
 
-chargePriceUserInvoiceDetail (d) <- calcExtraChargePriceUserInvoicedetail(d)
-    WHEN CHANGED(calcExtraChargePriceUserInvoicedetail(d));
+chargePriceUserInvoiceDetail (d) <- calcExtraChargePriceUserInvoiceDetail(d)
+    WHEN CHANGED(calcExtraChargePriceUserInvoiceDetail(d));
+    
+FORM extraChargeParams 'Параметры'
+    OBJECTS o = Operation FIXED PANEL 
+    PROPERTIES SELECTOR nameOperation(o)
+
+    OBJECTS s = LegalEntity FIXED PANEL 
+    PROPERTIES SELECTOR nameLegalEntity(s)
+    
+    OBJECTS sk = Sku FIXED PANEL 
+    PROPERTIES SELECTOR nameSku(sk)    
+    FILTERS isChargeSku(sk)
+    
+    OBJECTS nu = NUMERIC[16,2] FIXED PANEL 
+    PROPERTIES val = OBJVALUE (nu)
+;
+DESIGN extraChargeParams {
+    main {
+//        preferredSize = (800, 600); 
+        NEW top {
+            type = CONTAINERH;
+            MOVE o.box;
+            MOVE s.box { caption = 'Поставщик услуг';}
+            MOVE sk.box { 
+                caption = 'Услуга'; 
+                PROPERTY (nameSku(sk)) {minimumCharWidth = 20; preferredCharWidth = 20;}
+            }
+            MOVE nu.box { 
+                caption = 'Сумма';
+                PROPERTY (val) {
+                    caption = 'Сумма услуг';
+                    minimumCharWidth = 15; preferredCharWidth = 20;
+                }
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+seekDefaultOperatioParams = ACTION SEEK extraChargeParams.o  operationId('purchase_charge');
+
+EXTEND FORM extraChargeParams
+    EVENTS ON INIT seekDefaultOperatioParams()
+;
+    
+createExtraChargeUserInvoice 'Накладная (закупка) доп. услуги' (invoice) = ACTION (invoice) {   
+    FORM extraChargeParams MODAL;    
+    LOCAL o = Operation();
+    LOCAL s = LegalEntity(); 
+    LOCAL sk = Sku();
+    LOCAL nu = NUMERIC[16,2] ();
+        
+    o() <- NULL;
+    s() <- NULL;
+    sk() <- NULL;
+    nu() <- NULL;
+     
+    o() <- chosenObject('o');
+    s() <- chosenObject('s');
+    sk() <- chosenObject('sk');       
+    nu() <- chosenNumeric('nu');
+    IF formResult() == FormResult.ok THEN {
+        NEWSESSION NESTED o,s,sk,nu {
+            FOR ADDOBJ i = UserInvoice DO {
+                operationUserInvoice(i) <- o();
+                supplierUserInvoice(i) <- s();
+                customerUserInvoice(i) <- customerInvoice(invoice);
+                currencyUserInvoice(i) <- currencyShortName('BLR');
+                
+                FOR ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- i;   
+                    skuUserInvoiceDetail(d) <- sk();
+                    quantityUserInvoiceDetail(d) <- 1.0; 
+                    priceUserInvoiceDetail(d) <- nu(); 
+                    
+                }
+                inExtraChargeInvoiceUserInvoice(i,invoice) <- TRUE;
+                fillExtraChargePriceUserInvoice(i);
+                FORM userInvoice OBJECTS i=i MANAGESESSION DOCKEDMODAL;
+            }
+        }
+    }
+}
+EXTEND FORM invoices
+    PROPERTIES (i) createExtraChargeUserInvoice FORCE PANEL TOOLBAR 
+;
+DESIGN invoices {
+    createdContainer {
+        MOVE PROPERTY (createExtraChargeUserInvoice(i));
+    }    
+}
+
