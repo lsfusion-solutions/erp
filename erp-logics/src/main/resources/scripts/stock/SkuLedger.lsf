@@ -722,7 +722,7 @@ FORM dialogBatch 'Партии'
     ORDER BY dateTimeBatch(bt)
 ;
 
-FORM dialogBatchStock 'Партии'
+FORM dialogBatchStockOut 'Партии (расход)'
     OBJECTS st = Stock FIXED PANEL
     OBJECTS t = DATETIME FIXED PANEL
     OBJECTS sk = Sku FIXED PANEL
@@ -742,7 +742,35 @@ FORM dialogBatchStock 'Партии'
         FILTER 'Партии с положительным остатком' currentBalanceBatchStock(bt, st) > 0 'F9'
         FILTER 'Партии с остатком' skuCurrentBalanceBatchStock(bt, st) == sk 'F8' DEFAULT
 ;
-DESIGN dialogBatchStock {
+DESIGN dialogBatchStockOut {
+    main {
+        PROPERTY (balanceBBatchStockDateTime(bt,st,t)) {
+            caption = 'Остаток до операции';
+        }
+    }
+}
+
+FORM dialogBatchStockIn 'Партии (приход)'
+    OBJECTS st = Stock FIXED PANEL
+    OBJECTS t = DATETIME FIXED PANEL
+    OBJECTS sk = Sku FIXED PANEL
+
+    OBJECTS bt = Batch
+    PROPERTIES (bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, idBatch SHOWIF showIDs(), nameBatch, shippedQuantityBatch, costBatch, expiryDateBatch
+    PROPERTIES  READONLY balanceBBatchStockDateTime(bt, st, t)
+    PROPERTIES  READONLY currentBalanceBatchStock(bt, st)
+    FILTERS skuBatch(bt) == sk
+    ORDER BY dateTimeBatch(bt)
+    
+    FILTERGROUP ledger
+        FILTER 'С движением по складу' skuLedgerBatchStock(bt, st) == sk 'F6' 
+    
+    FILTERGROUP batch
+        FILTER 'Партии с остатком до операции' balanceBBatchStockDateTime(bt, st, t) 'F11'
+        FILTER 'Партии с положительным остатком' currentBalanceBatchStock(bt, st) > 0 'F9'
+        FILTER 'Партии с остатком' skuCurrentBalanceBatchStock(bt, st) == sk 'F8'
+;
+DESIGN dialogBatchStockIn {
     main {
         PROPERTY (balanceBBatchStockDateTime(bt,st,t)) {
             caption = 'Остаток до операции';
