@@ -200,8 +200,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = itemQuery.execute(session);
             for (ImMap<Object, Object> entry : itemResult.values()) {
 
-                String idBarcodeSku = (String) entry.get("idBarcodeSku");
-                String nameSku = (String) entry.get("nameSku");
+                String idBarcodeSku = trim((String) entry.get("idBarcodeSku"));
+                String nameSku = trim((String) entry.get("nameSku"));
                 BigDecimal transactionPriceSkuStock = (BigDecimal) entry.get("transactionPriceSkuStock");
                 BigDecimal quantitySkuStock = BigDecimal.ONE;//(BigDecimal) entry.get("quantitySkuStock");
 
@@ -210,6 +210,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             }
         }
         return result;
+    }
+
+    private String trim(String input) {
+        return input == null ? null : input.trim();
     }
 
     private void createOrderTable(Connection connection) throws SQLException {
