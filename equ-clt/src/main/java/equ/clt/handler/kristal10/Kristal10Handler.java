@@ -815,6 +815,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     discountCard = ((Element) discountCardEntry).getValue();
                                     if (discountCard != null) {
                                         discountCard = discountCard.trim();
+                                        if(discountCard.length() > 18)
+                                            discountCard = discountCard.substring(0, 18);
                                         break;
                                     }
                                 }
