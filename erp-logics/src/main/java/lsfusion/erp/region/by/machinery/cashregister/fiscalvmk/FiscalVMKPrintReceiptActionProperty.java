@@ -91,7 +91,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                             sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
                         } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
-                        } else if (giftCardLM != null && !giftCardAsDiscount) {
+                        } else if (giftCardLM != null) {
                             sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
                         } else
                             sumDisc = sumDisc == null ? sumPayment : sumDisc.add(sumPayment);
@@ -155,8 +155,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(ip, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
-                            sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList), 
-                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom));
+                            sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList),
+                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsDiscount));
                     if (result instanceof Integer) {
                         findProperty("numberReceipt").change(result, context, receiptObject);
                         context.apply();

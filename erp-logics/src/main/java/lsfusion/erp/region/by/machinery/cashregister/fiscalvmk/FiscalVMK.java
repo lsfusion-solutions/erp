@@ -178,11 +178,21 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
-    public static boolean totalGiftCard(BigDecimal sum) {
+    public static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount) {
         if (sum == null)
             return true;
-        logAction("vmk_oplat", 2, Math.abs(sum.intValue()), 0);
-        return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
+        try {
+            if (giftCardAsDiscount) {
+                logAction("vmk_discountpi", "Сертификат", sum, 3);
+                return vmkDLL.vmk.vmk_discountpi(("Сертификат" + "\0").getBytes("cp1251"), sum.intValue(), 3);
+            } else {
+                logAction("vmk_oplat", 2, Math.abs(sum.intValue()), 0);
+                return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
+            }
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public static boolean total(BigDecimal sumPayment, Integer typePayment) {

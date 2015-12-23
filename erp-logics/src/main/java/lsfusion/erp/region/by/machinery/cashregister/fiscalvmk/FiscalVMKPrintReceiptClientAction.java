@@ -18,9 +18,10 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     ReceiptInstance receipt;
     String receiptTop;
     String receiptBottom;
+    boolean giftCardAsDiscount;
 
     public FiscalVMKPrintReceiptClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                             ReceiptInstance receipt, String receiptTop, String receiptBottom) {
+                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsDiscount) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -29,6 +30,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
+        this.giftCardAsDiscount = giftCardAsDiscount;
     }
 
 
@@ -107,7 +109,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         
         FiscalVMK.printFiscalText(receiptBottom);
         
-        if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
+        if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, giftCardAsDiscount))
             return null;
         if (!FiscalVMK.totalCard(receipt.sumCard))
             return null;
