@@ -120,8 +120,9 @@ META defineOrderInvoice(sign, stockProp)
 
     backgroundInvoiceOrder 'Цвет' (order) = RGB(175, 255, 175) IF order IS Order;
 
-    quantityOrderInvoiceDetail 'К-во заказа' (d) = quantityOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d))); 
-    priceOrderInvoiceDetail 'Цена заказа' (d) = priceOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
+    maxOrderDetailInvoiceDetail (d) = maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)) PERSISTENT INDEXED;
+    quantityOrderInvoiceDetail 'К-во заказа' (d) = quantityOrderDetail(maxOrderDetailInvoiceDetail(d)); 
+    priceOrderInvoiceDetail 'Цена заказа' (d) = priceOrderDetail(maxOrderDetailInvoiceDetail(d));
      
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
@@ -213,7 +214,7 @@ META defineOrderInvoice(sign, stockProp)
             }
         }
     }
-    prevListSkuPriceUserInvoiceDetail (t, d) += WHEN t == priceListTypeUserInvoiceDetail(d) AND maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)) AND NOT notFillPriceInvoiceOrderOperation(operationUserInvoiceDetail(d)) THEN priceOrderInvoiceDetail(d); 
+    prevListSkuPriceUserInvoiceDetail (t, d) += WHEN t == priceListTypeUserInvoiceDetail(d) AND maxOrderDetailInvoiceDetail(d) AND NOT notFillPriceInvoiceOrderOperation(operationUserInvoiceDetail(d)) THEN priceOrderInvoiceDetail(d); 
     
     fillHeaderUserInvoiceOrder = ACTION (userInvoice, order) {
         dateUserInvoice(userInvoice) <- currentDate();
