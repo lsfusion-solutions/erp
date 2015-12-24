@@ -405,7 +405,8 @@ noteConsignment 'Примечание' (consignment) = OVERRIDE dataNoteConsignm
 
 namePayerConsignment 'Заказчик перевозки ' (consignment) =
     nameLegalEntity(payerConsignment(consignment)) + ' , ' + UNPLegalEntity(payerConsignment(consignment)) IN carConsignment;
-
+    
+orderConsignmentDetail 'Порядок сортировки' = ABSTRACT VARISTRING[255] (ConsignmentDetail); 
 indexConsignmentDetail 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail); 
 skipConsignmentDetail = ABSTRACT BOOLEAN (ConsignmentDetail); 
 
@@ -614,10 +615,10 @@ META defineConsignmentFormSimple(form, caption)
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
-        PROPERTIES(d) indexConsignmentDetail, nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
+        PROPERTIES(d) orderConsignmentDetail, indexConsignmentDetail, nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
                       sumConsignmentDetail, vatConsignmentDetail, useEmptyVATConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                       noteConsignmentDetail, extraDescriptionConsignmentDetail
-        ORDER BY indexConsignmentDetail(d)
+        ORDER BY orderConsignmentDetail(d), indexConsignmentDetail(d)
         FILTERS consignmentConsignmentDetail(d) == c,
                 NOT skipConsignmentDetail(d)
     ;
@@ -687,14 +688,14 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
  
         OBJECTS prefix##d=ConsignmentDetail
 
-        PROPERTIES(prefix##d) prefix##indexConsignmentDetail=indexConsignmentDetail, prefix##nameSkuConsignmentDetail=nameSkuConsignmentDetail, prefix##shortNameUOMConsignmentDetail=shortNameUOMConsignmentDetail, 
+        PROPERTIES(prefix##d) prefix##orderConsignmentDetail= orderConsignmentDetail, prefix##indexConsignmentDetail=indexConsignmentDetail, prefix##nameSkuConsignmentDetail=nameSkuConsignmentDetail, prefix##shortNameUOMConsignmentDetail=shortNameUOMConsignmentDetail, 
                       prefix##quantityConsignmentDetail=quantityConsignmentDetail, prefix##priceConsignmentDetail=priceConsignmentDetail,
                       prefix##sumConsignmentDetail=sumConsignmentDetail, prefix##vatConsignmentDetail=vatConsignmentDetail, prefix##useEmptyVATConsignmentDetail=useEmptyVATConsignmentDetail,
                       prefix##sumVATConsignmentDetail=sumVATConsignmentDetail, prefix##sumInvoiceConsignmentDetail=sumInvoiceConsignmentDetail,
                       prefix##packQuantityConsignmentDetail=packQuantityConsignmentDetail, prefix##grossWeightTonConsignmentDetail=grossWeightTonConsignmentDetail,
                       prefix##grossWeightConsignmentDetail=grossWeightConsignmentDetail,prefix##noteConsignmentDetail=noteConsignmentDetail, 
                       prefix##extraDescriptionConsignmentDetail=extraDescriptionConsignmentDetail
-        ORDER BY prefix##indexConsignmentDetail
+        ORDER BY prefix##orderConsignmentDetail, prefix##indexConsignmentDetail
         FILTERS consignmentConsignmentDetail(prefix##d) == prefix,
                 NOT skipConsignmentDetail(prefix##d)
     ;        
@@ -808,10 +809,10 @@ FORM consignment 'Атрибуты накладной'
 
     OBJECTS d=ConsignmentDetail
 
-    PROPERTIES(d) indexConsignmentDetail, nameSkuConsignmentDetail READONLY, shortNameUOMConsignmentDetail READONLY, quantityConsignmentDetail, priceConsignmentDetail,
+    PROPERTIES(d) orderConsignmentDetail, indexConsignmentDetail, nameSkuConsignmentDetail READONLY, shortNameUOMConsignmentDetail READONLY, quantityConsignmentDetail, priceConsignmentDetail,
                   sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                   packQuantityConsignmentDetail, grossWeightConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY
-    ORDER BY indexConsignmentDetail(d)  
+    ORDER BY orderConsignmentDetail(d), indexConsignmentDetail(d)  
 
     FILTERS consignmentConsignmentDetail(d) == c,
             NOT skipConsignmentDetail(d)
