@@ -918,30 +918,6 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
     }
 } TOOLBAR;
 
-//createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
-//
-//    FOR ADDOBJ t = LabelTransaction DO {
-//        departmentStoreLabelTransaction(t) <- departmentStore;
-//
-//        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
-//            labelTransactionLabelTransactionDetail(d) <- t;
-//            skuLabelTransactionDetail(d) <- sku;
-//
-//            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-//            documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
-//
-//            createAttributeLabelTransactionDetail(d);
-//        }
-//        
-//        FORM customLabelTransaction OBJECTS l = t MODAL;
-//        IF formResult() == FormResult.ok THEN {    
-//            printLabelTransaction(t);
-//        } ELSE {
-//            cancel();
-//        }      
-//    }  
-//} TOOLBAR ;
-
 selectType 'Вкл.' = DATA LOCAL BOOLEAN (LabelType);
 changeDepartmentStore 'Изменить данные' = DATA LOCAL BOOLEAN (DepartmentStore);
 countLabelDepartmentStore 'Количество ценников' = DATA LOCAL INTEGER (DepartmentStore);
@@ -1052,24 +1028,6 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
     }
 } TOOLBAR;
 
-
-//createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
-//    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
-//        NEWSESSION NESTED selectSkuStock {
-//            FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
-//                selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
-//                                   
-//                createSnapshotLabelTransactionDepartmentStore(stock);
-//            }
-//            
-//            apply();
-//        }
-//        IF NOT notResetLabelSelectSku() THEN {
-//            selectSkuStock(sku, stock) <- NULL;
-//        }
-//    }
-//} TOOLBAR;
-
 EXTEND  FORM currentBalanceSkuStock
     PROPERTIES() TODRAW sts createSelectedSkuStockLabelTransaction, createSelectedSkuStockSnapshotLabelTransaction 
 ;
@@ -1110,15 +1068,6 @@ printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатат�
         MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
     }
 } TOOLBAR;
-
-//printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
-//    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {            
-//        createSnapshotLabelTransactionDepartmentStore(departmentStore);
-//        selectSku(sku) <- NULL;
-//    } ELSE {
-//        MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
-//    }
-//} TOOLBAR;
 
 // Инкрементная загрузка
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
