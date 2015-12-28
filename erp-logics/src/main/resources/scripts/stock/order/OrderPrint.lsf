@@ -10,6 +10,37 @@ NAMESPACE Order;
 @defineDocumentAccount(order, customer, ' покупателя');
 @defineDocumentPhone(order, customer, ' покупателя');
 
+//Рекламный блок
+
+adImageOrder 'Рекламное изображение счет-фактуры' = DATA IMAGEFILE ();
+loadImageOrder 'Загрузить рекламное изображение счет-фактуры' () = ACTION LOADFILE adImageOrder();
+openImageOrder 'Просмотреть рекламное изображение счет-фактуры' () = ACTION OPENFILE adImageOrder();
+deleteImageOrder 'Удалить рекламное изображение счет-фактуры' () = ACTION {adImageOrder() <- NULL;} SHORTCUT adImageOrder;
+
+adTextOrder 'Рекламное изображение счет-фактуры' = DATA RICHTEXT ();
+
+EXTEND FORM options
+    PROPERTIES() adImageOrder ON CHANGE loadImageOrder(), adTextOrder
+;
+
+DESIGN options {
+    orders {
+        NEW adContainer{
+            type = CONTAINERH;
+            fill = 1;
+            caption = 'Рекламный блок';
+            MOVE PROPERTY(adImageOrder()){
+                panelCaptionAbove = TRUE;
+                alignment = STRETCH;
+            }
+            MOVE PROPERTY(adTextOrder()){
+                panelCaptionAbove = TRUE;
+                fill = 3;
+            }
+        }
+    }
+}
+
 FORM printOrder 'Счет-фактура (печать)'
     OBJECTS o = Order FIXED PANEL
     PROPERTIES (o) READONLY nameSupplierOrder, nameSupplierStockOrder, addressSupplierOrder, taxNumberSupplierOrder, 
@@ -21,6 +52,7 @@ FORM printOrder 'Счет-фактура (печать)'
                    numberOrder, seriesOrder, seriesNumberOrder, dateOrder, timeOrder, closeDateOrder, currencyOrder,
                    nameCurrencyOrder, noteOrder, countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
                    VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, nameAcquisitionTargetOrder
+    PROPERTIES() adImage=adImageOrder, adText=adTextOrder
 
     OBJECTS d = OrderDetail
     PROPERTIES (d) READONLY indexOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail,

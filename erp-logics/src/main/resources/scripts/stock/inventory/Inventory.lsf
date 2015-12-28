@@ -656,6 +656,40 @@ sumContainerManageShortageCollationSheet 'Сумма недостачи, тар�
                                                                                 THEN sumContainerBatchShortageCollationSheet(collationSheet)
                                                                                 ELSE sumContainerSkuShortageCollationSheet(collationSheet);
 
+// Объединение товаров                                                                               
+
+overReplaceSkuSku(s, d) += ACTION (s, d) {
+    quantityBalanceCollationSheetSku(collationSheet, d) <- balanceBSkuStockDateTime(d, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s));
+        
+    sumBalanceCollationSheetSku(collationSheet, d)
+        <- NUMERIC[16,2](sumBSkuStockDateTime(d, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s)) AND NOT isPriceInventory(inventoryCollationSheet(collationSheet));        
+    sumBalanceCollationSheetSku(collationSheet, d)
+        <- NUMERIC[16,2](roundPriceCurrency(balanceBSkuStockDateTime(d, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))*priceBalanceCollationSheetSku(collationSheet, d), currencyStock(stockCollationSheet(collationSheet))))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s)) AND isPriceInventory(inventoryCollationSheet(collationSheet));    
+    
+    quantityBalanceCollationSheetBatch(collationSheet, batch)
+        <- balanceBBatchStockDateTime(batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s)) AND isBatchInventory(inventoryCollationSheet(collationSheet));        
+        
+    priceBalanceCollationSheetSku(collationSheet, d)
+        <- OVERRIDE overPriceBalanceCollationSheetSku(collationSheet, d), priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, d, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s));
+
+    sumBalanceCollationSheetSku(collationSheet, d)
+        <- NUMERIC[16,2](sumBSkuStockDateTime(d, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s)) AND NOT isPriceInventory(inventoryCollationSheet(collationSheet));
+                
+    sumBalanceCollationSheetSku(collationSheet, d)
+        <- NUMERIC[16,2](roundPriceCurrency(balanceBSkuStockDateTime(d, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))*priceBalanceCollationSheetSku(collationSheet, d), currencyStock(stockCollationSheet(collationSheet))))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s)) AND isPriceInventory(inventoryCollationSheet(collationSheet));
+        
+    priceBalanceCollationSheetBatch(collationSheet, batch)
+        <- priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
+        WHERE PREV(quantityPageInventoryDetailCollationSheetSku(collationSheet, s)) AND isBatchCollationSheet(collationSheet);     
+}                                                                                
+
 //-------------------------------------- Проведение по товарному отчету ----------------------------------------------------//
 
 sumItemAccountBCollationSheet 'Сумма по ТО, товар' = DATA NUMERIC[16,2] (CollationSheet);
