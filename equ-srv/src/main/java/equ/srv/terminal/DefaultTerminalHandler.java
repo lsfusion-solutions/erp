@@ -62,13 +62,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcodeId").readClasses(session, new DataObject(barcode));
                 ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stockEmployee").readClasses(session, user);
                 BigDecimal price = null;
-                //BigDecimal quantity = null;
+                BigDecimal quantity = null;
                 if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
                     price = (BigDecimal) terminalHandlerLM.findProperty("currentRetailPricingPriceSkuStock").read(session, skuObject, stockObject);
-                //    quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalanceSkuStock").read(session, skuObject, stockObject);
+                    quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalanceSkuStock").read(session, skuObject, stockObject);
                 }
-                return Arrays.asList(barcode, nameSkuBarcode, price == null ? "0" : String.valueOf(price.longValue()));//,
-                        //quantity == null ? "0" : String.valueOf(quantity.longValue()));
+                return Arrays.asList(barcode, nameSkuBarcode, price == null ? "0" : String.valueOf(price.longValue()),
+                        quantity == null ? "0" : String.valueOf(quantity.longValue()));
             } else return null;
 
         } catch (Exception e) {
