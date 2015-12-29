@@ -184,6 +184,62 @@ toShowLegalEntity(legalEntity) += legalEntity IS LegalEntity AND NOT toShowIndiv
 
 isParentLegalEntityGroupLegalEntity (lg,l) = isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg);
 
+
+// ------------------------------------ объединение организаций -------------------------- //
+
+inLegalEntity 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+countInLegalEntity = GROUP SUM 1 IF inLegalEntity(legalEntity);
+
+FORM confirmReplaceLegalEntity 'Объединяемые организации'
+    OBJECTS legalEntity = LegalEntity FIXED PANEL 
+
+    OBJECTS l = LegalEntity  
+    PROPERTIES(l) READONLY nameLegalEntity, addressLegalEntity, phoneLegalEntity
+    FILTERS l==legalEntity
+
+    OBJECTS l2 = LegalEntity
+    PROPERTIES(l2) inLegalEntity
+    PROPERTIES(l2) READONLY nameLegalEntity, addressLegalEntity, phoneLegalEntity
+    FILTERS inLegalEntity(l2)
+;
+
+DESIGN confirmReplaceLegalEntity {
+    REMOVE legalEntity.box;
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        MOVE l.box{
+            caption = 'Основная организация';
+        }
+        MOVE l2.box{
+            caption = 'Удаляемая организация';
+        }           
+    }
+    MOVE functions.box;
+}
+
+replaceLegalEntityLegalEntity = ABSTRACT ACTION LIST (LegalEntity, LegalEntity);
+preReplaceLegalEntityLegalEntity = ABSTRACT ACTION LIST (LegalEntity, LegalEntity);
+
+replaceLegalEntity 'Объединить' = ACTION (legalEntity) {
+    FORM confirmReplaceLegalEntity OBJECTS l=legalEntity MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR inLegalEntity(l) AND legalEntity IS LegalEntity AND NOT isCompanyLegalEntity(l) AND NOT isCompanyLegalEntity(legalEntity)DO {
+            IF l != legalEntity THEN {
+                preReplaceLegalEntityLegalEntity(l, legalEntity);            
+                replaceLegalEntityLegalEntity(l, legalEntity);
+                inLegalEntity(l) <- NULL;
+                DELETE l;            
+            } ELSE {
+                MESSAGE 'Выделенная организации не может совпадать с объединяемой и не должна являться собственной компанией';
+            }
+        }
+        apply();
+    } ELSE {
+        inLegalEntity(l) <- NULL WHERE inLegalEntity(l);           
+    }
+} CONFIRM;
+
 // ---------------------------------------- Формы для ввода компаний ------------------------------------- //
 
 FORM legalEntity 'Организация'
@@ -268,11 +324,12 @@ FORM legalEntities 'Организации'
     PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l=LegalEntity
+    PROPERTIES(l) inLegalEntity
     PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
                                           nameLegalEntityGroupLegalEntity
     PROPERTIES(l) READONLYIF isReadonly() addressLegalEntity, phoneLegalEntity, emailLegalEntity
     PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
-    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replaceLegalEntity FORCE PANEL TOOLBAR 
     ORDER BY nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT    
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
@@ -471,7 +528,7 @@ META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###contact###object contactCaption###' (полное наименование)' (object)= fullNameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
     address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-     
+    replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){ASSIGN contact###object(object) <- o WHERE contact###object(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
     contact###object (object) = ABSTRACT LegalEntity (###object) PERSISTENT;

@@ -83,6 +83,8 @@ isCompanyStock(stock) = isCompanyLegalEntity(legalEntityStock(stock));
 isSupplierStock(stock) = isSupplierLegalEntity(legalEntityStock(stock));
 isCustomerStock(stock) = isCustomerLegalEntity(legalEntityStock(stock));
 
+notCompanyStock(stock) = NOT isCompanyStock(stock);
+
 legalEntityStockId (stock)= legalEntityStock(stockId(stock));
 
 countCompanyStockStockGroup 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCompanyStock(stock)
@@ -107,6 +109,126 @@ defaultStockLegalEntity 'Склад по умолчанию' (legalEntity)= GROU
 
 currencyStock (stock) = currencyLegalEntity(legalEntityStock(stock)) PERSISTENT;
 languageStock (stock) = languageLegalEntity(legalEntityStock(stock)) PERSISTENT;
+
+// ------------------------------------ объединение организаций -------------------------- //
+
+replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){
+    legalEntityStock(stock) <- o WHERE legalEntityStock(stock) == l;
+} 
+
+// ------------------------------------ объединение складов -------------------------- //
+
+inStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+countInStock = GROUP SUM 1 IF inStock(Stock);
+
+FORM confirmReplaceStock 'Объединяемые склады'
+    OBJECTS stock = Stock FIXED PANEL 
+
+    OBJECTS s = Stock  
+    PROPERTIES(s) READONLY nameStock   
+    FILTERS s==stock
+
+    OBJECTS s2 = Stock
+    PROPERTIES(s2) inStock
+    PROPERTIES(s2) READONLY nameStock
+    FILTERS inStock(s2)
+;
+
+DESIGN confirmReplaceStock {
+    REMOVE stock.box;
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        MOVE s.box{
+            caption = 'Основной склад';
+        }
+        MOVE s2.box{
+            caption = 'Удаляемый склад';
+        }           
+    }
+    MOVE functions.box;
+}
+
+replaceStockStock = ABSTRACT ACTION LIST (Stock, Stock);
+
+replaceStock 'Объединить' = ACTION (stock) {   
+    FORM confirmReplaceStock OBJECTS s=stock MODAL;
+    IF formResult() == FormResult.ok THEN {    
+        FOR inStock(s) AND stock IS Stock AND NOT isCompanyStock(s) AND NOT isCompanyStock(stock) DO {
+            IF s != stock THEN {
+                replaceStockStock(s, stock);
+                inStock(s) <- NULL;
+                DELETE s;            
+            } ELSE {
+                MESSAGE 'Выделенный склад не может совпадать с объединяемым и не должен являться складом собственной компанией';
+            }
+        }
+    } ELSE {
+        inStock(s) <- NULL WHERE inStock(s);       
+    }
+    apply();
+} CONFIRM;
+
+dataStockLegalEntity = DATA Stock (LegalEntity);
+stockLegalEntity(legalEntity) = OVERRIDE [= GROUP MIN stock BY legalEntityStock(stock)](legalEntity), dataStockLegalEntity(legalEntity) IF activeLegalEntity(legalEntity) PERSISTENT;
+
+primaryLegalEntityStock 'Основной' (stock) = stockLegalEntity(legalEntityStock(stock)) == stock;
+changePrimaryLegalEntityStock = ACTION (legalEntity, stock) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        dataStockLegalEntity(legalEntity) <- stock;
+    }
+}
+
+FORM confirmReplaceStockLegalEntity 'Объединяемые склады'
+    OBJECTS l = LegalEntity FIXED PANEL 
+    OBJECTS l2 = LegalEntity FIXED PANEL 
+
+    OBJECTS s = Stock  
+    PROPERTIES(s) primaryLegalEntityStock ON CHANGE changePrimaryLegalEntityStock(l, s)   
+    PROPERTIES(s) READONLY nameStock    
+    FILTERS l==legalEntityStock(s)
+
+    OBJECTS s2 = Stock
+    PROPERTIES(s2) inStock
+    PROPERTIES(s2) READONLY nameStock
+    FILTERS inStock(s2), 
+            l2==legalEntityStock(s2)
+;
+
+DESIGN confirmReplaceStockLegalEntity {
+    REMOVE l.box;
+    REMOVE l2.box;
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        MOVE s.box{
+            caption = 'Основной склад';
+        }
+        MOVE s2.box{
+            caption = 'Удаляемый склад';
+        }           
+    }
+    MOVE functions.box;
+}
+
+preReplaceLegalEntityLegalEntity(l, o) += ACTION(l, o) {
+    inStock(s) <- TRUE WHERE legalEntityStock(s) == l;
+    FORM confirmReplaceStockLegalEntity OBJECTS l=o, l2=l MODAL;
+        IF formResult() == FormResult.ok THEN {        
+        FOR inStock(s) AND l==legalEntityStock(s) AND legalEntityStock(stock) == o AND primaryLegalEntityStock(stock) AND NOT isCompanyStock(s) AND NOT isCompanyStock(stock) DO {
+            IF s != stock THEN {
+                replaceStockStock(s, stock);
+                inStock(s) <- NULL;
+                DELETE s;            
+            } ELSE {
+                MESSAGE 'Выделенный склад не может совпадать с объединяемым и не должен являться складом собственной компанией';
+            }
+        }   
+    } ELSE {
+        inStock(s) <- NULL WHERE inStock(s);       
+    }         
+}
 
 EXTEND CLASS Stock : POI;
 
@@ -232,6 +354,7 @@ META defineDocumentHeaderStockInner (object, stockClass, stockClassUpper, stockC
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###prefix###stockClass###object stockCaption (object) = fullName###stockClass(prefix###stockClass###object(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
+    replaceStockStock(s, o) += ACTION (s, o){ASSIGN prefix###stockClass###object(###object) <- o WHERE prefix###stockClass###object(###object) == s;}             
             
     prefix###legalEntityStock###object (object) = legalEntity###stockClass(prefix###stockClass###object(object));
     name###prefix###legalEntityStock###object 'Компания ('###stockCaption###')' (object) = nameLegalEntity(prefix###legalEntityStock###object (object));
@@ -774,8 +897,9 @@ EXTEND FORM legalEntity
     FILTERS stringEqualsAll(b)
 
     OBJECTS st=Stock
+    PROPERTIES(st) inStock
     PROPERTIES(st) READONLY nameStock, idStock SHOWIF showIDs(), nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(st) FORCE PANEL TOOLBAR SHOWIF isDefaultLegalEntityStock(l,st) editSessionStock, DELETESESSION
+    PROPERTIES(st) FORCE PANEL TOOLBAR SHOWIF isDefaultLegalEntityStock(l,st) editSessionStock, DELETESESSION, replaceStock SHOWIF notCompanyStock(st) 
     PROPERTIES chooseStocksLegalEntity(l) TODRAW st FORCE PANEL TOOLBAR
     FILTERS isParentStockGroupStock(sg, st) OR (st IS Stock AND NOT sg)
     FILTERS inLegalEntityStock(l, st)

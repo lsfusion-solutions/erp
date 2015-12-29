@@ -72,6 +72,12 @@ CONSTRAINT PaymentLedger.legalEntityAccount(accountToPayment(payment)) != benefi
 
 CONSTRAINT currencyAccountFromPayment(payment) != currencyAccountToPayment(payment)
     CHECKED BY accountFromPayment, accountToPayment MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
+    
+//объединение организаций
+replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){
+    payerPayment(payment) <- o WHERE payerPayment(payment) == l;
+    beneficiaryPayment(payment) <- o WHERE beneficiaryPayment(payment) == l;
+}     
 
 //Операции
 operationPayment = DATA PaymentOperation.Operation (Payment);

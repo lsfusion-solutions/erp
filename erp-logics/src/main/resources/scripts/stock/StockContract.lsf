@@ -29,6 +29,7 @@ META defineInStockGroupObject(prop, object, objectClass)
     in###prop##Stock###object 'Отм' (stock, object) =
         (OVERRIDE in###prop##StockGroup###object(stockGroupStock(stock), object),
                  dataIn###prop##Stock###object(stock, object)) IF inLegalEntityStock(prop###object(object), stock) AND activeStock(stock) PERSISTENT;
+    replaceStockStock(s, o) += ACTION (s, o){ASSIGN dataIn###prop##Stock###object(o, object) <- TRUE WHERE in###prop##Stock###object(s, object) AND NOT in###prop##Stock###object(o, object);}                   
                  
     countDataIn###prop##StockGroups###object = GROUP SUM 1 IF  dataIn###prop##StockGroup###object(stockGroup, object) BY object;            
                                   
@@ -111,6 +112,12 @@ CONSTRAINT customerContractSku(contract) AND inCustomerStockContractSku(stock, c
 
 TABLE supplierCustomer(LegalEntity, LegalEntity);
 @defineContractDefault(contractSku, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
+
+//объединение организаций
+replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){
+    supplierContractSku(contract) <- o WHERE supplierContractSku(contract) == l;
+    customerContractSku(contract) <- o WHERE customerContractSku(contract) == l;
+}   
 
 //для договора
 
