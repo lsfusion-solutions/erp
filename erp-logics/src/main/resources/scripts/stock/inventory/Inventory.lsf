@@ -1172,7 +1172,7 @@ DESIGN listInventory {
     }
 }
 
-addListInventoryStockInventory 'Добавить' = ACTION (stock, inventory) NESTEDSESSION {
+addListInventoryStockInventory 'Добавить' = ACTION (stock, inventory) NEWSESSION {
     FOR ADDOBJ g = ListInventory DO {
         stockListInventory(g) <- stock;
         inventoryListInventory(g) <- inventory;
@@ -1247,6 +1247,8 @@ overSumPageInventoryDetailCollationSheetSkuGroup 'Сумма по описям' 
 overSumBalanceCollationSheetSkuGroup 'Сумма по остаткам' = IF isBatchCollationSheet(cs) THEN sumBalanceBatchesCollationSheetSkuGroup(cs,g) ELSE sumBalanceCollationSheetSkuGroup(cs,g);
 overSumShortageCollationSheetSkuGroup 'Сумма недостачи' = IF isBatchCollationSheet(cs) THEN sumShortageBatchesCollationSheetSkuGroup(cs,g) ELSE sumShortageCollationSheetSkuGroup(cs,g);
 
+savedInventory 'Сохранена' (i) = PREV(i IS Inventory);
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
     PROPERTIES (in)  isBatchInventory, isPriceInventory, isShortageStockDocumentInventory, nameNumeratorInventory, numberInventory, seriesInventory,
@@ -1264,12 +1266,12 @@ FORM inventory 'Инвентаризация'
                               listInventoryPageInventory(pl) == li
     FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ds) 'ctrl F10' DEFAULT
     PROPERTIES(ds, in) READONLY countPageInventoryDetailStockInventory, quantityPageInventoryDetailStockInventory, sumPageInventoryDetailStockInventory
-    PROPERTIES(ds, in) addListInventoryStockInventory
+    PROPERTIES(ds, in) addListInventoryStockInventory SHOWIF savedInventory(in)
 
     PROPERTIES(li)   READONLY countPageInventoryDetailListInventory, quantityPageInventoryDetailListInventory, sumPageInventoryDetailListInventory, isPostedListInventory
 
-    PROPERTIES(li)   editLI = EDITNESTEDFORM FORCE PANEL SHOWIF isDraftListInventory(li), deleteli=DELETESESSION FORCE PANEL TOOLBAR SHOWIF isDraftListInventory(li),
-                     postListInventory FORCE PANEL SHOWIF isDraftListInventory(li), unpostListInventory FORCE PANEL SHOWIF isPostedListInventory(li)
+    PROPERTIES(li)   editLI = EDITFORM FORCE PANEL SHOWIF savedInventory(in), deleteli=DELETE FORCE PANEL TOOLBAR SHOWIF savedInventory(in),
+                     postListInventory FORCE PANEL SHOWIF savedInventory(in), unpostListInventory FORCE PANEL SHOWIF isPostedListInventory(li)
 
     PROPERTIES(pl)   READONLY countPageInventoryDetailPageInventory, quantityPageInventoryDetailPageInventory, sumPageInventoryDetailPageInventory, dumbPageInventory
 
