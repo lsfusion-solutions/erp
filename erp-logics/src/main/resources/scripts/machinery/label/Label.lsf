@@ -658,6 +658,7 @@ changeQuantityValueSkuLabelTransaction = ACTION (sku, labelTransaction) {
         IF requestedNumeric() THEN {
             quantityLabelTransactionDetail(labelTransactionDetail) <- INTEGER(requestedNumeric()) WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
             documentQuantityLabelTransactionDetail(labelTransactionDetail) <- requestedNumeric() WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
+            nameLabelTransactionDetail(labelTransactionDetail) <- nameSku(skuLabelTransactionDetail(labelTransactionDetail)) WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);         
         } ELSE {
             DELETE d WHERE d == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
         }
@@ -666,6 +667,7 @@ changeQuantityValueSkuLabelTransaction = ACTION (sku, labelTransaction) {
             FOR ADDOBJ d = LabelTransactionDetail DO {
                 labelTransactionLabelTransactionDetail(d) <- labelTransaction;
                 skuLabelTransactionDetail(d) <- sku;
+                nameLabelTransactionDetail(d) <- nameSku(sku);                
                 quantityLabelTransactionDetail (d) <- INTEGER(requestedNumeric());
                 documentQuantityLabelTransactionDetail(d) <- requestedNumeric();
                 createAttributeLabelTransactionDetail(d);
@@ -676,7 +678,7 @@ changeQuantityValueSkuLabelTransaction = ACTION (sku, labelTransaction) {
 
 changeQuantitySkuLabelTransaction = ACTION (sku, labelTransaction) {
     REQUEST INTEGER INPUT;
-    EXEC changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+    changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
 }
 
 // Выбор всего остатка
