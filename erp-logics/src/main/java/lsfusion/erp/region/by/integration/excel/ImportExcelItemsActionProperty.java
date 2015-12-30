@@ -81,7 +81,7 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
             BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(19, i));
             BigDecimal amountPack = parseBigDecimal(sheet.getCell(20, i));
             amountPack = (amountPack == null || amountPack.equals(BigDecimal.ZERO)) ? null : amountPack;
-
+            idItem = idItem == null ? nameItem : idItem;
             data.add(new Item(idItem, idGroup, nameItem, idUOM, nameBrand, idBrand, nameCountry,
                     barcode, barcode, date, split, netWeightItem, grossWeightItem, compositionItem, retailVAT, idWare,
                     priceWare, wareVAT, idWriteOffRate, baseMarkup, retailMarkup, idItem, amountPack, null, null, null,
