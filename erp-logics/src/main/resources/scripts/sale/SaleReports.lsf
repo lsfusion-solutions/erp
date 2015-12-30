@@ -1,6 +1,6 @@
 MODULE SaleReports;
 
-REQUIRE SaleLedger;
+REQUIRE SaleLedger, Store;
 
 //отчет по продажам
 
@@ -34,6 +34,7 @@ markupSumGroupStock 'Надбавка' = DATA LOCAL NUMERIC[16,2] (Group);
 sumGroupStock 'Сумма' = DATA LOCAL NUMERIC[16,2] (Group);
 
 inSaleReportStock 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
 inSaleReportStocks 'Склады' () =
     GROUP CONCAT nameStock(st) IF inSaleReportStock(st) ,', ' PREFCHARWIDTH 30;
 defaultStockSaleReport = GROUP MIN st IF inSaleReportStock(st);
@@ -436,24 +437,75 @@ printCustomerSalesReport 'По покупателям' (groupType, dateFrom, dat
 printCustomerSalesReportXLS 'По покупателям (XLS)' (groupType, dateFrom, dateTo) =
     ACTION FORM printCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
     
+    
+FORM dialogStocksSaleReport 'Выбор складов'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), nameStockGroup(sg)
+    ORDER BY nameStockGroup(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, nameStock
+    PROPERTIES (s) inSaleReportStock
+    ORDER BY nameStock(s)
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
+            isCompanyStock(s),
+            countCompanyStockStockGroup(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inSaleReportStock(s) 'F9' 
+    DIALOG Stock OBJECT s
+;
+
+DESIGN dialogStocksSaleReport {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            MOVE stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            MOVE s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(nameStock(s)){
+                    minimumCharWidth = 35;
+                    preferredCharWidth = 35;
+                }
+            }
+        }
+
+        MOVE functions.box;
+    }
+}
+@extendFormFilterStockAccess(s, dialogStocksSaleReport, company);    
+changeStocksSalesReport = ACTION (gt, df, dt) {
+    FORM dialogStocksSaleReport MODAL;
+    IF formResult() == FormResult.ok THEN { 
+        fillSaleReportDateFromTo(gt, df, dt);
+    }
+}
+    
 FORM salesReport 'Отчет по продажам'
     OBJECTS df=DATE FIXED PANEL
     PROPERTIES dateFrom = OBJVALUE(df)
 
     OBJECTS dt=DATE FIXED PANEL
-    PROPERTIES dateTo = OBJVALUE(dt)
-
-    OBJECTS st = Stock //FIXED PANEL
-    PROPERTIES(st) READONLY idStock, nameStock
-    FILTERS isCompanyStock(st)
-    PROPERTIES inSaleReportStock(st)
-    FILTERGROUP select FILTER 'Отм.' inSaleReportStock(st) 'F6'
+    PROPERTIES dateTo = OBJVALUE(dt)          
     
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sumGroupTypeStock
-//    PROPERTIES(gt) READONLY sessionConcatGroups
-
+    
+    PROPERTIES inSaleReportStocks() ON CHANGE changeStocksSalesReport(gt, df, dt)
+    
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES inSessionGroup(sk)
     PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
@@ -472,17 +524,21 @@ FORM salesReport 'Отчет по продажам'
             inSaleReportStock(stockSaleLedger(s)),
             dateSaleLedger(s) >= df,
             dateSaleLedger(s) <= dt
+    OBJECTS sku = Sku
+    PROPERTIES(sku) READONLY nameSku, idSku SHOWIF showIDs()
+    PROPERTIES(sku) READONLY quantitySkuStock, costSumSkuStock, markupSumSkuStock, sumVATSkuStock, sumSkuStock
+    FILTERS isParentGroupSku(sk, sku),
+            activeSku(sku),
+            filterSkuStock(sku)
+            
     PROPERTIES(gt,df, dt) printListSalesReport, printListSkuSalesReport, printSalesReport, printSkuSalesReport, printGrSalesReport,
                            printGrCustomerSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport
     PROPERTIES(gt,df, dt) printListSalesReportXLS, printListSkuSalesReportXLS, printSalesReportXLS, printSkuSalesReportXLS, printGrSalesReportXLS,
                            printGrCustomerSalesReportXLS, printGroupCustomerSkuSalesReportXLS, printCustomerSalesReportXLS
-    PROPERTIES fillSaleReportDateFromTo(gt, df, dt)
-//    EVENTS 
-//        ON CHANGE gt fillSaleReportDateFromTo(gt, df, dt), 
-//        ON CHANGE df fillSaleReportDateFromTo(gt, df, dt), 
-//        ON CHANGE dt fillSaleReportDateFromTo(gt, df, dt),
-//        ON CHANGE st fillSaleReportDateFromTo(gt, df, dt)                       
-                           
+    EVENTS 
+        ON CHANGE gt fillSaleReportDateFromTo(gt, df, dt), 
+        ON CHANGE df fillSaleReportDateFromTo(gt, df, dt), 
+        ON CHANGE dt fillSaleReportDateFromTo(gt, df, dt)                                                 
 ;
 
 DESIGN salesReport {
@@ -496,6 +552,11 @@ DESIGN salesReport {
         }
         
         MOVE gt.box;
+        NEW stocks {
+            caption = 'Склады';
+            type = CONTAINERH;
+            MOVE PROPERTY(inSaleReportStocks());        
+        }
         NEW sumContainer{
             caption = 'Итоговые суммы';
             type = CONTAINERH;
@@ -508,79 +569,75 @@ DESIGN salesReport {
         type = SPLITH;
         NEW center1 {
             fill = 1;
-            type = SPLITV;
-            MOVE st.box;
-            MOVE skuTree.tree.box {fill = 3;}
+            type = CONTAINERV ;                         
+            MOVE skuTree.tree.box;
         }
         NEW tab {
             caption = 'Результат';
-            fill = 3;   
+            fill = 1;   
             type = CONTAINERV;
-            NEW action {
-                alignment = STRETCH;
-                MOVE PROPERTY (fillSaleReportDateFromTo(gt, df, dt)){alignment = STRETCH; font = 'bold 22';}
-            }
+
             NEW tabContainer {
                 fill = 1;
-    //            type = TABBED;
+                type = TABBED;
+                MOVE sku.box { caption = 'Товар';}
+                MOVE s.box { caption = 'Регистр';}
                 NEW salesContainer {
                     type = CONTAINERV;
-                    caption = 'Продажи';
+                    caption = 'Печать';
                     fill = 1;
-                    NEW actionContainer {
-                        type = TABBED;
-                        NEW rowSalesContainer{
-                            type = CONTAINERH;
-                            caption = 'Печать';
-                            NEW firstColumnSalesContainer{
-                                caption = 'С детализацией';
-                                type = COLUMNS;
-                                columns = 2;
-                                MOVE PROPERTY(printSalesReport(gt,df,dt));
-                                MOVE PROPERTY(printSkuSalesReport(gt,df,dt));
-                                MOVE PROPERTY(printGrCustomerSalesReport(gt,df,dt));
-                                MOVE PROPERTY(printGroupCustomerSkuSalesReport(gt,df,dt));
-                            }
-                            NEW secondColumnSalesContainer{
-                                caption = 'Без детализации';
-                                type = CONTAINERV;
-                                MOVE PROPERTY(printGrSalesReport(gt,df,dt));
-                                MOVE PROPERTY(printCustomerSalesReport(gt,df,dt));
-                            }
-                            NEW thirdColumnSalesContainer{
-                                caption = 'Список';
-                                type = CONTAINERV;
-                                MOVE PROPERTY(printListSalesReport(gt,df,dt));
-                                MOVE PROPERTY(printListSkuSalesReport(gt,df,dt));
-                            }
+
+                    NEW rowSalesContainer{
+                        type = CONTAINERH;
+                        caption = 'Печать';
+                        NEW firstColumnSalesContainer{
+                            caption = 'С детализацией';
+                            type = COLUMNS;
+                            columns = 2;
+                            MOVE PROPERTY(printSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printSkuSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printGrCustomerSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printGroupCustomerSkuSalesReport(gt,df,dt));
                         }
-                        NEW rowSalesContainerXLS{
-                            type = CONTAINERH;
-                            caption = 'XLS';
-                            NEW firstColumnSalesContainerXLS{
-                                caption = 'С детализацией';
-                                type = COLUMNS;
-                                columns = 2;
-                                MOVE PROPERTY(printSalesReportXLS(gt,df,dt));
-                                MOVE PROPERTY(printSkuSalesReportXLS(gt,df,dt));
-                                MOVE PROPERTY(printGrCustomerSalesReportXLS(gt,df,dt));
-                                MOVE PROPERTY(printGroupCustomerSkuSalesReportXLS(gt,df,dt));
-                            }
-                            NEW secondColumnSalesContainerXLS{
-                                caption = 'Без детализации';
-                                type = CONTAINERV;
-                                MOVE PROPERTY(printGrSalesReportXLS(gt,df,dt));
-                                MOVE PROPERTY(printCustomerSalesReportXLS(gt,df,dt));
-                            }
-                            NEW thirdColumnSalesContainerXLS{
-                                caption = 'Список';
-                                type = CONTAINERV;
-                                MOVE PROPERTY(printListSalesReportXLS(gt,df,dt));
-                                MOVE PROPERTY(printListSkuSalesReportXLS(gt,df,dt));
-                            }
-                        }                
+                        NEW secondColumnSalesContainer{
+                            caption = 'Без детализации';
+                            type = CONTAINERV;
+                            MOVE PROPERTY(printGrSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printCustomerSalesReport(gt,df,dt));
+                        }
+                        NEW thirdColumnSalesContainer{
+                            caption = 'Список';
+                            type = CONTAINERV;
+                            MOVE PROPERTY(printListSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printListSkuSalesReport(gt,df,dt));
+                        }
                     }
-                    MOVE s.box;
+                    NEW rowSalesContainerXLS{
+                        type = CONTAINERH;
+                        caption = 'Экспорт XLS';
+                        NEW firstColumnSalesContainerXLS{
+                            caption = 'С детализацией';
+                            type = COLUMNS;
+                            columns = 2;
+                            MOVE PROPERTY(printSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printSkuSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printGrCustomerSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printGroupCustomerSkuSalesReportXLS(gt,df,dt));
+                        }
+                        NEW secondColumnSalesContainerXLS{
+                            caption = 'Без детализации';
+                            type = CONTAINERV;
+                            MOVE PROPERTY(printGrSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printCustomerSalesReportXLS(gt,df,dt));
+                        }
+                        NEW thirdColumnSalesContainerXLS{
+                            caption = 'Список';
+                            type = CONTAINERV;
+                            MOVE PROPERTY(printListSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printListSkuSalesReportXLS(gt,df,dt));
+                        }
+                    }               
+                                        
                 }
             }
         }
@@ -588,7 +645,17 @@ DESIGN salesReport {
     MOVE functions.box;
 }
 
-@extendFormFilterStockAccess(st, salesReport, company);
+onInitSalesReport = ACTION () {
+    IF countAccessCompanyStockEmployee(currentUser()) ==1 THEN {
+        inSaleReportStock(st)  <- TRUE WHERE  defaultCompanyStockEmployee(currentUser())== st; 
+        fillSaleReportDateFromTo(SystemGroupType.skuGroupType,currentDate(),currentDate());
+    }    
+}
+EXTEND FORM salesReport 
+    EVENTS 
+        ON INIT onInitSalesReport()
+;
+
 
 NAVIGATOR {
     salesReports {
