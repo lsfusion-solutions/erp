@@ -227,6 +227,7 @@ createInvoiceReceipt  = ACTION (receipt, customer, employee, sum, paymentType, p
             quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
             invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
             shipmentSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
+            VATUserInvoiceDetail(d) <- VATReceiptDetail(detail);
             valueVATUserInvoiceDetail(d) <- valueVATReceiptDetail(detail);
             invoicePriceUserInvoiceDetail(d) <- priceReceiptDetail(detail);
             priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + valueVATUserInvoiceDetail(d));
@@ -320,7 +321,8 @@ FORM prePayment 'Предоплата'
     OBJECTS c = Contract
     PROPERTIES(c) READONLY BACKGROUND backgroundContractReceipt(c, r) namePartyBContract, passportPartyBContract, balanceAContractCurrentDate
     FILTERS balanceAContractCurrentDate(c) < 0,
-            shortNameOwnershipPartyBContract(c) == 'Ф.Л.'
+            shortNameOwnershipPartyBContract(c) == 'Ф.Л.',
+            legalEntityStock(departmentStoreReceipt(r)) == partyAContract(c)
     
     PROPERTIES noteInvoice()
 ;
@@ -376,6 +378,7 @@ createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
                     quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
                     invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
                     shipmentSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
+                    VATUserInvoiceDetail(d) <- VATReceiptDetail(detail);
                     valueVATUserInvoiceDetail(d) <- valueVATReceiptDetail(detail);
                     invoicePriceUserInvoiceDetail(d) <- priceReceiptDetail(detail);
                     priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + valueVATUserInvoiceDetail(d));
