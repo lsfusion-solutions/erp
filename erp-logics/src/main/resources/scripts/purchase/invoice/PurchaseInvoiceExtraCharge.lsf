@@ -119,7 +119,7 @@ DESIGN userInvoice {
             NEW paneExtra {
                 type = CONTAINERH;
                 MOVE PROPERTY (toWeightExtraChargeUserInvoice(i));
-                MOVE PROPERTY (extraChargeSumUserInvoiceDetailInvoice(i));
+                MOVE PROPERTY (extraChargeSumUserInvoiceDetailInvoice(i)) {minimumCharWidth = 15; preferredCharWidth = 20;}
             }
             MOVE uid.box;
         }        
@@ -136,12 +136,12 @@ coeffSumInvoiceDetailInvoice 'Удельный вес по весу брутто
 fillExtraChargePriceUserInvoice 'Расписать услуги' = ACTION (i) {
     IF currencyInvoice(i) THEN {    
         IF toWeightExtraChargeInvoice(i) THEN {
-            extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](sumInvoiceDetailInvoice(i), coeffGrossWeightInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
+            extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrencyInvoice(i) THEN homeSumInvoiceDetailInvoice(i) ELSE sumInvoiceDetailInvoice(i), coeffGrossWeightInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
                 WHERE inExtraChargeInvoiceInvoiceDetail(i,d);
         
         } ELSE {
             IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraChargeInvoiceInvoiceDetail(i,d) BY i, currencyInvoiceDetail(d)](i,c) BY i](i) >1 THEN {
-                extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](sumInvoiceDetailInvoice(i), coeffSumInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
+                extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrencyInvoice(i) THEN homeSumInvoiceDetailInvoice(i) ELSE sumInvoiceDetailInvoice(i), coeffSumInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
                     WHERE inExtraChargeInvoiceInvoiceDetail(i,d) AND isNotChargeSku(skuInvoiceDetail(d)); 
             } ELSE {
                 MESSAGE 'Для расписывания доп. услуг пропорционально сумме выбраны накладные с разными валютами.';
@@ -173,8 +173,11 @@ FORM extraChargeParams 'Параметры'
     PROPERTIES SELECTOR nameSku(sk)    
     FILTERS isChargeSku(sk)
     
+    OBJECTS c = Currency FIXED PANEL 
+    PROPERTIES SELECTOR shortNameCurrency(c)    
+    
     OBJECTS nu = NUMERIC[16,2] FIXED PANEL 
-    PROPERTIES val = OBJVALUE (nu)
+    PROPERTIES val = OBJVALUE (nu)    
 ;
 DESIGN extraChargeParams {
     main {
@@ -187,11 +190,14 @@ DESIGN extraChargeParams {
                 caption = 'Услуга'; 
                 PROPERTY (nameSku(sk)) {minimumCharWidth = 20; preferredCharWidth = 20;}
             }
+//            MOVE c.box{PROPERTY (nameCurrency(c)) {minimumCharWidth = 10; preferredCharWidth = 20;}}
             MOVE nu.box { 
                 caption = 'Сумма';
-                PROPERTY (val) {
+                type = CONTAINERH;
+                MOVE PROPERTY (shortNameCurrency(c)) {caption = 'Валюта'; minimumCharWidth = 5; preferredCharWidth = 10;}
+                MOVE PROPERTY (val) {
                     caption = 'Сумма услуг';
-                    minimumCharWidth = 15; preferredCharWidth = 20;
+                    minimumCharWidth = 15; preferredCharWidth = 15;
                 }
             }
         }
@@ -199,10 +205,16 @@ DESIGN extraChargeParams {
     }
 }
 
-seekDefaultOperatioParams = ACTION SEEK extraChargeParams.o  operationId('purchase_charge');
+seekDefaultOperatioParams = ACTION () {
+    SEEK extraChargeParams.o  operationId('purchase_charge');
+}
+changeDefaultCurrencyParams = ACTION (s) {
+    SEEK extraChargeParams.c  currencyLegalEntity(s);
+}    
 
 EXTEND FORM extraChargeParams
-    EVENTS ON INIT seekDefaultOperatioParams()
+    EVENTS ON INIT seekDefaultOperatioParams()     
+    EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
     
 createExtraChargeUserInvoice 'Накладная (закупка) доп. услуги' (invoice) = ACTION (invoice) {   
@@ -211,29 +223,39 @@ createExtraChargeUserInvoice 'Накладная (закупка) доп. усл
     LOCAL s = LegalEntity(); 
     LOCAL sk = Sku();
     LOCAL nu = NUMERIC[16,2] ();
+    LOCAL c = Currency();
         
     o() <- NULL;
     s() <- NULL;
     sk() <- NULL;
     nu() <- NULL;
+    c() <- NULL;
      
     o() <- chosenObject('o');
     s() <- chosenObject('s');
     sk() <- chosenObject('sk');       
     nu() <- chosenNumeric('nu');
+    c() <- chosenObject('c');    
+    
     IF formResult() == FormResult.ok THEN {
-        NEWSESSION NESTED o,s,sk,nu {
+        NEWSESSION NESTED o,s,sk,nu,c {
             FOR ADDOBJ i = UserInvoice DO {
                 operationUserInvoice(i) <- o();
                 supplierUserInvoice(i) <- s();
                 customerUserInvoice(i) <- customerInvoice(invoice);
-                currencyUserInvoice(i) <- currencyShortName('BLR');
+                currencyUserInvoice(i) <- c();
+                isHomeCurrencyUserInvoice(i) <- TRUE WHERE currencyInvoice(invoice) != currencyUserInvoice(i);
+                dateRateExchangeUserInvoice(i) <- currentDate() WHERE isHomeCurrencyInvoice(i);
+                rateExchangeUserInvoice(i) <- rateOnTypeExchangeCurrencyDate(typeExchangeUserInvoice(i),
+                                                                                   currencyUserInvoice(i),
+                                                                                   dateRateExchangeUserInvoice(i)) WHERE isHomeCurrencyInvoice(i);
+                                                                                   
                 
                 FOR ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- i;   
                     skuUserInvoiceDetail(d) <- sk();
                     quantityUserInvoiceDetail(d) <- 1.0; 
-                    priceUserInvoiceDetail(d) <- nu(); 
+                    priceUserInvoiceDetail(d) <- nu();                    
                     
                 }
                 inExtraChargeInvoiceUserInvoice(i,invoice) <- TRUE;
