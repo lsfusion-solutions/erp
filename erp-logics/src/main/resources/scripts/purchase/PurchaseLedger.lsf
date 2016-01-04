@@ -10,6 +10,9 @@ TABLE skuStockStock(Stock, Stock, Sku);
 dateTimePurchaseLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
 datePurchaseLedger 'Дата' (ledger) = toDate(dateTimePurchaseLedger(ledger)) PERSISTENT INDEXED;
 
+shipmentDateTimePurchaseLedger 'Дата/время поставки' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
+shipmentDatePurchaseLedger 'Дата поставки' (ledger) = toDate(shipmentDateTimePurchaseLedger(ledger)) PERSISTENT INDEXED;
+
 isPostedPurchaseLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
 
 isClosedPurchaseLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
@@ -306,17 +309,34 @@ namePurchaseCustomer 'Поставщик' = nameLegalEntity(purchaseSupplier());
 filterPurchaseCustomerSaleLedger = supplierPurchaseLedger(ledger)==purchaseSupplier() OR (ledger IS PurchaseLedger AND NOT purchaseSupplier());
 idBarcodeSkuPurchaseLedger 'Штрихкод' (l) = idBarcodeSku(skuPurchaseLedger(l));
 
+isShipmentDatePurchaseLedger 'Данные фильтровать по дате поставки в "Регистре поступлений"' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () isShipmentDatePurchaseLedger
+;
+DESIGN options {
+    purchase {
+        MOVE PROPERTY(isShipmentDatePurchaseLedger());
+    }
+}
+
+isShipmentDate 'По дате поставки' = DATA LOCAL BOOLEAN ();
+
+onInitPurchaseLedger = ACTION () {
+    isShipmentDate() <- isShipmentDatePurchaseLedger();    
+}
+
 FORM purchaseLedger 'Регистр поступлений'
     PROPERTIES() namePurchaseOperation, namePurchaseCustomer
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
-    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo), isShipmentDate()
 
     OBJECTS te = TypeExchange FIXED PANEL
     PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
 
     OBJECTS s = PurchaseLedger
-    PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, numberDocumentPurchaseLedger, nameStockPurchaseLedger, nameSupplierPurchaseLedger, nameOperationPurchaseLedger,
+    PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, numberDocumentPurchaseLedger, shipmentDatePurchaseLedger, shipmentDateTimePurchaseLedger,
+                           nameStockPurchaseLedger, nameSupplierPurchaseLedger, nameOperationPurchaseLedger,
                            canonicalNameSkuGroupPurchaseLedger, nameSkuGroup1SkuPurchaseLedger, nameSkuGroup2SkuPurchaseLedger, nameSkuGroup3SkuPurchaseLedger, nameSkuGroup4SkuPurchaseLedger, nameSkuGroup5SkuPurchaseLedger, 
                            nameSkuPurchaseLedger, idBarcodeSkuPurchaseLedger, idSkuPurchaseLedger, descriptionPurchaseLedger,
                            quantityPurchaseLedger, pricePurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger, nameCurrencyPurchaseLedger,
@@ -325,7 +345,11 @@ FORM purchaseLedger 'Регистр поступлений'
     PROPERTIES(s) editPurchaseLedger SHOWIF allowedEditPurchaseLedger(s)
     
     FILTERS activePurchaseLedger(s), filterPurchaseOperationSaleLedger(s), filterPurchaseCustomerSaleLedger(s)  
-    FILTERS datePurchaseLedger(s) >= dFrom, datePurchaseLedger(s) <= dTo
+    FILTERS (datePurchaseLedger(s) >= dFrom AND datePurchaseLedger(s) <= dTo IF NOT isShipmentDate()) OR (s IS PurchaseLedger AND isShipmentDate()),  
+            (shipmentDatePurchaseLedger(s) >= dFrom AND shipmentDatePurchaseLedger(s) <= dTo IF isShipmentDate()) OR (s IS PurchaseLedger AND NOT isShipmentDate())
+            
+    EVENTS 
+        ON INIT onInitPurchaseLedger()
 ;
 @extendFormFilterAccessStock(PurchaseLedger, s, purchaseLedger, stock, company);
 @extendFormFilterAccessLegalEntity(PurchaseLedger, s, purchaseLedger, supplier, supplier);
@@ -338,6 +362,7 @@ DESIGN purchaseLedger {
             type = CONTAINERH;
             MOVE dates.box {
                 type = CONTAINERH;
+                MOVE PROPERTY (isShipmentDate());
                 PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
                 PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
             }
