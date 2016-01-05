@@ -4,6 +4,18 @@ REQUIRE Repricing, PriceListOperation;
 
 NAMESPACE Repricing;
 
+
+minManagementQuantityToRepricing 'Минимальное количество для управленческой переоценки' = DATA NUMERIC[14,4] ();
+
+EXTEND FORM options 
+    PROPERTIES () minManagementQuantityToRepricing
+;
+DESIGN options {
+    repricings {
+        MOVE PROPERTY(minManagementQuantityToRepricing());
+    }
+}
+
 overPriceListUserRepricingDetail = ABSTRACT ACTION LIST (RepricingDetail);
 
 skipRepricingSku = ABSTRACT BOOLEAN (Sku, Stock);
@@ -40,6 +52,8 @@ calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION
         overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
         
         inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt) AND NOT skipRepricingSku(sku, d);
+        inDashboardRepricingSku(sku) <- NULL WHERE inDashboardRepricingSku(sku) AND abs(currentBalanceSkuStock(sku, d)) < minManagementQuantityToRepricing();        
+        
         includeExtraDashboardRepricingStockDateTime(d, dt);
         
         assignAttributeSku(d, o, dt);
@@ -62,6 +76,8 @@ calculateDashboardManagementRepricing 'По прайсам' = ACTION (d, o, dt) 
     overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
     
     inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+    inDashboardRepricingSku(sku) <- NULL WHERE inDashboardRepricingSku(sku) AND abs(currentBalanceSkuStock(sku, d)) < minManagementQuantityToRepricing();
+    
     includeExtraDashboardRepricingStockDateTime(d, dt);
     
     assignAttributeSku(d, o, dt);    
