@@ -52,7 +52,6 @@ calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION
         overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
         
         inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt) AND NOT skipRepricingSku(sku, d);
-        inDashboardRepricingSku(sku) <- NULL WHERE inDashboardRepricingSku(sku) AND abs(currentBalanceSkuStock(sku, d)) < minManagementQuantityToRepricing();        
         
         includeExtraDashboardRepricingStockDateTime(d, dt);
         
@@ -76,7 +75,6 @@ calculateDashboardManagementRepricing 'По прайсам' = ACTION (d, o, dt) 
     overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
     
     inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
-    inDashboardRepricingSku(sku) <- NULL WHERE inDashboardRepricingSku(sku) AND abs(currentBalanceSkuStock(sku, d)) < minManagementQuantityToRepricing();
     
     includeExtraDashboardRepricingStockDateTime(d, dt);
     
@@ -101,6 +99,7 @@ createDashboardRepricingNotForm 'Создать переоценку' = ACTION (
                 userRepricingUserRepricingDetail(rd) <- r;
                 skuUserRepricingDetail(rd) <- sku;
                 quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, d) IF currentBalanceSkuStock(sku, d) > 0;
+                quantityUserRepricingDetail(rd) <- NULL  WHERE quantityUserRepricingDetail(rd) < minManagementQuantityToRepricing();
                 retailPriceUserRepricingDetail(rd) <- managementRetailPriceSku(sku);
                 curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBSkuStockDateTime(sku, d, dt);
                 priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, d, dt);
