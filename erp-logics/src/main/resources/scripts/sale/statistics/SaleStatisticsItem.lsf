@@ -55,3 +55,93 @@ DESIGN itemGroup {
 
 WHEN SESSION CHANGED(itemGroupItem(i)) AND t IS StatisticGroupType AND NOT statisticGroupTypeItem(t, i) DO
     statisticGroupTypeItem(t, i) <- statisticGroupStatisticGroupTypeItemGroup(t, itemGroupItem(i));
+
+changeStatisticGroupTypeItem 'Стат. группа товара и товарной группы должны быть равны' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () changeStatisticGroupTypeItem
+;
+
+DESIGN options {
+    pane {        
+        NEW statistics {
+            caption = 'Статистика';
+            MOVE PROPERTY(changeStatisticGroupTypeItem());   
+        }
+    }
+}
+
+WHEN SESSION CHANGED(statisticGroupStatisticGroupTypeItemGroup(type,itemGroupItem(item)))  AND changeStatisticGroupTypeItem()
+    AND NOT CHANGED(statisticGroupTypeItem(type, item)) DO {
+    
+        statisticGroupTypeItem(type, item) <- statisticGroupStatisticGroupTypeItemGroup(type, itemGroupItem(item));
+}
+    
+
+
+changeStatisticGroupTypeItem = ACTION (type, item) {
+    REQUEST OBJECT s
+    IF statisticGroupTypeItem(type, item) THEN {
+        FORM statisticGroupDialog OBJECTS c = type, s = statisticGroupTypeItem(type, item) DIALOG SHOWDROP;
+    } ELSE {
+        FORM statisticGroupDialog OBJECTS c = type DIALOG SHOWDROP;
+    }
+    
+    IF formResult() == FormResult.ok THEN {
+        statisticGroupTypeItem(type, item) <- requestedObject();
+
+    } ELSE  {
+        IF  formResult() == FormResult.drop THEN {
+            statisticGroupTypeItem(type, item) <- NULL;
+        }        
+    }
+}
+changeDataStatisticGroupTypeItemGroup = ACTION (type, itemGroup) {
+    REQUEST OBJECT s
+    IF dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) THEN {
+        FORM statisticGroupDialog OBJECTS c = type, s = dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) DIALOG SHOWDROP;
+    } ELSE {
+        FORM statisticGroupDialog OBJECTS c = type DIALOG SHOWDROP;
+    }
+    IF formResult() == FormResult.ok THEN {
+        dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) <- requestedObject();
+
+    } ELSE  {
+        IF  formResult() == FormResult.drop THEN {
+            dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) <- NULL;
+        }         
+    }
+}
+
+fillStatisticGroupTypeItemGroup 'Заполнить стат. группу для всех товаров' = ACTION (type, itemGroup) {
+    statisticGroupTypeItem(type, item) <- statisticGroupStatisticGroupTypeItemGroup(type,itemGroup) WHERE isParentItemGroupItem(itemGroup,item);
+} TOOLBAR;
+
+changeBackground = RGB(224, 224, 255);
+
+EXTEND FORM statisticGroups
+    TREE skuTree sk = ItemGroup PARENT parentItemGroup
+    PROPERTIES READONLY orderItemGroup(sk), nameItemGroup(sk)     
+    PROPERTIES dataNameStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk) ON CHANGE changeDataStatisticGroupTypeItemGroup(c,sk) ON SHORTCUT fillStatisticGroupTypeItemGroup(c,sk) BACKGROUND changeBackground()
+    PROPERTIES READONLY nameStatisticGroupStatisticGroupTypeItemGroup(c,sk) 
+    ORDER BY orderItemGroup(sk), nameItemGroup(sk)
+    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(sk) 'F5' DEFAULT
+    
+    OBJECTS i = Item
+    PROPERTIES (i) READONLY nameSku, idBarcodeSku, idSku SHOWIF showIDs()
+    PROPERTIES nameStatisticGroupTypeItem(c,i) ON CHANGE changeStatisticGroupTypeItem(c,i)
+    FILTERS isParentItemGroupItem(sk,i)
+    FILTERGROUP inactive1 FILTER 'Активные' activeItem(i) 'F5' DEFAULT
+;
+DESIGN statisticGroups {
+    specification.box {
+        NEW relation {
+            fill = 1;
+            caption = 'Привязка групп';
+            type = SPLITV;
+            MOVE skuTree.tree.box {caption = 'Товарные группы';}
+            MOVE i.box; 
+            PROPERTY (dataNameStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk)) {caption = 'Статистическая группа';}
+            PROPERTY (nameStatisticGroupStatisticGroupTypeItemGroup(c,sk)) {caption = 'Статистическая группа (перегруженная)';}
+        }
+    }
+}
