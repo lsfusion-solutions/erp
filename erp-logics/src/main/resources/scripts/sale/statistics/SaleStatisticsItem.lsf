@@ -6,6 +6,7 @@ NAMESPACE Sale;
 
 statisticGroupTypeItem 'Статистическая группа' = DATA StatisticGroup (StatisticGroupType, Item);
 nameStatisticGroupTypeItem 'Статистическая группа' = nameStatisticGroup(statisticGroupTypeItem(type, item));
+sidStatisticGroupTypeItem 'Код группы' = sidStatisticGroup(statisticGroupTypeItem(type, item));
 canonicalNameStatisticGroupTypeItem 'Каноническое имя' = canonicalNameStatisticGroup(statisticGroupTypeItem(type, item));
 
 CONSTRAINT groupTypeStatisticGroup(parentStatisticGroup(group)) != groupTypeStatisticGroup(group)
@@ -31,6 +32,7 @@ DESIGN item { regionalPrm { MOVE sgt.box;} }
 
 TABLE statisticGroupTypeItemGroup(StatisticGroupType, ItemGroup);
 @defineItemDefaultValue(statisticGroup, 'Статистическая группа (по-умолчанию)', StatisticGroup, nameStatisticGroup, statisticGroupType);
+dataSidStatisticGroupStatisticGroupStatisticGroupTypeItemGroup 'Код группы' (statisticGroupType, itemGroup) = sidStatisticGroup(dataStatisticGroupStatisticGroupTypeItemGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
 
 sidStatisticGroupStatisticGroupTypeItemGroup 'Код группы' (statisticGroupType, itemGroup) = sidStatisticGroup(statisticGroupStatisticGroupTypeItemGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
 
@@ -122,13 +124,16 @@ EXTEND FORM statisticGroups
     TREE skuTree sk = ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY orderItemGroup(sk), nameItemGroup(sk)     
     PROPERTIES dataNameStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk) ON CHANGE changeDataStatisticGroupTypeItemGroup(c,sk) ON SHORTCUT fillStatisticGroupTypeItemGroup(c,sk) BACKGROUND changeBackground()
-    PROPERTIES READONLY nameStatisticGroupStatisticGroupTypeItemGroup(c,sk) 
+    PROPERTIES dataSidStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk) ON CHANGE changeDataStatisticGroupTypeItemGroup(c,sk) ON SHORTCUT fillStatisticGroupTypeItemGroup(c,sk) BACKGROUND changeBackground()
+           
+    PROPERTIES READONLY nameStatisticGroupStatisticGroupTypeItemGroup(c,sk),  sidStatisticGroupStatisticGroupTypeItemGroup(c,sk)
     ORDER BY orderItemGroup(sk), nameItemGroup(sk)
     FILTERGROUP inactive FILTER 'Активные' activeItemGroup(sk) 'F5' DEFAULT
     
     OBJECTS i = Item
     PROPERTIES (i) READONLY nameSku, idBarcodeSku, idSku SHOWIF showIDs()
     PROPERTIES nameStatisticGroupTypeItem(c,i) ON CHANGE changeStatisticGroupTypeItem(c,i)
+    PROPERTIES sidStatisticGroupTypeItem(c,i) ON CHANGE changeStatisticGroupTypeItem(c,i)
     FILTERS isParentItemGroupItem(sk,i)
     FILTERGROUP inactive1 FILTER 'Активные' activeItem(i) 'F5' DEFAULT
 ;
