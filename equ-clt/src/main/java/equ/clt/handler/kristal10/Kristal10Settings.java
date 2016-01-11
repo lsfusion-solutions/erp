@@ -10,6 +10,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean seasonIsCountry;
     private Boolean idItemInMarkingOfTheGood;
     private Boolean useShopIndices;
+    private Boolean useIdItemInRestriction;
     private String transformUPCBarcode; //12to13 or 13to12
     private Integer maxFilesCount;
     private String tobaccoGroup;
@@ -51,6 +52,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseShopIndices(Boolean useShopIndices) {
         this.useShopIndices = useShopIndices;
+    }
+
+    public Boolean getUseIdItemInRestriction() {
+        return useIdItemInRestriction;
+    }
+
+    public void setUseIdItemInRestriction(Boolean useIdItemInRestriction) {
+        this.useIdItemInRestriction = useIdItemInRestriction;
     }
 
     public String getTransformUPCBarcode() {

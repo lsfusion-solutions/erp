@@ -62,6 +62,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
                 boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
 
                 List<String> directoriesList = new ArrayList<>();
@@ -108,7 +109,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                             //parent: rootElement
                             Element maxDiscountRestriction = new Element("max-discount-restriction");
-                            setAttribute(maxDiscountRestriction, "id", barcodeItem);
+                            setAttribute(maxDiscountRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
                             setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
                             setAttribute(maxDiscountRestriction, "subject-code", idItem);
                             setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
