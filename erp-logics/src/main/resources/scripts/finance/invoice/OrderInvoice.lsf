@@ -123,7 +123,10 @@ META defineOrderInvoice(sign, stockProp)
     maxOrderDetailInvoiceDetail (d) = maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)) PERSISTENT INDEXED;
     quantityOrderInvoiceDetail 'К-во заказа' (d) = quantityOrderDetail(maxOrderDetailInvoiceDetail(d)); 
     priceOrderInvoiceDetail 'Цена заказа' (d) = priceOrderDetail(maxOrderDetailInvoiceDetail(d));
-     
+
+    maxOrderDetailBatchInvoiceDetail (d) = maxOrderDetailBatchOrder(batchInvoiceDetail(d), orderInvoiceDetail(d));
+    priceOrderBatchInvoiceDetail (d) = priceOrderDetail(maxOrderDetailBatchInvoiceDetail(d));
+
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
     inOrderSupplierStock (order, supplierStock) = GROUP SUM 1 IF supplierStockOrderDetail(orderDetail) == supplierStock BY orderOrderDetail(orderDetail), supplierStock;
@@ -215,7 +218,7 @@ META defineOrderInvoice(sign, stockProp)
         }
     }
     prevListSkuPriceUserInvoiceDetail (t, d) += WHEN t == priceListTypeUserInvoiceDetail(d) AND maxOrderDetailInvoiceDetail(d) AND NOT notFillPriceInvoiceOrderOperation(operationUserInvoiceDetail(d)) THEN priceOrderInvoiceDetail(d);    
-    prevListBatchPriceUserInvoiceDetail (t, d) += WHEN t == priceListTypeUserInvoiceDetail(d) AND maxOrderDetailInvoiceDetail(d) AND NOT notFillPriceInvoiceOrderOperation(operationUserInvoiceDetail(d)) THEN priceOrderInvoiceDetail(d);
+    prevListBatchPriceUserInvoiceDetail (t, d) += WHEN t == priceListTypeUserInvoiceDetail(d) AND maxOrderDetailBatchInvoiceDetail(d) AND NOT notFillPriceInvoiceOrderOperation(operationUserInvoiceDetail(d)) THEN priceOrderBatchInvoiceDetail(d);
     
     fillHeaderUserInvoiceOrder = ACTION (userInvoice, order) {
         dateUserInvoice(userInvoice) <- currentDate();
