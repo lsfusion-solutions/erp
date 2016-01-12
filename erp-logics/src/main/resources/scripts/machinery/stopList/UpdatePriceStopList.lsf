@@ -9,6 +9,16 @@ statusStopListSkuStock 'Запрет продаж' (sku, stock)= IF inStopListSk
     ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
 backgroundStopListSkuStock 'Цвет' (sku, stock) = RGB (255,0,0) IF inStopListSkuStockDateTime(sku, stock, currentDateTime());
 
+notResetStoplistSelectSku 'Не сбрасывать отмеченные товары при включении/исключении из стоп-листа' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() notResetStoplistSelectSku
+;
+DESIGN options {
+    stock1 {
+        MOVE PROPERTY(notResetStoplistSelectSku());
+    }
+}
+
 createReversStopListStock 'Исключить из стоп-листа'  = ACTION (department) {
     IF countSelectSkus() THEN {
         NEWSESSION {   
@@ -24,6 +34,9 @@ createReversStopListStock 'Исключить из стоп-листа'  = ACTIO
                 }   
                 FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
             }        
+        }
+        IF NOT notResetStoplistSelectSku() THEN {
+            selectSku(sku) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары.';
@@ -44,6 +57,9 @@ createStopListStock 'Включить в стоп-лист'  = ACTION (departmen
                 }   
                 FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
             }        
+        }
+        IF NOT notResetStoplistSelectSku() THEN {
+            selectSku(sku) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары.';
