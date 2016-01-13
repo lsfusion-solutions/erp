@@ -45,8 +45,13 @@ CONSTRAINT currencyTypeExchange(typeExchangeDeclaration(declaration)) != homeCur
     CHECKED BY typeExchangeDeclaration MESSAGE 'Тип обмена должен соответствовать расчётной валюте';
 
 rateExchangeDeclaration 'Курс накладных' = DATA NUMERIC[14,3](Declaration);
-calcRateExchangeDeclaration 'Курс накладных' (declaration) = rateOnTypeExchangeCurrencyDate(typeExchangeDeclaration(declaration), currencyDeclaration(declaration), dateDeclaration(declaration));
-rateExchangeDeclaration(declaration) <- calcRateExchangeDeclaration(declaration) WHEN CHANGED (dateDeclaration(declaration)) OR
+dataDateExchangeDeclaration  = DATA DATE(Declaration);
+dateExchangeDeclaration 'Дата (курс накладных)'= OVERRIDE dateDeclaration(d), dataDateExchangeDeclaration(d);
+
+dataDateExchangeDeclaration(declaration) <- dateDeclaration(declaration) WHEN CHANGED (dateDeclaration(declaration));
+
+calcRateExchangeDeclaration 'Курс накладных' (declaration) = rateOnTypeExchangeCurrencyDate(typeExchangeDeclaration(declaration), currencyDeclaration(declaration), dateExchangeDeclaration(declaration));
+rateExchangeDeclaration(declaration) <- calcRateExchangeDeclaration(declaration) WHEN CHANGED (dateExchangeDeclaration(declaration)) OR
                                                                                       CHANGED (typeExchangeDeclaration(declaration)) OR
                                                                                       CHANGED (currencyDeclaration(declaration));
 
@@ -62,7 +67,7 @@ roundDeclaration(d) <- defaultRoundCurrency(homeCurrencyDeclaration(d)) WHEN CHA
 
 EXTEND FORM declaration
     PROPERTIES(d) nameLegalEntityDeclaration, nameCurrencyDeclaration, nameCustomsZoneDeclaration, nameHomeCurrencyDeclaration,
-                  nameTypeExchangeDeclaration, roundDeclaration, rateExchangeDeclaration, nameCurrencyCustomsZoneDeclaration READONLY,
+                  nameTypeExchangeDeclaration, roundDeclaration, dateExchangeDeclaration, rateExchangeDeclaration, nameCurrencyCustomsZoneDeclaration READONLY,
                   rateExchangeCustomsZoneDeclaration
 ;
 
@@ -81,22 +86,24 @@ DESIGN declaration {
             NEW extraParams {
                 type = CONTAINERH;
                 NEW currencyParams {
-                    type = CONTAINERH;
+                    type = CONTAINERV;
                     caption = 'Валюты и курсы';
                     NEW currencyParamsColumn1 {
-                        type = COLUMNS;
-                        columns = 1;
+                        type = CONTAINERH;                        
                         MOVE PROPERTY(nameHomeCurrencyDeclaration(d));
-                        MOVE PROPERTY(nameCurrencyDeclaration(d));
-                        MOVE PROPERTY(nameCurrencyCustomsZoneDeclaration(d));
+                        MOVE PROPERTY(nameTypeExchangeDeclaration(d));                                               
                     }
                     NEW currencyParamsColumn2 {
-                        type = COLUMNS;
-                        columns = 1;
-                        MOVE PROPERTY(nameTypeExchangeDeclaration(d));
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameCurrencyDeclaration(d));                        
                         MOVE PROPERTY(rateExchangeDeclaration(d));
-                        MOVE PROPERTY(rateExchangeCustomsZoneDeclaration(d));
+                        MOVE PROPERTY(dateExchangeDeclaration(d));
                     }
+                    NEW currencyParamsColumn3 {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameCurrencyCustomsZoneDeclaration(d));
+                        MOVE PROPERTY(rateExchangeCustomsZoneDeclaration(d));
+                    }                                        
                 }
             }
         }
