@@ -530,9 +530,18 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         Integer numberCashRegister = rs.getInt(2);
                         Timestamp timeFrom = rs.getTimestamp(3);
                         Timestamp timeTo = rs.getTimestamp(4);
-                        String idCashierTime = numberCashier + "/" + numberCashRegister + "/" +  timeFrom + "/" + timeTo;
-                        result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister,
+                        result.add(new CashierTime(null, numberCashier, numberCashRegister,
                                 directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo));
+                    }
+
+                    Timestamp dateTo = null;
+                    for (int i = result.size() - 1; i >= 0; i--) {
+                        CashierTime ct = result.get(i);
+                        if (ct.logOffCashier == null) {
+                            ct.logOffCashier = getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, ct.logOnCashier, dateTo);
+                        }
+                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier;
+                        dateTo = ct.logOnCashier;
                     }
 
                     sendSalesLogger.info("Kristal: found " + result.size() + " CashierTime");
@@ -546,6 +555,29 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
         }
         return result;
+    }
+
+    //берём max (время последнего чека, время ребута между началом этой сессии и началом следующей)
+    //если оба null, берём время начала следующей сессии
+    private Timestamp getLogOffTime(Connection conn, String numberCashier, Integer numberCashRegister, Timestamp dateFrom, Timestamp dateTo) throws SQLException {
+        Timestamp lastCheque = null;
+
+        Statement statement = conn.createStatement();
+        String queryString = "SELECT MAX(dateOperation) FROM ChequeHead WHERE cassir = '" + numberCashier +
+                "' AND dateOperation >= {ts '" + dateFrom + "'}" + (dateTo == null ? "" : " AND dateOperation <= {ts '" + dateTo + "'}");
+        ResultSet rs = statement.executeQuery(queryString);
+        if (rs.next())
+            lastCheque = rs.getTimestamp(1);
+
+        Timestamp lastReboot = null;
+        statement = conn.createStatement();
+        queryString = "SELECT MAX(DateOccure) FROM ErrorLog WHERE DeviceId = " + numberCashRegister + " AND Code = 1019" +
+                " AND DateOccure >= {ts '" + dateFrom + "'}" + (dateTo == null ? "" : " AND DateOccure <= {ts '" + dateTo + "'}");
+        rs = statement.executeQuery(queryString);
+        if (rs.next())
+            lastReboot = rs.getTimestamp(1);
+
+        return lastCheque != null ? (lastReboot != null ? (lastCheque.compareTo(lastReboot) > 0  ? lastCheque : lastReboot) : lastCheque) : (lastReboot != null ? lastReboot : dateTo);
     }
 
     @Override
