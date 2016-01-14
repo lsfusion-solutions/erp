@@ -5,6 +5,16 @@ REQUIRE Stock, EmployeeLegalEntity;
 TABLE stockEmployee (Stock, Employee);
 inStockEmployee 'Сотрудник подразделения' = DATA BOOLEAN (Stock, Employee);
 
+allowStockEmployee 'Разрешить использование в комиссиях сотрудников из других подразделений' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () allowStockEmployee
+;
+DESIGN options {
+    stock1 {
+        MOVE PROPERTY(allowStockEmployee());
+    }
+}
+
 TABLE stockGroupEmployee(StockGroup, Employee);
 
 //--  Компания
@@ -187,7 +197,7 @@ META defineCommitteeEmployee (committee, prefix, caption)
     namePosition###prefix##Committee caption (committee) = namePositionEmployee(prefix##Committee(committee));
     positionName###prefix###committee caption (committee) = positionNameEmployee(prefix###committee(committee));  
     positionShortName###prefix###committee caption (committee) = positionShortNameEmployee(prefix###committee(committee));              
-    CONSTRAINT prefix##Committee(committee) AND NOT countStockEmployeeCommittee(prefix##Committee(committee), committee)
+    CONSTRAINT prefix##Committee(committee) AND NOT countStockEmployeeCommittee(prefix##Committee(committee), committee) AND NOT allowStockEmployee()
         CHECKED BY prefix##Committee MESSAGE '\''##caption##'\' не входит в выбранные подразделения';
 END
 
@@ -198,7 +208,7 @@ META defineCommitteeEmployeePrefix (committee, prefix, caption)
     namePosition###prefix###committee caption (committee) = namePositionEmployee(prefix###committee(committee));
     positionName###prefix###committee caption (committee) = positionNameEmployee(prefix###committee(committee));   
     positionShortName###prefix###committee caption (committee) = positionShortNameEmployee(prefix###committee(committee));             
-    CONSTRAINT prefix###committee(committee) AND NOT countStockEmployeeCommittee(prefix###committee(committee), committee)
+    CONSTRAINT prefix###committee(committee) AND NOT countStockEmployeeCommittee(prefix###committee(committee), committee) AND NOT allowStockEmployee()
         CHECKED BY prefix###committee MESSAGE '\''##caption##'\' не входит в выбранные подразделения';
 END
 
@@ -218,7 +228,7 @@ TABLE committeeStock (Committee, Stock);
 inCommitteeStock 'Вкл.' = DATA BOOLEAN (Committee, Stock);
 
 countStockEmployeeCommittee  (employee, committee) = GROUP SUM 1 IF inCommitteeStock(committee, stock) AND inStockEmployee(stock, employee) BY employee, committee;
-CONSTRAINT inCommitteeEmployee(committee, employee) AND NOT countStockEmployeeCommittee(employee, committee)
+CONSTRAINT inCommitteeEmployee(committee, employee) AND NOT countStockEmployeeCommittee(employee, committee) AND NOT allowStockEmployee()
     CHECKED MESSAGE 'Член комиссии не входит в выбранные подразделения';
 
 @defineCommitteeEmployee(committee, chairman, 'Председатель');
