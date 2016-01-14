@@ -395,7 +395,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
-                                startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, notDetailedGroupCashRegister,
+                                startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
                                 disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
                     }
 
@@ -439,7 +439,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
-                            weightCodeGroupCashRegister, nameStockGroupCashRegister));
+                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
@@ -1375,9 +1375,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
 
                 String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
-                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister"};
+                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister", "idStockGroupMachinery"};
                 LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
-                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister");
+                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister", "idStockGroupMachinery");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
@@ -1394,7 +1394,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             (String) row.get("overDirectoryMachinery"), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
-                            row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
+                            (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

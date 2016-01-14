@@ -120,11 +120,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
                             addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
                             if (useShopIndices)
-                                addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
+                                addStringElement(maxDiscountRestriction, "shop-indices", String.valueOf(transaction.nppGroupMachinery)/*item.idDepartmentStore*/);
                             rootElement.addContent(maxDiscountRestriction);
 
                             if (useShopIndices)
-                                addStringElement(good, "shop-indices", item.idDepartmentStore);
+                                addStringElement(good, "shop-indices", String.valueOf(transaction.nppGroupMachinery)/*item.idDepartmentStore*/);
 
                             addStringElement(good, "name", item.name);
 
@@ -156,7 +156,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                             //parent: priceEntry
                             Element department = new Element("department");
-                            setAttribute(department, "number", transaction.nppGroupMachinery);
+                            setAttribute(department, "number", transaction.idDepartmentStoreGroupCashRegister/*transaction.nppGroupMachinery*/);
                             addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
                             priceEntry.addContent(department);
 
@@ -694,26 +694,28 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
+        Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
+        boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
+        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+
         Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         Map<String, Date> directoryStartDateMap = new HashMap<>();
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
-                directoryDepartNumberGroupCashRegisterMap.put(c.directory + "_" + c.number + "_" + c.overDepartNumber, c.numberGroup);
+                String key = c.directory + "_" + c.number + "_" + c.overDepartNumber + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
+                directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
                 if (c.number != null && c.numberGroup != null)
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
                 if (c.number != null && c.startDate != null)
                     directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
                 if (c.weightCodeGroupCashRegister != null)
-                    directoryWeightCodeMap.put(c.directory + "_" + c.number + "_" + c.overDepartNumber, c.weightCodeGroupCashRegister);
+                    directoryWeightCodeMap.put(key, c.weightCodeGroupCashRegister);
             }
         }
-
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
-        Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
-        boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
@@ -761,6 +763,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             Integer numberReceipt = readIntegerXMLAttribute(purchaseNode, "number");
                             String idEmployee = readStringXMLAttribute(purchaseNode, "tabNumber");
                             String nameEmployee = readStringXMLAttribute(purchaseNode, "userName");
+                            String shop = readStringXMLAttribute(purchaseNode, "shop");
                             String firstNameEmployee = null;
                             String lastNameEmployee = null;
                             if (nameEmployee != null) {
@@ -839,8 +842,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     if (departNumber == null)
                                         departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
 
-                                    String weightCode = directoryWeightCodeMap.containsKey(directory + "_" + numberCashRegister + "_" + departNumber) ?
-                                            directoryWeightCodeMap.get(directory + "_" + numberCashRegister + "_" + departNumber) : "21";
+                                    String key = directory + "_" + numberCashRegister + "_" + shop + (useShopIndices ? ("_" + departNumber) : "");
+
+                                    String weightCode = directoryWeightCodeMap.containsKey(key) ? directoryWeightCodeMap.get(key) : "21";
 
                                     String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                                     String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
@@ -879,7 +883,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
-                                        Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(directory + "_" + numberCashRegister + "_" + departNumber);
+                                        Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(key);
                                         nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
 
                                         String idSaleReceiptReceiptReturnDetail = null;
