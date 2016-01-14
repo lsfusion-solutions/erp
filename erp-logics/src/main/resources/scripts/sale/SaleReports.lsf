@@ -39,6 +39,8 @@ inSaleReportStocks 'Склады' () =
     GROUP CONCAT nameStock(st) IF inSaleReportStock(st) ,', ' PREFCHARWIDTH 30;
 defaultStockSaleReport = GROUP MIN st IF inSaleReportStock(st);
 
+overfillSaleReportDateFromTo = ABSTRACT ACTION (GroupType, DATE, DATE);
+
 fillSaleReportDateFromTo 'Сформировать' = ACTION (gt, df, dt) {
 
     quantitySkuStock(sk) <- NULL;           
@@ -63,7 +65,9 @@ fillSaleReportDateFromTo 'Сформировать' = ACTION (gt, df, dt) {
     sumGroupStock(g) <- [= GROUP SUM sumSkuStock(sk) BY groupGroupTypeSku(gt, sk)](g) IF groupTypeGroup(g) == gt;
     sumVATGroupStock(g) <- [= GROUP SUM sumVATSkuStock(sk) BY groupGroupTypeSku(gt, sk)](g) IF groupTypeGroup(g) == gt;
     costSumGroupStock(g) <- [= GROUP SUM costSumSkuStock(sk) BY groupGroupTypeSku(gt, sk)](g) IF groupTypeGroup(g) == gt;
-    markupSumGroupStock(g) <- [= GROUP SUM markupSumSkuStock(sk) BY groupGroupTypeSku(gt, sk)](g) IF groupTypeGroup(g) == gt;                     
+    markupSumGroupStock(g) <- [= GROUP SUM markupSumSkuStock(sk) BY groupGroupTypeSku(gt, sk)](g) IF groupTypeGroup(g) == gt; 
+       
+    overfillSaleReportDateFromTo(gt, df, dt);                 
 }
 
 filterSkuStockDateFromTo (s,st,df,dt) =   quantitySoldSkuStockDateFromTo(s,st,df,dt) OR 
