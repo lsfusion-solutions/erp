@@ -439,7 +439,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
-                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
+                            weightCodeGroupCashRegister, nameStockGroupCashRegister));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();

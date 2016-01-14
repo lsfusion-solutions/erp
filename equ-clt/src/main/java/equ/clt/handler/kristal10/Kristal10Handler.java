@@ -120,11 +120,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
                             addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
                             if (useShopIndices)
-                                addStringElement(maxDiscountRestriction, "shop-indices", String.valueOf(transaction.nppGroupMachinery)/*item.idDepartmentStore*/);
+                                addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
                             rootElement.addContent(maxDiscountRestriction);
 
                             if (useShopIndices)
-                                addStringElement(good, "shop-indices", String.valueOf(transaction.nppGroupMachinery)/*item.idDepartmentStore*/);
+                                addStringElement(good, "shop-indices", item.idDepartmentStore);
 
                             addStringElement(good, "name", item.name);
 
@@ -156,7 +156,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                             //parent: priceEntry
                             Element department = new Element("department");
-                            setAttribute(department, "number", transaction.idDepartmentStoreGroupCashRegister/*transaction.nppGroupMachinery*/);
+                            setAttribute(department, "number", transaction.departmentNumberGroupCashRegister);
                             addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
                             priceEntry.addContent(department);
 
@@ -706,7 +706,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
-                String key = c.directory + "_" + c.number + "_" + c.overDepartNumber + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
+                String key = c.directory + "_" + c.number + "_" + c.idDepartmentStore + (useShopIndices ? ("_" + c.overDepartNumber) : "");
                 directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
                 if (c.number != null && c.numberGroup != null)
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
