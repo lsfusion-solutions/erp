@@ -247,7 +247,7 @@ fillWastageTechnology 'Заполнить технологии на другой
     IF formResult() == FormResult.ok THEN {
 
         LOCAL newYear = INTEGER();
-        ASSIGN newYear() <- chosenInteger('y');
+        newYear() <- chosenInteger('y');
 
         FOR dataWastageTechnologyMaterialDate(technology, material, dateFrom) DO {
 
@@ -255,7 +255,7 @@ fillWastageTechnology 'Заполнить технологии на другой
                 BREAK;
 
             IF extractYear(dateFrom) == (newYear() - 1) THEN {
-                ASSIGN dataWastageTechnologyMaterialDate(technology, material, dateTo) <- dataWastageTechnologyMaterialDate(technology, material, dateFrom) WHERE dateTo == sumDateYear(dateFrom, 1);
+                dataWastageTechnologyMaterialDate(technology, material, dateTo) <- dataWastageTechnologyMaterialDate(technology, material, dateFrom) WHERE dateTo == sumDateYear(dateFrom, 1);
             }
 
         }
@@ -786,27 +786,29 @@ WHEN SESSION FORMS BOM SET(BOM IS BOM) DO {
 };
 
 overCopyBOM = ABSTRACT ACTION LIST (BOM, BOM);
+overCopyComponent = ABSTRACT ACTION LIST (Component, Component);
 
 copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
     FOR ADDOBJ b = BOM DO {
 
-        ASSIGN noteBOM(b) <- noteBOM(BOM);
+        noteBOM(b) <- noteBOM(BOM);
         FOR BOMProduct(product) == BOM ADDOBJ p=Product DO {
-            ASSIGN BOMProduct(p) <- b;
-            ASSIGN skuProduct(p) <- skuProduct(product);
-            ASSIGN quantityProduct(p) <- quantityProduct(product);
-            ASSIGN pricePercentProduct(p) <- pricePercentProduct(product);
+            BOMProduct(p) <- b;
+            skuProduct(p) <- skuProduct(product);
+            quantityProduct(p) <- quantityProduct(product);
+            pricePercentProduct(p) <- pricePercentProduct(product);
         }
 
         FOR BOMComponent(component) == BOM ADDOBJ c=Component DO {
-            ASSIGN BOMComponent(c) <- b;
-            ASSIGN materialComponent(c) <- materialComponent(component);
-            ASSIGN nettoQuantityComponent(c) <- nettoQuantityComponent(component);
+            BOMComponent(c) <- b;
+            materialComponent(c) <- materialComponent(component);
+            nettoQuantityComponent(c) <- nettoQuantityComponent(component);
             
-            ASSIGN inTechnologyComponent(t,c) <- inTechnologyComponent(t,component) WHERE inTechnologyComponent(t,component);            
+            inTechnologyComponent(t,c) <- inTechnologyComponent(t,component) WHERE inTechnologyComponent(t,component);            
             
-            ASSIGN bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
-            ASSIGN wastageComponent(c) <- wastageComponent(component);
+            bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
+            wastageComponent(c) <- wastageComponent(component);
+            overCopyComponent(c,component);
         }
         dataInStockBOM(s, b) <- dataInStockBOM(s, BOM); 
         dataInStockGroupBOM(g, b) <- dataInStockGroupBOM(g, BOM);
