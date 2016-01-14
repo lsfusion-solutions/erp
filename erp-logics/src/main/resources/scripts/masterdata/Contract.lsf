@@ -98,6 +98,41 @@ DESIGN options {
     }
 }
 
+contractSupplier= DATA LOCAL LegalEntity();
+nameContractSupplier 'Поставщик' = nameLegalEntity(contractSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+
+contractCustomer= DATA LOCAL LegalEntity();
+nameContractCustomer 'Покупатель' = nameLegalEntity(contractCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+
+FORM contractDialog 'Договоры'
+    OBJECTS dt = DATE FIXED PANEL 
+    PROPERTIES val = OBJVALUE (dt)
+    PROPERTIES nameContractSupplier(), nameContractCustomer() 
+    
+    OBJECTS c = Contract
+    PROPERTIES(c) READONLY namePartyAContract, namePartyAStocksContract, namePartyBContract, namePartyBStocksContract, 
+                           seriesNumberContract, dateFromContract, dateToContract, isDefaultContract, nameCurrencyContract, 
+                           nameTypeExchangeContract, descriptionPaymentConditionContract, noteContract
+    FILTERS partyAContract(c) == contractSupplier() OR c IS Contract AND NOT contractSupplier(),
+            partyBContract(c) == contractCustomer() OR c IS Contract AND NOT contractCustomer()
+    FILTERGROUP active 
+        FILTER 'Активные' dateFromContract(c) <= dt AND NOT dateToContract(c) < dt 'F5' DEFAULT      
+;
+DESIGN contractDialog {
+    main {
+        preferredSize = (1024, 768);
+        NEW top {
+            type = CONTAINERH;
+            caption = 'Шапка';
+            MOVE PROPERTY (val) {caption = 'Дата';}
+            MOVE PROPERTY(nameContractSupplier());
+            MOVE PROPERTY(nameContractCustomer());
+        }
+        MOVE c.box;
+        MOVE functions.box;
+    }
+}
+
 // ------------------------------------ Макрос для создания договоров по умолчанию ----------------------------- //
 
 //META defineContractDefault (contract, partyA, partyB)
