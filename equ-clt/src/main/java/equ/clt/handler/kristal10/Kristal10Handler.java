@@ -706,7 +706,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
-                String key = c.directory + "_" + c.number + "_" + c.idDepartmentStore + (useShopIndices ? ("_" + c.overDepartNumber) : "");
+                String key = c.directory + "_" + c.number + "_" + c.overDepartNumber + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
                 directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
                 if (c.number != null && c.numberGroup != null)
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
@@ -842,7 +842,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     if (departNumber == null)
                                         departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
 
-                                    String key = directory + "_" + numberCashRegister + "_" + shop + (useShopIndices ? ("_" + departNumber) : "");
+                                    String key = directory + "_" + numberCashRegister + "_" + departNumber + (useShopIndices ? ("_" + shop) : "");
 
                                     String weightCode = directoryWeightCodeMap.containsKey(key) ? directoryWeightCodeMap.get(key) : "21";
 
