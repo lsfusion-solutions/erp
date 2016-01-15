@@ -247,6 +247,7 @@ createInvoiceReceipt  = ACTION (receipt, customer, employee, sum, paymentType, p
                 costOutContractLedgerInContractLedger(p, i) <- debtInContractLedger(i);     
             } 
             dataFiscalTypePayment(p) <- IF sidPaymentType(paymentType) == 'card' THEN 1 ELSE 0;
+            typePayment(p) <- IF sidPaymentType(paymentType) == 'card' THEN 1 ELSE 0;
             
             DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
             DELETE receipt;
@@ -256,14 +257,13 @@ createInvoiceReceipt  = ACTION (receipt, customer, employee, sum, paymentType, p
                 IF NOT canceled() THEN {
                     printReceiptInvoicePayment(i, p); 
                     IF printReceiptResult() THEN {
-                        zReportPayment(p) <- currentZReport();      
-                        typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;          
+                        zReportPayment(p) <- currentZReport();             
                         apply();
                         createCurrentReceipt();
                     }   
                 } 
             }                 
-            ELSE {
+            ELSE {         
                 apply();
                 createCurrentReceipt(); 
             }

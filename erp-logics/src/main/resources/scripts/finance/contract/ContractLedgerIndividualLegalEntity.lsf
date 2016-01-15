@@ -113,8 +113,10 @@ addPaymentInContractLedger 'Погасить задолженность' = ACTIO
             } ELSE IF debtInContractLedger(ledger) < sumContractPayment(p) THEN{
                 costOutContractLedgerInContractLedger(p, ledger) <- debtInContractLedger(ledger);     
             }             
-            dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
-            IF fiscalSkip() OR NOT modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
+            dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;  
+            typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;            
+            
+            IF fiscalSkip() OR NOT modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {          
                 apply();            
             }
             ELSE {
@@ -123,8 +125,7 @@ addPaymentInContractLedger 'Погасить задолженность' = ACTIO
                     IF NOT canceled() THEN {
                         printReceiptInvoicePayment(ledger, p); 
                         IF printReceiptResult() THEN {
-                            zReportPayment(p) <- currentZReport(); 
-                            typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;                       
+                            zReportPayment(p) <- currentZReport();                        
                             apply();
                         }    
                     }              
@@ -147,6 +148,8 @@ addReturnPaymentInContractLedger 'Вернуть предоплату' = ACTION 
             isPostedPayment(p) <- TRUE;
             costOutContractLedgerInContractLedger(p, ledger) <- -sumContractPayment(p);                
             dataFiscalTypePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
+            typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;
+            
             IF fiscalSkip() OR NOT modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) THEN {
                 apply();            
             }
@@ -156,8 +159,7 @@ addReturnPaymentInContractLedger 'Вернуть предоплату' = ACTION 
                     IF NOT canceled() THEN {
                         printReturnReceiptInvoicePayment(ledger, p); 
                         IF printReceiptResult() THEN {
-                            zReportPayment(p) <- currentZReport(); 
-                            typePayment(p) <- IF sidPaymentType(chosenObject('pt')) == 'card' THEN 1 ELSE 0;                       
+                            zReportPayment(p) <- currentZReport();                    
                             apply();
                         }    
                     }              
