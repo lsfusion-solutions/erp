@@ -654,6 +654,8 @@ EXTEND FORM options PROPERTIES(ia) prefixInNameItemAttribute, postfixInNameItemA
 
 completeNameItemAttribute (item, attribute) = CONCAT '', prefixInNameItemAttribute(attribute) IF item IS Item, valueItemAttribute(item, attribute), postfixInNameItemAttribute(attribute) IF item IS Item;
 
+overNameItem 'Наименование (перегруженное)' = ABSTRACT VARISTRING[255](Item);
+
 META defineItemAttributeName (prefix, caption, group)
     @defineItemDefaultValueCustom(numberInName###prefix, 'Порядковый номер в наименовании'##caption, INTEGER, itemAttribute);
 
@@ -664,9 +666,10 @@ META defineItemAttributeName (prefix, caption, group)
             THEN numberInName###prefix##ItemAttributeItemGroup(attribute, itemGroupItem(item))
             ELSE numberInName###prefix##ItemAttribute(attribute);
     
-    name###prefix##AttributeItem 'Наименование'###caption (item) = VARISTRING[255](
+    name###prefix##AttributeItem 'Наименование'###caption (item) = OVERRIDE VARISTRING[255](
                     [= GROUP CONCAT completeNameItemAttribute(item, attribute)
-                                  IF numberInName###prefix##ItemAttributeItem(attribute, item) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttributeItem(attribute, item)](item))
+                                  IF numberInName###prefix##ItemAttributeItem(attribute, item) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttributeItem(attribute, item)](item)),
+                            overNameItem(item)
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     EXTEND FORM options 
         PROPERTIES(ia) numberInName###prefix##ItemAttribute
@@ -1426,7 +1429,9 @@ TABLE itemAttributeItemGroup(ItemAttribute, ItemGroup);
 // Базовое наименование
 @defineItemAttributeName( , , recognize);
 
-EXTEND FORM item PROPERTIES(i) READONLY nameAttributeItem;
+backgroundNameAttributeItem = RGB(127,199,255) IF overNameItem(i);
+
+EXTEND FORM item PROPERTIES(i) READONLY nameAttributeItem BACKGROUND backgroundNameAttributeItem(i);
 DESIGN item { itemHeader {MOVE PROPERTY(nameAttributeItem(i)); } }
 
 nameSku(item) += nameAttributeItem(item);
