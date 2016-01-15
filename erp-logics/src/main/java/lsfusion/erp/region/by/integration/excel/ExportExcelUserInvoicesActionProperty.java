@@ -60,7 +60,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
         ScriptingLogicsModule pricingPurchaseLM = context.getBL().getModule("PricingPurchase");
         ScriptingLogicsModule purchaseInvoiceWholesaleLM = context.getBL().getModule("PurchaseInvoiceWholesalePrice");
 
-        List<List<String>> data = new ArrayList<List<String>>();
+        List<List<String>> data = new ArrayList<>();
 
         DataSession session = context.getSession();
 
@@ -76,7 +76,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice"};
             LCP[] userInvoiceProperties = findProperties("seriesUserInvoice", "numberUserInvoice",
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice");
-            QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<Object, Object>(userInvoiceKeys);
+            QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<>(userInvoiceKeys);
             for (int j = 0; j < userInvoiceProperties.length; j++) {
                 userInvoiceQuery.addProperty(userInvoiceNames[j], userInvoiceProperties[j].getExpr(context.getModifier(), userInvoiceExpr));
             }
@@ -104,7 +104,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     KeyExpr userInvoiceDetailExpr = new KeyExpr("UserInvoiceDetail");
                     ImRevMap<Object, KeyExpr> userInvoiceDetailKeys = MapFact.singletonRev((Object) "UserInvoiceDetail", userInvoiceDetailExpr);
 
-                    QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<Object, Object>(userInvoiceDetailKeys);
+                    QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<>(userInvoiceDetailKeys);
                     String[] userInvoiceDetailNames = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
                             "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail"};
                     LCP<?>[] userInvoiceDetailProperties = findProperties("Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",

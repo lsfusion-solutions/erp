@@ -41,7 +41,7 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
 
         ScriptingLogicsModule legalEntityByLM = context.getBL().getModule("LegalEntityBy");
         
-        List<List<String>> data = new ArrayList<List<String>>();
+        List<List<String>> data = new ArrayList<>();
 
         DataSession session = context.getSession();
 
@@ -56,7 +56,7 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
             LCP[] legalEntityProperties = findProperties("nameLegalEntity", "fullNameLegalEntity",
                     "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",
                     "phoneLegalEntity");
-            QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
+            QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
             for (int i = 0; i < legalEntityProperties.length; i++) {
                 legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(context.getModifier(), legalEntityExpr));
             }

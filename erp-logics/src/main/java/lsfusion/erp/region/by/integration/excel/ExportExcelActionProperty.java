@@ -45,7 +45,7 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
         workbook.write();
         workbook.close();
 
-        Map<String, byte[]> result = new HashMap<String, byte[]>();
+        Map<String, byte[]> result = new HashMap<>();
         result.put(fileName + ".xls", IOUtils.getFileBytes(file));
         file.delete();
 

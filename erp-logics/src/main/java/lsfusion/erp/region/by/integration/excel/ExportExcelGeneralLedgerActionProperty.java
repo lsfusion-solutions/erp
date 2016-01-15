@@ -55,7 +55,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
-        List<List<String>> data = new ArrayList<List<String>>();
+        List<List<String>> data = new ArrayList<>();
 
         DataSession session = context.getSession();
 
@@ -75,7 +75,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
                     "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
                     "dimensionsCreditGeneralLedger", "sumGeneralLedger");
-            QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<Object, Object>(generalLedgerKeys);
+            QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<>(generalLedgerKeys);
             for (int i = 0; i < generalLedgerProperties.length; i++) {
                 generalLedgerQuery.addProperty(generalLedgerNames[i], generalLedgerProperties[i].getExpr(context.getModifier(), generalLedgerExpr));
             }

@@ -37,7 +37,7 @@ public class ExportExcelBanksActionProperty extends ExportExcelActionProperty {
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
-        List<List<String>> data = new ArrayList<List<String>>();
+        List<List<String>> data = new ArrayList<>();
 
         DataSession session = context.getSession();
 
@@ -48,7 +48,7 @@ public class ExportExcelBanksActionProperty extends ExportExcelActionProperty {
 
             String[] bankNames = new String[]{"idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank"};
             LCP[] bankProperties = findProperties("idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank");
-            QueryBuilder<Object, Object> bankQuery = new QueryBuilder<Object, Object>(bankKeys);
+            QueryBuilder<Object, Object> bankQuery = new QueryBuilder<>(bankKeys);
             for (int i = 0; i < bankProperties.length; i++) {
                 bankQuery.addProperty(bankNames[i], bankProperties[i].getExpr(context.getModifier(), bankExpr));
             }

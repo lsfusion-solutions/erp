@@ -33,7 +33,7 @@ public class ExportExcelAllActionProperty extends ScriptingActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            Map<String, byte[]> files = new HashMap<String, byte[]>();
+            Map<String, byte[]> files = new HashMap<>();
             files.putAll(new ExportExcelGeneralLedgerActionProperty(LM, dateFromInterface, dateToInterface).createFile(context));
             files.putAll(new ExportExcelLegalEntitiesActionProperty(LM).createFile(context));
             files.putAll(new ExportExcelItemsActionProperty(LM).createFile(context));

@@ -77,7 +77,7 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
         Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
         Sheet sheet = Wb.getSheet(0);
 
-        List<WarehouseGroup> data = new ArrayList<WarehouseGroup>();
+        List<WarehouseGroup> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 

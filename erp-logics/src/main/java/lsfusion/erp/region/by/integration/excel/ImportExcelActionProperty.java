@@ -18,7 +18,7 @@ import java.text.ParseException;
 
 public class ImportExcelActionProperty extends DefaultImportActionProperty {
 
-    static long minDate = new Date(2001, 0, 1).getTime();
+    static long minDate = new Date(2001 - 1900, 0, 1).getTime();
     static long maxDate = new Date(2030 - 1900, 0, 1).getTime();
 
     public ImportExcelActionProperty(ScriptingLogicsModule LM) {
@@ -35,7 +35,7 @@ public class ImportExcelActionProperty extends DefaultImportActionProperty {
 
     protected static String parseString(Cell cell) throws ParseException {
         String value = cell == null ? null : (cell instanceof NumberCell ? String.valueOf(new DecimalFormat("#.#####").format(((NumberCell) cell).getValue())) : cell.getContents());
-        return value == null || value.isEmpty() ? null : value;
+        return value == null || value.isEmpty() ? null : value.trim();
     }
 
     protected static BigDecimal parseBigDecimal(Cell cell) throws ParseException {
