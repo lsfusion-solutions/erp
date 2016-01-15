@@ -29,35 +29,7 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(retailPric
            CHECKED BY retailPriceListTypeUserInvoiceDetail
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
-// Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
-extraCalcRetailCalcPriceListTypeUserInvoiceDetail= ABSTRACT CalcPriceListType(UserInvoiceDetail);
-
-skipSetRetailPriceListTypeUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
-WHEN SESSION FORMS userInvoice
-    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(skuUserInvoiceDetail(detail)) OR
-     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-     (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
-     AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail)
-     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
-     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
-                                                                                                skuUserInvoiceDetail(detail),
-                                                                                                customerStockUserInvoiceDetail(detail),
-                                                                                                dateTimeUserInvoiceDetail(detail))
-                                                        THEN pt
-                                                        ELSE OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);
-
-WHEN SESSION FORMS userInvoice
-    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(skuUserInvoiceDetail(detail)) OR
-     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-     (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
-     AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail)
-     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) DO
-     retailPriceListTypeUserInvoiceDetail(detail) <- OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);     
-     
+    
 //fillRetailPriceListTypeUserInvoiceDetailAll 'Пересчитать цену для всех'  = ACTION (detail) { // нужно чтобы еще сработали SESSION потом, которые изменяют цену и надбавку
 //    retailPriceListTypeUserInvoiceDetail(d) <-NULL WHERE userInvoiceUserInvoiceDetail(detail) == userInvoiceUserInvoiceDetail(d);
 //    retailPriceListTypeUserInvoiceDetail(d) <- (IF prevPriceBPriceListTypeSkuStockDateTime(calcRetailPriceListTypeUserInvoiceDetail(d),
@@ -85,6 +57,35 @@ roundConditionUserInvoiceDetail(d) =  IF overRoundConditionUserInvoiceDetail(d)
         ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(d));
 
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка)', 'Акт расценки на основе накладной', 'Проведенный акт расценки на основе накладной', customer, );
+
+// Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
+extraCalcRetailCalcPriceListTypeUserInvoiceDetail= ABSTRACT CalcPriceListType(UserInvoiceDetail);
+
+skipSetRetailPriceListTypeUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
+WHEN SESSION FORMS userInvoice
+    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(skuUserInvoiceDetail(detail)) OR
+     CHANGED(customerStockUserInvoiceDetail(detail)) OR
+     (CHANGED(pricingDateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
+     AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail)
+     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
+     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
+                                                                                                skuUserInvoiceDetail(detail),
+                                                                                                customerStockUserInvoiceDetail(detail),
+                                                                                                pricingDateTimeUserInvoiceDetail(detail))
+                                                        THEN pt
+                                                        ELSE OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);
+
+WHEN SESSION FORMS userInvoice
+    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(skuUserInvoiceDetail(detail)) OR
+     CHANGED(customerStockUserInvoiceDetail(detail)) OR
+     (CHANGED(pricingDateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
+     AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail)
+     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) DO
+     retailPriceListTypeUserInvoiceDetail(detail) <- OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);     
 
 batchPricingDetail(detail) += OVERRIDE shipmentBatchShipmentDetail(invoiceShipmentDetailInvoiceDetail(invoiceDetailInvoicePricingDetail(detail))), batchInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
 editPricingDetail (d)+= ACTION editInvoiceDetail(invoiceDetailInvoicePricingDetail(d));
@@ -160,7 +161,7 @@ DESIGN userInvoice {
 EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) READONLY nameRetailPriceListTypeInvoiceDetail BEFORE retailMarkupInvoiceDetail(d);
 
 // расчет надбавок и цены при изменении priceListType
-@deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, customerStock, userInvoice);
+@deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, customerStock, userInvoice, pricing);
 // Изменяем учетную цену
 calcShipmentPriceUserInvoiceDetail(detail) += WHEN customerStockUserInvoiceDetail(detail) IS DepartmentStore AND NOT costLedgerDepartmentStore(customerStockUserInvoiceDetail(detail))
                                                 THEN retailPriceUserInvoiceDetail(detail);

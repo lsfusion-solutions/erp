@@ -223,14 +223,14 @@ EXTEND FORM calcPriceListType
     PROPERTIES(c) pricingBaseCalcPriceListType
 ;
 
-META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
+META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime)
 
     WHEN SESSION 
         (CHANGED(prefix###priceListType###idetail(detail)) OR
          CHANGED(prefixP###price###idetail(detail)) OR
          CHANGED(sku###idetail(detail)) OR
          CHANGED(stockProp###idetail(detail)) OR
-        (CHANGED(dateTime###idetail(detail)) AND NOT isPosted###idetail(detail)) OR
+        (CHANGED(prefixTime###dateTime###idetail(detail)) AND NOT isPosted###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
         AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND roundCondition == roundConditionCalcPriceListTypeSku(priceListType, sku###idetail(detail))
         AND NOT CHANGED(prefix###price###idetail(detail))
@@ -249,7 +249,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(prefixP###price###idetail(detail)) OR
          CHANGED(sku###idetail(detail)) OR
          CHANGED(stockProp###idetail(detail)) OR
-        (CHANGED(dateTime###idetail(detail)) AND NOT isPosted###idetail(detail)) OR
+        (CHANGED(prefixTime###dateTime###idetail(detail)) AND NOT isPosted###idetail(detail)) OR
          CHANGED(batch###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
         AND NOT CHANGED(prefix###price###idetail(detail))
@@ -259,12 +259,12 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                             prevPriceBPriceListTypeBatchStockDateTime(priceListType,
                                                                                        batch###idetail(detail),
                                                                                        stockProp###idetail(detail),
-                                                                                       dateTime###idetail(detail))
+                                                                                       prefixTime###dateTime###idetail(detail))
                                                    ELSE
                                                             prevPriceBPriceListTypeSkuStockDateTime(priceListType,
                                                                                        sku###idetail(detail),
                                                                                        stockProp###idetail(detail),
-                                                                                       dateTime###idetail(detail))
+                                                                                       prefixTime###dateTime###idetail(detail))
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
             prefix###markup###idetail(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                                prefix###price###idetail(detail),
@@ -890,7 +890,7 @@ WHEN SESSION FORMS userPricing // цены берем на начало сесс
 //    OBJECTS d = UserPricingDetail FIXED PANEL
 //    PROPERTIES (d) minRetailPriceUserPricingDetail
 //;
-@deriveDocumentDetailBatchOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing);
+@deriveDocumentDetailBatchOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing, );
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
