@@ -1,6 +1,6 @@
 MODULE Barcode;
 
-REQUIRE System, Integration, Numerator, SkuLedger, StockSkuDocument, Utils;
+REQUIRE System, Integration, Numerator, SkuLedger, Utils, Document;
 
 CLASS Barcode 'Штрих код';
 TABLE barcode (Barcode);
@@ -307,14 +307,6 @@ seekSkuBarcode = ACTION (){
     seekBarcode() <- NULL;
 }
 
-META defineDialogSkuBarcode (form)
-    EXTEND FORM form
-        PROPERTIES READONLY idBarcodeSku(s), idBarcodeSku(si)
-    ;
-END
-
-@defineDialogSkuBarcode(dialogSku);
-
 EXTEND FORM skus
     PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku(s)
 ;
@@ -463,12 +455,6 @@ META deriveDocumentDetailBarcodeCustom (detail, skuProp, toShowProp)
         WHEN CHANGED(skuProp###detail(detail)) OR CHANGED(toShowProp###detail(detail));
 END
 
-
-idBarcodeSkuDocumentDetail 'Товар' (documentDetail) = idBarcodeSku(skuDocumentDetail(documentDetail));
-
-EXTEND FORM documents
-    PROPERTIES (dd) idBarcodeSkuDocumentDetail BEFORE nameSkuDocumentDetail(dd)
-;
 
 FORM barcodeSku 'Штрихкоды'
     OBJECTS s = Sku FIXED PANEL

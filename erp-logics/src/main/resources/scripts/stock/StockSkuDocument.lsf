@@ -1,6 +1,6 @@
 MODULE StockSkuDocument;
 
-REQUIRE SkuLedger, SystemEvents;
+REQUIRE SkuLedger, SystemEvents, Barcode, StockMovement;
 
 NAMESPACE Stock;
 
@@ -467,7 +467,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
 
         OBJECTS           sst=Stock
         OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
-        PROPERTIES        READONLY BACKGROUND backgroundSku###object###Stock(ks, concrete, st) nameSku(ks), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks)
+        PROPERTIES        READONLY BACKGROUND backgroundSku###object###Stock(ks, concrete, st) nameSku(ks) ON SHORTCUT showMovementSkuSkuStock(ks, st) ON SHORTCUT showMovementPriceSkuSkuStock(ks, st), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks)
         PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###stock###object(concrete)
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
 
@@ -753,7 +753,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
         FILTERGROUP object##inactiveStock2 FILTER 'Активный' activeStock(cc) 'ctrl F10' DEFAULT
         
         OBJECTS           sts=(st=Stock, ks=Sku)
-        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks), nameStock(st) SHOWIF not###stockProp###object(concrete) 
+        PROPERTIES        READONLY nameSku(ks) ON SHORTCUT showMovementSkuSkuStock(ks, st) ON SHORTCUT showMovementPriceSkuSkuStock(ks, st), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks), nameStock(st) SHOWIF not###stockProp###object(concrete) 
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
         FILTERS           isParentSkuGroupSku(sk, ks),
                           (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
@@ -1044,7 +1044,7 @@ META defineDialogSku (form)
         FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
 
         OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
-        PROPERTIES READONLY    idSku(s) SHOWIF showIDs(), inputName = nameSku(s) //form###nameSku(s)
+        PROPERTIES READONLY    idBarcodeSku(s), idSku(s) SHOWIF showIDs(), inputName = nameSku(s) //form###nameSku(s)
         PROPERTIES(s)          form###quantity
         PROPERTIES             editSku(s)
 
@@ -1052,7 +1052,7 @@ META defineDialogSku (form)
         ORDER BY inputName
 
         OBJECTS si=Sku
-        PROPERTIES READONLY     selectedName = nameSku(si)
+        PROPERTIES READONLY     idBarcodeSku(si), selectedName = nameSku(si)
         PROPERTIES(si)          form###quantity
         FILTERS                 form###quantity(si)
         ORDER BY selectedName
@@ -1231,6 +1231,7 @@ nameCustomerStockDocument 'Склад покупателя'(document) = nameStoc
 documentDocumentDetail = ABSTRACT Document(DocumentDetail);
 
 skuDocumentDetail = ABSTRACT Sku(DocumentDetail);
+idBarcodeSkuDocumentDetail 'Штрих-код' (documentDetail) = idBarcodeSku(skuDocumentDetail(documentDetail));
 nameSkuDocumentDetail 'Товар' (d) = nameSku(skuDocumentDetail(d));
 quantityDocumentDetail 'Кол-во' = ABSTRACT NUMERIC[16,5] (DocumentDetail);
 priceDocumentDetail 'Цена' = ABSTRACT NUMERIC[14,2] (DocumentDetail);
@@ -1248,7 +1249,7 @@ FORM documents 'Документы с товарами'
                   nameCustomerDocument, nameCustomerStockDocument, objectClassName
     PROPERTIES()  FORCE PANEL TOOLBAR fillPriceDocuments TODRAW d
     OBJECTS dd=DocumentDetail
-    PROPERTIES(dd) READONLY indexDocumentDetail, nameSkuDocumentDetail, quantityDocumentDetail, priceDocumentDetail SHOWIF fillPriceDocuments()
+    PROPERTIES(dd) READONLY indexDocumentDetail, idBarcodeSkuDocumentDetail, nameSkuDocumentDetail, quantityDocumentDetail, priceDocumentDetail SHOWIF fillPriceDocuments()
 
     FILTERS documentDocumentDetail(dd)==d
 ;
