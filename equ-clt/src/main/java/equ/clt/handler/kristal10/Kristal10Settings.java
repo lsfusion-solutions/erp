@@ -10,6 +10,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean seasonIsCountry;
     private Boolean idItemInMarkingOfTheGood;
     private Boolean useShopIndices;
+    private Boolean ignoreSalesDepartmentNumber;
     private Boolean useIdItemInRestriction;
     private String transformUPCBarcode; //12to13 or 13to12
     private Integer maxFilesCount;
@@ -52,6 +53,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseShopIndices(Boolean useShopIndices) {
         this.useShopIndices = useShopIndices;
+    }
+
+    public Boolean getIgnoreSalesDepartmentNumber() {
+        return ignoreSalesDepartmentNumber;
+    }
+
+    public void setIgnoreSalesDepartmentNumber(Boolean ignoreSalesDepartmentNumber) {
+        this.ignoreSalesDepartmentNumber = ignoreSalesDepartmentNumber;
     }
 
     public Boolean getUseIdItemInRestriction() {

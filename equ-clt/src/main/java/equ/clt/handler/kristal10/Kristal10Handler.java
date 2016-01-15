@@ -699,6 +699,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
         boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
 
         Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
@@ -706,7 +707,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
-                String key = c.directory + "_" + c.number + "_" + c.overDepartNumber + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
+                String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
                 directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
                 if (c.number != null && c.numberGroup != null)
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
@@ -842,7 +843,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     if (departNumber == null)
                                         departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
 
-                                    String key = directory + "_" + numberCashRegister + "_" + departNumber + (useShopIndices ? ("_" + shop) : "");
+                                    String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
 
                                     String weightCode = directoryWeightCodeMap.containsKey(key) ? directoryWeightCodeMap.get(key) : "21";
 
