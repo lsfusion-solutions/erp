@@ -341,13 +341,15 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @deriveDocumentDetailVATPrefixSum (userCreditNote, invoice);
 
 //-- агр.объект
-
+    caseToShipInvoiceDetail = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,5](InvoiceDetail);
+    caseToShipInvoiceDetail (detail) += WHEN skuInvoiceDetail(detail) IS Item THEN toShipInvoiceDetail(detail);
+        
     @defineDocumentInterfaceProperty (invoice, createCreditNote, 'Создать акт расхождения');
     
     skipCreateCreditNoteInvoiceDetail = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
     
     needToCreditNoteInvoiceDetail (invoiceDetail)= createCreditNoteInvoiceDetail(invoiceDetail)  AND
-        toShipInvoiceDetail (invoiceDetail) AND isPostedInvoiceDetail(invoiceDetail) 
+        caseToShipInvoiceDetail (invoiceDetail) AND isPostedInvoiceDetail(invoiceDetail) 
         AND isNotChargeSku(skuInvoiceDetail(invoiceDetail)) AND NOT skipCreateCreditNoteInvoiceDetail(invoiceDetail) PERSISTENT;
 
     overCopyInvoice(s, d) += ACTION (s, d) {
@@ -418,19 +420,20 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
 
     @defineDocumentDescription(invoiceCreditNote, InvoiceCreditNoteDetail, 'Акт расхождения на основе накладной'###sign);
     descriptionCreditNote (creditNote) += descriptionInvoiceCreditNote(creditNote);
-
+        
     @defineDocumentAggregationDetailSku(invoice, invoiceCreditNote, sku);
     skuCreditNoteDetail(creditNoteDetail) +=  skuInvoiceCreditNoteDetail(creditNoteDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, toShip, 'Кол-во');   //                ????????   может надо сделать через минус
-
-    quantityCreditNoteDetail(creditNoteDetail) += toShipInvoiceCreditNoteDetail(creditNoteDetail);
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, caseToShip, 'Кол-во'); 
+    
+    quantityCreditNoteDetail(creditNoteDetail) += caseToShipInvoiceCreditNoteDetail(creditNoteDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, price, 'Цена');
 
     priceCreditNoteDetail(creditNoteDetail) += priceInvoiceCreditNoteDetail(creditNoteDetail);
 
-    sumInvoiceCreditNoteDetail 'Сумма' (invoiceCreditNoteDetail) = NUMERIC[16,2](roundPriceCurrency((toShipInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
+    sumInvoiceCreditNoteDetail 'Сумма' (invoiceCreditNoteDetail) = NUMERIC[16,2](roundPriceCurrency((caseToShipInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
         priceInvoiceCreditNoteDetail(invoiceCreditNoteDetail)), currencyInvoiceCreditNoteDetail(invoiceCreditNoteDetail)));
 
     sumCreditNoteDetail(creditNoteDetail) += sumInvoiceCreditNoteDetail(creditNoteDetail);
