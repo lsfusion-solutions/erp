@@ -8,6 +8,10 @@ PRIORITY Sale;
 overFillOrderUserOrderInvoice = ABSTRACT ACTION LIST (Purchase.UserOrder, Sale.Invoice);
 overFillOrderUserOrderDetailInvoiceDetail = ABSTRACT ACTION LIST (Purchase.UserOrderDetail, Sale.InvoiceDetail);
 
+purchaseUserOrderInvoice = DATA Purchase.UserOrder (Invoice);
+seriesNumberPurchaseUserOrderInvoice 'Заказ (закупка) серия/номер' = Purchase.seriesNumberUserOrder(purchaseUserOrderInvoice(i));
+notPurchaseUserOrderInvoice = i IS Invoice AND NOT purchaseUserOrderInvoice(i);
+
 createUserOrderInvoice 'Заказ (закупка)' =  ACTION (invoice) NEWSESSION{
 
     FOR ADDOBJ o = Purchase.UserOrder DO {
@@ -27,6 +31,7 @@ createUserOrderInvoice 'Заказ (закупка)' =  ACTION (invoice) NEWSESS
         Purchase.showPackUserOrder(o) <- Sale.showPackInvoice(invoice);
         Purchase.operationUserOrder(o) <- purchaseOperationOperation(Sale.operationInvoice(invoice));
         overFillOrderUserOrderInvoice(o, invoice);
+        purchaseUserOrderInvoice(invoice) <- o;
 
         FOR Sale.invoiceInvoiceDetail(detail)==invoice ADDOBJ d = Purchase.UserOrderDetail DO {
 
@@ -53,3 +58,8 @@ createUserOrderInvoice 'Заказ (закупка)' =  ACTION (invoice) NEWSESS
     FORM Purchase.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR IMAGE 'add.png';
+
+deletePurchaseUserOrderInvoice  'Очистить заказ (закупка)' (invoice) = ACTION NEWSESSION {
+    DELETE o WHERE o == purchaseUserOrderInvoice(invoice);
+    apply();
+} TOOLBAR CONFIRM IMAGE 'delete.png';
