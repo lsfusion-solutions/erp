@@ -837,12 +837,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
         String idPositionCashier = kristalSettings != null ? kristalSettings.getIdPositionCashier() : null;
 
-        if (directoryStockMap.isEmpty())
-            machineryExchangeLogger.info("Empty directory map");
-        for (Map.Entry<String, Set<String>> entry : directoryStockMap.entrySet()) {
-            machineryExchangeLogger.info(entry.getKey() + ": " + entry.getValue());
-        }
-
         for (Map.Entry<String, Set<String>> entry : directoryStockMap.entrySet()) {
             String directory = entry.getKey();
             Set<String> stockSet = entry.getValue();
