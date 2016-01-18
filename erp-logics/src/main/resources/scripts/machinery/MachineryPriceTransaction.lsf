@@ -461,12 +461,13 @@ requestExchangeRequestExchangeError = DATA RequestExchange (RequestExchangeError
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
-                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange SHOWIF dateTimeSucceededRequestExchange(r),
+                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange, 
                   startDateRequestExchange SHOWIF showStartDate(r), idDiscountCardFromRequestExchange SHOWIF showStartDate(r), idDiscountCardToRequestExchange SHOWIF showStartDate(r)
  
     OBJECTS s = Stock FIXED GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
     PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock
+    ORDER BY nameLegalEntityStock(s)
     FILTERS isCompanyStock(s)
     
     OBJECTS m = Machinery 
@@ -479,7 +480,26 @@ FORM requestExchange 'Запрос обмена данными'
 
 DESIGN requestExchange {
     main {
-        MOVE r.box;
+        NEW topContainer{
+            caption = 'Запрос обмена данными';
+            NEW firstRow {
+                type = CONTAINERH;
+                MOVE PROPERTY(nameStockRequestExchange(r));
+                MOVE PROPERTY(dateFromRequestExchange(r));
+                MOVE PROPERTY(dateToRequestExchange(r));
+                MOVE PROPERTY(captionRequestExchangeTypeRequestExchange(r));                
+            }
+            NEW secondRow {
+                type = CONTAINERH;
+                MOVE PROPERTY(succeededRequestExchange(r));
+            }            
+            NEW thirdRow {
+                type = CONTAINERH;
+                MOVE PROPERTY(startDateRequestExchange(r));
+                MOVE PROPERTY(idDiscountCardFromRequestExchange(r));
+                MOVE PROPERTY(idDiscountCardToRequestExchange(r));                
+            }
+        }
         NEW tabbedPanel {
             fill = 1;
             type = TABBED;
