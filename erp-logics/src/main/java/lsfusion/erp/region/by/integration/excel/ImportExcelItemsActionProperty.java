@@ -73,9 +73,13 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
             BigDecimal grossWeightItem = parseBigDecimal(sheet.getCell(11, i));
             String compositionItem = parseString(sheet.getCell(12, i));
             BigDecimal retailVAT = parseBigDecimal(sheet.getCell(13, i));
+            if(retailVAT != null && retailVAT.doubleValue() > 100)
+                retailVAT = null;
             String idWare = parseString(sheet.getCell(14, i));
             BigDecimal priceWare = parseBigDecimal(sheet.getCell(15, i));
             BigDecimal wareVAT = parseBigDecimal(sheet.getCell(16, i));
+            if(wareVAT != null && wareVAT.doubleValue() > 100)
+                wareVAT = null;
             String idWriteOffRate = parseString(sheet.getCell(17, i));
             BigDecimal baseMarkup = parseBigDecimal(sheet.getCell(18, i));
             BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(19, i));
