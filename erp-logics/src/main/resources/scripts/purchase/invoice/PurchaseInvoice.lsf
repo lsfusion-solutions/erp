@@ -122,6 +122,26 @@ costPriceInvoiceDetail(detail) = NUMERIC[14,2] (incomePriceInvoiceDetail(detail)
 costPriceUserInvoiceDetail(detail) = NUMERIC[14,2] (incomePriceUserInvoiceDetail(detail) (+) extraCostPriceUserInvoiceDetail(detail) (+)
                                                     customCostPriceUserInvoiceDetail(detail) (+) certificateCostPriceUserInvoiceDetail(detail)) IF incomePriceUserInvoiceDetail(detail);
 
+//-- Суммы
+extraCostSumInvoiceDetail = ABSTRACT NUMERIC[16,2] (InvoiceDetail);
+extraCostSumUserInvoiceDetail = ABSTRACT NUMERIC[16,2] (UserInvoiceDetail);
+extraCostSumInvoiceDetail (detail) += extraCostSumUserInvoiceDetail(detail);
+
+customCostSumInvoiceDetail = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+customCostSumUserInvoiceDetail = ABSTRACT NUMERIC[16,2](UserInvoiceDetail);
+customCostSumInvoiceDetail(detail) += customCostSumUserInvoiceDetail(detail);
+
+certificateCostSumInvoiceDetail = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+certificateCostSumUserInvoiceDetail = ABSTRACT NUMERIC[16,2](UserInvoiceDetail);
+certificateCostSumInvoiceDetail(detail) += certificateCostSumUserInvoiceDetail(detail);
+
+incomeSumInvoiceDetail (detail) = IF isHomeCurrencyInvoice(invoiceInvoiceDetail(detail)) THEN
+                                       homeSumInvoiceDetail(detail)
+                                    ELSE sumInvoiceDetail(detail);
+
+costSumInvoiceDetail(detail) = NUMERIC[16,2] (incomeSumInvoiceDetail(detail) (+) extraCostSumInvoiceDetail(detail) (+)
+                                                customCostSumInvoiceDetail(detail) (+) certificateCostSumInvoiceDetail(detail)) IF incomeSumInvoiceDetail(detail);
+                                                
 // -------------------------------------- Формирование задолженности ---------------------------------------------------
 
 CONSTRAINT supplierUserInvoice(userInvoice) AND NOT isSupplierLegalEntity(supplierUserInvoice(userInvoice))

@@ -67,15 +67,21 @@ compliancePriceInvoiceDetail 'Сертификация (ед.)' = ABSTRACT NUMER
 compliancePriceUserInvoiceDetail 'Сертификация (ед.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
 compliancePriceInvoiceDetail(detail) += compliancePriceUserInvoiceDetail(detail);
 
+overComplianceSumInvoiceDetail 'Сертификация сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+overComplianceSumUserInvoiceDetail 'Сертификация сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+overComplianceSumInvoiceDetail(detail) += overComplianceSumUserInvoiceDetail(detail);
+
 complianceSumUserInvoiceDetail 'Сертификация' (d) = quantityUserInvoiceDetail(d) * compliancePriceUserInvoiceDetail(d);
 
 certificateCostPriceUserInvoiceDetail(invoiceDetail) += compliancePriceUserInvoiceDetail(invoiceDetail);
+certificateCostSumUserInvoiceDetail(invoiceDetail) += overComplianceSumUserInvoiceDetail(invoiceDetail);
 
 complianceSumUserInvoiceDetailCompliance 'Сертификация' = GROUP SUM complianceSumUserInvoiceDetail(d)
                                                                 BY complianceUserInvoiceDetail(d) MINCHARWIDTH 15 PERSISTENT;
                                                                 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
     compliancePriceUserInvoiceDetail(d) <- compliancePriceUserInvoiceDetail(detail);
+    overComplianceSumUserInvoiceDetail(d) <- overComplianceSumUserInvoiceDetail(detail);
 }                                                                 
 
 // ----------------------------- Расширение формы инвойсов под сертификацию ------------------------- //
@@ -206,6 +212,7 @@ calcCompliancePriceUserInvoiceDetail 'Сертификация (ед.)' (d) = ro
 
 recalculatePriceInvoiceCompliance 'Рассчитать расходы (за ед.)' = ACTION (compliance) {
     compliancePriceUserInvoiceDetail(d) <- calcCompliancePriceUserInvoiceDetail(d) WHERE complianceUserInvoiceDetail(d) == compliance;
+    overComplianceSumUserInvoiceDetail(d) <- NUMERIC[16,2](calcComplianceSumUserInvoiceDetail(d)) WHERE complianceUserInvoiceDetail(d) == compliance;
 } TOOLBAR;
 
 

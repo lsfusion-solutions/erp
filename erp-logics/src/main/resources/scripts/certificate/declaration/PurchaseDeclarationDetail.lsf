@@ -197,12 +197,18 @@ dutyPriceInvoiceDetail 'Пошлина (ед.)' = ABSTRACT NUMERIC[20,8](Invoice
 dutyPriceUserInvoiceDetail 'Пошлина (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 dutyPriceInvoiceDetail(detail) += dutyPriceUserInvoiceDetail(detail);
 
-overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
-    dutyPriceUserInvoiceDetail(d) <- dutyPriceUserInvoiceDetail(detail);
-}    
-
 dutySumInvoiceDetail 'Сумма (пошлина)' (detail) = dutyPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail);
 dutySumUserInvoiceDetail 'Сумма (пошлина)' (detail) = dutyPriceUserInvoiceDetail(detail)*quantityUserInvoiceDetail(detail);
+
+overDutySumInvoiceDetail 'Пошлина сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+overDutySumUserInvoiceDetail 'Пошлина сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+overDutySumInvoiceDetail(detail) += overDutySumUserInvoiceDetail(detail);
+
+overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
+    dutyPriceUserInvoiceDetail(d) <- dutyPriceUserInvoiceDetail(detail);
+    overDutySumUserInvoiceDetail(d) <- overDutySumUserInvoiceDetail(detail);
+}  
+
 @defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, duty, ' (пошлина) всего');
 
 // Сбор
@@ -210,17 +216,22 @@ registrationPriceInvoiceDetail 'Таможенный сбор (ед.)' = ABSTRAC
 registrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 registrationPriceInvoiceDetail(detail) += registrationPriceUserInvoiceDetail(detail);
 
-overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
-    registrationPriceUserInvoiceDetail(d) <- registrationPriceUserInvoiceDetail(detail);      
-} 
-
 registrationSumInvoiceDetail 'Сумма (таможенный сбор)' (detail) = registrationPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail);
 registrationSumUserInvoiceDetail 'Сумма (таможенный сбор)' (detail) = registrationPriceUserInvoiceDetail(detail)*quantityUserInvoiceDetail(detail);
+
+overRegistrationSumInvoiceDetail 'Таможенный сбор сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+overRegistrationSumUserInvoiceDetail 'Таможенный сбор сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+overRegistrationSumInvoiceDetail(detail) += overRegistrationSumUserInvoiceDetail(detail);
+
+overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
+    registrationPriceUserInvoiceDetail(d) <- registrationPriceUserInvoiceDetail(detail); 
+    overRegistrationSumUserInvoiceDetail(d) <- overRegistrationSumUserInvoiceDetail(detail);      
+} 
 @defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, registration, ' (таможенный сбор) всего');
 
 // Проводим по инвойсу
 customCostPriceUserInvoiceDetail(invoiceDetail) += registrationPriceUserInvoiceDetail(invoiceDetail) (+) dutyPriceUserInvoiceDetail(invoiceDetail);
-
+customCostSumUserInvoiceDetail(invoiceDetail) += overRegistrationSumUserInvoiceDetail(invoiceDetail) (+) overDutySumUserInvoiceDetail(invoiceDetail);
 // НДС
 VATPriceInvoiceDetail 'НДС (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
 VATPriceUserInvoiceDetail 'НДС (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
@@ -1150,8 +1161,10 @@ recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (з�
    
     IF NOT dataDutySumDeclaration(declaration) THEN {
         dutyPriceUserInvoiceDetail(d) <- calcDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+        overDutySumUserInvoiceDetail(d) <- NUMERIC[16,2](calcDutySumUserInvoiceDetail(d)) WHERE declarationUserInvoiceDetail(d) == declaration;
     } ELSE {
-        dutyPriceUserInvoiceDetail(d) <- calcDataDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;    
+        dutyPriceUserInvoiceDetail(d) <- calcDataDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;   
+        overDutySumUserInvoiceDetail(d) <- NUMERIC[16,2](calcDataDutySumUserInvoiceDetail(d)) WHERE declarationUserInvoiceDetail(d) == declaration;          
     }
     IF dutySumRoundDeclaration(declaration) AND NOT notPaintRounding() THEN {
         LOCAL int = INTEGER();
@@ -1167,6 +1180,8 @@ recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (з�
 
 recalculateRegistrationPriceInvoiceDeclaration 'Рассчитать сбор (за ед.)' = ACTION (declaration) {
     registrationPriceUserInvoiceDetail(d) <- calcRegistrationPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+    overRegistrationSumUserInvoiceDetail(d) <- NUMERIC[16,2](calcRegistrationSumUserInvoiceDetail(d)) WHERE declarationUserInvoiceDetail(d) == declaration;
+    
     IF registrationSumRoundDeclaration(declaration) AND NOT notPaintRounding() THEN {
         LOCAL int = INTEGER();
         int() <-0;
