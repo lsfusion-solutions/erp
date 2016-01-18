@@ -430,7 +430,7 @@ META implementItemAttribute(property, caption, itemType, attributeClass)
 END
 
 // Расширяем формы настройки
-EXTEND FORM options
+FORM itemOptions 'Настройка атрибутов'
     OBJECTS ia = ItemAttribute
     PROPERTIES staticIA= staticCaption(ia)
     
@@ -442,23 +442,24 @@ EXTEND FORM options
     PROPERTIES staticIA1= staticCaption(ia1)    
 ;
 
-DESIGN options {
-    pane {
-        NEW items {
-            caption = 'Товары';
-            
-            NEW itemSplit {
-                fill = 1;
-                type = SPLITV;
-                MOVE ia.box;
-                NEW items1 {
-                    fill = 1;
-                    type = SPLITH;
-                    MOVE treeGroups.tree.box;
-                    MOVE ia1.box;
-                }
-            }
+DESIGN itemOptions {
+    NEW itemSplit {
+        fill = 1;
+        type = SPLITV;
+        MOVE ia.box;
+        NEW items1 {
+            fill = 1;
+            type = SPLITH;
+            MOVE treeGroups.tree.box;
+            MOVE ia1.box;
         }
+    }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    skuNavigator {
+        ADD itemOptions;
     }
 }
 
@@ -650,7 +651,7 @@ NAVIGATOR {
 prefixInNameItemAttribute 'Префикс' = DATA VARSTRING[20] (ItemAttribute);
 postfixInNameItemAttribute 'Постфикс' = DATA VARSTRING[20] (ItemAttribute);
 
-EXTEND FORM options PROPERTIES(ia) prefixInNameItemAttribute, postfixInNameItemAttribute;
+EXTEND FORM itemOptions PROPERTIES(ia) prefixInNameItemAttribute, postfixInNameItemAttribute;
 
 completeNameItemAttribute (item, attribute) = CONCAT '', prefixInNameItemAttribute(attribute) IF item IS Item, valueItemAttribute(item, attribute), postfixInNameItemAttribute(attribute) IF item IS Item;
 
@@ -671,7 +672,7 @@ META defineItemAttributeName (prefix, caption, group)
                                   IF numberInName###prefix##ItemAttributeItem(attribute, item) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttributeItem(attribute, item)](item)),
                             overNameItem(item)
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
-    EXTEND FORM options 
+    EXTEND FORM itemOptions 
         PROPERTIES(ia) numberInName###prefix##ItemAttribute
         PROPERTIES(ia1, tg) numberInName###prefix##ItemAttributeItemGroup
     ;
@@ -797,7 +798,14 @@ END
 
 deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ABSTRACT ACTION LIST();
 EXTEND FORM options PROPERTIES() deleteUnusedAttributes;
-DESIGN options { items { MOVE PROPERTY(deleteUnusedAttributes()); } };
+DESIGN options {
+    pane {
+        NEW items {
+            caption = 'Товары';
+            MOVE PROPERTY(deleteUnusedAttributes()); 
+            }
+    }
+};
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
