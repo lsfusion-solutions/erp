@@ -70,14 +70,17 @@ compliancePriceInvoiceDetail(detail) += compliancePriceUserInvoiceDetail(detail)
 overComplianceSumInvoiceDetail 'Сертификация сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
 overComplianceSumUserInvoiceDetail 'Сертификация сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
 overComplianceSumInvoiceDetail(detail) += overComplianceSumUserInvoiceDetail(detail);
-
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overCompliance, ' (сертификация) всего');
+                                                                
 complianceSumUserInvoiceDetail 'Сертификация' (d) = quantityUserInvoiceDetail(d) * compliancePriceUserInvoiceDetail(d);
+complianceSumInvoiceDetail 'Сертификация' (d) = quantityInvoiceDetail(d) * compliancePriceInvoiceDetail(d);
 
 certificateCostPriceUserInvoiceDetail(invoiceDetail) += compliancePriceUserInvoiceDetail(invoiceDetail);
 certificateCostSumUserInvoiceDetail(invoiceDetail) += overComplianceSumUserInvoiceDetail(invoiceDetail);
 
 complianceSumUserInvoiceDetailCompliance 'Сертификация' = GROUP SUM complianceSumUserInvoiceDetail(d)
                                                                 BY complianceUserInvoiceDetail(d) MINCHARWIDTH 15 PERSISTENT;
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, compliance, ' (сертификация) всего');
                                                                 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
     compliancePriceUserInvoiceDetail(d) <- compliancePriceUserInvoiceDetail(detail);

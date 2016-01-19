@@ -203,6 +203,7 @@ dutySumUserInvoiceDetail 'Сумма (пошлина)' (detail) = dutyPriceUserI
 overDutySumInvoiceDetail 'Пошлина сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
 overDutySumUserInvoiceDetail 'Пошлина сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
 overDutySumInvoiceDetail(detail) += overDutySumUserInvoiceDetail(detail);
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overDuty, ' (пошлина) всего');
 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
     dutyPriceUserInvoiceDetail(d) <- dutyPriceUserInvoiceDetail(detail);
@@ -222,6 +223,7 @@ registrationSumUserInvoiceDetail 'Сумма (таможенный сбор)' (d
 overRegistrationSumInvoiceDetail 'Таможенный сбор сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
 overRegistrationSumUserInvoiceDetail 'Таможенный сбор сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
 overRegistrationSumInvoiceDetail(detail) += overRegistrationSumUserInvoiceDetail(detail);
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overRegistration, ' (таможенный сбор) всего');
 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
     registrationPriceUserInvoiceDetail(d) <- registrationPriceUserInvoiceDetail(detail); 
@@ -237,8 +239,14 @@ VATPriceInvoiceDetail 'НДС (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
 VATPriceUserInvoiceDetail 'НДС (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 VATPriceInvoiceDetail(detail) += VATPriceUserInvoiceDetail(detail);
 
+overCustomsVATSumInvoiceDetail 'НДС сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+overCustomsVATSumUserInvoiceDetail 'НДС сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+overCustomsVATSumInvoiceDetail(detail) += overCustomsVATSumUserInvoiceDetail(detail);
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overCustomsVAT, ' НДС (входной) всего');
+
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
-    VATPriceUserInvoiceDetail(d) <- VATPriceUserInvoiceDetail(detail);      
+    VATPriceUserInvoiceDetail(d) <- VATPriceUserInvoiceDetail(detail);
+    overCustomsVATSumUserInvoiceDetail(d) <- overCustomsVATSumUserInvoiceDetail(detail);      
 } 
 
 customsVATSumInvoiceDetail 'Сумма НДС (входной)' (detail) = VATPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail);
@@ -1142,8 +1150,10 @@ DESIGN options {
 recalculateVATPriceInvoiceDeclaration 'Рассчитать НДС (за ед.)' = ACTION (declaration) {
     IF NOT dataVATSumDeclaration(declaration) THEN {
         VATPriceUserInvoiceDetail(d) <- calcVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;    
+        overCustomsVATSumUserInvoiceDetail(d) <- calcVATSumUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;    
     } ELSE {
         VATPriceUserInvoiceDetail(d) <- calcDataVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+        overCustomsVATSumUserInvoiceDetail(d) <- calcDataVATSumUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;  
     }
     IF VATSumRoundDeclaration(declaration) AND NOT notPaintRounding() THEN {
         LOCAL int = INTEGER();
