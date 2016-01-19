@@ -470,6 +470,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         for (Integer transaction : versionMap.values()) {
                             batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
                         }
+                        break;
                     } else {
                         count++;
                         processTransactionLogger.info(String.format("Waiting for deletion of signal record(s) %s in base", versionMap.keySet()));

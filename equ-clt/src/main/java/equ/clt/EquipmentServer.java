@@ -745,7 +745,7 @@ public class EquipmentServer {
 
     private void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result) throws RemoteException, SQLException {
         logger.error("Equipment server error: " + result);
-        remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result));
+        remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace());
     }
 
     private static Comparator<TransactionInfo> COMPARATOR = new Comparator<TransactionInfo>() {
