@@ -513,7 +513,7 @@ public class EquipmentServer {
                                 handler.finishReadingSalesInfo(salesBatch);
                             }
                         } catch (Exception e) {
-                            reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
+                            remote.errorEquipmentServerReport(sidEquipmentServer, e);
                         }
                     }
                 }
