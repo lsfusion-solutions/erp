@@ -67,6 +67,9 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
             String idBrand = parseString(sheet.getCell(5, i));
             String nameCountry = parseString(sheet.getCell(6, i));
             String barcode = parseString(sheet.getCell(7, i));
+            if (barcode != null && barcode.length() != 7 && barcode.length() != 8 && barcode.length() != 12 && barcode.length() != 13) {
+                barcode = null;
+            }
             Date date = parseDateValue(sheet.getCell(8, i), new Date(Calendar.getInstance().getTime().getTime()));
             Boolean split = parseBoolean(sheet.getCell(9, i));
             BigDecimal netWeightItem = parseBigDecimal(sheet.getCell(10, i));
