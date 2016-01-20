@@ -457,12 +457,13 @@ TABLE requestExchangeError (RequestExchangeError);
 message 'Сообщение' = DATA TEXT (RequestExchangeError);
 date 'Время' = DATA DATETIME (RequestExchangeError);
 requestExchange = DATA RequestExchange (RequestExchangeError);
+note 'Примечание' = DATA VARSTRING[100] (RequestExchange) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
-    PROPERTIES(r) nameStock, dateFrom, dateTo, 
-                  captionRequestExchangeType, succeeded, 
-                  startDate SHOWIF showStartDate(r), idDiscountCardFrom SHOWIF showStartDate(r), idDiscountCardTo SHOWIF showStartDate(r)
+    PROPERTIES(r) nameStock, dateFrom, dateTo, captionRequestExchangeType, succeeded, note, 
+                  startDate SHOWIF showStartDate(r), idDiscountCardFrom SHOWIF showStartDate(r), 
+                  idDiscountCardTo SHOWIF showStartDate(r)
  
     OBJECTS s = Stock FIXED GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) in
@@ -492,6 +493,7 @@ DESIGN requestExchange {
             NEW secondRow {
                 type = CONTAINERH;
                 MOVE PROPERTY(succeeded(r));
+                MOVE PROPERTY(note(r));                
             }            
             NEW thirdRow {
                 type = CONTAINERH;
@@ -515,6 +517,7 @@ copy 'Копировать' = ACTION (RequestExchange request) NEWSESSION {
         stock(r) <- stock(request);
         dateFrom(r) <- dateFrom(request);
         dateTo(r) <- dateTo(request);
+        note(r) <- note(request);
         requestExchangeType(r) <- requestExchangeType(request);
         startDate(r) <- startDate(request);
         idDiscountCardFrom(r) <- idDiscountCardFrom(request);
@@ -540,7 +543,7 @@ FORM requestExchanges 'Запросы обмена данными'
     
     OBJECTS r = RequestExchange LAST
     PROPERTIES(r) READONLY allStocks, dateFrom, dateTo, 
-                           captionRequestExchangeType, succeeded, dateTimeSucceeded,
+                           captionRequestExchangeType, succeeded, dateTimeSucceeded, note, 
                            startDate SHOWIF showStartDate(r) FORCE PANEL, idDiscountCardFrom SHOWIF showStartDate(r) FORCE PANEL, 
                            idDiscountCardTo SHOWIF showStartDate(r) FORCE PANEL
     PROPERTIES(r)          copy, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
